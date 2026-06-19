@@ -1,0 +1,14 @@
+# Secretos y configuración local: nunca se versionan.
+.env
+.env.*
+!.env.example
+
+# Artefactos comunes (ajusta según el stack del proyecto).
+__pycache__/
+*.pyc
+.venv/
+venv/
+node_modules/
+dist/
+build/
+.DS_Store

@@ -10,12 +10,18 @@ línea de código.
 
 1. Copia el contenido de este repo a tu nuevo proyecto.
 2. Verifica que **git esté configurado**. Se hace un commit por fase/incremento.
-3. Pídele al agente que ejecute `docs/arranque.md`. Ese guion te conduce por el
-   encuadre, la ingesta de material, el diseño y la validación —con un gate en
-   cada paso— **antes de programar**. No saltes el encuadre.
-4. Deja tus análisis, datos o documentos de referencia en `material/`. En el Paso
-   2 del arranque el agente los lee, te propone a dónde va cada cosa (gate) y los
-   rutea a los archivos oficiales (`docs/contexto.md`, `docs/decisiones.md`).
+3. **Deja primero tus entradas.** Documentos de contexto (antecedentes, specs,
+   notas) en `material/`; artefactos analíticos (notebooks, datos de entrada/salida,
+   resultados previos) en `analisis/`. `material/` es **obligatorio**: necesita al
+   menos un archivo para arrancar —si no tienes documentos, escribe un brief breve—,
+   porque el encuadre se **deriva del material**, no de lo que alcances a teclear en
+   frío. `analisis/` es opcional, pero el agente siempre la revisa.
+4. Pídele al agente que ejecute `docs/arranque.md`. Ese guion **empieza ingiriendo
+   tus entradas**: inventaría lo que hay, te pregunta si está completo, te propone a
+   dónde va cada cosa (gate) y arma un borrador de `docs/contexto.md`. Recién después
+   viene el encuadre, que es **revisar y completar** ese borrador —no llenarlo desde
+   cero—, seguido del diseño y la validación. Hay un gate en cada paso, **antes de
+   programar**.
 
 ## Las 5 fases (con compuerta humana entre cada una)
 
@@ -64,8 +70,8 @@ herramienta, te llevas `AGENTS.md` y funciona.
 │   ├── decisiones.md        ADR-lite
 │   ├── convenciones.md      cómo hacemos las cosas aquí
 │   └── definicion-de-hecho.md
-├── analisis/            notebooks y validación exploratoria
-├── material/            entrada de ingesta de contexto
+├── material/            entrada obligatoria: documentos de contexto (se leen)
+├── analisis/            entrada opcional: artefactos analíticos (notebooks, datos)
 ├── skills/              procedimientos reutilizables (incluye revisión crítica)
 ├── .env.example         variables de entorno documentadas (sin valores)
 └── .gitignore

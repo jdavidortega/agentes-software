@@ -29,8 +29,11 @@ pasa a la siguiente fase sin aprobación explícita de la persona.
 
 1. **Encuadre** — contexto, objetivos, criterios de éxito, *no-objetivos*, **set de
    oro** (ejemplos de salida esperada), **stack y arquitectura** y **modelo de
-   despliegue**. Incluye muestrear insumos reales. No asumas un stack por defecto:
-   pregúntalo.
+   despliegue**. **Arranca por la ingesta de las entradas, no por el encuadre en
+   frío:** `material/` es **obligatorio** (≥1 archivo) y `analisis/` opcional pero de
+   revisión obligatoria; el encuadre se **deriva** de ahí y luego se completan los
+   huecos. Incluye muestrear insumos reales. No asumas un stack por defecto:
+   pregúntalo. Detalle operativo en `docs/arranque.md`.
    → Gate: la persona confirma que el encuadre es correcto.
 2. **Diseño / plan** — el enfoque elegido y las decisiones de alcance, en
    `docs/plan.md` (plan vivo + bitácora + backlog).

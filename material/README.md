@@ -1,15 +1,24 @@
 # Material de contexto — entrada de ingesta
 
-> Carpeta de **entrada**. Aquí dejas el material que quieres que el agente tenga en
-> cuenta: análisis, datos, notas, código de referencia, capturas, etc. Puede haber
-> **varios archivos**. No necesitas ordenarlos ni clasificarlos: el agente los lee,
-> los clasifica y los rutea a los archivos oficiales de la metodología.
+> Carpeta de **entrada** para lo que se **lee**: antecedentes, motivación, specs,
+> notas, decisiones, código de referencia, capturas. Puede haber **varios
+> archivos**. No necesitas ordenarlos ni clasificarlos: el agente los lee, los
+> clasifica y los rutea a los archivos oficiales de la metodología.
+>
+> **Frontera con `analisis/`:** aquí va lo que se *lee*; los **artefactos
+> analíticos** (notebooks, scripts, datos de entrada/salida) van a `analisis/`.
+
+> **Obligatorio para arrancar.** Esta carpeta debe tener **≥1 archivo real** (además
+> de este `README.md`) antes de construir el encuadre: el encuadre se **deriva** del
+> material, no de lo que la persona alcance a teclear en frío. Si no tienes
+> documentos, escribe un brief breve y déjalo aquí. Sin material, el agente se
+> detiene (precondición de `docs/arranque.md`).
 
 ## Para la persona
 
 - Suelta aquí cualquier archivo de contexto, sin estructura previa.
-- Cuando quieras que se procese, díselo al agente (o él te pregunta en el Paso 2
-  del arranque: *"¿hay material de contexto que deba leer?"*).
+- Cuando quieras que se procese, díselo al agente (o él te pregunta en el Paso 1
+  del arranque, al inventariar las entradas).
 - Tú apruebas el ruteo antes de que se escriba nada (gate). El original **no se
   borra**: se queda aquí para trazabilidad.
 

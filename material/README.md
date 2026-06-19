@@ -25,8 +25,15 @@
 ## Para el agente (reglas de ingesta)
 
 1. Lee **todo** lo que haya en esta carpeta (salvo este `README.md`).
-2. Clasifica cada archivo y **propón** a dónde va, con su razón:
+2. Clasifica cada archivo y **propón** a dónde va, con su razón. **Siembra los
+   documentos vivos desde el principio**: si el material ya trae contenido para
+   ellos, no los dejes vacíos para "después".
    - **antecedentes y motivación** → `docs/contexto.md`.
+   - **stack, tecnologías y arquitectura** que defina → §"Stack y arquitectura" de
+     `docs/contexto.md` (la decisión); su detalle operativo va a `convenciones.md`.
+   - **convenciones operativas** (estilo, patrones, comandos de build/test/run,
+     entorno) → `docs/convenciones.md`, **verificando comandos y versiones contra la
+     doc oficial vigente** antes de fijarlos.
    - **datos o decisiones** que implique → `docs/decisiones.md` (ADR-lite).
    - material que se conserva como **referencia** tal cual → se queda aquí; solo
      se anota en el manifiesto y, si aplica, se enlaza desde `docs/contexto.md`.

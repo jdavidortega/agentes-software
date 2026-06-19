@@ -51,11 +51,18 @@ la persona cierre el set de entrada. Si `material/` está vacía → aplica la
 precondición de arranque y detente.
 
 **1b. Clasifica y rutea (gate de ruteo).** Para cada entrada, **propón** a dónde va
-con su razón y espera el OK antes de escribir en los archivos oficiales:
+con su razón y espera el OK antes de escribir en los archivos oficiales. La ingesta
+**siembra los documentos vivos desde el principio** con lo que el material ya
+provea: no se dejan vacíos para "después" si el material tiene contenido para ellos.
+Esto incluye:
 
 - De `material/`: los **antecedentes y la motivación** → `docs/contexto.md`; el
   **stack, tecnologías y arquitectura** que el material defina → sección "Stack y
-  arquitectura" de `docs/contexto.md`; los **datos o decisiones** que implique →
+  arquitectura" de `docs/contexto.md`; las **convenciones operativas** que el material
+  ya traiga (estilo de código, patrones, comandos de build/test/run, layout de
+  entorno) → `docs/convenciones.md`, **verificando comandos y versiones contra la doc
+  oficial vigente** antes de fijarlos (no los tomes de memoria ni de material que
+  pueda estar desactualizado); los **datos o decisiones** que implique →
   `docs/decisiones.md`.
 - De `analisis/` (si tiene contenido): los **hallazgos/resultados** del análisis
   previo → `docs/contexto.md` §Contexto; los **pares datos de entrada → datos de

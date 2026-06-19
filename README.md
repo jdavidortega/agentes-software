@@ -6,10 +6,6 @@ sí: es una plantilla que copias a tu proyecto real. El agente la sigue paso a
 paso, con una **compuerta humana entre cada fase**, antes de escribir la primera
 línea de código.
 
-Es la versión **solo software** de una metodología más amplia: aquí no hay
-selector de track ni nada de documentos; el proyecto arranca directo en el
-encuadre.
-
 ## Cómo usarla
 
 1. Copia el contenido de este repo a tu nuevo proyecto.

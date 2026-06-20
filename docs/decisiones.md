@@ -1,15 +1,16 @@
 # Registro de decisiones (ADR-lite)
 
 > **ADR** = Architecture Decision Record (registro de decisión de arquitectura);
-> "-lite" = versión ligera: fecha, contexto, opciones, decisión, razón, consecuencias.
+> "-lite" = versión ligera: fecha y hora, contexto, opciones, decisión, razón, consecuencias.
 > Una entrada por cada decisión donde había más de una opción razonable.
 > Copia el bloque de abajo hacia arriba (las más recientes primero).
+> **Fecha y hora en UTC**, tomadas del reloj real (`date -u`), no de memoria.
 
 ---
 
 ## ADR-000 — Plantilla (ejemplo, borrar)
 
-- **Fecha:** AAAA-MM-DD
+- **Fecha y hora (UTC):** AAAA-MM-DD HH:MM
 - **Estado:** propuesta | aceptada | reemplazada por ADR-XXX
 - **Contexto:** _qué problema o disyuntiva nos llevó a decidir._
 - **Opciones consideradas:**

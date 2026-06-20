@@ -3,6 +3,8 @@
 > El "hilo" mínimo que conecta **requisitos → incrementos → revisión**, con estado.
 > Inteligente = mínimo: solo se rastrea lo que ayuda a decidir. Demasiada
 > trazabilidad se vuelve carga y se abandona; si rastrear algo no aporta, no lo hagas.
+> **Toda marca de tiempo va en UTC** (`AAAA-MM-DD HH:MM`), tomada del reloj real
+> (`date -u`), no de memoria.
 
 ## IDs y cómo se enlazan
 
@@ -29,8 +31,8 @@ Backward: de un criterio se llega a su incremento. Una fila por criterio. -->
 abierto → resuelto (la persona llenó el hueco). Deben quedar todos resueltos antes
 del gate de diseño; no se rastrean las sugerencias. -->
 
-| Vacío | Punto incumplido | Estado | Resuelto (cómo / cuándo) |
-|-------|------------------|--------|--------------------------|
+| Vacío | Punto incumplido | Estado | Resuelto (cómo · AAAA-MM-DD HH:MM UTC) |
+|-------|------------------|--------|----------------------------------------|
 | R-E._ | _…_ | abierto | — |
 
 ## Registro de revisiones del juez
@@ -38,6 +40,6 @@ del gate de diseño; no se rastrean las sugerencias. -->
 <!-- Solo BLOQUEANTES, a cierre. Ciclo: abierto → resuelto (fecha + commit) →
 verificado (juez). Las sugerencias no se rastrean aquí: van como aviso al gate. -->
 
-| Hallazgo | Incr. | Criterio | Descripción | Estado | Resuelto (fecha · commit) |
-|----------|-------|----------|-------------|--------|---------------------------|
+| Hallazgo | Incr. | Criterio | Descripción | Estado | Resuelto (AAAA-MM-DD HH:MM UTC · commit) |
+|----------|-------|----------|-------------|--------|------------------------------------------|
 | R-I_._ | I_ | C_ | _…_ | abierto | — |

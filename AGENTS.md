@@ -13,7 +13,10 @@ condición de salida binaria por paso y un gate humano entre cada uno. No empiec
 por otro lado.
 
 Verifica también que **git esté configurado** antes de empezar; si no lo está,
-detente y pídelo. Se hace un commit por fase/incremento (ver `docs/convenciones.md`).
+detente y pídelo. Se hace **un commit al cierre de cada fase y de cada incremento**
+—no solo en la Fase 3—: el encuadre, el plan, cada incremento, la validación y el
+cierre quedan cada uno en su commit. Ningún gate se cruza con cambios sin commitear
+(ver `docs/convenciones.md`).
 
 ## 1. Qué es este proyecto
 
@@ -27,6 +30,15 @@ detente y pídelo. Se hace un commit por fase/incremento (ver `docs/convenciones
 El trabajo avanza por fases, con una **compuerta humana** entre cada una. No se
 pasa a la siguiente fase sin aprobación explícita de la persona.
 
+**Cómo se cierra una fase:** (a) su trabajo queda en un **commit** (ver §0 y
+`docs/convenciones.md`) y (b) se pide aprobación de forma **concreta**. Si no
+mostraste el contenido en el chat —está bien no hacerlo, por eficiencia de tokens—,
+no pidas un OK en abstracto: dile a la persona **qué documentos revisar** (p. ej.
+`docs/contexto.md`, `docs/plan.md`, `docs/decisiones.md`) y **qué información
+concreta** contiene cada uno (los criterios `C#`, el set de oro, los incrementos, la
+decisión registrada…), y que **debe validarlos antes de continuar**. El mensaje del
+gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimos?".
+
 1. **Encuadre** — contexto, objetivos, criterios de éxito, *no-objetivos*, **set de
    oro** (ejemplos de salida esperada), **stack y arquitectura** y **modelo de
    despliegue**. **Arranca por la ingesta de las entradas, no por el encuadre en
@@ -34,6 +46,7 @@ pasa a la siguiente fase sin aprobación explícita de la persona.
    revisión obligatoria; el encuadre se **deriva** de ahí y luego se completan los
    huecos. Incluye muestrear insumos reales. No asumas un stack por defecto:
    pregúntalo. Detalle operativo en `docs/arranque.md`.
+   → Antes del gate: **commit del encuadre** (`Ref: F1`).
    → Gate: la persona confirma que el encuadre es correcto.
 2. **Diseño / plan** — el enfoque elegido y las decisiones de alcance, en
    `docs/plan.md` (plan vivo + bitácora + backlog). Antes del gate, el encuadre y el
@@ -41,6 +54,7 @@ pasa a la siguiente fase sin aprobación explícita de la persona.
    **revisor funcional** como subagente con contexto propio; reporta, no escribe; ver
    `skills/revision-funcional.md`): verifica completitud y consistencia contra la
    fuente (`material/`, `analisis/`) y no se avanza con vacíos abiertos.
+   → Antes del gate: **commit del plan** (`Ref: F2`), con ADRs y trazabilidad inicial.
    → Gate: la persona aprueba el plan antes de escribir código.
 3. **Ejecución iterativa** — incrementos pequeños y revisables, no de un golpe. Cada
    incremento: verificación sobre datos reales, **revisión crítica independiente
@@ -107,8 +121,9 @@ un archivo nuevo es lo correcto: propónlo con explicación y pide autorización
 ## 5. Registro de decisiones
 
 Toda decisión con más de una opción razonable se documenta en
-`docs/decisiones.md` (formato ADR-lite). Esto sirve para dos cosas: trazabilidad
-y aprendizaje.
+`docs/decisiones.md` (formato ADR-lite), **con fecha y hora en UTC** tomada del
+reloj real (`date -u`), no de memoria. Esto sirve para dos cosas: trazabilidad
+y aprendizaje. La misma regla de marca de tiempo aplica a `docs/trazabilidad.md`.
 
 ## 6. Convenciones
 

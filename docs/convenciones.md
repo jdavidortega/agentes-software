@@ -70,14 +70,29 @@ Verificados contra la doc oficial actual de cada herramienta. -->
 - Secretos **solo por entorno**, nunca en el repo ni en el chat. Si uno se expone
   (aunque sea en una conversación), **rótalo**.
 
+## Marcas de tiempo
+<!-- Una sola regla, para que decisiones y trazabilidad sean auditables. -->
+- Toda fecha/hora que se escriba en `docs/decisiones.md` y `docs/trazabilidad.md`
+  (decisiones, cierres de vacíos, resolución de hallazgos) va en **UTC**, formato
+  `AAAA-MM-DD HH:MM`.
+- **Tómala del reloj real** (`date -u`), nunca de memoria: el modelo no conoce la hora.
+
 ## Git
 <!-- Disciplina mínima de control de versiones. -->
 - Git **configurado desde el inicio** del proyecto.
-- **Un commit por fase/incremento**, no al final de todo.
+- **Commit al cierre de CADA fase, no solo en los incrementos de código.** El error
+  típico es no commitear nada hasta el primer incremento de la Fase 3 y dejar las
+  Fases 1–2 sin guardar. Concretamente, hay al menos un commit:
+  - al aprobar el **encuadre** (Fase 1 → `docs/contexto.md` y la ingesta sembrada);
+  - al aprobar el **plan** (Fase 2 → `docs/plan.md`, ADRs, trazabilidad inicial);
+  - en **cada incremento** de la Fase 3 (no de un golpe al final);
+  - al cerrar la **validación** (Fase 4) y el **cierre/aprendizaje** (Fase 5).
+- Regla operativa: **ningún gate se cruza con cambios sin commitear**. Antes de pedir
+  aprobación, el trabajo de esa fase ya está en un commit.
 - Mensaje concreto y suficiente: qué cambió y por qué (no "varios cambios").
-- **Enlaza** cada commit a lo que resuelve, en el footer: `Ref: I3` (incremento) o
-  `Cierra: R-I3.1` (hallazgo del juez). Es la trazabilidad en el historial (ver
-  `docs/trazabilidad.md`).
+- **Enlaza** cada commit a lo que resuelve, en el footer: `Ref: I3` (incremento),
+  `Ref: F1`/`F2` (fase) o `Cierra: R-I3.1` (hallazgo del juez). Es la trazabilidad en
+  el historial (ver `docs/trazabilidad.md`).
 
 ## Pruebas
 - **Herméticas:** sin dependencia de `.env` real ni de servicios externos; inyectar

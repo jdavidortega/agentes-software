@@ -18,6 +18,12 @@ No se pasa al Paso N+1 hasta que **(a)** el validador del Paso N esté en **PASA
 **apruebe** explícitamente. Si un validador da FALLA, te detienes, dices qué
 falta y qué archivo ajustar, y vuelves a validar. La aprobación es por paso.
 
+**Cómo pides la aprobación (gate accionable).** Si no mostraste el contenido en el
+chat (está bien por eficiencia de tokens), no pidas un OK en abstracto: indica **qué
+archivos revisar** y **qué información concreta** contiene cada uno —p. ej. "revisa
+`docs/contexto.md`: los criterios `C1–C4`, el set de oro y el modelo de despliegue"— y
+di que **debe validarlos antes de continuar**. Nada de "ya quedó, ¿seguimos?".
+
 **Precondición de arranque:** no se construye el encuadre sin material. La carpeta
 `material/` debe tener **≥1 archivo real** (además de su `README.md`). Si está
 vacía, **detente** y pídelo: aunque sea un brief breve escrito a propósito. El
@@ -27,12 +33,14 @@ frío.
 ## Transversal (durante todo el arranque)
 
 - Cada decisión con **más de una opción razonable** → regístrala en
-  `docs/decisiones.md` (ADR-lite). **Esto aplica también durante la ejecución
-  (Fase 3)**, no solo en el diseño.
+  `docs/decisiones.md` (ADR-lite), **con fecha y hora UTC** del reloj real (`date -u`).
+  **Esto aplica también durante la ejecución (Fase 3)**, no solo en el diseño.
 - Cada dato o lección importante que surja → guárdalo en `docs/MEMORIA.md`.
 - Ante una bifurcación de diseño, **presenta opciones, no elijas en silencio**.
-- Git configurado desde el inicio; **commit por fase/incremento**, con mensaje
-  concreto y suficiente (ver `docs/convenciones.md`).
+- Git configurado desde el inicio; **commit al cierre de cada fase y de cada
+  incremento**, no solo en la Fase 3. En el arranque, eso significa al menos un commit
+  al aprobar el **encuadre** (`Ref: F1`) y otro al aprobar el **plan** (`Ref: F2`).
+  Ningún gate se cruza con cambios sin commitear (ver `docs/convenciones.md`).
 
 ---
 
@@ -139,6 +147,7 @@ marcador `-` ni el comentario `<!-- -->`— las secciones:
   estilo de arquitectura), con versiones verificadas contra la doc oficial.
 - [ ] Modelo de despliegue decidido (contenedor/host/serverless).
 - [ ] No queda ningún `[FALTA]` ni `[inferido]` sin confirmar con la persona.
+- [ ] El encuadre quedó en un **commit** (`Ref: F1`) antes de pedir el gate.
 
 ---
 
@@ -196,7 +205,10 @@ Confirma que el rastro quedó guardado antes de empezar a construir.
 
 **Validador (PASA/FALLA):**
 - [ ] Cada decisión con ≥2 opciones razonables (Pasos 1–4) tiene su ADR en
-  `docs/decisiones.md`, o se registró "no hubo decisiones de ese tipo".
+  `docs/decisiones.md` (con fecha/hora UTC), o se registró "no hubo decisiones de ese
+  tipo".
+- [ ] El plan, los ADRs y la trazabilidad inicial quedaron en un **commit**
+  (`Ref: F2`) antes de pedir el gate de diseño.
 
 ---
 

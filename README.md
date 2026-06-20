@@ -52,14 +52,14 @@ flowchart TD
       Pre{"¿material/ tiene 1+ archivo real?<br/>precondicion dura"}
       Pre -->|No| StopMat["Detente y pide material<br/>documento o brief breve"]
       StopMat -.-> Pre
-      Pre -->|Si| P1["Paso 1 · Ingesta<br/>inventariar material/ y analisis/<br/>clasificar y rutear, sembrar docs vivos<br/>muestrear 1-3 insumos reales"]
+      Pre -->|Si| P1["Paso 1 · Ingesta<br/>inventariar material/ y analisis/<br/>clasificar y rutear, sembrar docs vivos<br/>muestreo: abrir 1-3 ejemplos reales y validar supuestos"]
       P1 --> G1{"Gate: ¿set de entrada completo<br/>y ruteo aprobado?"}
       G1 -->|No| P1
       G1 -->|Si| P2["Paso 2 · Encuadre<br/>revisar y completar el borrador de contexto.md<br/>marcar origen: del material / inferido / FALTA<br/>set de oro con ejemplo entrada a salida"]
       P2 --> G2{"Gate: ¿encuadre confirmado,<br/>sin FALTA ni inferido pendiente?"}
       G2 -->|No| P2
       G2 -->|Si| P3["Paso 3 · Diseño<br/>plan minimo e incrementos en plan.md<br/>fuera de alcance explicito"]
-      P3 --> P4["Paso 4 · Revision funcional independiente<br/>revisor funcional: contexto y plan vs material/analisis<br/>reporta, no escribe"]
+      P3 --> P4["Paso 4 · Revision funcional independiente (rol analista)<br/>revisor funcional · revision-funcional<br/>encuadre y plan vs material y analisis · reporta, no escribe<br/>los vacios que halla se llaman R-E.n"]
       P4 --> RF{"¿Veredicto PASA y<br/>sin vacios R-E.n abiertos?"}
       RF -->|"Falla: vacio"| Fill["La persona llena el hueco:<br/>escribe en el .md o agrega documento"]
       Fill --> P4
@@ -89,6 +89,52 @@ flowchart TD
 
     F5 --> End(["Fin"])
 ```
+
+## Definiciones
+
+Glosario de los términos y siglas que usa la metodología (y el diagrama):
+
+- **Encuadre** — Fase 1: definir el *problema* (contexto, objetivos, no-objetivos,
+  criterios, set de oro, stack, despliegue) antes de diseñar nada. Vive en
+  `docs/contexto.md`.
+- **No-objetivos** — lo que queda **fuera de alcance a propósito**. El primer freno al
+  sobredimensionamiento.
+- **Gate / compuerta** — punto donde la persona **aprueba explícitamente** antes de
+  avanzar. No se sigue sin su OK.
+- **Material vs. análisis** — `material/` = documentos que se **leen** (obligatorio);
+  `analisis/` = artefactos que se **ejecutan o inspeccionan** —notebooks, datos de
+  entrada/salida— (opcional).
+- **Ingesta** — leer el material y el análisis, clasificarlos y **rutearlos** a los
+  archivos oficiales (`contexto.md`, `decisiones.md`, `convenciones.md`).
+- **Insumo** — cualquier **entrada real** del sistema: datos, archivos, respuestas de
+  API.
+- **Muestreo de insumos reales** — abrir **1 a 3 ejemplos reales** de cada insumo y
+  validar contra ellos los supuestos del spec (formato, nombres, casos límite) antes de
+  diseñar. Barato, y evita rediseñar a mitad de camino.
+- **Set de oro** — ≥5 pares `entrada → salida esperada` que definen la **calidad
+  aceptable** (no solo que "funcione"), con al menos un ejemplo concreto.
+- **Stack** — el lenguaje, framework, build y estilo de arquitectura elegidos.
+- **ADR** (*Architecture Decision Record*) — registro **ligero** de una decisión que
+  tenía más de una opción razonable: contexto, opciones, decisión, razón y
+  consecuencias. Viven en `docs/decisiones.md`.
+- **Definición de Hecho** (*DoD, Definition of Done*) — checklist de calidad que un
+  incremento debe cumplir para considerarse terminado (`docs/definicion-de-hecho.md`).
+- **Revisor funcional (rol analista)** — revisión **independiente** del *encuadre y el
+  plan* contra su fuente, al cerrar el arranque. **Reporta, no escribe**
+  (`skills/revision-funcional.md`).
+- **Juez (rol juez)** — revisión **independiente** del *código* (el diff de cada
+  incremento) antes del commit. **Reporta, no edita** (`skills/revision-critica.md`).
+- **Trazabilidad** — el hilo `criterio → incremento → revisión`, con estado
+  (`docs/trazabilidad.md`).
+- **`C#`** — IDs de los **criterios** de éxito/aceptación (`C1`, `C2`…), en
+  `contexto.md`.
+- **`I#`** — IDs de los **incrementos** del plan (`I1`, `I2`…), en `plan.md`.
+- **`R-E.n`** — IDs de los **vacíos** que detecta el *revisor funcional* en el arranque
+  (p. ej. `R-E.1`); se cierran antes del gate de diseño.
+- **`R-I#.n`** — IDs de los **hallazgos bloqueantes** del *juez* en un incremento
+  (p. ej. `R-I3.1`).
+- **Commit enlazado** — commit cuyo mensaje referencia lo que resuelve: `Ref: I3`
+  (incremento) o `Cierra: R-I3.1` (hallazgo).
 
 ## Los mecanismos que la sostienen
 

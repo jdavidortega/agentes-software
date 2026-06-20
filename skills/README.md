@@ -22,5 +22,8 @@ Crea un archivo `skills/<nombre-corto>.md` con:
 
 ## Skills actuales
 <!-- Lista de las skills de este proyecto. -->
+- **`revision-funcional.md`** — revisor funcional: revisión independiente del encuadre
+  y el plan al cerrar el arranque, contra su fuente (`material/`, `analisis/`); valida
+  completitud y consistencia (reporta, no escribe).
 - **`revision-critica.md`** — agente juez: revisión crítica independiente de cada
   incremento antes del commit (rúbrica de calidad; reporta, no edita).

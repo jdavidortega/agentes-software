@@ -36,7 +36,11 @@ pasa a la siguiente fase sin aprobación explícita de la persona.
    pregúntalo. Detalle operativo en `docs/arranque.md`.
    → Gate: la persona confirma que el encuadre es correcto.
 2. **Diseño / plan** — el enfoque elegido y las decisiones de alcance, en
-   `docs/plan.md` (plan vivo + bitácora + backlog).
+   `docs/plan.md` (plan vivo + bitácora + backlog). Antes del gate, el encuadre y el
+   plan pasan una **revisión funcional independiente** (el agente principal invoca al
+   **revisor funcional** como subagente con contexto propio; reporta, no escribe; ver
+   `skills/revision-funcional.md`): verifica completitud y consistencia contra la
+   fuente (`material/`, `analisis/`) y no se avanza con vacíos abiertos.
    → Gate: la persona aprueba el plan antes de escribir código.
 3. **Ejecución iterativa** — incrementos pequeños y revisables, no de un golpe. Cada
    incremento: verificación sobre datos reales, **revisión crítica independiente

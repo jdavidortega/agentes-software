@@ -27,7 +27,9 @@ línea de código.
 
 1. **Encuadre** — contexto, objetivos, no-objetivos, criterios de éxito, set de
    oro, stack y arquitectura, modelo de despliegue (`docs/contexto.md`).
-2. **Diseño / plan** — enfoque mínimo e incrementos (`docs/plan.md`).
+2. **Diseño / plan** — enfoque mínimo e incrementos (`docs/plan.md`). Antes del gate,
+   el encuadre y el plan pasan una **revisión funcional independiente** que verifica
+   completitud y consistencia contra el material (reporta, no escribe).
 3. **Ejecución iterativa** — incrementos pequeños, verificados sobre datos reales,
    con revisión crítica independiente antes de cada commit.
 4. **Validación** — `docs/definicion-de-hecho.md`.
@@ -72,7 +74,7 @@ herramienta, te llevas `AGENTS.md` y funciona.
 │   └── definicion-de-hecho.md
 ├── material/            entrada obligatoria: documentos de contexto (se leen)
 ├── analisis/            entrada opcional: artefactos analíticos (notebooks, datos)
-├── skills/              procedimientos reutilizables (incluye revisión crítica)
+├── skills/              procedimientos reutilizables (revisión funcional y crítica)
 ├── .env.example         variables de entorno documentadas (sin valores)
 └── .gitignore
 ```

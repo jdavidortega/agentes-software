@@ -23,7 +23,11 @@ Da a cada criterio un ID (C1, C2…) para enlazarlo en docs/trazabilidad.md. -->
 <!-- 5–10 pares `entrada → salida esperada` que definan la CALIDAD aceptable, no
 solo la funcionalidad. Funcionar ≠ salir bien (p. ej. "responde citando la fuente"
 Y "respuesta concisa y enfocada"). Ancla la UX desde el inicio y es el set contra
-el que se valida. Usa muestras reales cuando existan. -->
+el que se valida. Usa muestras reales cuando existan.
+OBLIGATORIO: incluye al menos un EJEMPLO CONCRETO de entrada y de salida (no basta
+describir el formato). Puede ir inline aquí, o como archivo referenciado (p. ej. en
+analisis/ o material/) si el ejemplo es grande; en ese caso enlaza el archivo. Los
+datos de salida que existan en analisis/ son candidatos directos a estos pares. -->
 - Entrada: _…_ → Salida esperada: _…_
 
 ## Restricciones

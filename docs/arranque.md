@@ -126,8 +126,9 @@ marcador `-` ni el comentario `<!-- -->`— las secciones:
 - [ ] No-objetivos
 - [ ] Criterios de éxito
 - [ ] Set de oro: ≥5 pares `entrada → salida esperada` (orientativo 5–10) que definan
-  la calidad aceptable (no solo la funcionalidad). Usa los datos de salida de
-  `analisis/` como base cuando existan.
+  la calidad aceptable (no solo la funcionalidad), con **al menos un ejemplo concreto
+  de entrada y de salida** (inline o como archivo referenciado, no solo el formato).
+  Usa los datos de salida de `analisis/` como base cuando existan.
 - [ ] **Stack y arquitectura** definidos (lenguaje+versión, framework+versión, build,
   estilo de arquitectura), con versiones verificadas contra la doc oficial.
 - [ ] Modelo de despliegue decidido (contenedor/host/serverless).
@@ -156,16 +157,30 @@ posible incremento futuro.
 
 ---
 
-## Paso 4 — Validación de consistencia
+## Paso 4 — Revisión funcional (consistencia del encuadre)
 
-Revisa estos checks. **No avanzas si alguno da FALLA**: señala cuál falló y qué
-archivo ajustar, corrige y vuelve a revisar.
+Esta revisión **no la hace el agente principal por sí mismo**: la ejecuta el **revisor
+funcional** como subagente con **contexto propio** (rol y rúbrica en
+`skills/revision-funcional.md`), para no validar el encuadre contra las
+racionalizaciones de quien lo redactó. Revisa `contexto.md` y `plan.md` **contra su
+fuente** (`material/` y `analisis/`) y verifica que los puntos que deben estar claros
+estén resueltos.
+
+El revisor **reporta, no escribe**. Si encuentra un vacío, **indica qué falta** y se
+aplica el protocolo de vacíos del skill: la persona lo **escribe** en el `.md` o
+**agrega un documento** (con nombre indicado, en la carpeta que el principal le señale:
+`material/` o `analisis/`); el principal **valida si ya está** y, de estarlo, re-pasa
+el revisor sobre la parte afectada (no se re-corre todo). **No se avanza con vacíos
+abiertos.**
 
 **Validador (PASA/FALLA):**
+- [ ] El revisor funcional emitió **veredicto PASA** (rúbrica completa en
+  `skills/revision-funcional.md`).
 - [ ] Cada criterio de éxito (`C#`) del Paso 2 está cubierto por algún incremento del
   plan, reflejado en `docs/trazabilidad.md`.
-- [ ] El plan no contradice ningún no-objetivo del encuadre.
-- [ ] No hay componentes en el plan sin un objetivo que los justifique (anti-exceso).
+- [ ] El plan no contradice ningún no-objetivo del encuadre y no excede los criterios
+  (anti-exceso).
+- [ ] No quedan vacíos (`R-E.n`) en estado `abierto` en `docs/trazabilidad.md`.
 
 ---
 

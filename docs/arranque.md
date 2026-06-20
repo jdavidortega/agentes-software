@@ -5,6 +5,12 @@
 > y solo después construyes el encuadre sobre esa base. Tú conduces a la persona
 > paso a paso; no es una lista para que ella lea sola.
 
+> **Cómo se relacionan estos pasos con las 5 fases** (`AGENTS.md` §2): los Pasos 1–5
+> de este arranque ocurren **dentro de las Fases 1 y 2**. Ingesta + Encuadre (Pasos
+> 1–2) = **Fase 1 (Encuadre)**; Diseño + Revisión funcional + Registro (Pasos 3–5) =
+> **Fase 2 (Diseño/plan)**. La **Fase 3 (Ejecución)** —la primera línea de código—
+> empieza solo cuando el arranque termina y el gate de diseño está aprobado.
+
 ## REGLA DURA
 
 No se pasa al Paso N+1 hasta que **(a)** el validador del Paso N esté en **PASA**
@@ -23,7 +29,7 @@ frío.
 - Cada decisión con **más de una opción razonable** → regístrala en
   `docs/decisiones.md` (ADR-lite). **Esto aplica también durante la ejecución
   (Fase 3)**, no solo en el diseño.
-- Cada dato o lección importante que surja → guárdalo en `MEMORIA.md`.
+- Cada dato o lección importante que surja → guárdalo en `docs/MEMORIA.md`.
 - Ante una bifurcación de diseño, **presenta opciones, no elijas en silencio**.
 - Git configurado desde el inicio; **commit por fase/incremento**, con mensaje
   concreto y suficiente (ver `docs/convenciones.md`).

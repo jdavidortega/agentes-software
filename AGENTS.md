@@ -49,7 +49,7 @@ pasa a la siguiente fase sin aprobación explícita de la persona.
    (`Ref:`/`Cierra:`), y trazabilidad al día (`docs/plan.md` + `docs/trazabilidad.md`).
 4. **Validación** — ver `docs/definicion-de-hecho.md`.
    → Gate: la persona confirma que se cumple la Definición de Hecho.
-5. **Cierre y aprendizaje** — retrospectiva breve; lecciones a `MEMORIA.md`.
+5. **Cierre y aprendizaje** — retrospectiva breve; lecciones a `docs/MEMORIA.md`.
 
 ## 3. Cuándo DETENERTE y preguntar
 
@@ -100,7 +100,7 @@ El "cómo hacemos las cosas aquí" (estilo, patrones, comandos) vive en
 
 ## 7. Memoria y skills (ciclo de aprendizaje)
 
-- Una lección puntual va a `MEMORIA.md`.
+- Una lección puntual va a `docs/MEMORIA.md`.
 - Cuando una lección se repite y se vuelve un patrón estable, **promuévela a una
   skill** en `skills/` (un procedimiento reutilizable). Ver `skills/README.md`.
 

@@ -33,7 +33,7 @@ línea de código.
 3. **Ejecución iterativa** — incrementos pequeños, verificados sobre datos reales,
    con revisión crítica independiente antes de cada commit.
 4. **Validación** — `docs/definicion-de-hecho.md`.
-5. **Cierre y aprendizaje** — lecciones a `MEMORIA.md`.
+5. **Cierre y aprendizaje** — lecciones a `docs/MEMORIA.md`.
 
 ## Diagrama de la metodología
 
@@ -84,7 +84,7 @@ flowchart TD
       Commit --> More{"¿Quedan criterios C#<br/>sin verificar?"}
       More -->|Si| EXEC
       More -->|No| F4["Fase 4 · Validacion<br/>Definicion de Hecho del conjunto"]
-      F4 --> F5["Fase 5 · Cierre y aprendizaje<br/>lecciones a MEMORIA.md, luego skills"]
+      F4 --> F5["Fase 5 · Cierre y aprendizaje<br/>lecciones a docs/MEMORIA.md, luego skills"]
     end
 
     F5 --> End(["Fin"])
@@ -144,7 +144,7 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
   en `docs/decisiones.md` (ADR-lite). Trazabilidad y aprendizaje.
 - **Guardas anti-sobredimensionamiento:** complejidad solo cuando se necesita.
   Riesgo típico en software: abstracción prematura y dependencias especulativas.
-- **Ciclo de aprendizaje:** `corrección → MEMORIA.md → (si se repite) → skill`.
+- **Ciclo de aprendizaje:** `corrección → docs/MEMORIA.md → (si se repite) → skill`.
 
 ## Portabilidad: AGENTS.md es el núcleo
 
@@ -164,7 +164,6 @@ herramienta, te llevas `AGENTS.md` y funciona.
 ├── AGENTS.md            instrucciones del proyecto (canónico)
 ├── CLAUDE.md            importa AGENTS.md + notas de Claude Code
 ├── README.md            este archivo
-├── MEMORIA.md           lecciones del proyecto
 ├── docs/
 │   ├── arranque.md          guion de arranque (primer punto de entrada)
 │   ├── contexto.md          encuadre + set de oro + stack/arquitectura
@@ -172,7 +171,8 @@ herramienta, te llevas `AGENTS.md` y funciona.
 │   ├── trazabilidad.md      hilo criterios ↔ incrementos ↔ hallazgos
 │   ├── decisiones.md        ADR-lite
 │   ├── convenciones.md      cómo hacemos las cosas aquí
-│   └── definicion-de-hecho.md
+│   ├── definicion-de-hecho.md
+│   └── MEMORIA.md           lecciones del proyecto
 ├── material/            entrada obligatoria: documentos de contexto (se leen)
 ├── analisis/            entrada opcional: artefactos analíticos (notebooks, datos)
 ├── skills/              procedimientos reutilizables (revisión funcional y crítica)

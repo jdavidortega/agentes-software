@@ -1,6 +1,13 @@
 # Contexto y objetivos
 
-> Fase 1 — Encuadre. Completa esto ANTES de diseñar nada. Es el primer gate.
+> Fase 1 — Encuadre. **No se llena desde cero:** se construye a partir del material
+> ingerido (ver `docs/arranque.md`, Pasos 1–2). El agente arma un borrador y aquí se
+> **revisa y completa** con la persona, cerrando los huecos. Debe quedar listo ANTES
+> de diseñar.
+>
+> **Marca el origen de cada dato:** `[del material]` (extraído de un insumo),
+> `[inferido]` (deducido por el agente — hay que confirmarlo) o `[FALTA]` (hueco
+> pendiente). No se avanza con `[FALTA]` ni `[inferido]` sin confirmar.
 
 ## Contexto
 <!-- ¿Por qué existe este proyecto? ¿Qué problema o necesidad lo origina? -->

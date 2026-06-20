@@ -6,7 +6,7 @@
 ## De dónde salen
 
 ```
-corrección puntual  →  MEMORIA.md  →  (si se repite)  →  skill aquí
+corrección puntual  →  docs/MEMORIA.md  →  (si se repite)  →  skill aquí
 ```
 
 No diseñes skills por adelantado. Deja que emerjan del uso. Eso es coherente

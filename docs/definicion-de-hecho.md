@@ -36,4 +36,4 @@ Antes de marcar como terminado:
   producción) si el cambio lo afecta.
 - [ ] **Commit de la fase/incremento** hecho, con mensaje concreto y suficiente.
 - [ ] Hay revisión humana del cambio.
-- [ ] Las lecciones, si las hubo, están en `MEMORIA.md`.
+- [ ] Las lecciones, si las hubo, están en `docs/MEMORIA.md`.

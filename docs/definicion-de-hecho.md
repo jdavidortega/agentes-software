@@ -1,7 +1,15 @@
 # Definición de Hecho (Definition of Done)
 
-> Fase 4 — Validación. La compuerta de calidad. Un incremento NO está hecho
-> hasta cumplir esta lista. Adáptala a tu proyecto.
+> La compuerta de calidad. Adáptala a tu proyecto. Se usa en **dos momentos**:
+> **(1) por incremento** (Fase 3): cada pieza la cumple al construirla, antes del
+> commit; **(2) sobre el conjunto** (Fase 4): el sistema ensamblado la cumple a la
+> vez, integrado y sobre datos reales (end-to-end), sin regresiones.
+>
+> **Si el conjunto NO cumple (Fase 4):** vuelve atrás según la causa. Defecto o
+> cobertura faltante (requisitos correctos) → Fase 3, incremento de corrección.
+> Encuadre erróneo o requisito nuevo (cambian criterios o set de oro) → Fase 1,
+> ajustar `docs/contexto.md` + ADR + re-revisión funcional. Una mejora más allá de lo
+> acordado no es falla: va al backlog de `docs/plan.md`.
 
 Antes de marcar como terminado:
 

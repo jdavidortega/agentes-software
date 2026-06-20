@@ -83,9 +83,12 @@ flowchart TD
       DoD -->|Si| Commit["Commit enlazado Ref: / Cierra:<br/>plan y trazabilidad al dia"]
       Commit --> More{"¿Quedan criterios C#<br/>sin verificar?"}
       More -->|Si| EXEC
-      More -->|No| F4["Fase 4 · Validacion<br/>Definicion de Hecho del conjunto"]
-      F4 --> F5["Fase 5 · Cierre y aprendizaje<br/>lecciones a docs/MEMORIA.md, luego skills"]
+      More -->|No| F4{"Fase 4 · Validacion del conjunto<br/>¿cumple los C# y el set de oro a la vez,<br/>integrado y sobre datos reales?"}
+      F4 -->|"No: defecto o regresion"| EXEC
+      F4 -->|"Si"| F5["Fase 5 · Cierre y aprendizaje<br/>lecciones a docs/MEMORIA.md, luego skills"]
     end
+
+    F4 -->|"No: encuadre erroneo o requisito nuevo<br/>ajustar contexto + ADR"| P2
 
     F5 --> End(["Fin"])
 ```

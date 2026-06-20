@@ -47,9 +47,26 @@ pasa a la siguiente fase sin aprobación explícita de la persona.
    antes del commit** (el agente principal invoca al juez como subagente con contexto
    propio; ver `skills/revision-critica.md`), ADR si hubo decisión, commit **enlazado**
    (`Ref:`/`Cierra:`), y trazabilidad al día (`docs/plan.md` + `docs/trazabilidad.md`).
-4. **Validación** — ver `docs/definicion-de-hecho.md`.
-   → Gate: la persona confirma que se cumple la Definición de Hecho.
-5. **Cierre y aprendizaje** — retrospectiva breve; lecciones a `docs/MEMORIA.md`.
+   **Salida de la fase (cuándo termina el bucle):** cuando **todos los criterios `C#`
+   están en estado `verificado`** en `docs/trazabilidad.md`, sin hallazgos `R-I#.n`
+   abiertos. Recién entonces se pasa a la Fase 4.
+4. **Validación** — la DoD por incremento revisa **cada pieza al construirla**; esta
+   fase valida **el conjunto ensamblado**: que todos los `C#` y el set de oro se
+   cumplen **a la vez**, integrados, sobre datos reales (end-to-end), sin regresiones.
+   Ver `docs/definicion-de-hecho.md`.
+   - Si **el conjunto NO cumple lo acordado**, no se sigue: se vuelve atrás según la
+     causa. **Defecto / regresión / cobertura faltante** (los requisitos están bien) →
+     **Fase 3**, incremento de corrección. **El encuadre estaba mal o falta un
+     requisito** (cambian criterios o set de oro) → **Fase 1**, se ajusta
+     `docs/contexto.md`, se registra como **ADR**, re-pasa el **revisor funcional** y
+     el gate. Una **mejora nueva** más allá de lo acordado **no es falla**: va al
+     **backlog** de `docs/plan.md` (y, si se decide perseguirla, abre un nuevo ciclo
+     de encuadre). La Fase 4 valida contra lo **acordado**, no contra ideas nuevas.
+   → Gate: la persona confirma que el conjunto cumple la Definición de Hecho.
+5. **Cierre y aprendizaje** — retrospectiva breve; lecciones a `docs/MEMORIA.md`. **Su
+   ligereza es deliberada:** un cierre no debe cargar ceremonial pesado (sería
+   contradecir la guarda anti-sobredimensionamiento). No le falta estructura; no la
+   necesita.
 
 ## 3. Cuándo DETENERTE y preguntar
 

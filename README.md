@@ -35,6 +35,61 @@ línea de código.
 4. **Validación** — `docs/definicion-de-hecho.md`.
 5. **Cierre y aprendizaje** — lecciones a `MEMORIA.md`.
 
+## Diagrama de la metodología
+
+El flujo completo: el **arranque** (antes de programar, con `material/` como
+precondición y un gate por paso) y el **ciclo de vida** (la Fase 3 es un bucle que se
+cierra con el juez y la Definición de Hecho). Las dos revisiones independientes —el
+**revisor funcional** sobre el encuadre y el **juez** sobre el código— son los puntos
+donde otro contexto verifica el trabajo.
+
+```mermaid
+flowchart TD
+    Start(["El agente abre AGENTS.md y ejecuta docs/arranque.md"]) --> Pre
+
+    subgraph ARR["ARRANQUE · antes de la primera linea de codigo"]
+      direction TB
+      Pre{"¿material/ tiene 1+ archivo real?<br/>precondicion dura"}
+      Pre -->|No| StopMat["Detente y pide material<br/>documento o brief breve"]
+      StopMat -.-> Pre
+      Pre -->|Si| P1["Paso 1 · Ingesta<br/>inventariar material/ y analisis/<br/>clasificar y rutear, sembrar docs vivos<br/>muestrear 1-3 insumos reales"]
+      P1 --> G1{"Gate: ¿set de entrada completo<br/>y ruteo aprobado?"}
+      G1 -->|No| P1
+      G1 -->|Si| P2["Paso 2 · Encuadre<br/>revisar y completar el borrador de contexto.md<br/>marcar origen: del material / inferido / FALTA<br/>set de oro con ejemplo entrada a salida"]
+      P2 --> G2{"Gate: ¿encuadre confirmado,<br/>sin FALTA ni inferido pendiente?"}
+      G2 -->|No| P2
+      G2 -->|Si| P3["Paso 3 · Diseño<br/>plan minimo e incrementos en plan.md<br/>fuera de alcance explicito"]
+      P3 --> P4["Paso 4 · Revision funcional independiente<br/>revisor funcional: contexto y plan vs material/analisis<br/>reporta, no escribe"]
+      P4 --> RF{"¿Veredicto PASA y<br/>sin vacios R-E.n abiertos?"}
+      RF -->|"Falla: vacio"| Fill["La persona llena el hueco:<br/>escribe en el .md o agrega documento"]
+      Fill --> P4
+      RF -->|Pasa| P5["Paso 5 · Registro<br/>decisiones como ADR en decisiones.md"]
+      P5 --> GD{"Gate de diseño:<br/>¿la persona aprueba el plan?"}
+      GD -->|No| P3
+    end
+
+    GD -->|Si| EXEC
+
+    subgraph CICLO["CICLO DE VIDA · Fase 3 en adelante"]
+      direction TB
+      EXEC["Fase 3 · Ejecucion iterativa<br/>un incremento pequeño y revisable"]
+      EXEC --> Vreal["Verificacion sobre datos reales<br/>no solo fixtures sinteticos"]
+      Vreal --> Judge["Juez de codigo · revision-critica<br/>revision critica independiente<br/>hallazgos R-I#.n"]
+      Judge --> JV{"¿PASA?"}
+      JV -->|Bloqueantes| FixB["Resolver subtareas<br/>commit Cierra: R-I#.n"]
+      FixB --> Judge
+      JV -->|Si| DoD{"¿Cumple la Definicion de Hecho?"}
+      DoD -->|No| EXEC
+      DoD -->|Si| Commit["Commit enlazado Ref: / Cierra:<br/>plan y trazabilidad al dia"]
+      Commit --> More{"¿Quedan criterios C#<br/>sin verificar?"}
+      More -->|Si| EXEC
+      More -->|No| F4["Fase 4 · Validacion<br/>Definicion de Hecho del conjunto"]
+      F4 --> F5["Fase 5 · Cierre y aprendizaje<br/>lecciones a MEMORIA.md, luego skills"]
+    end
+
+    F5 --> End(["Fin"])
+```
+
 ## Los mecanismos que la sostienen
 
 - **Compuertas (gates):** tú apruebas explícitamente entre fases. No se avanza sin

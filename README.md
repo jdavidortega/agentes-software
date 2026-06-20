@@ -1,4 +1,4 @@
-# agentes-software — Plantilla para desarrollar software con agentes de IA
+# Plantilla para desarrollar software con agentes de IA
 
 Estructura base para trabajar con un agente de IA (Claude Code, Codex, Cursor…)
 de forma **segura y estructurada** en proyectos de software. No es un proyecto en

@@ -125,6 +125,14 @@ Toda decisión con más de una opción razonable se documenta en
 reloj real (`date -u`), no de memoria. Esto sirve para dos cosas: trazabilidad
 y aprendizaje. La misma regla de marca de tiempo aplica a `docs/trazabilidad.md`.
 
+**Hallazgo ≠ decisión.** Un hallazgo (un hecho observado, p. ej. en el muestreo) se
+**registra como dato** en `docs/contexto.md`; no es una decisión. Solo cuando hay ≥2
+opciones razonables nace una decisión. Y una decisión que **no toca decidir todavía**
+no se deja como promesa en prosa: se abre **ya** como ADR en estado `propuesta` con la
+actividad donde se resolverá, y el gate de esa actividad la obliga a cerrar
+(`aceptada`). Al comunicar a la persona, **etiqueta el estado** (`REGISTRADO` /
+`PROPUESTO — pendiente de tu OK` / `PENDIENTE — se decide en <actividad>`).
+
 ## 6. Convenciones
 
 El "cómo hacemos las cosas aquí" (estilo, patrones, comandos) vive en

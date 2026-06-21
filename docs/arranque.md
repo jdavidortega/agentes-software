@@ -33,9 +33,22 @@ frío.
 
 ## Transversal (durante todo el arranque)
 
-- Cada decisión con **más de una opción razonable** → regístrala en
-  `docs/decisiones.md` (ADR-lite), **con fecha y hora UTC** del reloj real (`date -u`).
-  **Esto aplica también durante la ejecución (Fase 3)**, no solo en el diseño.
+- **Hallazgo ≠ decisión.** Un **hallazgo** es un hecho observado (p. ej. "el prototipo
+  no implementa el filtro de frescura"); se **registra ya** donde informa
+  (`docs/contexto.md`), porque es un dato, no requiere que nadie decida. Una
+  **decisión** es qué se *hace* con él; solo existe cuando hay **≥2 opciones
+  razonables**. No las mezcles ni llames "decisión" a un hallazgo.
+- Cada decisión con ≥2 opciones razonables → ADR en `docs/decisiones.md` (ADR-lite),
+  **con fecha y hora UTC** del reloj real (`date -u`). **Aplica también en la
+  ejecución (Fase 3)**, no solo en el diseño.
+- **Decisión que no toca decidir aquí (diferida):** no la dejes como promesa en prosa.
+  Ábrela **ya** como ADR en estado **`propuesta`**, indicando en qué **actividad** se
+  resuelve (p. ej. "se decide en el Encuadre"). Queda rastreada y el gate de esa
+  actividad la obliga a cerrar (pasa a `aceptada`). Solo vale la pena para decisiones
+  de **alto impacto**; lo reversible y menor se decide con un default sensato y sigue.
+- **Etiqueta el estado de lo que presentas a la persona**, no uses condicionales
+  vagos ("iría a…"). Usa: `REGISTRADO en <archivo>` · `PROPUESTO — pendiente de tu OK`
+  · `PENDIENTE — se decide en <actividad>`.
 - Cada dato o lección importante que surja → guárdalo en `docs/MEMORIA.md`.
 - Ante una bifurcación de diseño, **presenta opciones, no elijas en silencio**.
 - Git configurado desde el inicio; **commit al cierre de cada fase y de cada
@@ -82,8 +95,9 @@ Esto incluye:
 - De `analisis/` (si tiene contenido): los **hallazgos/resultados** del análisis
   previo → `docs/contexto.md` §Contexto; los **pares datos de entrada → datos de
   salida** son **candidatos directos al set de oro** de `docs/contexto.md`,
-  proponlos como tales; las **discrepancias o decisiones** que revele →
-  `docs/decisiones.md`. Los notebooks y datos crudos **se quedan** en `analisis/`
+  proponlos como tales; las **discrepancias** que revele son **hallazgos** →
+  `docs/contexto.md`, y solo las **decisiones** (≥2 opciones) → `docs/decisiones.md`.
+  Los notebooks y datos crudos **se quedan** en `analisis/`
   como referencia y se **enlazan** desde `contexto.md`; no se copian.
 
 **No borres la fuente:** los originales se quedan en su carpeta para trazabilidad;
@@ -97,9 +111,11 @@ la persona.
 solo contra la especificación: abre **1–3 muestras reales de cada insumo** (datos,
 archivos, respuestas de API) y valida contra ellas los supuestos del spec —formato,
 nombres, numeración, casos límite, datos ya pre-extraídos, etc. El trabajo
-exploratorio nuevo vive en `analisis/`. Cada discrepancia con el spec se registra
-como decisión en `docs/decisiones.md`. Es barato y evita rediseñar en plena
-ejecución.
+exploratorio nuevo vive en `analisis/`. Cada discrepancia con el spec es un
+**hallazgo**: regístralo en `docs/contexto.md` (no es una decisión). Si el hallazgo
+**fuerza una elección** (p. ej. cambia el alcance), abre la decisión como ADR en
+estado `propuesta` indicando en qué actividad se resuelve (ver Transversal). Es
+barato y evita rediseñar en plena ejecución.
 
 **Validador (PASA/FALLA):**
 - [ ] `material/` tiene ≥1 archivo real además del `README.md` (precondición dura).
@@ -113,7 +129,8 @@ ejecución.
   `material/README.md`.
 - [ ] Se muestrearon 1–3 ejemplos reales de cada insumo y se validaron los supuestos
   del spec contra ellos, o se registró "no hay insumos reales disponibles aún".
-- [ ] Las discrepancias spec↔realidad quedaron como decisión en `docs/decisiones.md`.
+- [ ] Las discrepancias spec↔realidad quedaron como **hallazgos** en `docs/contexto.md`;
+  las que fuerzan una elección, como ADR `propuesta` en `docs/decisiones.md`.
 
 ---
 
@@ -148,6 +165,8 @@ marcador `-` ni el comentario `<!-- -->`— las secciones:
   estilo de arquitectura), con versiones verificadas contra la doc oficial.
 - [ ] Modelo de despliegue decidido (contenedor/host/serverless).
 - [ ] No queda ningún `[FALTA]` ni `[inferido]` sin confirmar con la persona.
+- [ ] No queda ningún **ADR en estado `propuesta`** asignado a esta actividad (las
+  decisiones diferidas al Encuadre —p. ej. el alcance— quedaron resueltas: `aceptada`).
 - [ ] El encuadre quedó en un **commit** (`Ref: F1`) antes de pedir el gate.
 
 ---

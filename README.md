@@ -9,7 +9,8 @@ línea de código.
 ## Cómo usarla
 
 1. Copia el contenido de este repo a tu nuevo proyecto.
-2. Verifica que **git esté configurado**. Se hace un commit por fase/incremento.
+2. Verifica que **git esté configurado**. Se hace un commit **al cierre de cada fase
+   y de cada incremento** (no solo en la ejecución).
 3. **Deja primero tus entradas.** Documentos de contexto (antecedentes, specs,
    notas) en `material/`; artefactos analíticos (notebooks, datos de entrada/salida,
    resultados previos) en `analisis/`. `material/` es **obligatorio**: necesita al
@@ -56,7 +57,7 @@ flowchart TD
       P1 --> G1{"Gate: ¿set de entrada completo<br/>y ruteo aprobado?"}
       G1 -->|No| P1
       G1 -->|Si| P2["Fase 1 · Encuadre<br/>revisar y completar el borrador de contexto.md<br/>marcar origen: del material / inferido / FALTA<br/>set de oro con ejemplo entrada a salida"]
-      P2 --> G2{"Gate: ¿encuadre confirmado,<br/>sin FALTA ni inferido pendiente?"}
+      P2 --> G2{"Gate: ¿encuadre confirmado, sin FALTA,<br/>inferido ni ADR propuesta pendiente?"}
       G2 -->|No| P2
       G2 -->|Si| P3["Fase 2 · Diseño<br/>plan minimo e incrementos en plan.md<br/>fuera de alcance explicito"]
       P3 --> P4["Fase 2 · Revision funcional independiente (rol analista)<br/>revisor funcional · revision-funcional<br/>encuadre y plan vs material y analisis · reporta, no escribe<br/>los vacios que halla se llaman R-E.n"]
@@ -117,9 +118,14 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
 - **Set de oro** — ≥5 pares `entrada → salida esperada` que definen la **calidad
   aceptable** (no solo que "funcione"), con al menos un ejemplo concreto.
 - **Stack** — el lenguaje, framework, build y estilo de arquitectura elegidos.
+- **Hallazgo** — un **hecho observado** (p. ej. en el muestreo: "el prototipo no
+  implementa el filtro de frescura"). Se **registra como dato** en `docs/contexto.md`;
+  **no es una decisión**. Solo cuando fuerza una elección (≥2 opciones) genera un ADR.
 - **ADR** (*Architecture Decision Record*) — registro **ligero** de una decisión que
   tenía más de una opción razonable: contexto, opciones, decisión, razón y
-  consecuencias. Viven en `docs/decisiones.md`.
+  consecuencias. Viven en `docs/decisiones.md`. Un ADR en estado **`propuesta`** es una
+  **decisión diferida** (abierta, aún no tomada): se registra apenas aparece, con la
+  actividad donde se resolverá, y se cierra (`aceptada`) en el gate de esa actividad.
 - **Definición de Hecho** (*DoD, Definition of Done*) — checklist de calidad que un
   incremento debe cumplir para considerarse terminado (`docs/definicion-de-hecho.md`).
 - **Revisor funcional (rol analista)** — revisión **independiente** del *encuadre y el

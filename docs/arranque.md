@@ -5,18 +5,19 @@
 > y solo después construyes el encuadre sobre esa base. Tú conduces a la persona
 > paso a paso; no es una lista para que ella lea sola.
 
-> **Cómo se relacionan estos pasos con las 5 fases** (`AGENTS.md` §2): los Pasos 1–5
-> de este arranque ocurren **dentro de las Fases 1 y 2**. Ingesta + Encuadre (Pasos
-> 1–2) = **Fase 1 (Encuadre)**; Diseño + Revisión funcional + Registro (Pasos 3–5) =
-> **Fase 2 (Diseño/plan)**. La **Fase 3 (Ejecución)** —la primera línea de código—
-> empieza solo cuando el arranque termina y el gate de diseño está aprobado.
+> **Cómo encaja con las 5 fases** (`AGENTS.md` §2): este arranque es el **detalle de
+> las Fases 1 y 2**, que son la única numeración. La **Fase 1 (Encuadre)** agrupa las
+> actividades de **Ingesta** y **Encuadre**; la **Fase 2 (Diseño)** agrupa **Diseño**,
+> **Revisión funcional** y **Registro**. No hay una numeración "Paso 1–5" aparte: cada
+> actividad se nombra por su fase. La **Fase 3 (Ejecución)** —la primera línea de
+> código— empieza solo cuando el arranque termina y el gate de diseño está aprobado.
 
 ## REGLA DURA
 
-No se pasa al Paso N+1 hasta que **(a)** el validador del Paso N esté en **PASA**
+No pasas a la siguiente actividad hasta que **(a)** su validador esté en **PASA**
 (condición binaria y verificable, no a tu juicio) **y (b)** la persona lo
 **apruebe** explícitamente. Si un validador da FALLA, te detienes, dices qué
-falta y qué archivo ajustar, y vuelves a validar. La aprobación es por paso.
+falta y qué archivo ajustar, y vuelves a validar. La aprobación es por actividad.
 
 **Cómo pides la aprobación (gate accionable).** Si no mostraste el contenido en el
 chat (está bien por eficiencia de tokens), no pidas un OK en abstracto: indica **qué
@@ -44,7 +45,7 @@ frío.
 
 ---
 
-## Paso 1 — Ingesta de entradas (material + análisis)
+## Fase 1 · Ingesta de entradas (material + análisis)
 
 El arranque empieza por aquí: primero **inventarías lo que hay**, confirmas con la
 persona que está completo, y solo entonces lo analizas y rutas. Hay dos carpetas
@@ -58,13 +59,13 @@ de entrada con roles distintos:
   no lo que se *lee*. **Opcional**, pero **revisarla es obligatorio**. Reglas en
   `analisis/README.md`.
 
-**1a. Inventaría y confirma (gate de completitud).** Lista lo que encuentres en
+**a. Inventaría y confirma (gate de completitud).** Lista lo que encuentres en
 `material/` y en `analisis/` (acuse de recibo) y pregunta: *"¿esto es todo, o
 quieres agregar más antes de que lo analice?"*. No inviertas en analizar hasta que
 la persona cierre el set de entrada. Si `material/` está vacía → aplica la
 precondición de arranque y detente.
 
-**1b. Clasifica y rutea (gate de ruteo).** Para cada entrada, **propón** a dónde va
+**b. Clasifica y rutea (gate de ruteo).** Para cada entrada, **propón** a dónde va
 con su razón y espera el OK antes de escribir en los archivos oficiales. La ingesta
 **siembra los documentos vivos desde el principio** con lo que el material ya
 provea: no se dejan vacíos para "después" si el material tiene contenido para ellos.
@@ -116,7 +117,7 @@ ejecución.
 
 ---
 
-## Paso 2 — Encuadre (revisar y completar el borrador)
+## Fase 1 · Encuadre (revisar y completar el borrador)
 
 Con la ingesta hecha, ya tienes un **borrador de `docs/contexto.md` derivado del
 material y el análisis**. El encuadre **no parte de cero**: es revisar ese borrador
@@ -151,12 +152,12 @@ marcador `-` ni el comentario `<!-- -->`— las secciones:
 
 ---
 
-## Paso 3 — Diseño (plan mínimo)
+## Fase 2 · Diseño (plan mínimo)
 
-**Prerrequisito:** el **stack y la arquitectura** (Paso 2) deben estar resueltos antes
+**Prerrequisito:** el **stack y la arquitectura** (definidos en el Encuadre) deben estar resueltos antes
 de diseñar; el plan depende de ellos. Si siguen abiertos, ciérralos primero (con ADR).
 
-Propón el enfoque **mínimo** que satisface los criterios de éxito del Paso 2, en
+Propón el enfoque **mínimo** que satisface los criterios de éxito del Encuadre, en
 incrementos pequeños y revisables. Marca de forma explícita **qué queda fuera**.
 No introduzcas dependencias ni abstracciones sin aprobación (ver `AGENTS.md` §3).
 
@@ -168,11 +169,11 @@ posible incremento futuro.
 - [ ] Existe un plan escrito (enfoque + incrementos) en `docs/plan.md`, acordado.
 - [ ] Hay una lista explícita de "fuera de alcance" (en el backlog de `docs/plan.md`).
 - [ ] El plan no excede los criterios de éxito (anti-sobredimensionamiento).
-- [ ] El plan es coherente con lo visto en el muestreo de insumos reales (Paso 1).
+- [ ] El plan es coherente con lo visto en el muestreo de insumos reales (Ingesta).
 
 ---
 
-## Paso 4 — Revisión funcional (consistencia del encuadre)
+## Fase 2 · Revisión funcional (consistencia del encuadre)
 
 Esta revisión **no la hace el agente principal por sí mismo**: la ejecuta el **revisor
 funcional** como subagente con **contexto propio** (rol y rúbrica en
@@ -191,7 +192,7 @@ abiertos.**
 **Validador (PASA/FALLA):**
 - [ ] El revisor funcional emitió **veredicto PASA** (rúbrica completa en
   `skills/revision-funcional.md`).
-- [ ] Cada criterio de éxito (`C#`) del Paso 2 está cubierto por algún incremento del
+- [ ] Cada criterio de éxito (`C#`) del Encuadre está cubierto por algún incremento del
   plan, reflejado en `docs/trazabilidad.md`.
 - [ ] El plan no contradice ningún no-objetivo del encuadre y no excede los criterios
   (anti-exceso).
@@ -199,12 +200,12 @@ abiertos.**
 
 ---
 
-## Paso 5 — Registro
+## Fase 2 · Registro
 
 Confirma que el rastro quedó guardado antes de empezar a construir.
 
 **Validador (PASA/FALLA):**
-- [ ] Cada decisión con ≥2 opciones razonables (Pasos 1–4) tiene su ADR en
+- [ ] Cada decisión con ≥2 opciones razonables (en las Fases 1–2) tiene su ADR en
   `docs/decisiones.md` (con fecha/hora UTC), o se registró "no hubo decisiones de ese
   tipo".
 - [ ] El plan, los ADRs y la trazabilidad inicial quedaron en un **commit**
@@ -212,8 +213,8 @@ Confirma que el rastro quedó guardado antes de empezar a construir.
 
 ---
 
-> Solo cuando el Paso 5 está en PASA y aprobado empieza la **Fase 3 — Ejecución
-> iterativa** (la primera línea de código). Antes, no.
+> Solo cuando el **Registro** está en PASA y el plan aprobado (cierre de la Fase 2)
+> empieza la **Fase 3 — Ejecución iterativa** (la primera línea de código). Antes, no.
 
 > **En cada incremento de la Fase 3:** ciérralo con una **verificación exploratoria
 > sobre datos/insumos reales** (no solo fixtures sintéticos: el humano detecta lo que

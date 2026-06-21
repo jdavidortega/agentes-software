@@ -1,7 +1,7 @@
 # Contexto y objetivos
 
 > Fase 1 — Encuadre. **No se llena desde cero:** se construye a partir del material
-> ingerido (ver `docs/arranque.md`, Pasos 1–2). El agente arma un borrador y aquí se
+> ingerido (ver `docs/arranque.md`, Fase 1). El agente arma un borrador y aquí se
 > **revisa y completa** con la persona, cerrando los huecos. Debe quedar listo ANTES
 > de diseñar.
 >
@@ -46,14 +46,14 @@ datos de salida que existan en analisis/ son candidatos directos a estos pares. 
 requisitos): si está ahí, extráelo aquí. Si NO está, PREGÚNTALO con base en el
 contexto (propón opciones razonables para este proyecto, con recomendación). NO asumas
 un default (ni Python ni nada). Si hay más de una opción, debátela y regístrala como
-ADR. Debe quedar resuelto ANTES del diseño (Paso 3) porque condiciona el plan. Verifica
+ADR. Debe quedar resuelto ANTES del diseño (Fase 2) porque condiciona el plan. Verifica
 versiones contra la doc oficial vigente. El detalle operativo (comandos) va a
 docs/convenciones.md; aquí queda la decisión de encuadre. -->
 - Lenguaje + versión: <!-- p. ej. Java 21 -->
 - Framework + versión: <!-- p. ej. Spring Boot 3.5.14 -->
 - Build / herramientas + versión: <!-- p. ej. Gradle 8.14.5 -->
 - Estilo de arquitectura: <!-- p. ej. hexagonal, capas, microservicio… -->
-- ¿Restricción dada o decisión abierta?: <!-- si abierta → ADR antes del Paso 3 -->
+- ¿Restricción dada o decisión abierta?: <!-- si abierta → ADR antes del diseño (Fase 2) -->
 
 ## Modelo de despliegue
 <!-- PREGUNTA OBLIGATORIA del encuadre: ¿cómo se va a desplegar y empaquetar?

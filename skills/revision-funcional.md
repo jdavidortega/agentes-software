@@ -14,7 +14,7 @@
 ## Cuándo usarla
 
 - Al **cerrar el arranque**, antes del gate de diseño y antes de la primera línea de
-  código (Fase 3). Es la revisión independiente del Paso 4 del arranque: sustituye la
+  código (Fase 3). Es la revisión funcional independiente de la Fase 2 del arranque: sustituye la
   autovalidación por una revisión con rol propio.
 - Se repite (pasada fresca) cada vez que se resuelve un hueco, hasta dar PASA.
 

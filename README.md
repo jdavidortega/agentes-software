@@ -20,7 +20,7 @@ línea de código.
    tus entradas**: inventaría lo que hay, te pregunta si está completo, te propone a
    dónde va cada cosa (gate) y arma un borrador de `docs/contexto.md`. Recién después
    viene el encuadre, que es **revisar y completar** ese borrador —no llenarlo desde
-   cero—, seguido del diseño y la validación. Hay un gate en cada paso, **antes de
+   cero—, seguido del diseño y la validación. Hay un gate en cada actividad, **antes de
    programar**.
 
 ## Las 5 fases (con compuerta humana entre cada una)
@@ -38,7 +38,7 @@ línea de código.
 ## Diagrama de la metodología
 
 El flujo completo: el **arranque** (antes de programar, con `material/` como
-precondición y un gate por paso) y el **ciclo de vida** (la Fase 3 es un bucle que se
+precondición y un gate por actividad) y el **ciclo de vida** (la Fase 3 es un bucle que se
 cierra con el juez y la Definición de Hecho). Las dos revisiones independientes —el
 **revisor funcional** sobre el encuadre y el **juez** sobre el código— son los puntos
 donde otro contexto verifica el trabajo.
@@ -52,18 +52,18 @@ flowchart TD
       Pre{"¿material/ tiene 1+ archivo real?<br/>precondicion dura"}
       Pre -->|No| StopMat["Detente y pide material<br/>documento o brief breve"]
       StopMat -.-> Pre
-      Pre -->|Si| P1["Paso 1 · Ingesta<br/>inventariar material/ y analisis/<br/>clasificar y rutear, sembrar docs vivos<br/>muestreo: abrir 1-3 ejemplos reales y validar supuestos"]
+      Pre -->|Si| P1["Fase 1 · Ingesta<br/>inventariar material/ y analisis/<br/>clasificar y rutear, sembrar docs vivos<br/>muestreo: abrir 1-3 ejemplos reales y validar supuestos"]
       P1 --> G1{"Gate: ¿set de entrada completo<br/>y ruteo aprobado?"}
       G1 -->|No| P1
-      G1 -->|Si| P2["Paso 2 · Encuadre<br/>revisar y completar el borrador de contexto.md<br/>marcar origen: del material / inferido / FALTA<br/>set de oro con ejemplo entrada a salida"]
+      G1 -->|Si| P2["Fase 1 · Encuadre<br/>revisar y completar el borrador de contexto.md<br/>marcar origen: del material / inferido / FALTA<br/>set de oro con ejemplo entrada a salida"]
       P2 --> G2{"Gate: ¿encuadre confirmado,<br/>sin FALTA ni inferido pendiente?"}
       G2 -->|No| P2
-      G2 -->|Si| P3["Paso 3 · Diseño<br/>plan minimo e incrementos en plan.md<br/>fuera de alcance explicito"]
-      P3 --> P4["Paso 4 · Revision funcional independiente (rol analista)<br/>revisor funcional · revision-funcional<br/>encuadre y plan vs material y analisis · reporta, no escribe<br/>los vacios que halla se llaman R-E.n"]
+      G2 -->|Si| P3["Fase 2 · Diseño<br/>plan minimo e incrementos en plan.md<br/>fuera de alcance explicito"]
+      P3 --> P4["Fase 2 · Revision funcional independiente (rol analista)<br/>revisor funcional · revision-funcional<br/>encuadre y plan vs material y analisis · reporta, no escribe<br/>los vacios que halla se llaman R-E.n"]
       P4 --> RF{"¿Veredicto PASA y<br/>sin vacios R-E.n abiertos?"}
       RF -->|"Falla: vacio"| Fill["La persona llena el hueco:<br/>escribe en el .md o agrega documento"]
       Fill --> P4
-      RF -->|Pasa| P5["Paso 5 · Registro<br/>decisiones como ADR en decisiones.md"]
+      RF -->|Pasa| P5["Fase 2 · Registro<br/>decisiones como ADR en decisiones.md"]
       P5 --> GD{"Gate de diseño:<br/>¿la persona aprueba el plan?"}
       GD -->|No| P3
     end

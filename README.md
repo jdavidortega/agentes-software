@@ -142,8 +142,9 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
   (p. ej. `R-E.1`); se cierran antes del gate de diseño.
 - **`R-I#.n`** — IDs de los **hallazgos bloqueantes** del *juez* en un incremento
   (p. ej. `R-I3.1`).
-- **Commit enlazado** — commit cuyo mensaje referencia lo que resuelve: `Ref: I3`
-  (incremento) o `Cierra: R-I3.1` (hallazgo).
+- **Commit enlazado** — commit cuyo mensaje referencia lo que resuelve: `Ref: F#`
+  (cierre de fase — `F1`, `F2`, `F4`, `F5`), `Ref: I3` (incremento de la Fase 3) o
+  `Cierra: R-I3.1` (hallazgo del juez).
 
 ## Los mecanismos que la sostienen
 

@@ -14,7 +14,8 @@
 - **Vacíos del revisor funcional (arranque):** `R-E.<n>` (p. ej. `R-E.1`); se registran
   al cerrar el arranque y se cierran (la persona llena el hueco) antes del gate de diseño.
 - **Hallazgos del juez (ejecución):** `R-I<incremento>.<n>` (p. ej. `R-I3.1`).
-- **Commits** enlazan en el footer: `Ref: I3` (incremento) o `Cierra: R-I3.1` (hallazgo).
+- **Commits** enlazan en el footer: `Ref: F#` (cierre de fase — `F1`, `F2`, `F4`, `F5`),
+  `Ref: I3` (incremento de la Fase 3) o `Cierra: R-I3.1` (hallazgo del juez).
 
 ## Cobertura de criterios
 

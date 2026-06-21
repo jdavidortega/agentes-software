@@ -17,8 +17,8 @@
 ## Para la persona
 
 - Suelta aquí cualquier archivo de contexto, sin estructura previa.
-- Cuando quieras que se procese, díselo al agente (o él te pregunta en el Paso 1
-  del arranque, al inventariar las entradas).
+- Cuando quieras que se procese, díselo al agente (o él te pregunta en la
+  Fase 1 · Ingesta del arranque, al inventariar las entradas).
 - Tú apruebas el ruteo antes de que se escriba nada (gate). El original **no se
   borra**: se queda aquí para trazabilidad.
 

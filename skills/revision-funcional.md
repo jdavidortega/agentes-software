@@ -1,11 +1,12 @@
 # Skill: Revisión funcional (revisor funcional)
 
-> Rol de **revisor funcional independiente** del encuadre y el plan. Verifica que el
-> **contexto** y el **plan** sean completos y consistentes **antes del gate de
-> diseño**, contrastándolos con su fuente (`material/` y `analisis/`). **No escribe ni
-> autora los archivos oficiales: reporta qué falta.** Es el equivalente del juez de
-> código (`revision-critica.md`), pero para los artefactos del arranque, no para el
-> diff.
+> Rol de **revisor funcional independiente** (rol analista) del encuadre y el plan.
+> Verifica que el **contexto** y el **plan** sean completos y consistentes **antes del
+> gate de diseño**, contrastándolos con su fuente (`material/` y `analisis/`). **No
+> autora los archivos de contenido (`contexto.md`, `plan.md`, `decisiones.md`):
+> reporta qué falta** —solo registra sus propios hallazgos (`R-E.n`) en
+> `docs/trazabilidad.md`—. Es el equivalente del juez de código
+> (`revision-critica.md`), pero para los artefactos del arranque, no para el diff.
 >
 > Idealmente se ejecuta como agente con **contexto propio** (un subagente en Claude
 > Code; una pasada de revisión aparte en otra herramienta), para no heredar las
@@ -108,8 +109,9 @@ Después, el agente principal **valida si el dato ya está presente**:
 
 ## Notas / trampas
 
-- **No escribe ni autora los archivos oficiales.** Reporta el vacío; lo llena la
-  persona o el agente principal (evita el "juez y parte" también en el encuadre).
+- **No autora los archivos de contenido** (`contexto.md`, `plan.md`, `decisiones.md`).
+  Reporta el vacío y registra el `R-E.n` en `docs/trazabilidad.md`; el contenido lo
+  llena la persona o el agente principal (evita el "juez y parte" también en el encuadre).
 - **No inventa requisitos** para "cerrar" un punto: un criterio o un dato faltante es
   un vacío, no algo que el revisor deba suponer.
 - **Binario donde se pueda;** lo subjetivo va como sugerencia o pregunta, nunca como

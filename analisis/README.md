@@ -13,7 +13,7 @@
 - **Datos de salida → set de oro:** los pares **datos de entrada → datos de salida**
   son candidatos directos al **set de oro** del encuadre (`docs/contexto.md`). Es
   probablemente su mayor valor para el arranque.
-- **Muestreo de insumos reales (Paso 1 del arranque):** abrir 1–3 muestras reales de
+- **Muestreo de insumos reales (Fase 1 · Ingesta del arranque):** abrir 1–3 muestras reales de
   cada insumo y validar contra ellas los supuestos del spec (formato, nombres,
   numeración, casos límite, datos ya pre-extraídos). Las discrepancias se registran
   como decisión en `docs/decisiones.md`.

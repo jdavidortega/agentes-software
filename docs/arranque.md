@@ -195,7 +195,7 @@ posible incremento futuro.
 ## Fase 2 · Revisión funcional (consistencia del encuadre)
 
 Esta revisión **no la hace el agente principal por sí mismo**: la ejecuta el **revisor
-funcional** como subagente con **contexto propio** (rol y rúbrica en
+funcional** (rol analista) como subagente con **contexto propio** (rol y rúbrica en
 `skills/revision-funcional.md`), para no validar el encuadre contra las
 racionalizaciones de quien lo redactó. Revisa `contexto.md` y `plan.md` **contra su
 fuente** (`material/` y `analisis/`) y verifica que los puntos que deben estar claros

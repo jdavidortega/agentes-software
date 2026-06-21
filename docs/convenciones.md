@@ -90,9 +90,10 @@ Verificados contra la doc oficial actual de cada herramienta. -->
 - Regla operativa: **ningún gate se cruza con cambios sin commitear**. Antes de pedir
   aprobación, el trabajo de esa fase ya está en un commit.
 - Mensaje concreto y suficiente: qué cambió y por qué (no "varios cambios").
-- **Enlaza** cada commit a lo que resuelve, en el footer: `Ref: I3` (incremento),
-  `Ref: F1`/`F2` (fase) o `Cierra: R-I3.1` (hallazgo del juez). Es la trazabilidad en
-  el historial (ver `docs/trazabilidad.md`).
+- **Enlaza** cada commit a lo que resuelve, en el footer: `Ref: F#` (cierre de fase:
+  `F1` encuadre, `F2` plan, `F4` validación, `F5` cierre), `Ref: I3` (incremento de la
+  Fase 3) o `Cierra: R-I3.1` (hallazgo del juez). Es la trazabilidad en el historial
+  (ver `docs/trazabilidad.md`).
 
 ## Pruebas
 - **Herméticas:** sin dependencia de `.env` real ni de servicios externos; inyectar

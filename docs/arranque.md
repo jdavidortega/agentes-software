@@ -87,7 +87,8 @@ frío.
   · `PENDIENTE — se decide en <actividad>`.
 - Cada dato o lección importante que surja → guárdalo en `docs/MEMORIA.md`.
 - Ante una bifurcación de diseño, **presenta opciones, no elijas en silencio**.
-- Git configurado desde el inicio; **commit al cierre de cada fase y de cada
+- Git configurado desde el inicio **y los hooks de la plantilla activos**
+  (`git config core.hooksPath .githooks`); **commit al cierre de cada fase y de cada
   incremento**, no solo en la Fase 3. En el arranque, eso significa al menos un commit
   al aprobar el **encuadre** (`Ref: F1`) y otro al aprobar el **plan** (`Ref: F2`).
   Ningún gate se cruza con cambios sin commitear (ver `docs/convenciones.md`).
@@ -225,6 +226,10 @@ posible incremento futuro.
 - [ ] Hay una lista explícita de "fuera de alcance" (en el backlog de `docs/plan.md`).
 - [ ] El plan no excede los criterios de éxito (anti-sobredimensionamiento).
 - [ ] El plan es coherente con lo visto en el muestreo de insumos reales (Ingesta).
+- [ ] **Linter y formatter del stack elegidos** (los idiomáticos por defecto) y su comando
+  agregado en `scripts/check.sh` + `docs/convenciones.md`, cableado al `pre-commit`.
+- [ ] **Decisión de entorno:** ¿el proyecto maneja secretos o config de entorno? Si no,
+  **no se crea `.env`/`.env.example`**; si sí, se crean entonces (no por defecto).
 
 ---
 

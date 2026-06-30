@@ -24,10 +24,34 @@ Verificados contra la doc oficial actual de cada herramienta. -->
   despliegue — p. ej. recrear el contenedor). Hazlo explícito: muchas confusiones de
   "no veo el cambio" son por no reiniciar/reconstruir el proceso.
 - Lint / formato:
+- **`scripts/check.sh`** — agrega lint + formato + tests en un solo comando; lo ejecuta el
+  `pre-commit`. Es **salida obligatoria del diseño**; hasta que exista, el hook solo avisa.
 
 ## Estilo de código
-<!-- Convenciones de nombres, estructura de carpetas, imports, etc. -->
--
+<!-- El estándar NO se debate por proyecto: se usa la convención de nombres IDIOMÁTICA del
+lenguaje elegido (p. ej. camelCase en Java/TS, snake_case en Python/Rust) de forma
+CONSISTENTE, más prácticas clean (nombres con significado, funciones cortas y cohesionadas,
+sin duplicación ni código muerto). Esto es BASE en todo proyecto, no una decisión de
+diseño. El formatter/linter del stack lo aplica automáticamente. -->
+- Nombres y estilo: los **idiomáticos del lenguaje**, aplicados por el formatter (ver «Lint / formato»).
+- **Idioma del código: inglés.** Identificadores **y** comentarios/docstrings en inglés
+  ASCII (sin acentos ni ñ). El texto **de cara al usuario** va en el idioma del producto y
+  **externalizado** (no quemado en el código).
+- Estructura de carpetas / imports:
+- Desviaciones del estándar idiomático (solo con razón documentada):
+
+**Toolchain idiomático por stack** (referencia; verifica versiones en la doc oficial vigente):
+
+| Stack | Formatter + linter | Naming |
+|-------|--------------------|--------|
+| Java | google-java-format + Checkstyle | camelCase métodos, PascalCase clases |
+| TS/JS | Prettier + ESLint | camelCase |
+| Python | Ruff (o Black) + isort | snake_case (PEP 8) |
+| Go | gofmt + golangci-lint | MixedCaps |
+| Rust | rustfmt + clippy | snake_case |
+| C# | dotnet format | PascalCase métodos |
+
+El elegido se cablea en `scripts/check.sh` y el `pre-commit`.
 
 ## Patrones que SÍ usamos
 -
@@ -47,7 +71,7 @@ Verificados contra la doc oficial actual de cada herramienta. -->
   rutas internas del contenedor.
 - Rutas de insumos/salidas (dev vs prod):
 - Nombres de archivos/insumos (dev vs prod):
-- Comando de arranque (dev vs prod, p. ej. `uvicorn` vs `fastapi run`):
+- Comando de arranque (dev vs prod): el del stack elegido (su `dev` / `start` / `run`).
 
 ## Configuración por capas
 <!-- No mezclar lo que el operador edita con lo que no debe tocar. -->
@@ -59,12 +83,13 @@ Verificados contra la doc oficial actual de cada herramienta. -->
   edita**. Distingue siempre "ruta del host" de "ruta interna".
 
 ## Variables de entorno y secretos
-- **Nada de variables, rutas ni secretos quemados en el código:** van a `.env`.
-- `.env` **no se versiona** (está en `.gitignore`). Lo que se versiona es
+- **Solo si el proyecto maneja secretos o config de entorno.** Si no los hay, **no se crea
+  `.env` ni `.env.example`** (no van por defecto); se introducen cuando se necesitan.
+- **Nada de variables, rutas ni secretos quemados en el código:** cuando existan, van a `.env`.
+- `.env` **no se versiona** (está en `.gitignore`). Lo que se versiona, si aplica, es
   `.env.example`: la lista de variables **sin valores reales**.
-- **Qué variables quedan en `.env` es una decisión de diseño:** acótalas. Suelen
-  sobrar; sé sensato y **valida con el desarrollador** cuáles son realmente
-  necesarias. No metas variables "por si acaso".
+- **Acota las variables:** suelen sobrar; **valida con el desarrollador** cuáles son
+  realmente necesarias. No metas variables "por si acaso".
 - En pasos futuros del desarrollo, si surge una propuesta de **nueva variable o
   secreto**, **consúltala antes** de añadirla (no la introduzcas en silencio).
 - Secretos **solo por entorno**, nunca en el repo ni en el chat. Si uno se expone
@@ -79,7 +104,10 @@ Verificados contra la doc oficial actual de cada herramienta. -->
 
 ## Git
 <!-- Disciplina mínima de control de versiones. -->
-- Git **configurado desde el inicio** del proyecto.
+- Git **configurado desde el inicio** del proyecto, **con los hooks de la plantilla
+  activos**: `git config core.hooksPath .githooks` (versionados en `.githooks/`;
+  `commit-msg` exige el trailer de enlace, `pre-commit` bloquea `.env`/secretos y corre
+  `scripts/check.sh`).
 - **Commit al cierre de CADA fase, no solo en los incrementos de código.** El error
   típico es no commitear nada hasta el primer incremento de la Fase 3 y dejar las
   Fases 1–2 sin guardar. Concretamente, hay al menos un commit:

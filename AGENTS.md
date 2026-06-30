@@ -175,8 +175,18 @@ El "cómo hacemos las cosas aquí" (estilo, patrones, comandos) vive en
 - Cuando una lección se repite y se vuelve un patrón estable, **promuévela a una
   skill** en `skills/` (un procedimiento reutilizable). Ver `skills/README.md`.
 
-## 8. Nota sobre reglas que no pueden fallar
+## 8. Reglas que no pueden fallar (enforcement)
 
-Este archivo moldea el comportamiento típico del agente; **no lo garantiza**. Si
-una regla no puede permitirse ser "mayormente seguida" (un test obligatorio, un
-escaneo de seguridad), refuérzala en CI / pre-commit / hooks, no solo aquí.
+Este archivo moldea el comportamiento típico del agente; **no lo garantiza**. Una regla
+que no puede permitirse ser "mayormente seguida" se refuerza con un mecanismo **duro**, no
+solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo una vez con
+`git config core.hooksPath .githooks` (parte de la precondición de git del arranque)—:
+
+- **`commit-msg`** exige el trailer de enlace (`Ref:`/`Cierra:`): ningún commit sin rastro.
+- **`pre-commit`** bloquea versionar un `.env`/secreto y corre `scripts/check.sh` (lint +
+  formato + tests del stack, definido en el diseño): ningún commit con el estilo roto o
+  tests en rojo.
+
+Lo que **no** es mecanizable —que la revisión independiente (juez / revisor funcional)
+ocurrió— se vuelve obligatorio por su **artefacto**: no se cierra un incremento sin su
+fila en `docs/trazabilidad.md` y sin hallazgos `abierto`; el gate humano lo verifica.

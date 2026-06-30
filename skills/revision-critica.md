@@ -56,9 +56,17 @@
 
 - **Definición de Hecho:** corre `docs/definicion-de-hecho.md` punto por punto (binario).
 - **Consistencia de arquitectura:** el cambio respeta el enfoque/arquitectura de
-  `plan.md`; no introduce dependencias ni abstracciones sin ADR.
-- **Calidad y concisión:** legible, sin código muerto ni "por si acaso"; hace lo
-  mínimo que resuelve el problema (anti-exceso).
+  `plan.md`; no introduce dependencias ni abstracciones sin ADR; el **lenguaje/stack es el
+  de `contexto.md`** (no se coló otro por inercia).
+- **Estilo, clean y concisión:** **lint y formatter pasan** (`scripts/check.sh`) —base
+  determinista—; **nombres idiomáticos y consistentes**, **código en inglés ASCII**
+  (identificadores y comentarios, sin acentos), funciones cortas y cohesionadas, sin
+  duplicación, sin código muerto ni "por si acaso"; hace lo mínimo que resuelve el problema
+  (anti-exceso). El juez reserva su criterio para lo que el linter no ve (cohesión, nombres
+  con significado, calidad de los tests).
+- **Manejo de errores:** los errores se manejan de forma **explícita**; no se silencian
+  excepciones (nada de `catch` vacío ni tragar errores), los fallos se propagan o se
+  registran con contexto.
 - **Documentación:** interfaces públicas documentadas, completa pero concisa (ver DoD).
 - **Pruebas:** cada funcionalidad (o apoyo a funcionalidad) tiene una prueba que la
   respalda; tests herméticos. No exige 100% mecánico: cobertura de **comportamiento**.

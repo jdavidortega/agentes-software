@@ -9,8 +9,9 @@ línea de código.
 ## Cómo usarla
 
 1. Copia el contenido de este repo a tu nuevo proyecto.
-2. Verifica que **git esté configurado**. Se hace un commit **al cierre de cada fase
-   y de cada incremento** (no solo en la ejecución).
+2. Verifica que **git esté configurado** y **activa los hooks**:
+   `git config core.hooksPath .githooks`. Se hace un commit **al cierre de cada fase y de
+   cada incremento** (no solo en la ejecución).
 3. **Deja primero tus entradas.** Documentos de contexto (antecedentes, specs,
    notas) en `material/`; artefactos analíticos (notebooks, datos de entrada/salida,
    resultados previos) en `analisis/`. `material/` es **obligatorio**: necesita al
@@ -200,7 +201,8 @@ herramienta, te llevas `AGENTS.md` y funciona.
 ├── material/            entrada obligatoria: documentos de contexto (se leen)
 ├── analisis/            entrada opcional: artefactos analíticos (notebooks, datos)
 ├── skills/              procedimientos reutilizables (revisión funcional y crítica)
-├── .env.example         variables de entorno documentadas (sin valores)
+├── .githooks/           hooks versionados (commit-msg enlazado; pre-commit: secretos + lint + tests)
+├── .editorconfig        estilo base agnóstico del lenguaje
 └── .gitignore
 ```
 

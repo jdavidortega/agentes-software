@@ -18,8 +18,9 @@ Antes de marcar como terminado:
 - [ ] Las pruebas pasan (y hay pruebas para lo nuevo).
 - [ ] **Tests herméticos:** ninguna prueba depende de config de entorno (`.env`) ni
   llama a servicios externos; lo externo se inyecta o se mockea.
-- [ ] **Sin secretos ni config quemada:** las variables, rutas y credenciales van a
-  `.env` (no versionado); `.env.example` documenta cuáles, sin valores reales.
+- [ ] **Sin secretos ni config quemada.** *Si el proyecto maneja secretos o config de
+  entorno*, van a `.env` (no versionado) + `.env.example`; **si no los maneja, no se crea
+  `.env` por defecto**. Nunca credenciales/rutas quemadas en el código.
 - [ ] **Verificación con datos reales:** si el incremento toca datos o salida, se
   verificó de forma exploratoria sobre insumos reales representativos, no solo
   fixtures sintéticos. Si toca el despliegue, además una prueba **end-to-end en las
@@ -36,8 +37,12 @@ Antes de marcar como terminado:
   ejemplos en el esquema. Funciones: docstring con el contrato. Prueba: si hay que
   leer la implementación para invocarla, está incompleta; si repite el código línea
   a línea, está inflada.
-- [ ] El código es legible y sigue `docs/convenciones.md`.
+- [ ] **Estilo y clean — base, no negociable:** nombres **idiomáticos y consistentes** del
+  lenguaje, **código en inglés ASCII** (identificadores y comentarios, sin acentos),
+  funciones cohesionadas, sin duplicación ni código muerto; **lint y formatter pasan**
+  (`scripts/check.sh`). El código es legible y sigue `docs/convenciones.md`.
 - [ ] No se agregaron dependencias ni abstracciones nuevas sin aprobación.
+- [ ] **El lenguaje/stack usado es el de `docs/contexto.md`** (no se coló otro por inercia).
 - [ ] No quedó código muerto, TODOs sin registrar, ni "por si acaso".
 - [ ] Las decisiones relevantes están en `docs/decisiones.md`.
 - [ ] `README.md` actualizado (estructura, entradas/salidas, cómo ejecutar local y

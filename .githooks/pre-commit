@@ -1,0 +1,19 @@
+#!/bin/sh
+# Hook de la plantilla. Guardas DURAS e independientes del lenguaje antes de cada commit.
+
+# 1) Nunca versionar un .env ni archivos de secretos (defensa en profundidad,
+#    aunque el proyecto no use .env).
+if git diff --cached --name-only | grep -Eq '(^|/)\.env($|\.)'; then
+  echo "✗ pre-commit: intentas commitear un .env. Va en .gitignore, nunca al repo." >&2
+  exit 1
+fi
+
+# 2) Lint + formato + tests del stack. El DISEÑO debe definirlos y dejarlos en
+#    scripts/check.sh (ver docs/convenciones.md §Comandos clave). Si existe, debe pasar.
+if [ -x scripts/check.sh ]; then
+  scripts/check.sh || { echo "✗ pre-commit: scripts/check.sh falló (lint/formato/tests)." >&2; exit 1; }
+else
+  echo "• pre-commit: no hay scripts/check.sh. Define lint+formato+tests del stack y" >&2
+  echo "  cabléalos ahí (salida obligatoria del diseño; ver docs/convenciones.md)." >&2
+fi
+exit 0

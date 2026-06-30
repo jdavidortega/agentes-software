@@ -1,0 +1,16 @@
+# Estilo base, AGNÓSTICO del lenguaje. Lo idiomático del stack lo refuerza su
+# formatter (ver docs/convenciones.md §Estilo de código); esto solo fija lo
+# mínimo transversal para que todos los proyectos sean consistentes.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.md]
+# En Markdown, los dos espacios finales son un salto de línea: no los recortes.
+trim_trailing_whitespace = false

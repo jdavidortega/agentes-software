@@ -1,0 +1,14 @@
+#!/bin/sh
+# Hook de la plantilla. Exige que el mensaje ENLACE lo que resuelve (ver
+# docs/convenciones.md §Git y docs/trazabilidad.md): un trailer "Ref:" (cierre de
+# fase/incremento) o "Cierra:" (hallazgo del juez/revisor). Es el rastro mínimo que
+# hace auditable el historial; ningún commit sin él.
+# Salida de emergencia (úsala solo si sabes por qué): git commit --no-verify
+msg_file="$1"
+if grep -Eq '^(Ref|Cierra):[[:space:]]*(F[1-5]|I[0-9]+|R-[EI][0-9.]+)' "$msg_file"; then
+  exit 0
+fi
+echo "✗ commit-msg: falta el trailer de enlace." >&2
+echo "  Usa  'Ref: F1|F2|F4|F5'  o  'Ref: I3'  o  'Cierra: R-I3.1' / 'Cierra: R-E.1'." >&2
+echo "  Ver docs/convenciones.md §Git. (Emergencia: git commit --no-verify)" >&2
+exit 1

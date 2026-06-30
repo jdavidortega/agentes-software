@@ -171,6 +171,24 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
   Riesgo típico en software: abstracción prematura y dependencias especulativas.
 - **Ciclo de aprendizaje:** `corrección → docs/MEMORIA.md → (si se repite) → skill`.
 
+## Enforcement: lo que no puede fallar
+
+Las reglas "duras" no se quedan en prosa: la plantilla trae git hooks en `.githooks/`.
+Actívalos una vez por proyecto:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+- **`pre-commit`** — bloquea versionar un `.env`/secreto y corre `scripts/check.sh`
+  (lint + formato + tests; ese script lo creas en el diseño con los comandos de tu stack).
+- **`commit-msg`** — exige el trailer `Ref:`/`Cierra:`; sin él rechaza el commit
+  (escape puntual: `git commit --no-verify`).
+- **`.editorconfig`** — estilo base (charset, espacios) que aplican los editores.
+
+Que el juez y el revisor funcional corrieron (no mecanizable) se exige por su rastro en
+`docs/trazabilidad.md`.
+
 ## Portabilidad: AGENTS.md es el núcleo
 
 `AGENTS.md` contiene todas las instrucciones del proyecto; es la **fuente de

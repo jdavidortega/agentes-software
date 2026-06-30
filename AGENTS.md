@@ -81,6 +81,37 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
    ligereza es deliberada:** un cierre no debe cargar ceremonial pesado (sería
    contradecir la guarda anti-sobredimensionamiento). No le falta estructura; no la
    necesita.
+   → **Handoff:** al confirmar que todos los `C#` quedaron verificados, el agente **se lo
+   dice a la persona** ("lo planeado está cumplido") y deja claro que, de aquí en adelante,
+   cualquier trabajo nuevo se **clasifica y reentra** (ver *Reentrada*). El cierre dispara
+   la reentrada; **no hay que volver a invocar el arranque.**
+
+### Reentrada — trabajo nuevo después del cierre
+
+El **cierre (Fase 5) dispara la reentrada**: cuando llega trabajo nuevo —en ese momento o
+en una sesión futura— **no se re-ejecuta el arranque ni se abre un flujo aparte**; se
+reentra en este mismo ciclo y se abre **solo la rebanada que el cambio necesita**. (Lo
+pedido **con el plan aún vivo** no es reentrada: va por el bucle de la Fase 3.) Antes de
+tocar nada, clasifica el pedido con **una sola pregunta** —el mismo pivote que ya usa la
+Fase 4—: **¿cambia la verdad acordada, es decir un `C#` o el set de oro de
+`docs/contexto.md`?**
+
+- **No la cambia** (defecto que incumple un `C#` vigente, regresión, cobertura faltante,
+  o un ajuste interno/cosmético que el criterio ya permitía) → el requisito ya existe:
+  **Fase 3**, incremento de corrección (juez + DoD). No se reabre el encuadre.
+- **Sí la cambia** → reentra por el **Encuadre**, con peso proporcional y **solo sobre lo
+  afectado** (no se re-ingiere todo ni se rehace el encuadre completo): un **ajuste**
+  *edita* un `C#` o un par del set de oro (pesa poco); un **requisito nuevo** *añade* uno
+  (pesa lo normal). En ambos: ADR del cambio, revisor funcional sobre lo afectado, gate y
+  luego Fase 3.
+- **Pregunta/soporte** → respóndela; **mejora opcional** más allá de lo acordado →
+  **backlog** de `docs/plan.md` (si se decide perseguirla, se vuelve requisito nuevo).
+
+El insumo del trabajo nuevo aterriza como documento en `material/` (si solo se describe
+en el chat, **captúralo como brief corto ahí**). Clasifica **por aspecto, no por ticket**
+(la parte rota va a Fase 3; la que cambia un criterio, al Encuadre), y la reentrada que
+tocó código **revalida la Fase 4 sobre el conjunto** (sin regresiones). El detalle
+operativo está en `docs/arranque.md`.
 
 ## 3. Cuándo DETENERTE y preguntar
 

@@ -42,7 +42,10 @@ El flujo completo: el **arranque** (antes de programar, con `material/` como
 precondición y un gate por actividad) y el **ciclo de vida** (la Fase 3 es un bucle que se
 cierra con el juez y la Definición de Hecho). Las dos revisiones independientes —el
 **revisor funcional** sobre el encuadre y el **juez** sobre el código— son los puntos
-donde otro contexto verifica el trabajo.
+donde otro contexto verifica el trabajo. Y un **arco de reentrada**: el trabajo nuevo
+que llega tras la Fase 5 se clasifica con una sola pregunta —¿cambia `contexto.md` (un
+`C#` o el set de oro)?— y vuelve al **Encuadre** si la respuesta es sí, o salta directo a
+la **Fase 3** si es no.
 
 ```mermaid
 flowchart TD
@@ -86,12 +89,17 @@ flowchart TD
       More -->|Si| EXEC
       More -->|No| F4{"Fase 4 · Validacion del conjunto<br/>¿cumple los C# y el set de oro a la vez,<br/>integrado y sobre datos reales?"}
       F4 -->|"No: defecto o regresion"| EXEC
-      F4 -->|"Si"| F5["Fase 5 · Cierre y aprendizaje<br/>lecciones a docs/MEMORIA.md, luego skills"]
+      F4 -->|"Si"| F5["Fase 5 · Cierre y aprendizaje<br/>lecciones a docs/MEMORIA.md, luego skills<br/>handoff: el agente avisa que lo planeado se cumplio"]
     end
 
     F4 -->|"No: encuadre erroneo o requisito nuevo<br/>ajustar contexto + ADR"| P2
 
-    F5 --> End(["Fin"])
+    F5 --> End(["Cierre del ciclo"])
+
+    End -.->|"llega trabajo nuevo<br/>no re-ejecuta arranque,<br/>solo la rebanada necesaria"| TR{"Reentrada - triage<br/>¿cambia contexto.md?<br/>un C# o el set de oro"}
+    TR -.->|"No: defecto, regresion<br/>o ajuste interno: a Fase 3"| EXEC
+    TR -.->|"Si: ajuste edita un C# o<br/>requisito nuevo agrega uno: a Encuadre"| P2
+    TR -.->|"pregunta o mejora opcional:<br/>no abre ciclo"| Soporte["Responder o backlog"]
 ```
 
 ## Definiciones
@@ -133,6 +141,12 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
   (`skills/revision-funcional.md`).
 - **Juez (rol juez)** — revisión **independiente** del *código* (el diff de cada
   incremento) antes del commit. **Reporta, no edita** (`skills/revision-critica.md`).
+- **Reentrada / triage** — cómo entra el trabajo nuevo *después del cierre* (Fase 5): lo
+  **dispara el cierre** y **no re-ejecuta el arranque** —solo la rebanada que el cambio
+  necesita—. Una sola pregunta —¿cambia un `C#` o el set de oro de `contexto.md`?— decide
+  si reabre el **Encuadre** (un *ajuste* que edita un criterio, o un *requisito nuevo* que
+  añade uno) o va directo a la **Fase 3** (defecto, regresión o ajuste interno). Detalle
+  en `docs/arranque.md`.
 - **Trazabilidad** — el hilo `criterio → incremento → revisión`, con estado
   (`docs/trazabilidad.md`).
 - **`C#`** — IDs de los **criterios** de éxito/aceptación (`C1`, `C2`…), en

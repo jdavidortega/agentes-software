@@ -12,6 +12,42 @@
 > actividad se nombra por su fase. La **Fase 3 (Ejecución)** —la primera línea de
 > código— empieza solo cuando el arranque termina y el gate de diseño está aprobado.
 
+## Reentrada: trabajo nuevo en un proyecto ya encuadrado
+
+> **Si es el primer ciclo del proyecto, sáltate esta sección** y sigue abajo con el
+> arranque completo (REGLA DURA → Fase 1 · Ingesta…). Esto aplica **solo cuando el
+> proyecto ya pasó por la Fase 5** y llega trabajo nuevo.
+
+La reentrada **no re-ejecuta el arranque**: el guion completo se corre **una vez**, en el
+primer ciclo. Lo dispara el **cierre** (Fase 5) —en ese momento o en una sesión futura— y
+se reutiliza **solo la rebanada que el cambio necesita**. (Lo pedido **con el plan aún
+vivo** no es reentrada: va por el bucle de la Fase 3.) Clasifica con una sola pregunta:
+
+> **¿El pedido cambia la verdad acordada —un `C#` o el set de oro de `docs/contexto.md`?**
+
+- **No** → el criterio vigente sigue válido; lo que falla o falta es la implementación
+  (defecto, regresión, cobertura faltante, o un ajuste interno que el criterio ya
+  permitía). Ve directo a la **Fase 3** (incremento de corrección, juez + DoD). Es la
+  ruta «los requisitos están bien» de la Fase 4. No se toca el encuadre.
+- **Sí** → reentra por el **Encuadre**, reutilizando **solo las actividades que el cambio
+  exige** (no el arranque entero):
+  - **Ajuste** (edita un `C#` o un par del set de oro): ingiere solo el nuevo insumo,
+    **edita** el dato en `contexto.md`, ADR del cambio, y el **revisor funcional** revisa
+    *solo lo afectado*.
+  - **Requisito nuevo** (añade un `C#`/capacidad): ingiere el nuevo insumo, **añade** el
+    `C#` (+ set de oro si aplica), suma ≥1 incremento al plan, revisor funcional sobre lo
+    nuevo, gate. Sigue siendo una rebanada, no una re-ingesta de lo ya encuadrado.
+- **Pregunta/soporte** → respóndela; **mejora opcional** → **backlog** de `docs/plan.md`.
+  No abren ciclo (si una mejora se decide perseguir, se vuelve requisito nuevo).
+
+El insumo aterriza en `material/` (si solo se describe en el chat, **captúralo como brief
+corto ahí** y anótalo en el manifiesto). Clasifica **por aspecto, no por ticket**: si un
+pedido es defecto en una parte y cambia un criterio en otra, la parte rota va a Fase 3 y
+la que toca `contexto.md`, al Encuadre. **Propón la clasificación y confírmala en el
+gate** (un mensaje); no la decidas en silencio ni interrogues con un sí/no. Tras
+construir, la reentrada que tocó código **revalida la Fase 4 sobre el conjunto** (sin
+regresiones), no solo el incremento nuevo.
+
 ## REGLA DURA
 
 No pasas a la siguiente actividad hasta que **(a)** su validador esté en **PASA**

@@ -11,8 +11,9 @@
 > **Obligatorio para arrancar.** Esta carpeta debe tener **≥1 archivo real** (además
 > de este `README.md`) antes de construir el encuadre: el encuadre se **deriva** del
 > material, no de lo que la persona alcance a teclear en frío. Si no tienes
-> documentos, escribe un brief breve y déjalo aquí. Sin material, el agente se
-> detiene (precondición de `docs/arranque.md`).
+> documentos, escribe un brief breve y déjalo aquí (guía y formato:
+> `docs/plantilla-requerimiento.md`). Sin material, el agente se detiene
+> (precondición de `docs/arranque.md`).
 
 ## Para la persona
 

@@ -15,7 +15,8 @@ línea de código.
 3. **Deja primero tus entradas.** Documentos de contexto (antecedentes, specs,
    notas) en `material/`; artefactos analíticos (notebooks, datos de entrada/salida,
    resultados previos) en `analisis/`. `material/` es **obligatorio**: necesita al
-   menos un archivo para arrancar —si no tienes documentos, escribe un brief breve—,
+   menos un archivo para arrancar —si no tienes documentos, escribe un brief breve
+   (guía: `docs/plantilla-requerimiento.md`)—,
    porque el encuadre se **deriva del material**, no de lo que alcances a teclear en
    frío. `analisis/` es opcional, pero el agente siempre la revisa.
 4. Pídele al agente que ejecute `docs/arranque.md`. Ese guion **empieza ingiriendo
@@ -215,6 +216,7 @@ herramienta, te llevas `AGENTS.md` y funciona.
 │   ├── decisiones.md        ADR-lite
 │   ├── convenciones.md      cómo hacemos las cosas aquí
 │   ├── definicion-de-hecho.md
+│   ├── plantilla-requerimiento.md   cómo escribir un requerimiento (inicial y de reentrada)
 │   └── MEMORIA.md           lecciones del proyecto
 ├── material/            entrada obligatoria: documentos de contexto (se leen)
 ├── analisis/            entrada opcional: artefactos analíticos (notebooks, datos)

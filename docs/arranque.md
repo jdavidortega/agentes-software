@@ -41,7 +41,8 @@ vivo** no es reentrada: va por el bucle de la Fase 3.) Clasifica con una sola pr
   No abren ciclo (si una mejora se decide perseguir, se vuelve requisito nuevo).
 
 El insumo aterriza en `material/` (si solo se describe en el chat, **captúralo como brief
-corto ahí** y anótalo en el manifiesto). Clasifica **por aspecto, no por ticket**: si un
+corto ahí** —formato: `docs/plantilla-requerimiento.md`, plantilla B— y anótalo en el
+manifiesto). Clasifica **por aspecto, no por ticket**: si un
 pedido es defecto en una parte y cambia un criterio en otra, la parte rota va a Fase 3 y
 la que toca `contexto.md`, al Encuadre. **Propón la clasificación y confírmala en el
 gate** (un mensaje); no la decidas en silencio ni interrogues con un sí/no. Tras
@@ -63,9 +64,9 @@ di que **debe validarlos antes de continuar**. Nada de "ya quedó, ¿seguimos?".
 
 **Precondición de arranque:** no se construye el encuadre sin material. La carpeta
 `material/` debe tener **≥1 archivo real** (además de su `README.md`). Si está
-vacía, **detente** y pídelo: aunque sea un brief breve escrito a propósito. El
-encuadre se deriva del material, no de lo que la persona alcance a teclear en
-frío.
+vacía, **detente** y pídelo: aunque sea un brief breve escrito a propósito (formato:
+`docs/plantilla-requerimiento.md`). El encuadre se deriva del material, no de lo que
+la persona alcance a teclear en frío.
 
 ## Transversal (durante todo el arranque)
 

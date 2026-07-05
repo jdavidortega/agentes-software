@@ -159,8 +159,8 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
 - **`R-I#.n`** — IDs de los **hallazgos bloqueantes** del *juez* en un incremento
   (p. ej. `R-I3.1`).
 - **Commit enlazado** — commit cuyo mensaje referencia lo que resuelve: `Ref: F#`
-  (cierre de fase — `F1`, `F2`, `F4`, `F5`), `Ref: I3` (incremento de la Fase 3) o
-  `Cierra: R-I3.1` (hallazgo del juez).
+  (cierre de fase — `F1`, `F2`, `F4`, `F5`), `Ref: I3` (incremento de la Fase 3),
+  `Cierra: R-I3.1` (hallazgo del juez) o `Cierra: R-E.1` (vacío del revisor funcional).
 
 ## Los mecanismos que la sostienen
 
@@ -187,8 +187,9 @@ git config core.hooksPath .githooks
   (escape puntual: `git commit --no-verify`).
 - **`.editorconfig`** — estilo base (charset, espacios) que aplican los editores.
 
-Que el juez y el revisor funcional corrieron (no mecanizable) se exige por su rastro en
-`docs/trazabilidad.md`.
+Que el juez y el revisor funcional corrieron (no mecanizable) se exige por su rastro:
+cada revisión deja su línea de cierre en la bitácora de `docs/plan.md` (veredicto y
+conteo, también con PASA limpio) y sus bloqueantes/vacíos en `docs/trazabilidad.md`.
 
 ## Portabilidad: AGENTS.md es el núcleo
 

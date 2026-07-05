@@ -5,7 +5,7 @@
 # hace auditable el historial; ningún commit sin él.
 # Salida de emergencia (úsala solo si sabes por qué): git commit --no-verify
 msg_file="$1"
-if grep -Eq '^(Ref|Cierra):[[:space:]]*(F[1-5]|I[0-9]+|R-[EI][0-9.]+)' "$msg_file"; then
+if grep -Eq '^(Ref|Cierra):[[:space:]]*(F[1245]|I[0-9]+|R-[EI][0-9.]+)' "$msg_file"; then
   exit 0
 fi
 echo "✗ commit-msg: falta el trailer de enlace." >&2

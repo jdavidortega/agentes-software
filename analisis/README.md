@@ -15,8 +15,9 @@
   probablemente su mayor valor para el arranque.
 - **Muestreo de insumos reales (Fase 1 · Ingesta del arranque):** abrir 1–3 muestras reales de
   cada insumo y validar contra ellas los supuestos del spec (formato, nombres,
-  numeración, casos límite, datos ya pre-extraídos). Las discrepancias se registran
-  como decisión en `docs/decisiones.md`.
+  numeración, casos límite, datos ya pre-extraídos). Las discrepancias son
+  **hallazgos** → `docs/contexto.md`; solo si fuerzan una elección (≥2 opciones
+  razonables) se abre un ADR en `docs/decisiones.md`.
 
 ## Reglas
 

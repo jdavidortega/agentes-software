@@ -15,12 +15,15 @@
   al cerrar el arranque y se cierran (la persona llena el hueco) antes del gate de diseño.
 - **Hallazgos del juez (ejecución):** `R-I<incremento>.<n>` (p. ej. `R-I3.1`).
 - **Commits** enlazan en el footer: `Ref: F#` (cierre de fase — `F1`, `F2`, `F4`, `F5`),
-  `Ref: I3` (incremento de la Fase 3) o `Cierra: R-I3.1` (hallazgo del juez).
+  `Ref: I3` (incremento de la Fase 3), `Cierra: R-I3.1` (hallazgo del juez) o
+  `Cierra: R-E.1` (vacío del revisor funcional).
 
 ## Cobertura de criterios
 
 <!-- Forward: qué incremento satisface cada criterio y si está verificado.
-Backward: de un criterio se llega a su incremento. Una fila por criterio. -->
+Backward: de un criterio se llega a su incremento. Una fila por criterio.
+`verificado` se marca pieza a pieza en la Fase 3; la Fase 4 (conjunto) no cambia
+estados aquí: su resultado queda en la bitácora de plan.md y el commit `Ref: F4`. -->
 
 | Criterio | Incremento(s) | Estado | Nota |
 |----------|---------------|--------|------|

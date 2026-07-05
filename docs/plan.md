@@ -30,8 +30,10 @@ satisface (enlace en docs/trazabilidad.md). Marca el estado. -->
 
 <!-- Una línea por avance o ajuste. Lo que cambió respecto al plan y por qué.
 Las decisiones con alternativas van a docs/decisiones.md; aquí queda el rastro.
-Registra una línea de cierre de cada revisión del juez (incremento, veredicto, "ver
-trazabilidad"); el detalle de hallazgos y su estado vive en docs/trazabilidad.md. -->
+Registra una línea de cierre de CADA revisión independiente (juez o revisor funcional:
+qué revisó, veredicto y conteo de hallazgos, "ver trazabilidad"), TAMBIÉN cuando es
+PASA sin hallazgos: esa línea es el rastro de que la revisión ocurrió. El detalle de
+hallazgos y su estado vive en docs/trazabilidad.md. -->
 - [AAAA-MM-DD] _…_
 
 ## Fuera de alcance / backlog

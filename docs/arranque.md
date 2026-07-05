@@ -128,8 +128,9 @@ Esto incluye:
   ya traiga (estilo de código, patrones, comandos de build/test/run, layout de
   entorno) → `docs/convenciones.md`, **verificando comandos y versiones contra la doc
   oficial vigente** antes de fijarlos (no los tomes de memoria ni de material que
-  pueda estar desactualizado); los **datos o decisiones** que implique →
-  `docs/decisiones.md`.
+  pueda estar desactualizado); los **hallazgos y datos** que aporte →
+  `docs/contexto.md` (hallazgo ≠ decisión); las **decisiones** que implique (≥2
+  opciones razonables) → `docs/decisiones.md`.
 - De `analisis/` (si tiene contenido): los **hallazgos/resultados** del análisis
   previo → `docs/contexto.md` §Contexto; los **pares datos de entrada → datos de
   salida** son **candidatos directos al set de oro** de `docs/contexto.md`,
@@ -227,8 +228,11 @@ posible incremento futuro.
 - [ ] Hay una lista explícita de "fuera de alcance" (en el backlog de `docs/plan.md`).
 - [ ] El plan no excede los criterios de éxito (anti-sobredimensionamiento).
 - [ ] El plan es coherente con lo visto en el muestreo de insumos reales (Ingesta).
+- [ ] `docs/trazabilidad.md` **sembrada**: una fila por criterio `C#` con su(s)
+  incremento(s), en estado `pendiente` (la revisión funcional siguiente la exige).
 - [ ] **Linter y formatter del stack elegidos** (los idiomáticos por defecto) y su comando
-  agregado en `scripts/check.sh` + `docs/convenciones.md`, cableado al `pre-commit`.
+  agregado en `scripts/check.sh` + `docs/convenciones.md`, cableado al `pre-commit`;
+  `check.sh` **tolera la suite de tests aún vacía** (ver `docs/convenciones.md`).
 - [ ] **Decisión de entorno:** ¿el proyecto maneja secretos o config de entorno? Si no,
   **no se crea `.env`/`.env.example`**; si sí, se crean entonces (no por defecto).
 

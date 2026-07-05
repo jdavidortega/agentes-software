@@ -26,6 +26,9 @@ Verificados contra la doc oficial actual de cada herramienta. -->
 - Lint / formato:
 - **`scripts/check.sh`** — agrega lint + formato + tests en un solo comando; lo ejecuta el
   `pre-commit`. Es **salida obligatoria del diseño**; hasta que exista, el hook solo avisa.
+  Debe **tolerar la suite de tests vacía** (p. ej. `pytest` sale con código 5 sin tests;
+  `jest` necesita `--passWithNoTests`): si no, bloquea los commits del arranque (`Ref: F2`)
+  cuando aún no hay código. Con el primer test, falla de verdad.
 
 ## Estilo de código
 <!-- El estándar NO se debate por proyecto: se usa la convención de nombres IDIOMÁTICA del
@@ -120,8 +123,9 @@ El elegido se cablea en `scripts/check.sh` y el `pre-commit`.
 - Mensaje concreto y suficiente: qué cambió y por qué (no "varios cambios").
 - **Enlaza** cada commit a lo que resuelve, en el footer: `Ref: F#` (cierre de fase:
   `F1` encuadre, `F2` plan, `F4` validación, `F5` cierre), `Ref: I3` (incremento de la
-  Fase 3) o `Cierra: R-I3.1` (hallazgo del juez). Es la trazabilidad en el historial
-  (ver `docs/trazabilidad.md`).
+  Fase 3), `Cierra: R-I3.1` (hallazgo del juez) o `Cierra: R-E.1` (vacío del revisor
+  funcional, si su resolución amerita commit propio). Es la trazabilidad en el
+  historial (ver `docs/trazabilidad.md`).
 
 ## Pruebas
 - **Herméticas:** sin dependencia de `.env` real ni de servicios externos; inyectar

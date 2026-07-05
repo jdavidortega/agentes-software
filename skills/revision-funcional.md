@@ -59,7 +59,9 @@
    - **Sugerencias** (criterio, no bloquean): lista breve (aviso al gate).
    - **Preguntas / dudas:** lo que no pudo verificar.
 4. **Registra los vacíos en `docs/trazabilidad.md`** (ID `R-E.n`, qué punto, estado
-   `abierto`). Es la memoria entre pasadas.
+   `abierto`) y deja **siempre** una línea de cierre en la bitácora de `docs/plan.md`
+   (revisión funcional, veredicto, conteo de vacíos), **también con PASA limpio**: esa
+   línea es el rastro exigible de que la revisión ocurrió. Es la memoria entre pasadas.
 
 ## Protocolo de vacíos (qué hacer cuando algo falta)
 

@@ -35,7 +35,9 @@
    - **convenciones operativas** (estilo, patrones, comandos de build/test/run,
      entorno) → `docs/convenciones.md`, **verificando comandos y versiones contra la
      doc oficial vigente** antes de fijarlos.
-   - **datos o decisiones** que implique → `docs/decisiones.md` (ADR-lite).
+   - **hallazgos y datos** que aporte → `docs/contexto.md` (hallazgo ≠ decisión);
+     las **decisiones** que implique (≥2 opciones razonables) → `docs/decisiones.md`
+     (ADR-lite).
    - material que se conserva como **referencia** tal cual → se queda aquí; solo
      se anota en el manifiesto y, si aplica, se enlaza desde `docs/contexto.md`.
 3. **Gate humano:** no escribas en los archivos oficiales sin aprobación explícita.

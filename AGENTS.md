@@ -62,8 +62,9 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
    propio; ver `skills/revision-critica.md`), ADR si hubo decisión, commit **enlazado**
    (`Ref:`/`Cierra:`), y trazabilidad al día (`docs/plan.md` + `docs/trazabilidad.md`).
    **Salida de la fase (cuándo termina el bucle):** cuando **todos los criterios `C#`
-   están en estado `verificado`** en `docs/trazabilidad.md`, sin hallazgos `R-I#.n`
-   abiertos. Recién entonces se pasa a la Fase 4.
+   están en estado `verificado`** en `docs/trazabilidad.md` y todo hallazgo `R-I#.n`
+   cerró su ciclo completo (`resuelto` y luego `verificado` por el juez; ninguno
+   `abierto`). Recién entonces se pasa a la Fase 4.
 4. **Validación** — la DoD por incremento revisa **cada pieza al construirla**; esta
    fase valida **el conjunto ensamblado**: que todos los `C#` y el set de oro se
    cumplen **a la vez**, integrados, sobre datos reales (end-to-end), sin regresiones.
@@ -188,5 +189,8 @@ solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo u
   tests en rojo.
 
 Lo que **no** es mecanizable —que la revisión independiente (juez / revisor funcional)
-ocurrió— se vuelve obligatorio por su **artefacto**: no se cierra un incremento sin su
-fila en `docs/trazabilidad.md` y sin hallazgos `abierto`; el gate humano lo verifica.
+ocurrió— se vuelve obligatorio por su **artefacto**: cada revisión deja su línea de
+cierre en la bitácora de `docs/plan.md` (qué revisó, veredicto y conteo de hallazgos,
+**también cuando es PASA limpio**) y sus bloqueantes/vacíos como filas en
+`docs/trazabilidad.md`; no se cierra un incremento sin ese rastro ni con hallazgos
+`abierto`. El gate humano lo verifica.

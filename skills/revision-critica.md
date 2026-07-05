@@ -45,8 +45,10 @@
    - **Sugerencias** (criterio, no bloquean): lista breve (aviso al gate, no se rastrean).
    - **Preguntas / dudas:** lo que no pudo verificar.
 4. **Registra los bloqueantes en `docs/trazabilidad.md`** (ID, incremento, criterio,
-   estado `abierto`) y deja una línea de cierre en la bitácora de `docs/plan.md`
-   (revisión I#, veredicto, "ver trazabilidad"). Es la memoria entre fases.
+   estado `abierto`) y deja **siempre** una línea de cierre en la bitácora de
+   `docs/plan.md` (revisión I#, veredicto, conteo de hallazgos, "ver trazabilidad"),
+   **también cuando el veredicto es PASA sin hallazgos**: esa línea es el rastro
+   exigible de que la revisión ocurrió. Es la memoria entre fases.
 5. El agente principal resuelve los bloqueantes como subtareas; al cerrarlos actualiza
    su estado a `resuelto (fecha + commit)` en `docs/trazabilidad.md` y enlaza el commit
    (`Cierra: R-I#.n`). El juez los marca `verificado` en la siguiente pasada. Solo con

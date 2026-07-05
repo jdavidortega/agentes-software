@@ -230,6 +230,8 @@ posible incremento futuro.
 - [ ] El plan es coherente con lo visto en el muestreo de insumos reales (Ingesta).
 - [ ] `docs/trazabilidad.md` **sembrada**: una fila por criterio `C#` con su(s)
   incremento(s), en estado `pendiente` (la revisión funcional siguiente la exige).
+- [ ] Decidido **qué pares del set de oro se automatizan** como tests de regresión
+  (los viables; el resto queda como verificación manual explícita).
 - [ ] **Linter y formatter del stack elegidos** (los idiomáticos por defecto) y su comando
   agregado en `scripts/check.sh` + `docs/convenciones.md`, cableado al `pre-commit`;
   `check.sh` **tolera la suite de tests aún vacía** (ver `docs/convenciones.md`).

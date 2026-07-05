@@ -40,6 +40,10 @@ diseño. El formatter/linter del stack lo aplica automáticamente. -->
 - **Idioma del código: inglés.** Identificadores **y** comentarios/docstrings en inglés
   ASCII (sin acentos ni ñ). El texto **de cara al usuario** va en el idioma del producto y
   **externalizado** (no quemado en el código).
+- **Comentarios y docstrings: concretos y con propósito.** Se comenta el **porqué** o una
+  restricción que el código no puede mostrar, no el *qué* línea a línea; nada de código
+  muerto comentado ni comentarios que repiten el nombre de la función. Las interfaces
+  públicas se documentan según `docs/definicion-de-hecho.md` (completo pero conciso).
 - Estructura de carpetas / imports:
 - Desviaciones del estándar idiomático (solo con razón documentada):
 
@@ -111,6 +115,11 @@ El elegido se cablea en `scripts/check.sh` y el `pre-commit`.
   activos**: `git config core.hooksPath .githooks` (versionados en `.githooks/`;
   `commit-msg` exige el trailer de enlace, `pre-commit` bloquea `.env`/secretos y corre
   `scripts/check.sh`).
+- **Trunk-based:** se trabaja sobre la rama principal, con commits pequeños y
+  enlazados; una rama solo si la persona la pide (experimento, cambio grande), no por
+  defecto. Con **remoto compartido**, `scripts/check.sh` se cablea además en un **CI
+  mínimo** (se decide en el diseño): los hooks locales se pueden esquivar
+  (`--no-verify`); el CI no.
 - **Commit al cierre de CADA fase, no solo en los incrementos de código.** El error
   típico es no commitear nada hasta el primer incremento de la Fase 3 y dejar las
   Fases 1–2 sin guardar. Concretamente, hay al menos un commit:

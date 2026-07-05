@@ -68,7 +68,9 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
 4. **Validación** — la DoD por incremento revisa **cada pieza al construirla**; esta
    fase valida **el conjunto ensamblado**: que todos los `C#` y el set de oro se
    cumplen **a la vez**, integrados, sobre datos reales (end-to-end), sin regresiones.
-   Ver `docs/definicion-de-hecho.md`.
+   Incluye una **pasada del juez sobre el conjunto** (la misma revisión independiente
+   de la Fase 3, enfocada al ensamblado, no a cada diff ya juzgado; ver
+   `skills/revision-critica.md`). Ver `docs/definicion-de-hecho.md`.
    - Si **el conjunto NO cumple lo acordado**, no se sigue: se vuelve atrás según la
      causa. **Defecto / regresión / cobertura faltante** (los requisitos están bien) →
      **Fase 3**, incremento de corrección. **El encuadre estaba mal o falta un

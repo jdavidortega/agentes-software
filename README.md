@@ -35,7 +35,8 @@ línea de código.
    completitud y consistencia contra el material (reporta, no escribe).
 3. **Ejecución iterativa** — incrementos pequeños, verificados sobre datos reales,
    con revisión crítica independiente antes de cada commit.
-4. **Validación** — `docs/definicion-de-hecho.md`.
+4. **Validación** — el conjunto ensamblado contra los `C#` y el set de oro, con
+   pasada del juez sobre el conjunto (`docs/definicion-de-hecho.md`).
 5. **Cierre y aprendizaje** — lecciones a `docs/MEMORIA.md`.
 
 ## Diagrama de la metodología
@@ -89,7 +90,7 @@ flowchart TD
       DoD -->|Si| Commit["Commit enlazado Ref: / Cierra:<br/>plan y trazabilidad al dia"]
       Commit --> More{"¿Quedan criterios C#<br/>sin verificar?"}
       More -->|Si| EXEC
-      More -->|No| F4{"Fase 4 · Validacion del conjunto<br/>¿cumple los C# y el set de oro a la vez,<br/>integrado y sobre datos reales?"}
+      More -->|No| F4{"Fase 4 · Validacion del conjunto<br/>¿cumple los C# y el set de oro a la vez,<br/>integrado y sobre datos reales?<br/>pasada del juez sobre el conjunto"}
       F4 -->|"No: defecto o regresion"| EXEC
       F4 -->|"Si"| F5["Fase 5 · Cierre y aprendizaje<br/>lecciones a docs/MEMORIA.md, luego skills<br/>handoff: el agente avisa que lo planeado se cumplio"]
     end
@@ -186,6 +187,9 @@ git config core.hooksPath .githooks
 - **`commit-msg`** — exige el trailer `Ref:`/`Cierra:`; sin él rechaza el commit
   (escape puntual: `git commit --no-verify`).
 - **`.editorconfig`** — estilo base (charset, espacios) que aplican los editores.
+
+Los hooks son locales y esquivables (`git commit --no-verify`): con remoto compartido,
+el mismo `scripts/check.sh` se cablea también en CI (ver `docs/convenciones.md` §Git).
 
 Que el juez y el revisor funcional corrieron (no mecanizable) se exige por su rastro:
 cada revisión deja su línea de cierre en la bitácora de `docs/plan.md` (veredicto y

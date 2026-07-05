@@ -33,7 +33,7 @@ estados aquí: su resultado queda en la bitácora de plan.md y el commit `Ref: F
 
 <!-- Vacíos de completitud/consistencia del encuadre, a cierre del arranque. Ciclo:
 abierto → resuelto (la persona llenó el hueco). Deben quedar todos resueltos antes
-del gate de diseño; no se rastrean las sugerencias. -->
+del gate de diseño; no se rastrean las sugerencias (las acogidas → backlog de plan.md). -->
 
 | Vacío | Punto incumplido | Estado | Resuelto (cómo · AAAA-MM-DD HH:MM UTC) |
 |-------|------------------|--------|----------------------------------------|
@@ -42,7 +42,8 @@ del gate de diseño; no se rastrean las sugerencias. -->
 ## Registro de revisiones del juez
 
 <!-- Solo BLOQUEANTES, a cierre. Ciclo: abierto → resuelto (fecha + commit) →
-verificado (juez). Las sugerencias no se rastrean aquí: van como aviso al gate. -->
+verificado (juez). Las sugerencias no se rastrean aquí: van como aviso al gate
+(las acogidas → backlog de plan.md). -->
 
 | Hallazgo | Incr. | Criterio | Descripción | Estado | Resuelto (AAAA-MM-DD HH:MM UTC · commit) |
 |----------|-------|----------|-------------|--------|------------------------------------------|

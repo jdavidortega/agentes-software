@@ -31,6 +31,19 @@
   y su estado) y `docs/decisiones.md`, y **verifica que los huecos `abierto` previos
   estén `resuelto`** antes de dar PASA.
 
+## Prompt de invocación (para el agente principal)
+
+Lanza al subagente con este encargo **tal cual** —neutro: sin explicarle cómo llegaste
+al encuadre ni justificarle sus elecciones; su valor está en que no hereda tu framing—:
+
+> Actúa como revisor funcional según `skills/revision-funcional.md`: léelo y aplica su
+> rúbrica completa. Verifica que `docs/contexto.md` y `docs/plan.md` sean completos y
+> consistentes contra su fuente (`material/` y `analisis/`), que cada `C#` tenga
+> incremento en `docs/trazabilidad.md` y que las decisiones de alto impacto estén como
+> ADR en `docs/decisiones.md`. Revisa los vacíos previos en `docs/trazabilidad.md`.
+> Entrega veredicto PASA/FALLA con vacíos `R-E.n`, sugerencias y preguntas. No
+> escribas en los archivos de contenido.
+
 ## Insumos (el contexto en que se apoya)
 
 - **Los derivados:** `docs/contexto.md` (problema, objetivos, no-objetivos, criterios
@@ -56,7 +69,8 @@
      inconsistencia bloqueante).
    - **Vacíos** (bloqueantes): lista; a cada uno un ID `R-E.<n>`, qué punto obligatorio
      incumple y por qué. Cada vacío es accionable.
-   - **Sugerencias** (criterio, no bloquean): lista breve (aviso al gate).
+   - **Sugerencias** (criterio, no bloquean): lista breve (aviso al gate; las que la
+     persona acoja van al backlog de `docs/plan.md`).
    - **Preguntas / dudas:** lo que no pudo verificar.
 4. **Registra los vacíos en `docs/trazabilidad.md`** (ID `R-E.n`, qué punto, estado
    `abierto`) y deja **siempre** una línea de cierre en la bitácora de `docs/plan.md`

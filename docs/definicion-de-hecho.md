@@ -3,7 +3,8 @@
 > La compuerta de calidad. Adáptala a tu proyecto. Se usa en **dos momentos**:
 > **(1) por incremento** (Fase 3): cada pieza la cumple al construirla, antes del
 > commit; **(2) sobre el conjunto** (Fase 4): el sistema ensamblado la cumple a la
-> vez, integrado y sobre datos reales (end-to-end), sin regresiones.
+> vez, integrado y sobre datos reales (end-to-end), sin regresiones, con **pasada del
+> juez sobre el conjunto** (`skills/revision-critica.md`).
 >
 > **Si el conjunto NO cumple (Fase 4):** vuelve atrás según la causa. Defecto o
 > cobertura faltante (requisitos correctos) → Fase 3, incremento de corrección.
@@ -15,7 +16,9 @@ Antes de marcar como terminado:
 
 - [ ] Cumple los criterios de éxito **y el set de oro** de `docs/contexto.md` (no
   solo "funciona": la salida tiene la calidad esperada).
-- [ ] Las pruebas pasan (y hay pruebas para lo nuevo).
+- [ ] Las pruebas pasan (y hay pruebas para lo nuevo). Los pares del **set de oro**
+  que el incremento cubra y sean automatizables están como **tests de regresión**
+  (según lo decidido en el diseño).
 - [ ] **Tests herméticos:** ninguna prueba depende de config de entorno (`.env`) ni
   llama a servicios externos; lo externo se inyecta o se mockea.
 - [ ] **Sin secretos ni config quemada.** *Si el proyecto maneja secretos o config de
@@ -39,7 +42,8 @@ Antes de marcar como terminado:
   a línea, está inflada.
 - [ ] **Estilo y clean — base, no negociable:** nombres **idiomáticos y consistentes** del
   lenguaje, **código en inglés ASCII** (identificadores y comentarios, sin acentos),
-  funciones cohesionadas, sin duplicación ni código muerto; **lint y formatter pasan**
+  funciones cohesionadas, comentarios solo donde aportan (el porqué o una restricción,
+  no narrar el qué línea a línea), sin duplicación ni código muerto; **lint y formatter pasan**
   (`scripts/check.sh`). El código es legible y sigue `docs/convenciones.md`.
 - [ ] No se agregaron dependencias ni abstracciones nuevas sin aprobación.
 - [ ] **El lenguaje/stack usado es el de `docs/contexto.md`** (no se coló otro por inercia).

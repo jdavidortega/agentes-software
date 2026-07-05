@@ -39,7 +39,8 @@ hallazgos y su estado vive en docs/trazabilidad.md. -->
 ## Fuera de alcance / backlog
 
 <!-- Lo que NO entra ahora pero podría hacerse después, organizado por posible
-incremento futuro. Aquí quedan guardadas las mejoras que van surgiendo.
+incremento futuro. Aquí quedan guardadas las mejoras que van surgiendo (incluidas
+las sugerencias del juez o del revisor funcional que la persona acoja).
 Si la decisión de "hasta dónde cubrir" tuvo alternativas, regístrala además como
 ADR en docs/decisiones.md (la lista va aquí; el porqué, allá). -->
 - _…_

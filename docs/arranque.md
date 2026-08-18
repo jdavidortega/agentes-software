@@ -1,22 +1,24 @@
 # Arranque (guion del agente)
 
 > **Para el agente.** Este es el primer punto de entrada del proyecto: ejecútalo
-> ANTES de cualquier diseño o línea de código. Empiezas por **ingerir el material**
-> y solo después construyes el encuadre sobre esa base. Tú conduces a la persona
-> paso a paso; no es una lista para que ella lea sola.
+> ANTES de cualquier diseño o línea de código. Empiezas por el **Bootstrap del
+> repositorio (paso 0)** y la **ingesta del material**, y solo después construyes el
+> encuadre sobre esa base. Tú conduces a la persona paso a paso; no es una lista
+> para que ella lea sola.
 
 > **Cómo encaja con las 5 fases** (`AGENTS.md` §2): este arranque es el **detalle de
-> las Fases 1 y 2**, que son la única numeración. La **Fase 1 (Encuadre)** agrupa las
-> actividades de **Ingesta** y **Encuadre**; la **Fase 2 (Diseño)** agrupa **Diseño**,
-> **Revisión funcional** y **Registro**. No hay una numeración "Paso 1–5" aparte: cada
-> actividad se nombra por su fase. La **Fase 3 (Ejecución)** —la primera línea de
-> código— empieza solo cuando el arranque termina y el gate de diseño está aprobado.
+> las Fases 1 y 2**, que son la única numeración (el Bootstrap es un paso 0 previo, no
+> una fase). La **Fase 1 (Encuadre)** agrupa las actividades de **Ingesta** y
+> **Encuadre**; la **Fase 2 (Diseño)** agrupa **Diseño**, **Revisión funcional** y
+> **Registro**. No hay una numeración "Paso 1–5" aparte: cada actividad se nombra por
+> su fase. La **Fase 3 (Ejecución)** —la primera línea de código— empieza solo cuando
+> el arranque termina y el gate de diseño está aprobado.
 
 ## Reentrada: trabajo nuevo en un proyecto ya encuadrado
 
 > **Si es el primer ciclo del proyecto, sáltate esta sección** y sigue abajo con el
-> arranque completo (REGLA DURA → Fase 1 · Ingesta…). Esto aplica **solo cuando el
-> proyecto ya pasó por la Fase 5** y llega trabajo nuevo.
+> arranque completo (REGLA DURA → Paso 0 · Bootstrap → Fase 1 · Ingesta…). Esto aplica
+> **solo cuando el proyecto ya pasó por la Fase 5** y llega trabajo nuevo.
 
 La reentrada **no re-ejecuta el arranque**: el guion completo se corre **una vez**, en el
 primer ciclo. Lo dispara el **cierre** (Fase 5) —en ese momento o en una sesión futura— y
@@ -49,6 +51,10 @@ gate** (un mensaje); no la decidas en silencio ni interrogues con un sí/no. Tra
 construir, la reentrada que tocó código **revalida la Fase 4 sobre el conjunto** (sin
 regresiones), no solo el incremento nuevo.
 
+> Nota: una **PoC que se promueve a producto** también reentra, y esa reentrada exige
+> primero las condiciones plenas que el modo PoC relajó (remoto, muestreo de insumos
+> reales, set de oro completo) antes de cualquier rebanada de producción.
+
 ## REGLA DURA
 
 No pasas a la siguiente actividad hasta que **(a)** su validador esté en **PASA**
@@ -67,6 +73,38 @@ di que **debe validarlos antes de continuar**. Nada de "ya quedó, ¿seguimos?".
 vacía, **detente** y pídelo: aunque sea un brief breve escrito a propósito (formato:
 `docs/plantilla-requerimiento.md`). El encuadre se deriva del material, no de lo que
 la persona alcance a teclear en frío.
+
+## Paso 0 · Bootstrap del repositorio
+
+Antes de la Ingesta. Condición de salida binaria; si una condición dura falla, el
+agente **se detiene** y pide resolverla.
+
+**Validador (PASA/FALLA):**
+- [ ] `git config core.hooksPath` devuelve `.githooks` (hooks de la plantilla activos)
+  — dura, siempre.
+- [ ] `.env*` está en `.gitignore` (excepto `.env.example`) — dura, siempre.
+- [ ] Existe la carpeta `scripts/` con `check_docs.sh` (viene con la plantilla; el
+  `check.sh` del stack llega en el diseño).
+- [ ] **Remoto:** `git remote -v` devuelve ≥1 remoto **y** el push inicial fue exitoso,
+  **o** la persona declaró **PoC sin remoto** (ver «Modo PoC declarada»). La excepción
+  queda registrada, y crear el remoto pasa a ser **precondición de la rebanada de
+  Operación/Despliegue**: nada llega a producción desde un repo sin remoto.
+
+## Modo PoC declarada (transversal)
+
+La persona puede declarar el proyecto como **prueba de concepto**. Queda registrado una
+sola vez (nota en `docs/contexto.md` y `docs/estado.md`) y relaja de forma **explícita
+y acotada**:
+
+- **Remoto opcional** (ver Bootstrap).
+- **Muestreo** sustituible por una **descripción de entrada/salida esperada** acordada
+  con la persona.
+- **Set de oro** mínimo de **2–3 pares** (pueden ser sintéticos acordados) en vez de ≥5.
+
+Todo lo demás —gates, juez, revisor funcional, ADRs, commits enlazados— se mantiene: la
+PoC relaja el **rigor de los insumos**, no la **disciplina del método**. Si la PoC se
+promueve a producto, la **reentrada exige las condiciones plenas** (remoto, muestreo
+real, set de oro completo) antes de cualquier rebanada de producción.
 
 ## Transversal (durante todo el arranque)
 
@@ -93,6 +131,9 @@ la persona alcance a teclear en frío.
   incremento**, no solo en la Fase 3. En el arranque, eso significa al menos un commit
   al aprobar el **encuadre** (`Ref: F1`) y otro al aprobar el **plan** (`Ref: F2`).
   Ningún gate se cruza con cambios sin commitear (ver `docs/convenciones.md`).
+- **Alias al crear:** todo `C#` e `I#` nace con su alias (slug de 2–4 palabras; ver
+  `docs/convenciones.md` §Identificadores y alias). El agente lo propone; se cita
+  siempre `ID «alias»`.
 
 ---
 
@@ -141,10 +182,9 @@ Esto incluye:
 
 **No borres la fuente:** los originales se quedan en su carpeta para trazabilidad;
 solo se eliminan si la persona lo pide. Tras rutear cada archivo de `material/`,
-**registra una fila en el manifiesto** de `material/README.md` (archivo, fecha, a
-dónde fue, nota). Si el material **contradice** algo ya escrito (un criterio, una
-decisión), no lo archives en silencio: señala la inconsistencia y resuélvela con
-la persona.
+**registra una fila en el manifiesto** de `material/README.md`. Si el material
+**contradice** algo ya escrito (un criterio, una decisión), no lo archives en
+silencio: señala la inconsistencia y resuélvela con la persona.
 
 **Muestreo de insumos reales (obligatorio antes del gate de diseño).** No diseñes
 solo contra la especificación: abre **1–3 muestras reales de cada insumo** (datos,
@@ -155,6 +195,21 @@ exploratorio nuevo vive en `analisis/`. Cada discrepancia con el spec es un
 **fuerza una elección** (p. ej. cambia el alcance), abre la decisión como ADR en
 estado `propuesta` indicando en qué actividad se resuelve (ver Transversal). Es
 barato y evita rediseñar en plena ejecución.
+
+**Regla de tres casos para el insumo real (proporcional, no dogmática):**
+
+1. **Existe y es accesible** → se carga, obligatorio; el agente se detiene y lo pide.
+   "Accesible" incluye **conexiones a servicios y bases de datos vivas**: si el insumo
+   está detrás de una API o BD, pide credenciales/acceso (solo lectura, a entorno de
+   prueba cuando exista) y descarga muestras reales **antes** de suponer. El muestreo
+   valida los supuestos de diseño **y los requerimientos mismos**: un requerimiento que
+   los datos reales contradicen es un **hallazgo del encuadre**, no una sorpresa de la
+   Fase 3.
+2. **No existe aún** (diseño desde cero) → no bloquea: se acuerda con la persona la
+   **descripción de entrada/salida esperada** (el set de oro cumple ese rol), el
+   supuesto queda marcado `[supuesto]` y su **validación se difiere al primer insumo
+   real** (anotada en `docs/estado.md`; no se evapora).
+3. **PoC declarada** → rigor proporcional (ver «Modo PoC declarada»).
 
 **Validador (PASA/FALLA):**
 - [ ] `material/` tiene ≥1 archivo real además del `README.md` (precondición dura).
@@ -167,7 +222,11 @@ barato y evita rediseñar en plena ejecución.
 - [ ] Cada archivo de `material/` procesado tiene su fila en el manifiesto de
   `material/README.md`.
 - [ ] Se muestrearon 1–3 ejemplos reales de cada insumo y se validaron los supuestos
-  del spec contra ellos, o se registró "no hay insumos reales disponibles aún".
+  del spec contra ellos, o aplicó el caso 2/3 de la regla de tres casos (descripción
+  de entrada/salida acordada y supuestos con validación diferida anotada).
+- [ ] Ninguna decisión de arquitectura/stack pendiente depende de un `[supuesto]` que
+  un insumo **existente y accesible** resolvería (incluye servicios/BD con conexión
+  solicitable).
 - [ ] Las discrepancias spec↔realidad quedaron como **hallazgos** en `docs/contexto.md`;
   las que fuerzan una elección, como ADR `propuesta` en `docs/decisiones.md`.
 
@@ -195,14 +254,18 @@ marcador `-` ni el comentario `<!-- -->`— las secciones:
 - [ ] Contexto
 - [ ] Objetivos
 - [ ] No-objetivos
-- [ ] Criterios de éxito
-- [ ] Set de oro: ≥5 pares `entrada → salida esperada` (orientativo 5–10) que definan
-  la calidad aceptable (no solo la funcionalidad), con **al menos un ejemplo concreto
-  de entrada y de salida** (inline o como archivo referenciado, no solo el formato).
-  Usa los datos de salida de `analisis/` como base cuando existan.
+- [ ] Criterios de éxito (cada `C#` con su **alias**)
+- [ ] Set de oro: ≥5 pares `entrada → salida esperada` (orientativo 5–10; en **PoC
+  declarada**, mínimo 2–3, pueden ser sintéticos acordados) que definan la calidad
+  aceptable (no solo la funcionalidad), con **al menos un ejemplo concreto de entrada
+  y de salida** (inline o como archivo referenciado, no solo el formato). Usa los
+  datos de salida de `analisis/` como base cuando existan.
 - [ ] **Stack y arquitectura** definidos (lenguaje+versión, framework+versión, build,
   estilo de arquitectura), con versiones verificadas contra la doc oficial.
 - [ ] Modelo de despliegue decidido (contenedor/host/serverless).
+- [ ] **Alcance del rastro decidido:** si `docs/`, `material/` y `analisis/` viajan con
+  el entregable, se excluyen del empaquetado/imagen, o van en repo aparte (relevante
+  con terceros o material sensible). Si hubo opciones, ADR.
 - [ ] No queda ningún `[FALTA]` ni `[inferido]` sin confirmar con la persona.
 - [ ] No queda ningún **ADR en estado `propuesta`** asignado a esta actividad (las
   decisiones diferidas al Encuadre —p. ej. el alcance— quedaron resueltas: `aceptada`).
@@ -228,10 +291,16 @@ posible incremento futuro.
 - [ ] Hay una lista explícita de "fuera de alcance" (en el backlog de `docs/plan.md`).
 - [ ] El plan no excede los criterios de éxito (anti-sobredimensionamiento).
 - [ ] El plan es coherente con lo visto en el muestreo de insumos reales (Ingesta).
-- [ ] `docs/trazabilidad.md` **sembrada**: una fila por criterio `C#` con su(s)
-  incremento(s), en estado `pendiente` (la revisión funcional siguiente la exige).
+- [ ] Si el sistema produce **salida estructurada**, el modelo de datos de salida está
+  en `docs/plan.md` (campos, tipos, **un ejemplo concreto**), coherente con el set de
+  oro y tratado como **contrato** (cambiarlo después = ADR). Deja de ser opcional
+  cuando aplica.
+- [ ] `docs/trazabilidad.md` **sembrada**: una fila por criterio `C#` (con su alias) y
+  su(s) incremento(s), en estado `pendiente` (la revisión funcional siguiente la exige).
+  Cada `I#` del plan lleva su alias.
 - [ ] Decidido **qué pares del set de oro se automatizan** como tests de regresión
-  (los viables; el resto queda como verificación manual explícita).
+  (los viables; el resto queda como verificación manual explícita). La estrategia
+  sigue `skills/probando-con-datos-reales.md` (el camino principal en la suite).
 - [ ] **Linter y formatter del stack elegidos** (los idiomáticos por defecto) y su comando
   agregado en `scripts/check.sh` + `docs/convenciones.md`, cableado al `pre-commit`;
   `check.sh` **tolera la suite de tests aún vacía** (ver `docs/convenciones.md`).
@@ -275,8 +344,10 @@ Confirma que el rastro quedó guardado antes de empezar a construir.
 - [ ] Cada decisión con ≥2 opciones razonables (en las Fases 1–2) tiene su ADR en
   `docs/decisiones.md` (con fecha/hora UTC), o se registró "no hubo decisiones de ese
   tipo".
-- [ ] El plan, los ADRs y la trazabilidad inicial quedaron en un **commit**
-  (`Ref: F2`) antes de pedir el gate de diseño.
+- [ ] `docs/estado.md` **sembrado** (primera versión: fase, criterios con alias,
+  próximo paso).
+- [ ] El plan, los ADRs, la trazabilidad inicial y `estado.md` quedaron en un
+  **commit** (`Ref: F2`) antes de pedir el gate de diseño.
 
 ---
 
@@ -290,5 +361,7 @@ Confirma que el rastro quedó guardado antes de empezar a construir.
 > **revisión crítica independiente** (rol juez, `skills/revision-critica.md`): emite
 > veredicto + hallazgos (con ID `R-I#.n` y estado en `docs/trazabilidad.md`); los
 > bloqueantes se resuelven como subtareas y se marcan `resuelto` antes de continuar.
-> Aplica la Definición de Hecho (`docs/definicion-de-hecho.md`), haz **commit enlazado**
-> (`Ref:`/`Cierra:`), y anota el avance en `docs/plan.md` y la trazabilidad.
+> Aplica la Definición de Hecho (`docs/definicion-de-hecho.md`) —incluida la
+> **compactación del cierre**: `estado.md` regenerado, bitácora podada, hallazgos
+> verificados al Histórico—, haz **commit enlazado** (`Ref:`/`Cierra:`), y anota el
+> avance en `docs/plan.md` y la trazabilidad.

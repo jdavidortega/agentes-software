@@ -13,9 +13,11 @@ if git diff --cached --name-only "$against" | grep -E '(^|/)\.env($|\.)' | grep 
   exit 1
 fi
 #    Llaves privadas (PEM/OpenSSH/PKCS8) detectadas por CONTENIDO añadido, venga en el
-#    archivo que venga.
-if git diff --cached "$against" | grep -Eq '^\+.*BEGIN .*PRIVATE KEY'; then
-  echo "✗ pre-commit: lo staged añade una llave privada (BEGIN ... PRIVATE KEY). Nunca al repo." >&2
+#    archivo que venga. El patrón se construye partido (K''EY) y se excluye .githooks/
+#    para que este propio hook no se detecte a sí mismo al commitearse.
+key_re='BEGIN .*PRIVATE K''EY'
+if git diff --cached "$against" -- . ':(exclude).githooks' | grep -Eq "^\+.*$key_re"; then
+  echo "✗ pre-commit: lo staged añade una llave privada (PEM/OpenSSH/PKCS8). Nunca al repo." >&2
   exit 1
 fi
 
@@ -27,5 +29,11 @@ if [ -x scripts/check.sh ]; then
 else
   echo "• pre-commit: no hay scripts/check.sh. Define lint+formato+tests del stack y" >&2
   echo "  cabléalos ahí (salida obligatoria del diseño; ver docs/convenciones.md)." >&2
+fi
+
+# 3) Integridad del rastro documental (viene con la plantilla; modo commit).
+#    Al cierre de F4/F5 se corre además: scripts/check_docs.sh cierre (ver AGENTS.md §8).
+if [ -x scripts/check_docs.sh ]; then
+  scripts/check_docs.sh commit || { echo "✗ pre-commit: scripts/check_docs.sh falló (rastro documental)." >&2; exit 1; }
 fi
 exit 0

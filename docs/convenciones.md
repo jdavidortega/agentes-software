@@ -29,6 +29,40 @@ Verificados contra la doc oficial actual de cada herramienta. -->
   Debe **tolerar la suite de tests vacía** (p. ej. `pytest` sale con código 5 sin tests;
   `jest` necesita `--passWithNoTests`): si no, bloquea los commits del arranque (`Ref: F2`)
   cuando aún no hay código. Con el primer test, falla de verdad.
+- **`scripts/check_docs.sh`** — integridad del rastro documental (viene con la
+  plantilla; también lo corre el `pre-commit`). Al cierre de F4/F5 se ejecuta con
+  chequeos completos: `scripts/check_docs.sh cierre`.
+
+## Identificadores y alias
+
+- Todo `C#`, `I#` y hallazgo (`R-…`) nace con un **alias**: slug de 2–4 palabras
+  (`C3 «exportar-excel»`, `I5 «motor-indicadores»`, `R-I9.1 «proxy-trunca-binarios»`).
+  El agente lo propone al crearlo (y pregunta si hay duda).
+- El alias vive en **un solo lugar**: la columna Alias de `docs/trazabilidad.md` para
+  `C#` y hallazgos; junto al incremento en `docs/plan.md` para los `I#`. Desde ahí se
+  **referencia**; no se copia su descripción a otros documentos.
+- Se cita siempre `ID «alias»` juntos — así referirse a algo no obliga a releer
+  documentos. Los ADR usan su título, que ya cumple ese rol.
+
+## Redacción
+
+Aplica a todo lo que el agente redacta (documentos y chat): frases directas y en voz
+activa, sin relleno ni adornos; una sigla se define la primera vez que aparece; los
+documentos de cara a terceros (README, ADRs, `contexto.md`) se escriben para un lector
+**externo al proyecto**. Concreto > elegante.
+
+## Contexto por sesión y compactación
+
+- **Lectura por sesión:** `docs/estado.md` + este archivo + la rebanada que la tarea
+  toca. No se releen los 6 documentos vivos por sesión.
+- **Dato en un solo lugar:** cifras, umbrales y conteos viven en un documento canónico;
+  el resto **referencia** (`ID «alias»`), no copia. Sin copias no existe la clase de
+  errores de "propagación documental".
+- **Señal de poda:** un documento vivo con más de ~2 páginas de contenido operativo se
+  compacta al cierre del incremento (ver la DoD): bitácora de incrementos cerrados a
+  una línea, hallazgos `verificado` al Histórico de `docs/trazabilidad.md`,
+  `docs/estado.md` regenerado. Nada se pierde: el detalle completo queda en git y el
+  porqué, en los ADR.
 
 ## Estilo de código
 <!-- El estándar NO se debate por proyecto: se usa la convención de nombres IDIOMÁTICA del
@@ -114,7 +148,7 @@ El elegido se cablea en `scripts/check.sh` y el `pre-commit`.
 - Git **configurado desde el inicio** del proyecto, **con los hooks de la plantilla
   activos**: `git config core.hooksPath .githooks` (versionados en `.githooks/`;
   `commit-msg` exige el trailer de enlace, `pre-commit` bloquea `.env`/secretos y corre
-  `scripts/check.sh`).
+  `scripts/check.sh` + `scripts/check_docs.sh`).
 - **Trunk-based:** se trabaja sobre la rama principal, con commits pequeños y
   enlazados; una rama solo si la persona la pide (experimento, cambio grande), no por
   defecto. Con **remoto compartido**, `scripts/check.sh` se cablea además en un **CI
@@ -129,7 +163,11 @@ El elegido se cablea en `scripts/check.sh` y el `pre-commit`.
   - al cerrar la **validación** (Fase 4) y el **cierre/aprendizaje** (Fase 5).
 - Regla operativa: **ningún gate se cruza con cambios sin commitear**. Antes de pedir
   aprobación, el trabajo de esa fase ya está en un commit.
-- Mensaje concreto y suficiente: qué cambió y por qué (no "varios cambios").
+- Mensaje concreto y suficiente: qué cambió y por qué (no "varios cambios"). **Asunto
+  con alias** cuando resuelve un ID: `I5 «motor-indicadores»: qué cambió y por qué`.
+  Con el trailer, `git log --oneline` queda como índice legible y
+  `git log --grep="Cierra: R-I9.1"` recupera cualquier cierre puntual. Git es
+  **archivo**, no contexto de trabajo: la operación diaria no lo relee.
 - **Enlaza** cada commit a lo que resuelve, en el footer: `Ref: F#` (cierre de fase:
   `F1` encuadre, `F2` plan, `F4` validación, `F5` cierre), `Ref: I3` (incremento de la
   Fase 3), `Cierra: R-I3.1` (hallazgo del juez) o `Cierra: R-E.1` (vacío del revisor
@@ -139,6 +177,9 @@ El elegido se cablea en `scripts/check.sh` y el `pre-commit`.
 ## Pruebas
 - **Herméticas:** sin dependencia de `.env` real ni de servicios externos; inyectar
   o mockear. Un test cuyo resultado cambia por un `.env` es frágil.
+- **El camino principal siempre en la suite** y estrategia completa en
+  `skills/probando-con-datos-reales.md` (flujos reales, tests que aportan, mutation
+  testing en Fase 4).
 
 ## Robustez operativa
 - **Usable, no solo presente:** un chequeo de salud valida que el recurso *sirve*

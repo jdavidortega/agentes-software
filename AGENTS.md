@@ -18,6 +18,11 @@ detente y pídelo. Se hace **un commit al cierre de cada fase y de cada incremen
 cierre quedan cada uno en su commit. Ningún gate se cruza con cambios sin commitear
 (ver `docs/convenciones.md`).
 
+**Reentrada al contexto (proyecto en marcha):** en cada sesión, lee `docs/estado.md`
+(el resumen vivo) y `docs/convenciones.md`, y abre los demás documentos **solo en la
+rebanada que la tarea toca**. No se relee todo el rastro por sesión: el detalle vive
+en los documentos por rebanada y la historia, en git.
+
 ## 1. Qué es este proyecto
 
 <!-- Una o dos frases. El detalle vive en docs/contexto.md -->
@@ -31,7 +36,11 @@ El trabajo avanza por fases, con una **compuerta humana** entre cada una. No se
 pasa a la siguiente fase sin aprobación explícita de la persona.
 
 **Cómo se cierra una fase:** (a) su trabajo queda en un **commit** (ver §0 y
-`docs/convenciones.md`) y (b) se pide aprobación de forma **concreta**. Si no
+`docs/convenciones.md`), (b) se pide aprobación de forma **concreta**, y (c) el
+`README.md` quedó **verificado contra la realidad del código** (qué hace, cómo se
+ejecuta, entradas/salidas) y corregido en ese mismo commit si estaba desfasado —el
+agente lo hace por defecto, sin que la persona lo pida; ningún gate se solicita con
+el README desactualizado (formato: `skills/escribiendo-readme.md`)—. Si no
 mostraste el contenido en el chat —está bien no hacerlo, por eficiencia de tokens—,
 no pidas un OK en abstracto: dile a la persona **qué documentos revisar** (p. ej.
 `docs/contexto.md`, `docs/plan.md`, `docs/decisiones.md`) y **qué información
@@ -89,6 +98,18 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
    cualquier trabajo nuevo se **clasifica y reentra** (ver *Reentrada*). El cierre dispara
    la reentrada; **no hay que volver a invocar el arranque.**
 
+**Operación / Despliegue (rebanada, cuando aplica).** Todo trabajo que impacte
+producción —deploy, migración, config, secretos— es una rebanada del método, nunca
+trabajo "aparte": tiene bitácora, ADRs, su propia DoD (runbook verificado contra el
+entorno real, réplica local del entorno, pruebas exhaustivas en local **antes** de
+tocar producción, plan de reversión escrito, autorización explícita) y **pasada de
+juez**. Con servicios o bases de datos reales, los resultados se validan primero en un
+**entorno de prueba** con OK de la persona; el plan de despliegue **protege los datos
+de producción** (respaldo verificado antes de cualquier operación destructiva). El
+procedimiento vive en `skills/desplegando-a-produccion.md` (núcleo común + la sección
+del modelo de despliegue que el encuadre decidió).
+→ Gate: la persona autoriza el impacto a producción de forma explícita y puntual.
+
 ### Reentrada — trabajo nuevo después del cierre
 
 El **cierre (Fase 5) dispara la reentrada**: cuando llega trabajo nuevo —en ese momento o
@@ -125,8 +146,21 @@ No las generalices: una aprobación es por acción, no permanente.
 - Introducir una abstracción nueva (capa, patrón, framework).
 - Cambiar la estructura del proyecto o interfaces públicas.
 - Cualquier acción destructiva o irreversible (borrar datos, force-push, migraciones).
+- Cualquier acción contra **producción**: autorización explícita de la persona **en
+  ese momento** (no heredada de una aprobación anterior). Los scripts de despliegue
+  exigen confirmación explícita (`--confirm-prod`; ver
+  `skills/desplegando-a-produccion.md`).
 - Cuando el alcance vaya a exceder los criterios de éxito definidos.
 - Cuando haya más de una opción razonable: **presenta opciones, no elijas en silencio.**
+
+**Toda propuesta de cambio cita su evidencia:** qué dato de referencia se examinó y si
+el efecto es significativo o marginal; sin datos, se declara supuesto y se trata como
+tal. Ninguna decisión de **arquitectura o stack** se toma sobre un `[supuesto]` que un
+insumo real **existente y accesible** resolvería (incluye pedir conexión/credenciales a
+servicios o bases de datos): pide el insumo y detente. Si aún no existe (diseño desde
+cero, PoC), acuerda con la persona la entrada/salida esperada y marca el supuesto con
+**validación diferida al primer insumo real**. En contratos de integración, la fuente
+de verdad es **lo que el consumidor ejecuta**, no la spec.
 
 **Decisiones de alto impacto** (requisitos, alcance, stack, tecnologías, arquitectura,
 despliegue): son tan relevantes como los requisitos. Se **discuten explícitamente y
@@ -183,12 +217,19 @@ El "cómo hacemos las cosas aquí" (estilo, patrones, comandos) vive en
 Este archivo moldea el comportamiento típico del agente; **no lo garantiza**. Una regla
 que no puede permitirse ser "mayormente seguida" se refuerza con un mecanismo **duro**, no
 solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo una vez con
-`git config core.hooksPath .githooks` (parte de la precondición de git del arranque)—:
+`git config core.hooksPath .githooks` (parte del Bootstrap del arranque)—:
 
 - **`commit-msg`** exige el trailer de enlace (`Ref:`/`Cierra:`): ningún commit sin rastro.
-- **`pre-commit`** bloquea versionar un `.env`/secreto y corre `scripts/check.sh` (lint +
+- **`pre-commit`** bloquea versionar un `.env`/secreto, corre `scripts/check.sh` (lint +
   formato + tests del stack, definido en el diseño): ningún commit con el estilo roto o
-  tests en rojo.
+  tests en rojo; y corre **`scripts/check_docs.sh`** (integridad del rastro: `C#` sin fila
+  de trazabilidad, ADRs referenciados inexistentes, placeholders sin llenar). En el cierre
+  (F4/F5) se ejecuta `scripts/check_docs.sh cierre`, con los chequeos completos (hallazgos
+  sin cerrar su ciclo, plantilla ADR-000 viva).
+
+**Regla del segundo hallazgo:** cuando un hallazgo de convención **mecanizable** se
+repite, no se corrige a mano otra vez: la regla se añade al linter/hook **en ese mismo
+incremento** y el juez verifica que quedó cableada.
 
 Lo que **no** es mecanizable —que la revisión independiente (juez / revisor funcional)
 ocurrió— se vuelve obligatorio por su **artefacto**: cada revisión deja su línea de

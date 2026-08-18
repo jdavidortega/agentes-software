@@ -11,6 +11,10 @@
 - **Criterios de éxito:** `C1, C2…` (definidos en `docs/contexto.md`).
 - **Incrementos:** `I1, I2…` (en `docs/plan.md`).
 - **Decisiones:** `ADR-###` (en `docs/decisiones.md`).
+- **Alias:** todo `C#`, `I#` y hallazgo lleva un alias (slug de 2–4 palabras; ver
+  `docs/convenciones.md` §Identificadores y alias). El de los `C#` y hallazgos vive
+  **aquí** (columna Alias, único lugar); el de los `I#`, junto al incremento en
+  `docs/plan.md`. Se cita siempre `ID «alias»`.
 - **Vacíos del revisor funcional (arranque):** `R-E.<n>` (p. ej. `R-E.1`); se registran
   al cerrar el arranque y se cierran (la persona llena el hueco) antes del gate de diseño.
 - **Hallazgos del juez (ejecución):** `R-I<incremento>.<n>` (p. ej. `R-I3.1`).
@@ -25,9 +29,9 @@ Backward: de un criterio se llega a su incremento. Una fila por criterio.
 `verificado` se marca pieza a pieza en la Fase 3; la Fase 4 (conjunto) no cambia
 estados aquí: su resultado queda en la bitácora de plan.md y el commit `Ref: F4`. -->
 
-| Criterio | Incremento(s) | Estado | Nota |
-|----------|---------------|--------|------|
-| C1 | I_ | pendiente / cubierto / verificado | |
+| Criterio | Alias | Incremento(s) | Estado | Nota |
+|----------|-------|---------------|--------|------|
+| C1 | «…» | I_ | pendiente / cubierto / verificado | |
 
 ## Registro de vacíos del revisor funcional (arranque)
 
@@ -35,9 +39,9 @@ estados aquí: su resultado queda en la bitácora de plan.md y el commit `Ref: F
 abierto → resuelto (la persona llenó el hueco). Deben quedar todos resueltos antes
 del gate de diseño; no se rastrean las sugerencias (las acogidas → backlog de plan.md). -->
 
-| Vacío | Punto incumplido | Estado | Resuelto (cómo · AAAA-MM-DD HH:MM UTC) |
-|-------|------------------|--------|----------------------------------------|
-| R-E._ | _…_ | abierto | — |
+| Vacío | Alias | Punto incumplido | Estado | Resuelto (cómo · AAAA-MM-DD HH:MM UTC) |
+|-------|-------|------------------|--------|----------------------------------------|
+| R-E._ | «…» | _…_ | abierto | — |
 
 ## Registro de revisiones del juez
 
@@ -45,6 +49,14 @@ del gate de diseño; no se rastrean las sugerencias (las acogidas → backlog de
 verificado (juez). Las sugerencias no se rastrean aquí: van como aviso al gate
 (las acogidas → backlog de plan.md). -->
 
-| Hallazgo | Incr. | Criterio | Descripción | Estado | Resuelto (AAAA-MM-DD HH:MM UTC · commit) |
-|----------|-------|----------|-------------|--------|------------------------------------------|
-| R-I_._ | I_ | C_ | _…_ | abierto | — |
+| Hallazgo | Alias | Incr. | Criterio | Descripción | Estado | Resuelto (AAAA-MM-DD HH:MM UTC · commit) |
+|----------|-------|-------|----------|-------------|--------|------------------------------------------|
+| R-I_._ | «…» | I_ | C_ | _…_ | abierto | — |
+
+## Histórico (compactado)
+
+<!-- Hallazgos `verificado` archivados en la compactación del cierre de incremento:
+UNA línea por hallazgo. El detalle completo vive en git
+(`git log --grep="Cierra: R-…"`); el porqué, en los ADR. -->
+
+- _(ejemplo)_ `R-I_._ «alias» · verificado AAAA-MM-DD · commit abc1234`

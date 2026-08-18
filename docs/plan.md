@@ -14,17 +14,20 @@ inventes si no aporta (anti-sobredimensionamiento). -->
 
 ## Modelo de datos (entradas/salidas)
 
-<!-- OPCIONAL. El esquema técnico de datos: entidades/campos, formato de entradas y
-salidas internas. (El comportamiento esperado de cara al usuario vive en el set de
-oro de contexto.md; aquí va lo técnico.) Úsalo solo si el proyecto lo necesita. -->
+<!-- OBLIGATORIO si el sistema produce salida estructurada; si no, no lo inventes
+(anti-sobredimensionamiento). El esquema de SALIDA se define ANTES de construir:
+campos, tipos y UN ejemplo concreto, coherente con el set de oro de contexto.md.
+Es un CONTRATO: el revisor funcional lo verifica contra lo que el consumidor real
+ejecuta, y cambiarlo después requiere ADR. -->
 -
 
 ## Incrementos
 
-<!-- Pasos pequeños y revisables, en orden. ID I#; indica qué criterio(s) C#
-satisface (enlace en docs/trazabilidad.md). Marca el estado. -->
-- [ ] I1 — _…_ (satisface: C_)
-- [ ] I2 — _…_ (satisface: C_)
+<!-- Pasos pequeños y revisables, en orden. ID I# con su alias «slug» (aquí vive el
+alias de los incrementos); indica qué criterio(s) C# satisface (enlace en
+docs/trazabilidad.md). Marca el estado. -->
+- [ ] I1 «…» — _…_ (satisface: C_)
+- [ ] I2 «…» — _…_ (satisface: C_)
 
 ## Bitácora
 
@@ -33,14 +36,17 @@ Las decisiones con alternativas van a docs/decisiones.md; aquí queda el rastro.
 Registra una línea de cierre de CADA revisión independiente (juez o revisor funcional:
 qué revisó, veredicto y conteo de hallazgos, "ver trazabilidad"), TAMBIÉN cuando es
 PASA sin hallazgos: esa línea es el rastro de que la revisión ocurrió. El detalle de
-hallazgos y su estado vive en docs/trazabilidad.md. -->
+hallazgos y su estado vive en docs/trazabilidad.md.
+COMPACTACIÓN: al cerrar un incremento, sus líneas se colapsan a UNA (resumen del
+incremento); el detalle queda en git. -->
 - [AAAA-MM-DD] _…_
 
 ## Fuera de alcance / backlog
 
 <!-- Lo que NO entra ahora pero podría hacerse después, organizado por posible
 incremento futuro. Aquí quedan guardadas las mejoras que van surgiendo (incluidas
-las sugerencias del juez o del revisor funcional que la persona acoja).
+las sugerencias del juez o del revisor funcional que la persona acoja, y las
+reversiones futuras previstas en las Consecuencias de un ADR).
 Si la decisión de "hasta dónde cubrir" tuvo alternativas, regístrala además como
 ADR en docs/decisiones.md (la lista va aquí; el porqué, allá). -->
 - _…_

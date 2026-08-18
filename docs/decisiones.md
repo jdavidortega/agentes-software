@@ -12,13 +12,18 @@
 > la actividad correspondiente. El gate de esa actividad no se cruza con ADRs en
 > `propuesta` pendientes: ahí pasan a **`aceptada`** (con su decisión y razón). Así una
 > decisión diferida queda rastreada, no como una promesa en prosa que se pierde.
+>
+> **Ciclo de vida.** Cuando un ADR se reemplaza o se revierte, **el estado se actualiza
+> en el ADR superado** (`reemplazada-por: ADR-###` / `revertida-por: ADR-###`), no solo
+> se anota en el nuevo. Un registro donde todo figura "aceptada" —incluido lo revertido—
+> no es auditable.
 
 ---
 
 ## ADR-000 — Plantilla (ejemplo, borrar)
 
 - **Fecha y hora (UTC):** AAAA-MM-DD HH:MM
-- **Estado:** propuesta | aceptada | reemplazada por ADR-XXX
+- **Estado:** propuesta | aceptada | reemplazada-por: ADR-XXX | revertida-por: ADR-XXX
 - **Se resuelve en:** _(solo si está `propuesta`) actividad/fase donde se decidirá._
 - **Contexto:** _qué problema o disyuntiva nos llevó a decidir._
 - **Opciones consideradas:**
@@ -26,6 +31,8 @@
   - B) _…_
 - **Decisión:** _qué se eligió._
 - **Razón:** _por qué, frente a las alternativas._
-- **Consecuencias:** _qué implica (positivo y negativo), qué deuda asumimos._
+- **Consecuencias:** _qué implica (positivo y negativo), qué deuda asumimos. Si incluye
+  una reversión futura prevista (p. ej. deshacer un downgrade), esa reversión va
+  **también al backlog** de `docs/plan.md`, no solo aquí._
 
 ---

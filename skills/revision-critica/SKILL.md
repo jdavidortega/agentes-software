@@ -102,8 +102,15 @@ el incremento y el rango del diff:
 - **Pruebas:** cada funcionalidad (o apoyo a funcionalidad) tiene una prueba que la
   respalda; tests herméticos. No exige 100% mecánico: cobertura de **comportamiento**.
 - **Funcionales:** cumple criterios de éxito y set de oro de `contexto.md`.
-- **No funcionales:** solo los acordados en el encuadre (rendimiento, seguridad,
-  observabilidad…); no inventes NFR que nadie pidió.
+- **Seguridad (binario, es un gancho — no la auditoría):** ¿el diff toca superficie de
+  riesgo (entrada no confiable, authn/authz, secretos, persistencia, IaC/despliegue,
+  superficie de IA/LLM)? Si **sí**, la **pasada del juez de seguridad**
+  (`skills/revision-seguridad/SKILL.md`) es requisito para PASA, y sus hallazgos
+  `R-S#.n` deben estar cerrados. Si **no**, hazlo constar ("sin superficie de riesgo").
+  Tú no la auditas: verificas que ocurrió.
+- **No funcionales:** solo los acordados en el encuadre (rendimiento, observabilidad…);
+  no inventes NFR que nadie pidió. **La seguridad no entra aquí:** no es un NFR
+  opcional, tiene su propia dimensión arriba.
 
 ## Notas / trampas
 

@@ -30,6 +30,10 @@ Antes de marcar como terminado:
 - [ ] **Sin secretos ni config quemada.** *Si el proyecto maneja secretos o config de
   entorno*, van a `.env` (no versionado) + `.env.example`; **si no los maneja, no se crea
   `.env` por defecto**. Nunca credenciales/rutas quemadas en el código.
+- [ ] **Pasada de seguridad, si el incremento toca superficie de riesgo** (entrada no
+  confiable, authn/authz, secretos, persistencia, IaC/despliegue, IA/LLM): hecha, con
+  sus hallazgos `R-S#.n` cerrados y su línea en la bitácora
+  (`skills/revision-seguridad/SKILL.md`). Si no la toca, el juez lo hace constar.
 - [ ] **Verificación con datos reales:** si el incremento toca datos o salida, se
   verificó de forma exploratoria sobre insumos reales representativos, no solo
   fixtures sintéticos. Si toca el despliegue, además una prueba **end-to-end en las

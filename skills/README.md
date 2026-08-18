@@ -81,6 +81,9 @@ ln -s ../../skills/<nombre> .claude/skills/<nombre>
   completitud y consistencia (reporta, no escribe).
 - **`revision-critica/`** — agente juez: revisión crítica independiente de cada
   incremento antes del commit (rúbrica de calidad; reporta, no edita).
+- **`revision-seguridad/`** — juez de seguridad: auditoría independiente de lo
+  explotable, con `references/` por dominio (frontend, backend/API, IaC-contenedores,
+  IA/LLM). Se dispara cuando el incremento toca superficie de riesgo, y en Fase 4.
 - **`escribiendo-readme/`** — README informativo con diagrama Mermaid gerencial y
   variantes por tipo de repo. Se dispara al crear/actualizar el README (DoD: mismo
   commit que cambia comportamiento; verificación al cierre de cada fase).

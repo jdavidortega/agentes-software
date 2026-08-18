@@ -68,18 +68,24 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
 3. **Ejecución iterativa** — incrementos pequeños y revisables, no de un golpe. Cada
    incremento: verificación sobre datos reales, **revisión crítica independiente
    antes del commit** (el agente principal invoca al juez como subagente con contexto
-   propio; ver `skills/revision-critica/SKILL.md`), ADR si hubo decisión, commit **enlazado**
+   propio; ver `skills/revision-critica/SKILL.md`) —más la **pasada del juez de
+   seguridad** si el incremento toca superficie de riesgo: entrada no confiable,
+   authn/authz, secretos, persistencia, IaC/despliegue o IA/LLM (ver
+   `skills/revision-seguridad/SKILL.md`)—, ADR si hubo decisión, commit **enlazado**
    (`Ref:`/`Cierra:`), y trazabilidad al día (`docs/plan.md` + `docs/trazabilidad.md`).
    **Salida de la fase (cuándo termina el bucle):** cuando **todos los criterios `C#`
-   están en estado `verificado`** en `docs/trazabilidad.md` y todo hallazgo `R-I#.n`
-   cerró su ciclo completo (`resuelto` y luego `verificado` por el juez; ninguno
-   `abierto`). Recién entonces se pasa a la Fase 4.
+   están en estado `verificado`** en `docs/trazabilidad.md` y todo hallazgo `R-I#.n` y
+   `R-S#.n` cerró su ciclo completo (`resuelto` y luego `verificado` por quien lo
+   levantó; ninguno `abierto`). Recién entonces se pasa a la Fase 4.
 4. **Validación** — la DoD por incremento revisa **cada pieza al construirla**; esta
    fase valida **el conjunto ensamblado**: que todos los `C#` y el set de oro se
    cumplen **a la vez**, integrados, sobre datos reales (end-to-end), sin regresiones.
    Incluye una **pasada del juez sobre el conjunto** (la misma revisión independiente
    de la Fase 3, enfocada al ensamblado, no a cada diff ya juzgado; ver
-   `skills/revision-critica/SKILL.md`). Ver `docs/definicion-de-hecho.md`.
+   `skills/revision-critica/SKILL.md`) y, si el sistema tiene superficie de riesgo, una
+   **pasada de seguridad sobre el conjunto** —los defectos de composición no aparecen
+   incremento a incremento (`skills/revision-seguridad/SKILL.md`)—.
+   Ver `docs/definicion-de-hecho.md`.
    - Si **el conjunto NO cumple lo acordado**, no se sigue: se vuelve atrás según la
      causa. **Defecto / regresión / cobertura faltante** (los requisitos están bien) →
      **Fase 3**, incremento de corrección. **El encuadre estaba mal o falta un
@@ -233,8 +239,8 @@ solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo u
 repite, no se corrige a mano otra vez: la regla se añade al linter/hook **en ese mismo
 incremento** y el juez verifica que quedó cableada.
 
-Lo que **no** es mecanizable —que la revisión independiente (juez / revisor funcional)
-ocurrió— se vuelve obligatorio por su **artefacto**: cada revisión deja su línea de
+Lo que **no** es mecanizable —que la revisión independiente (juez / revisor funcional /
+juez de seguridad) ocurrió— se vuelve obligatorio por su **artefacto**: cada revisión deja su línea de
 cierre en la bitácora de `docs/plan.md` (qué revisó, veredicto y conteo de hallazgos,
 **también cuando es PASA limpio**) y sus bloqueantes/vacíos como filas en
 `docs/trazabilidad.md`; no se cierra un incremento sin ese rastro ni con hallazgos

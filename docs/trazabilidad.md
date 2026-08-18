@@ -18,9 +18,12 @@
 - **Vacíos del revisor funcional (arranque):** `R-E.<n>` (p. ej. `R-E.1`); se registran
   al cerrar el arranque y se cierran (la persona llena el hueco) antes del gate de diseño.
 - **Hallazgos del juez (ejecución):** `R-I<incremento>.<n>` (p. ej. `R-I3.1`).
+- **Hallazgos del juez de seguridad:** `R-S<incremento>.<n>` (p. ej. `R-S3.1`). Mismo
+  ciclo y misma tabla que los del juez; el prefijo los distingue de un vistazo en el gate.
 - **Commits** enlazan en el footer: `Ref: F#` (cierre de fase — `F1`, `F2`, `F4`, `F5`),
-  `Ref: I3` (incremento de la Fase 3), `Cierra: R-I3.1` (hallazgo del juez) o
-  `Cierra: R-E.1` (vacío del revisor funcional).
+  `Ref: I3` (incremento de la Fase 3), `Cierra: R-I3.1` (hallazgo del juez),
+  `Cierra: R-S3.1` (hallazgo de seguridad) o `Cierra: R-E.1` (vacío del revisor
+  funcional).
 
 ## Cobertura de criterios
 
@@ -46,8 +49,10 @@ del gate de diseño; no se rastrean las sugerencias (las acogidas → backlog de
 ## Registro de revisiones del juez
 
 <!-- Solo BLOQUEANTES, a cierre. Ciclo: abierto → resuelto (fecha + commit) →
-verificado (juez). Las sugerencias no se rastrean aquí: van como aviso al gate
-(las acogidas → backlog de plan.md). -->
+verificado (juez). Incluye los de seguridad (`R-S#.n`): misma tabla, mismo ciclo. En
+esos, la columna Criterio lleva el `C#` que protege o la categoría OWASP/CWE. Las
+sugerencias no se rastrean aquí: van como aviso al gate (las acogidas → backlog de
+plan.md). -->
 
 | Hallazgo | Alias | Incr. | Criterio | Descripción | Estado | Resuelto (AAAA-MM-DD HH:MM UTC · commit) |
 |----------|-------|-------|----------|-------------|--------|------------------------------------------|

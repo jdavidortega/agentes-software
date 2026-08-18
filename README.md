@@ -171,6 +171,11 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
   (`skills/revision-funcional/SKILL.md`).
 - **Juez (rol juez)** — revisión **independiente** del *código* (el diff de cada
   incremento) antes del commit. **Reporta, no edita** (`skills/revision-critica/SKILL.md`).
+- **Juez de seguridad (rol juez)** — auditoría **independiente** de lo *explotable*
+  (inyección, control de acceso, secretos, dependencias, IaC, prompt injection), solo
+  cuando el incremento toca superficie de riesgo, y una vez sobre el conjunto. Severidad
+  × explotabilidad, con confianza. **Reporta, no corrige**
+  (`skills/revision-seguridad/SKILL.md`).
 - **Rebanada de Operación/Despliegue** — cómo entra a producción el trabajo: entorno
   de prueba, runbook verificado, protección de datos, autorización explícita y juez
   (`skills/desplegando-a-produccion/SKILL.md`).

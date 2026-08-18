@@ -1,3 +1,7 @@
+---
+name: desplegando-a-produccion
+description: "Procedimiento de la rebanada de Operación/Despliegue: réplica local del entorno, pruebas exhaustivas en local antes de tocar producción, entorno de prueba con OK de la persona, respaldo verificado antes de cualquier operación destructiva, runbook, --confirm-prod y plan de reversión escrito; más la sección del modelo elegido en references/ (contenedores, host directo, serverless). Úsala en cualquier trabajo que impacte producción —primer despliegue, cambios sobre un sistema vivo, migración, config o secretos— y al diseñar el plan de despliegue. Exige autorización explícita y puntual de la persona."
+---
 # Skill: Desplegando a producción
 
 > El **cómo** de la rebanada de Operación/Despliegue (`AGENTS.md` §2). Se activa con
@@ -40,44 +44,17 @@
    **rota**. Precondición de la rebanada: el repo tiene **remoto** (si venía de una
    PoC sin remoto, se crea aquí, antes que nada).
 
-## Sección · Contenedores (Docker/compose)
+## Sección del modelo de despliegue (lee solo la tuya)
 
-- **Tres capas de config que no se mezclan:** host / rutas internas del contenedor /
-  app. En `"A:B"`, A=host y B=contenedor; una constante interna del runtime **no se
-  expone** en el archivo que el operador edita. Confundirlas costó horas en
-  producción (índice vacío, 503).
-- **Montaje fantasma:** si el archivo fuente no existe en el host, el bind-mount crea
-  una **carpeta vacía** y la monta — síntoma engañoso (`disponible: true` con 500s).
-  Monta archivos concretos y valida al arrancar que el insumo es **archivo legible**.
-- **Regenera los derivados** (índices, cachés, volúmenes persistentes) tras corregir
-  un insumo: no se actualizan solos.
-- Runbook verificado con `docker inspect` contenedor por contenedor (montajes,
-  puertos, redes) contra lo que el plan dice.
-- **`--build` obligatorio al redesplegar:** recrear el contenedor sin reconstruir la
-  imagen es la causa clásica de "no veo el cambio".
-- En servidor compartido con otros proyectos: puertos y volúmenes **aislados y
-  documentados** en el runbook; verificar que no pisas nada ajeno antes de subir.
+El modelo lo decidió el encuadre (`docs/contexto.md`). Abre **una** de estas y no las
+otras: cargar las tres es gastar contexto en lo que no aplica.
 
-## Sección · Host directo
+- Contenedores (Docker/compose) → `references/contenedores.md`
+- Host directo (systemd/supervisor) → `references/host-directo.md`
+- Serverless (funciones gestionadas) → `references/serverless.md`
 
-- Proceso gestionado (systemd/supervisor), no un `nohup` suelto: arranque al boot,
-  reinicio ante caída, logs con rotación.
-- Usuario propio con permisos mínimos; nada corre como root sin razón documentada.
-- Rutas ancladas (nunca al `cwd`) y dependencias del SO listadas en el runbook con
-  versión.
-- El comando de arranque de producción es el del stack (`docs/convenciones.md`), no
-  una variante artesanal solo del servidor.
-
-## Sección · Serverless
-
-- Límites del proveedor documentados en el runbook (timeout, memoria, tamaño de
-  paquete, concurrencia) y verificados contra la doc oficial vigente.
-- Variables y secretos por el mecanismo del proveedor, nunca dentro del paquete.
-- Probar el **empaquetado real** (el artefacto que se sube) antes de publicar, no
-  solo el código en local.
-
-> Las secciones de host y serverless nacen mínimas a propósito: crecen con las
-> lecciones de proyectos reales, igual que la de contenedores creció con las suyas.
+> Host y serverless nacen mínimas a propósito: crecen con las lecciones de proyectos
+> reales, igual que la de contenedores creció con las suyas.
 
 ## Notas / trampas
 

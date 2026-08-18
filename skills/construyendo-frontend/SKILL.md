@@ -1,3 +1,7 @@
+---
+name: construyendo-frontend
+description: "Prácticas mínimas exigibles para cualquier interfaz web: validación de campos en cliente Y servidor, feedback de formularios, estados visibles de error/carga/vacío, responsive verificado con evidencia (capturas en 2–3 anchos), nada de listas ni textos quemados, accesibilidad mínima y contrato con el back respetado al byte. Úsala en el diseño (Fase 2) de un proyecto con interfaz web, en cada incremento de la Fase 3 que toque el front, y como parte de la rúbrica del juez en esos incrementos. Un proyecto sin interfaz nunca la carga."
+---
 # Skill: Construyendo frontend
 
 > Prácticas mínimas para cualquier interfaz web del proyecto. Se activa cuando el

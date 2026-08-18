@@ -1,3 +1,7 @@
+---
+name: escribiendo-readme
+description: "Cómo escribir un README informativo que se entienda sin abrir el código: estructura mínima (qué resuelve, diagrama Mermaid a nivel gerencial, cómo ejecutarlo, entradas/salidas con un ejemplo concreto, estructura del repo) más la variante según el tipo de repo (monorepo, back/API, base de datos/ETL, front). Úsala al crear el README del proyecto, en todo commit que cambie comportamiento, interfaz pública o comandos, y al cierre de cada fase para verificarlo contra la realidad del código."
+---
 # Skill: Escribiendo el README
 
 > Cómo se escribe un README **informativo**: uno que un lector externo al proyecto

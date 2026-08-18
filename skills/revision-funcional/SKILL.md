@@ -1,3 +1,8 @@
+---
+name: revision-funcional
+description: "Rúbrica del revisor funcional independiente del encuadre y el plan: verifica que docs/contexto.md y docs/plan.md sean completos y consistentes contra su fuente (material/, analisis/) —criterios C# medibles, set de oro con ≥5 pares, stack y modelo de despliegue resueltos, decisiones de alto impacto como ADR, cada C# con incremento en trazabilidad— y emite veredicto PASA/FALLA con vacíos R-E.n. Úsala al cerrar el arranque, antes del gate de diseño y de la primera línea de código, y en cada pasada fresca hasta dar PASA. Reporta qué falta; no autora los archivos de contenido."
+allowed-tools: Read, Grep, Glob, Bash, Edit
+---
 # Skill: Revisión funcional (revisor funcional)
 
 > Rol de **revisor funcional independiente** (rol analista) del encuadre y el plan.
@@ -36,7 +41,7 @@
 Lanza al subagente con este encargo **tal cual** —neutro: sin explicarle cómo llegaste
 al encuadre ni justificarle sus elecciones; su valor está en que no hereda tu framing—:
 
-> Actúa como revisor funcional según `skills/revision-funcional.md`: léelo y aplica su
+> Actúa como revisor funcional según `skills/revision-funcional/SKILL.md`: léelo y aplica su
 > rúbrica completa. Verifica que `docs/contexto.md` y `docs/plan.md` sean completos y
 > consistentes contra su fuente (`material/` y `analisis/`), que cada `C#` tenga
 > incremento en `docs/trazabilidad.md` y que las decisiones de alto impacto estén como

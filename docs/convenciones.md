@@ -178,7 +178,7 @@ El elegido se cablea en `scripts/check.sh` y el `pre-commit`.
 - **Herméticas:** sin dependencia de `.env` real ni de servicios externos; inyectar
   o mockear. Un test cuyo resultado cambia por un `.env` es frágil.
 - **El camino principal siempre en la suite** y estrategia completa en
-  `skills/probando-con-datos-reales.md` (flujos reales, tests que aportan, mutation
+  `skills/probando-con-datos-reales/SKILL.md` (flujos reales, tests que aportan, mutation
   testing en Fase 4).
 
 ## Robustez operativa

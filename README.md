@@ -47,7 +47,7 @@ línea de código.
 Además, cuando el proyecto llega a producción, se abre la rebanada de
 **Operación/Despliegue** (`AGENTS.md` §2): entorno de prueba, runbook verificado,
 protección de datos y autorización explícita, con su propia pasada de juez
-(`skills/desplegando-a-produccion.md`).
+(`skills/desplegando-a-produccion/SKILL.md`).
 
 ## Diagrama de la metodología
 
@@ -168,12 +168,12 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
   incremento debe cumplir para considerarse terminado (`docs/definicion-de-hecho.md`).
 - **Revisor funcional (rol analista)** — revisión **independiente** del *encuadre y el
   plan* contra su fuente, al cerrar el arranque. **Reporta, no escribe**
-  (`skills/revision-funcional.md`).
+  (`skills/revision-funcional/SKILL.md`).
 - **Juez (rol juez)** — revisión **independiente** del *código* (el diff de cada
-  incremento) antes del commit. **Reporta, no edita** (`skills/revision-critica.md`).
+  incremento) antes del commit. **Reporta, no edita** (`skills/revision-critica/SKILL.md`).
 - **Rebanada de Operación/Despliegue** — cómo entra a producción el trabajo: entorno
   de prueba, runbook verificado, protección de datos, autorización explícita y juez
-  (`skills/desplegando-a-produccion.md`).
+  (`skills/desplegando-a-produccion/SKILL.md`).
 - **Reentrada / triage** — cómo entra el trabajo nuevo *después del cierre* (Fase 5): lo
   **dispara el cierre** y **no re-ejecuta el arranque** —solo la rebanada que el cambio
   necesita—. Una sola pregunta —¿cambia un `C#` o el set de oro de `contexto.md`?— decide
@@ -266,10 +266,12 @@ herramienta, te llevas `AGENTS.md` y funciona.
 │   └── MEMORIA.md           lecciones del proyecto
 ├── material/            entrada obligatoria: documentos de contexto (se leen)
 ├── analisis/            entrada opcional: artefactos analíticos (notebooks, datos)
-├── skills/              procedimientos reutilizables (revisiones, readme, front,
-│                        despliegue, pruebas) — se cargan solo cuando aplican
+├── skills/              procedimientos reutilizables — una carpeta por skill, con
+│   └── <nombre>/            SKILL.md (frontmatter name + description) y references/
+│       └── SKILL.md         si aplica; se cargan solo cuando disparan
 ├── scripts/
 │   └── check_docs.sh        integridad del rastro documental (lo corre el pre-commit)
+├── .claude/skills/      symlinks a skills/ para que Claude Code las autodescubra
 ├── .githooks/           hooks versionados (commit-msg enlazado; pre-commit: secretos + checks)
 ├── .editorconfig        estilo base agnóstico del lenguaje
 └── .gitignore
@@ -278,6 +280,6 @@ herramienta, te llevas `AGENTS.md` y funciona.
 ---
 
 > **Al iniciar tu proyecto real**, reemplaza el contenido de arriba por el README
-> de tu proyecto (formato: `skills/escribiendo-readme.md`): descripción, diagrama
+> de tu proyecto (formato: `skills/escribiendo-readme/SKILL.md`): descripción, diagrama
 > gerencial, estructura, entradas/salidas y cómo ejecutarlo. Lo sustantivo
 > (objetivos, criterios, stack) vive en `docs/contexto.md`.

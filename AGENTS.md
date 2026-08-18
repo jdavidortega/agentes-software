@@ -40,7 +40,7 @@ pasa a la siguiente fase sin aprobación explícita de la persona.
 `README.md` quedó **verificado contra la realidad del código** (qué hace, cómo se
 ejecuta, entradas/salidas) y corregido en ese mismo commit si estaba desfasado —el
 agente lo hace por defecto, sin que la persona lo pida; ningún gate se solicita con
-el README desactualizado (formato: `skills/escribiendo-readme.md`)—. Si no
+el README desactualizado (formato: `skills/escribiendo-readme/SKILL.md`)—. Si no
 mostraste el contenido en el chat —está bien no hacerlo, por eficiencia de tokens—,
 no pidas un OK en abstracto: dile a la persona **qué documentos revisar** (p. ej.
 `docs/contexto.md`, `docs/plan.md`, `docs/decisiones.md`) y **qué información
@@ -61,14 +61,14 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
    `docs/plan.md` (plan vivo + bitácora + backlog). Antes del gate, el encuadre y el
    plan pasan una **revisión funcional independiente** (el agente principal invoca al
    **revisor funcional** como subagente con contexto propio; reporta, no escribe; ver
-   `skills/revision-funcional.md`): verifica completitud y consistencia contra la
+   `skills/revision-funcional/SKILL.md`): verifica completitud y consistencia contra la
    fuente (`material/`, `analisis/`) y no se avanza con vacíos abiertos.
    → Antes del gate: **commit del plan** (`Ref: F2`), con ADRs y trazabilidad inicial.
    → Gate: la persona aprueba el plan antes de escribir código.
 3. **Ejecución iterativa** — incrementos pequeños y revisables, no de un golpe. Cada
    incremento: verificación sobre datos reales, **revisión crítica independiente
    antes del commit** (el agente principal invoca al juez como subagente con contexto
-   propio; ver `skills/revision-critica.md`), ADR si hubo decisión, commit **enlazado**
+   propio; ver `skills/revision-critica/SKILL.md`), ADR si hubo decisión, commit **enlazado**
    (`Ref:`/`Cierra:`), y trazabilidad al día (`docs/plan.md` + `docs/trazabilidad.md`).
    **Salida de la fase (cuándo termina el bucle):** cuando **todos los criterios `C#`
    están en estado `verificado`** en `docs/trazabilidad.md` y todo hallazgo `R-I#.n`
@@ -79,7 +79,7 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
    cumplen **a la vez**, integrados, sobre datos reales (end-to-end), sin regresiones.
    Incluye una **pasada del juez sobre el conjunto** (la misma revisión independiente
    de la Fase 3, enfocada al ensamblado, no a cada diff ya juzgado; ver
-   `skills/revision-critica.md`). Ver `docs/definicion-de-hecho.md`.
+   `skills/revision-critica/SKILL.md`). Ver `docs/definicion-de-hecho.md`.
    - Si **el conjunto NO cumple lo acordado**, no se sigue: se vuelve atrás según la
      causa. **Defecto / regresión / cobertura faltante** (los requisitos están bien) →
      **Fase 3**, incremento de corrección. **El encuadre estaba mal o falta un
@@ -106,7 +106,7 @@ tocar producción, plan de reversión escrito, autorización explícita) y **pas
 juez**. Con servicios o bases de datos reales, los resultados se validan primero en un
 **entorno de prueba** con OK de la persona; el plan de despliegue **protege los datos
 de producción** (respaldo verificado antes de cualquier operación destructiva). El
-procedimiento vive en `skills/desplegando-a-produccion.md` (núcleo común + la sección
+procedimiento vive en `skills/desplegando-a-produccion/SKILL.md` (núcleo común + la sección
 del modelo de despliegue que el encuadre decidió).
 → Gate: la persona autoriza el impacto a producción de forma explícita y puntual.
 
@@ -149,7 +149,7 @@ No las generalices: una aprobación es por acción, no permanente.
 - Cualquier acción contra **producción**: autorización explícita de la persona **en
   ese momento** (no heredada de una aprobación anterior). Los scripts de despliegue
   exigen confirmación explícita (`--confirm-prod`; ver
-  `skills/desplegando-a-produccion.md`).
+  `skills/desplegando-a-produccion/SKILL.md`).
 - Cuando el alcance vaya a exceder los criterios de éxito definidos.
 - Cuando haya más de una opción razonable: **presenta opciones, no elijas en silencio.**
 
@@ -210,7 +210,9 @@ El "cómo hacemos las cosas aquí" (estilo, patrones, comandos) vive en
 
 - Una lección puntual va a `docs/MEMORIA.md`.
 - Cuando una lección se repite y se vuelve un patrón estable, **promuévela a una
-  skill** en `skills/` (un procedimiento reutilizable). Ver `skills/README.md`.
+  skill** en `skills/` (un procedimiento reutilizable): una **carpeta** por skill con
+  su `SKILL.md` (frontmatter `name` + `description`) y su symlink en `.claude/skills/`.
+  Ver `skills/README.md`.
 
 ## 8. Reglas que no pueden fallar (enforcement)
 

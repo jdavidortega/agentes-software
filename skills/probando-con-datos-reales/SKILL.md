@@ -1,3 +1,7 @@
+---
+name: probando-con-datos-reales
+description: "Estrategia de pruebas del proyecto: el camino principal siempre en la suite (servicios externos por fixtures/grabación, nunca vivos ni sustituidos por el camino degradado), ≥1 test de flujo por criterio C# con datos de forma real, tests capaces de fallar (sin asserts triviales), set de oro como regresión, binarios verificados de verdad y mutation testing sobre el camino crítico en la Fase 4. Úsala al decidir en el diseño qué pares del set de oro se automatizan, al escribir las pruebas de cada incremento, y en la validación end-to-end del conjunto."
+---
 # Skill: Probando con datos reales
 
 > La estrategia de pruebas del proyecto: flujos y datos con forma real, tests que

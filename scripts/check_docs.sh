@@ -48,6 +48,38 @@ if [ -f docs/estado.md ] && grep -qE 'Fase actual:\*?\*?[[:space:]]*F[2-5]' docs
     && err "AGENTS.md conserva placeholders de plantilla (_[...]_) con el proyecto ya arrancado"
 fi
 
+# 5) Estructura de las skills: carpeta con SKILL.md, frontmatter con name (== carpeta)
+#    y description no vacía dentro del límite, y symlink en .claude/skills/.
+if [ -d skills ]; then
+  for d in skills/*/; do
+    [ -d "$d" ] || continue
+    name=$(basename "$d")
+    f="${d}SKILL.md"
+    if [ ! -f "$f" ]; then
+      err "skills/$name/ no tiene SKILL.md (una skill es una carpeta con SKILL.md)"
+      continue
+    fi
+    echo "$name" | grep -qE '^[a-z0-9][a-z0-9-]{0,63}$' \
+      || err "skills/$name: el nombre debe ser minúsculas, números y guiones (≤64 chars)"
+    head -1 "$f" | grep -qx -- '---' \
+      || err "$f no abre con frontmatter YAML (---)"
+    fm=$(awk 'NR==1 && $0=="---" {inb=1; next} inb && $0=="---" {exit} inb {print}' "$f")
+    fm_name=$(printf '%s\n' "$fm" | sed -n 's/^name:[[:space:]]*//p' | head -1)
+    [ "$fm_name" = "$name" ] \
+      || err "$f: name '$fm_name' no coincide con la carpeta '$name'"
+    desc=$(printf '%s\n' "$fm" | sed -n 's/^description:[[:space:]]*//p' | head -1 \
+           | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/")
+    if [ -z "$desc" ]; then
+      err "$f: falta description (es el campo con que el agente decide si la abre)"
+    else
+      n=$(printf '%s' "$desc" | wc -m | tr -d ' ')
+      [ "$n" -le 1024 ] || err "$f: description de $n caracteres (máximo 1024)"
+    fi
+    [ -L ".claude/skills/$name" ] \
+      || err ".claude/skills/$name no existe: sin el symlink Claude Code no descubre la skill"
+  done
+fi
+
 # --- Chequeos de modo cierre (F4/F5) ------------------------------------------
 
 if [ "$MODE" = "cierre" ]; then

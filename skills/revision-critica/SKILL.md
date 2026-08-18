@@ -1,3 +1,8 @@
+---
+name: revision-critica
+description: "Rúbrica del juez/revisor independiente de código: verifica un incremento (o el conjunto ensamblado) contra la Definición de Hecho, los criterios C# y el set de oro, ejecuta scripts/check.sh por sí mismo, exige evidencia de la verificación con datos reales y emite veredicto PASA/FALLA con bloqueantes R-I#.n. Úsala al cerrar cada incremento de la Fase 3 —antes del commit y del gate humano— y en la pasada sobre el conjunto de la Fase 4. Reporta; no construye ni edita el código."
+allowed-tools: Read, Grep, Glob, Bash, Edit
+---
 # Skill: Revisión crítica (agente juez)
 
 > Rol de **juez/revisor independiente**. Verifica de forma crítica cada incremento
@@ -34,7 +39,7 @@ Lanza al subagente con este encargo **tal cual** —neutro: sin resumirle tu sol
 adelantarle conclusiones; su valor está en que no hereda tu framing—, rellenando solo
 el incremento y el rango del diff:
 
-> Actúa como juez de código según `skills/revision-critica.md`: léelo y aplica su
+> Actúa como juez de código según `skills/revision-critica/SKILL.md`: léelo y aplica su
 > rúbrica completa. Revisa el incremento `I#` (diff: `git diff <rango>`) contra
 > `docs/contexto.md`, `docs/plan.md`, `docs/convenciones.md`,
 > `docs/definicion-de-hecho.md` y los hallazgos previos en `docs/trazabilidad.md`.

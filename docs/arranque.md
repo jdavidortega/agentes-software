@@ -205,10 +205,16 @@ barato y evita rediseñar en plena ejecución.
    valida los supuestos de diseño **y los requerimientos mismos**: un requerimiento que
    los datos reales contradicen es un **hallazgo del encuadre**, no una sorpresa de la
    Fase 3.
-2. **No existe aún** (diseño desde cero) → no bloquea: se acuerda con la persona la
-   **descripción de entrada/salida esperada** (el set de oro cumple ese rol), el
-   supuesto queda marcado `[supuesto]` y su **validación se difiere al primer insumo
-   real** (anotada en `docs/estado.md`; no se evapora).
+2. **No existe aún** (diseño desde cero: la persona confirma que no hay datos de
+   prueba, ni servicio/BD consultable, ni estructura de datos en `material/` o
+   `analisis/`) → no bloquea, pero **no se sustituye por prosa**: si el sistema tiene
+   entradas y/o salidas, el agente lo **reporta**, **diseña un bosquejo del modelo de
+   datos** (campos, tipos, un ejemplo concreto por entrada/salida; el set de oro
+   cumple ese rol para las salidas; solo lo que los criterios exigen,
+   anti-sobredimensionamiento) y lo **valida con la persona**. El bosquejo aterriza
+   como el «Modelo de datos» de `docs/plan.md` (contrato); el supuesto queda marcado
+   `[supuesto]` y su **validación se difiere al primer insumo real** (anotada en
+   `docs/estado.md`; no se evapora).
 3. **PoC declarada** → rigor proporcional (ver «Modo PoC declarada»).
 
 **Validador (PASA/FALLA):**
@@ -222,8 +228,9 @@ barato y evita rediseñar en plena ejecución.
 - [ ] Cada archivo de `material/` procesado tiene su fila en el manifiesto de
   `material/README.md`.
 - [ ] Se muestrearon 1–3 ejemplos reales de cada insumo y se validaron los supuestos
-  del spec contra ellos, o aplicó el caso 2/3 de la regla de tres casos (descripción
-  de entrada/salida acordada y supuestos con validación diferida anotada).
+  del spec contra ellos, o aplicó el caso 2/3 de la regla de tres casos (bosquejo del
+  modelo de datos —o descripción de entrada/salida— validado con la persona y
+  supuestos con validación diferida anotada).
 - [ ] Ninguna decisión de arquitectura/stack pendiente depende de un `[supuesto]` que
   un insumo **existente y accesible** resolvería (incluye servicios/BD con conexión
   solicitable).
@@ -262,7 +269,12 @@ marcador `-` ni el comentario `<!-- -->`— las secciones:
   datos de salida de `analisis/` como base cuando existan.
 - [ ] **Stack y arquitectura** definidos (lenguaje+versión, framework+versión, build,
   estilo de arquitectura), con versiones verificadas contra la doc oficial.
-- [ ] Modelo de despliegue decidido (contenedor/host/serverless).
+- [ ] Modelo de despliegue decidido con sus **dos preguntas**: **destino** —¿solo
+  local, o local + remoto? El despliegue local siempre existe; si hay remoto, se trata
+  como producción: todo cambio se valida en local primero y llega vía la rebanada de
+  Operación/Despliegue— y **empaquetado** —contenedor (default recomendado: aislamiento
+  y paridad dev/prod), host directo o serverless; desviarse del contenedor lleva razón
+  registrada—.
 - [ ] **Alcance del rastro decidido:** si `docs/`, `material/` y `analisis/` viajan con
   el entregable, se excluyen del empaquetado/imagen, o van en repo aparte (relevante
   con terceros o material sensible). Si hubo opciones, ADR.
@@ -286,6 +298,20 @@ Escribe el plan en `docs/plan.md` (plan vivo: se ajusta con la evidencia y sirve
 bitácora). Lo que no entra ahora va al **backlog** de ese archivo, organizado por
 posible incremento futuro.
 
+**Socializa la arquitectura antes del gate.** El diseño no se aprueba solo leyendo
+`plan.md`: siembra el `README.md` con el qué y el **diagrama Mermaid gerencial** del
+flujo propuesto (formato: `skills/escribiendo-readme/SKILL.md`; los comandos llegan
+cuando exista algo ejecutable) y pide a la persona validar la arquitectura **ahí**,
+iterando hasta su OK. Es la decisión que condiciona todo el desarrollo: se discute al
+inicio, no se descubre al final.
+
+**Supuesto técnico → experimento, no fe.** Si un incremento se apoya en un supuesto
+técnico sin verificar (la librería que "debería" leer el formato, el servicio que
+"debería" responder así, el rendimiento esperado), el plan antepone un **experimento
+mínimo** en `analisis/` que lo confirme antes de construir sobre él. Su resultado es
+un hallazgo (→ `docs/contexto.md`); si fuerza una elección, ADR. Rehacer un
+incremento cuesta más que el experimento.
+
 **Validador (PASA/FALLA):**
 - [ ] Existe un plan escrito (enfoque + incrementos) en `docs/plan.md`, acordado.
 - [ ] Hay una lista explícita de "fuera de alcance" (en el backlog de `docs/plan.md`).
@@ -306,6 +332,10 @@ posible incremento futuro.
   `check.sh` **tolera la suite de tests aún vacía** (ver `docs/convenciones.md`).
 - [ ] **Decisión de entorno:** ¿el proyecto maneja secretos o config de entorno? Si no,
   **no se crea `.env`/`.env.example`**; si sí, se crean entonces (no por defecto).
+- [ ] `README.md` sembrado con el diagrama gerencial de la arquitectura propuesta y
+  **validado por la persona** (iterado hasta su OK).
+- [ ] Ningún incremento se apoya en un supuesto técnico sin verificar: tiene su
+  **experimento mínimo** previo en el plan, o su validación diferida registrada.
 
 ---
 

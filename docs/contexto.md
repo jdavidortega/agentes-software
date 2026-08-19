@@ -56,11 +56,19 @@ docs/convenciones.md; aquí queda la decisión de encuadre. -->
 - ¿Restricción dada o decisión abierta?: <!-- si abierta → ADR antes del diseño (Fase 2) -->
 
 ## Modelo de despliegue
-<!-- PREGUNTA OBLIGATORIA del encuadre: ¿cómo se va a desplegar y empaquetar?
-contenedor (Docker/compose), host directo, serverless… Condiciona rutas, paridad
-dev/prod y el bucle de cambios, así que se decide ANTES del diseño. Los detalles
-concretos van luego a docs/convenciones.md. -->
--
+<!-- DOS PREGUNTAS OBLIGATORIAS del encuadre (no las asumas):
+1. DESTINO: ¿la solución requiere despliegue remoto (servidor/nube/on-prem que otros
+   usan) o solo corre local? El despliegue LOCAL siempre existe: ahí se desarrolla y
+   se valida todo. Si hay remoto, se trata como producción: todo cambio se prueba en
+   local ANTES, y llegar al remoto pasa por la rebanada de Operación/Despliegue con
+   plan que protege lo desplegado (skills/desplegando-a-produccion/SKILL.md).
+2. EMPAQUETADO: ¿contenedor (Docker/compose), host directo o serverless? Contenedor
+   es el default recomendado (aislamiento y paridad dev/prod); desviarse lleva razón
+   registrada (ADR si hubo opciones).
+Condiciona rutas, paridad dev/prod y el bucle de cambios: se decide ANTES del diseño.
+Los detalles concretos van luego a docs/convenciones.md. -->
+- Destino: <!-- solo local | local + remoto (¿dónde?) -->
+- Empaquetado: <!-- contenedor (recomendado) | host directo | serverless -->
 
 ## Stakeholders / usuarios
 <!-- ¿Para quién es esto? ¿Quién decide? -->

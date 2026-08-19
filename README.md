@@ -34,10 +34,13 @@ línea de código.
 ## Las 5 fases (con compuerta humana entre cada una)
 
 1. **Encuadre** — contexto, objetivos, no-objetivos, criterios de éxito, set de
-   oro, stack y arquitectura, modelo de despliegue (`docs/contexto.md`).
-2. **Diseño / plan** — enfoque mínimo e incrementos (`docs/plan.md`). Antes del gate,
-   el encuadre y el plan pasan una **revisión funcional independiente** que verifica
-   completitud y consistencia contra el material (reporta, no escribe).
+   oro, stack y arquitectura, modelo de despliegue —destino local/remoto y
+   empaquetado, contenedor recomendado— (`docs/contexto.md`).
+2. **Diseño / plan** — enfoque mínimo e incrementos (`docs/plan.md`); la arquitectura
+   se valida con la persona en el README (diagrama gerencial), iterando hasta su OK.
+   Antes del gate, el encuadre y el plan pasan una **revisión funcional
+   independiente** que verifica completitud y consistencia contra el material
+   (reporta, no escribe).
 3. **Ejecución iterativa** — incrementos pequeños, verificados sobre datos reales,
    con revisión crítica independiente antes de cada commit.
 4. **Validación** — el conjunto ensamblado contra los `C#` y el set de oro, con
@@ -73,10 +76,10 @@ flowchart TD
       Pre -->|Si| P1["Fase 1 · Ingesta<br/>inventariar material/ y analisis/<br/>clasificar y rutear, sembrar docs vivos<br/>muestreo: 1-3 ejemplos reales por insumo<br/>(pide conexion a servicios/BD si aplica)"]
       P1 --> G1{"Gate: ¿set de entrada completo<br/>y ruteo aprobado?"}
       G1 -->|No| P1
-      G1 -->|Si| P2["Fase 1 · Encuadre<br/>revisar y completar el borrador de contexto.md<br/>marcar origen: del material / inferido / FALTA<br/>set de oro con ejemplo entrada a salida<br/>alcance del rastro decidido"]
+      G1 -->|Si| P2["Fase 1 · Encuadre<br/>revisar y completar el borrador de contexto.md<br/>marcar origen: del material / inferido / FALTA<br/>set de oro con ejemplo entrada a salida<br/>despliegue: destino local/remoto y empaquetado<br/>alcance del rastro decidido"]
       P2 --> G2{"Gate: ¿encuadre confirmado, sin FALTA,<br/>inferido ni ADR propuesta pendiente?"}
       G2 -->|No| P2
-      G2 -->|Si| P3["Fase 2 · Diseño<br/>plan minimo e incrementos en plan.md<br/>modelo de datos de salida si aplica (contrato)<br/>fuera de alcance explicito"]
+      G2 -->|Si| P3["Fase 2 · Diseño<br/>plan minimo e incrementos en plan.md<br/>modelo de datos de salida si aplica (contrato)<br/>diagrama gerencial en README, validado con la persona<br/>fuera de alcance explicito"]
       P3 --> P4["Fase 2 · Revision funcional independiente (rol analista)<br/>revisor funcional · revision-funcional<br/>encuadre y plan vs material y analisis · reporta, no escribe<br/>los vacios que halla se llaman R-E.n"]
       P4 --> RF{"¿Veredicto PASA y<br/>sin vacios R-E.n abiertos?"}
       RF -->|"Falla: vacio"| Fill["La persona llena el hueco:<br/>escribe en el .md o agrega documento"]
@@ -146,6 +149,9 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
   validar contra ellos los supuestos del spec (formato, nombres, casos límite) antes de
   diseñar — pidiendo conexión/credenciales si el insumo vive en un servicio. Barato, y
   evita rediseñar a mitad de camino.
+- **Experimento mínimo** — validación barata (en `analisis/`) de un **supuesto
+  técnico** que condiciona un incremento, antes de construir sobre él. Su resultado es
+  un hallazgo; rehacer cuesta más que el experimento.
 - **Set de oro** — ≥5 pares `entrada → salida esperada` que definen la **calidad
   aceptable** (no solo que "funcione"), con al menos un ejemplo concreto (en PoC
   declarada: mínimo 2–3).
@@ -208,8 +214,9 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
   Riesgo típico en software: abstracción prematura y dependencias especulativas.
 - **Contexto compacto:** el agente reentra cada sesión por `docs/estado.md` y abre lo
   demás por rebanada; cada dato vive en un solo lugar y se referencia por
-  `ID «alias»`; los documentos vivos se podan al cierre (el detalle queda en git, el
-  porqué en los ADR). Las skills solo se cargan cuando aplican.
+  `ID «alias»`; los documentos vivos se compactan en momentos fijos —cierre de
+  incremento, de fase y de ciclo— (el detalle queda en git, el porqué en los ADR).
+  Las skills solo se cargan cuando aplican.
 - **Ciclo de aprendizaje:** `corrección → docs/MEMORIA.md → (si se repite) → skill`.
 
 ## Enforcement: lo que no puede fallar

@@ -4,7 +4,9 @@
 > `convenciones.md`); los demás documentos se abren solo en la rebanada que la tarea
 > toca. Se **REGENERA** (no se acumula) al cierre de cada incremento y de cada fase:
 > máximo una página. El detalle vive en los documentos por rebanada; la historia, en
-> git; el porqué, en los ADR. Se siembra al cerrar la Fase 2 (`Ref: F2`).
+> git; el porqué, en los ADR. Se siembra al cerrar la Fase 2 (`Ref: F2`). Al cierre
+> del ciclo (F5) queda en **modo reentrada**: criterios `verificado`, nada "en curso",
+> próximo paso = triage de reentrada.
 
 - **Fase actual:** F_ · incremento activo: I_ «alias»
 - **Modo:** normal | PoC declarada (qué relajó: remoto / muestreo / set de oro)

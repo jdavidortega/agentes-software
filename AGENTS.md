@@ -50,7 +50,9 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
 
 1. **Encuadre** — contexto, objetivos, criterios de éxito, *no-objetivos*, **set de
    oro** (ejemplos de salida esperada), **stack y arquitectura** y **modelo de
-   despliegue**. **Arranca por la ingesta de las entradas, no por el encuadre en
+   despliegue** (dos preguntas: **destino** —¿solo local, o también remoto?; el
+   despliegue local siempre existe— y **empaquetado** —contenedor recomendado—).
+   **Arranca por la ingesta de las entradas, no por el encuadre en
    frío:** `material/` es **obligatorio** (≥1 archivo) y `analisis/` opcional pero de
    revisión obligatoria; el encuadre se **deriva** de ahí y luego se completan los
    huecos. Incluye muestrear insumos reales. No asumas un stack por defecto:
@@ -58,7 +60,10 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
    → Antes del gate: **commit del encuadre** (`Ref: F1`).
    → Gate: la persona confirma que el encuadre es correcto.
 2. **Diseño / plan** — el enfoque elegido y las decisiones de alcance, en
-   `docs/plan.md` (plan vivo + bitácora + backlog). Antes del gate, el encuadre y el
+   `docs/plan.md` (plan vivo + bitácora + backlog). La arquitectura propuesta se
+   **socializa antes del gate**: diagrama gerencial sembrado en el `README.md` y
+   validado con la persona, iterando hasta su OK
+   (`skills/escribiendo-readme/SKILL.md`). Antes del gate, el encuadre y el
    plan pasan una **revisión funcional independiente** (el agente principal invoca al
    **revisor funcional** como subagente con contexto propio; reporta, no escribe; ver
    `skills/revision-funcional/SKILL.md`): verifica completitud y consistencia contra la
@@ -164,9 +169,13 @@ el efecto es significativo o marginal; sin datos, se declara supuesto y se trata
 tal. Ninguna decisión de **arquitectura o stack** se toma sobre un `[supuesto]` que un
 insumo real **existente y accesible** resolvería (incluye pedir conexión/credenciales a
 servicios o bases de datos): pide el insumo y detente. Si aún no existe (diseño desde
-cero, PoC), acuerda con la persona la entrada/salida esperada y marca el supuesto con
-**validación diferida al primer insumo real**. En contratos de integración, la fuente
-de verdad es **lo que el consumidor ejecuta**, no la spec.
+cero, PoC), acuerda con la persona la entrada/salida esperada —si el sistema tiene
+entradas o salidas, como **bosquejo del modelo de datos** diseñado y validado (ver
+`docs/arranque.md`, caso 2)— y marca el supuesto con **validación diferida al primer
+insumo real**. Un supuesto **técnico** que condiciona un incremento se confirma con un
+**experimento mínimo** en `analisis/` antes de construir sobre él: rehacer cuesta más
+que el experimento. En contratos de integración, la fuente de verdad es **lo que el
+consumidor ejecuta**, no la spec.
 
 **Decisiones de alto impacto** (requisitos, alcance, stack, tecnologías, arquitectura,
 despliegue): son tan relevantes como los requisitos. Se **discuten explícitamente y

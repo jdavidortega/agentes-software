@@ -113,7 +113,11 @@ Después, el agente principal **valida si el dato ya está presente**:
   un ejemplo real.
 - **Stack y arquitectura resueltos** (lenguaje+versión, framework+versión, build,
   estilo), con versiones verificadas contra la doc oficial.
-- Modelo de despliegue decidido.
+- Modelo de despliegue decidido: **destino** (¿solo local, o local + remoto?) y
+  **empaquetado** (contenedor / host directo / serverless).
+- Si no hubo insumo real (caso 2 de la ingesta): el **bosquejo del modelo de datos**
+  está en `docs/plan.md`, con ejemplo concreto por entrada/salida, y fue validado por
+  la persona.
 - Decisiones de alto impacto registradas como ADR.
 - Sin marcas `[FALTA]` ni `[inferido]` sin confirmar.
 

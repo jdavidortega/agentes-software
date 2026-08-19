@@ -34,11 +34,13 @@ Antes de marcar como terminado:
   confiable, authn/authz, secretos, persistencia, IaC/despliegue, IA/LLM): hecha, con
   sus hallazgos `R-S#.n` cerrados y su línea en la bitácora
   (`skills/revision-seguridad/SKILL.md`). Si no la toca, el juez lo hace constar.
-- [ ] **Verificación con datos reales:** si el incremento toca datos o salida, se
-  verificó de forma exploratoria sobre insumos reales representativos, no solo
-  fixtures sintéticos. Si toca el despliegue, además una prueba **end-to-end en las
-  condiciones reales del modelo elegido** (empaquetado y datos de producción), no
-  solo en local (ver `skills/desplegando-a-produccion/SKILL.md`).
+- [ ] **Verificación con datos reales y sobre lo generado:** si el incremento toca
+  datos o salida, se verificó de forma exploratoria sobre insumos reales
+  representativos, no solo fixtures sintéticos; y **lo generado se abre y examina**
+  (datos y funcionalidad nueva) contra su criterio y su par del set de oro — tests
+  verdes no sustituyen mirar lo producido. Si toca el despliegue, además una prueba
+  **end-to-end en las condiciones reales del modelo elegido** (empaquetado y datos de
+  producción), no solo en local (ver `skills/desplegando-a-produccion/SKILL.md`).
 - [ ] **Sin rutas al `cwd`:** todo recurso (datos, `.env`, índices/bases) se ancla a
   la raíz del proyecto o a una ruta de entorno explícita; ninguna ruta depende del
   directorio desde el que se ejecuta.

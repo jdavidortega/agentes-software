@@ -58,11 +58,17 @@ documentos de cara a terceros (README, ADRs, `contexto.md`) se escriben para un 
 - **Dato en un solo lugar:** cifras, umbrales y conteos viven en un documento canónico;
   el resto **referencia** (`ID «alias»`), no copia. Sin copias no existe la clase de
   errores de "propagación documental".
-- **Señal de poda:** un documento vivo con más de ~2 páginas de contenido operativo se
-  compacta al cierre del incremento (ver la DoD): bitácora de incrementos cerrados a
-  una línea, hallazgos `verificado` al Histórico de `docs/trazabilidad.md`,
-  `docs/estado.md` regenerado. Nada se pierde: el detalle completo queda en git y el
-  porqué, en los ADR.
+- **Momentos de compactación (fijos, no a criterio):** al cierre de **cada incremento**
+  (ver la DoD: `docs/estado.md` regenerado, bitácora del incremento a una línea,
+  hallazgos `verificado` al Histórico de `docs/trazabilidad.md`), al cierre de **cada
+  fase** (mismo barrido sobre lo que la fase dejó) y al cierre del **ciclo** (F5:
+  `estado.md` queda en modo reentrada — criterios verificados, backlog vivo, nada "en
+  curso"). Nada se pierde: el detalle queda en git y el porqué, en los ADR.
+- **Qué preserva un buen resumen:** decisiones, estado, supuestos abiertos y próximo
+  paso. **Qué descarta:** el detalle de ejecución (vive en git) y lo que ya no informa
+  la fase actual. Compactar no es truncar: es reescribir corto sin perder lo que decide.
+- **Señal de poda adicional:** un documento vivo con más de ~2 páginas de contenido
+  operativo se compacta en el siguiente cierre, sin esperar la fase.
 
 ## Estilo de código
 <!-- El estándar NO se debate por proyecto: se usa la convención de nombres IDIOMÁTICA del

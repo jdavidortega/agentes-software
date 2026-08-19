@@ -17,8 +17,9 @@ inventes si no aporta (anti-sobredimensionamiento). -->
 <!-- OBLIGATORIO si el sistema produce salida estructurada; si no, no lo inventes
 (anti-sobredimensionamiento). El esquema de SALIDA se define ANTES de construir:
 campos, tipos y UN ejemplo concreto, coherente con el set de oro de contexto.md.
-Es un CONTRATO: el revisor funcional lo verifica contra lo que el consumidor real
-ejecuta, y cambiarlo después requiere ADR. -->
+Si no hubo insumo real (caso 2 de la ingesta), aquí aterriza el bosquejo diseñado y
+validado con la persona. Es un CONTRATO: el revisor funcional lo verifica contra lo
+que el consumidor real ejecuta, y cambiarlo después requiere ADR. -->
 -
 
 ## Incrementos

@@ -4,7 +4,9 @@ description: "Procedimiento de la rebanada de Operación/Despliegue: réplica lo
 ---
 # Skill: Desplegando a producción
 
-> El **cómo** de la rebanada de Operación/Despliegue (`AGENTS.md` §2). Se activa con
+> El **cómo** de la rebanada de Operación/Despliegue (`AGENTS.md` §2). El despliegue
+> **local** siempre existe (ahí se desarrolla y valida); esta rebanada gobierna el
+> **remoto**, que se trata como producción desde el primer día. Se activa con
 > cualquier trabajo que impacte producción —deploy, migración, config, secretos—,
 > **sea cual sea el modelo de despliegue** que el encuadre decidió. Lee el **núcleo
 > común** + **solo la sección de tu modelo** (contenedores / host directo /

@@ -12,7 +12,9 @@ description: "Cómo escribir un README informativo que se entienda sin abrir el 
 
 ## Cuándo usarla
 
-- Al crear el README del proyecto (primer incremento que produce algo ejecutable).
+- Al cerrar el **diseño** (Fase 2): se siembra con el qué y el **diagrama gerencial**
+  del flujo propuesto, y la persona **valida la arquitectura ahí**, iterando hasta su
+  OK (los comandos llegan con el primer incremento ejecutable).
 - En todo commit que cambie comportamiento, interfaz pública o comandos.
 - Al cierre de cada fase (verificación automática: ¿el README describe lo que el
   sistema hace **hoy**?).

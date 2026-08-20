@@ -2,8 +2,8 @@
 """Undo a guarantee on purpose and prove the suite goes red.
 
 Usage:
-    python skills/verificando-por-sabotaje/scripts/sabotear.py mutaciones.json
-    python skills/verificando-por-sabotaje/scripts/sabotear.py mutaciones.json --commit 9922e25
+    python .claude/skills/verificando-por-sabotaje/scripts/sabotear.py mutaciones.json
+    python .claude/skills/verificando-por-sabotaje/scripts/sabotear.py mutaciones.json --commit 9922e25
 
 The spec is a JSON list, one object per mutation:
 
@@ -84,9 +84,9 @@ def plant(tree: Path, root: Path, commit: str | None) -> None:
             continue
         target = tree / entry.name
         if entry.is_dir():
-            # `symlinks=True`: the tree HAS meaningful symlinks (`.claude/skills/*` point at
-            # `skills/`), and dereferencing them turns a `[ -L ]` guard red in the copy for a
-            # reason that has nothing to do with the mutation.
+            # `symlinks=True`: if the tree contains symlinks, copy them as links --
+            # dereferencing can turn link-aware guards red in the copy for reasons
+            # that have nothing to do with the mutation.
             shutil.copytree(entry, target, ignore=shutil.ignore_patterns(*IGNORED), symlinks=True)
         else:
             shutil.copy(entry, target)

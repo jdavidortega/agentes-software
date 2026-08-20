@@ -60,7 +60,7 @@ riesgo"). Eso es todo el trámite que hay.
 Lanza al subagente con este encargo **tal cual** —neutro: sin adelantarle qué crees
 que está bien protegido—, rellenando el incremento y el rango del diff:
 
-> Actúa como juez de seguridad según `skills/revision-seguridad/SKILL.md`: léelo y
+> Actúa como juez de seguridad según `.claude/skills/revision-seguridad/SKILL.md`: léelo y
 > aplica su rúbrica completa. Audita el incremento `I#` (diff: `git diff <rango>`)
 > contra `docs/contexto.md` (modelo de despliegue y datos que maneja),
 > `docs/convenciones.md` y los hallazgos previos en `docs/trazabilidad.md`. Reconoce

@@ -300,7 +300,7 @@ posible incremento futuro.
 
 **Socializa la arquitectura antes del gate.** El diseño no se aprueba solo leyendo
 `plan.md`: siembra el `README.md` con el qué y el **diagrama Mermaid gerencial** del
-flujo propuesto (formato: `skills/escribiendo-readme/SKILL.md`; los comandos llegan
+flujo propuesto (formato: `.claude/skills/escribiendo-readme/SKILL.md`; los comandos llegan
 cuando exista algo ejecutable) y pide a la persona validar la arquitectura **ahí**,
 iterando hasta su OK. Es la decisión que condiciona todo el desarrollo: se discute al
 inicio, no se descubre al final.
@@ -326,7 +326,7 @@ incremento cuesta más que el experimento.
   Cada `I#` del plan lleva su alias.
 - [ ] Decidido **qué pares del set de oro se automatizan** como tests de regresión
   (los viables; el resto queda como verificación manual explícita). La estrategia
-  sigue `skills/probando-con-datos-reales/SKILL.md` (el camino principal en la suite).
+  sigue `.claude/skills/probando-con-datos-reales/SKILL.md` (el camino principal en la suite).
 - [ ] **Linter y formatter del stack elegidos** (los idiomáticos por defecto) y su comando
   agregado en `scripts/check.sh` + `docs/convenciones.md`, cableado al `pre-commit`;
   `check.sh` **tolera la suite de tests aún vacía** (ver `docs/convenciones.md`).
@@ -343,7 +343,7 @@ incremento cuesta más que el experimento.
 
 Esta revisión **no la hace el agente principal por sí mismo**: la ejecuta el **revisor
 funcional** (rol analista) como subagente con **contexto propio** (rol y rúbrica en
-`skills/revision-funcional/SKILL.md`), para no validar el encuadre contra las
+`.claude/skills/revision-funcional/SKILL.md`), para no validar el encuadre contra las
 racionalizaciones de quien lo redactó. Revisa `contexto.md` y `plan.md` **contra su
 fuente** (`material/` y `analisis/`) y verifica que los puntos que deben estar claros
 estén resueltos.
@@ -357,7 +357,7 @@ abiertos.**
 
 **Validador (PASA/FALLA):**
 - [ ] El revisor funcional emitió **veredicto PASA** (rúbrica completa en
-  `skills/revision-funcional/SKILL.md`).
+  `.claude/skills/revision-funcional/SKILL.md`).
 - [ ] Cada criterio de éxito (`C#`) del Encuadre está cubierto por algún incremento del
   plan, reflejado en `docs/trazabilidad.md`.
 - [ ] El plan no contradice ningún no-objetivo del encuadre y no excede los criterios
@@ -388,7 +388,7 @@ Confirma que el rastro quedó guardado antes de empezar a construir.
 > sobre datos/insumos reales** (no solo fixtures sintéticos: el humano detecta lo que
 > un test verde no muestra) y, si toca el despliegue, en **condiciones reales del
 > modelo elegido** (empaquetado/datos de producción). Antes del commit, pasa una
-> **revisión crítica independiente** (rol juez, `skills/revision-critica/SKILL.md`): emite
+> **revisión crítica independiente** (rol juez, `.claude/skills/revision-critica/SKILL.md`): emite
 > veredicto + hallazgos (con ID `R-I#.n` y estado en `docs/trazabilidad.md`); los
 > bloqueantes se resuelven como subtareas y se marcan `resuelto` antes de continuar.
 > Aplica la Definición de Hecho (`docs/definicion-de-hecho.md`) —incluida la

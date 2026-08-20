@@ -61,7 +61,7 @@ docs/convenciones.md; aquí queda la decisión de encuadre. -->
    usan) o solo corre local? El despliegue LOCAL siempre existe: ahí se desarrolla y
    se valida todo. Si hay remoto, se trata como producción: todo cambio se prueba en
    local ANTES, y llegar al remoto pasa por la rebanada de Operación/Despliegue con
-   plan que protege lo desplegado (skills/desplegando-a-produccion/SKILL.md).
+   plan que protege lo desplegado (.claude/skills/desplegando-a-produccion/SKILL.md).
 2. EMPAQUETADO: ¿contenedor (Docker/compose), host directo o serverless? Contenedor
    es el default recomendado (aislamiento y paridad dev/prod); desviarse lleva razón
    registrada (ADR si hubo opciones).

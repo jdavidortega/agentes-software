@@ -50,7 +50,7 @@ línea de código.
 Además, cuando el proyecto llega a producción, se abre la rebanada de
 **Operación/Despliegue** (`AGENTS.md` §2): entorno de prueba, runbook verificado,
 protección de datos y autorización explícita, con su propia pasada de juez
-(`skills/desplegando-a-produccion/SKILL.md`).
+(`.claude/skills/desplegando-a-produccion/SKILL.md`).
 
 ## Diagrama de la metodología
 
@@ -174,17 +174,17 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
   incremento debe cumplir para considerarse terminado (`docs/definicion-de-hecho.md`).
 - **Revisor funcional (rol analista)** — revisión **independiente** del *encuadre y el
   plan* contra su fuente, al cerrar el arranque. **Reporta, no escribe**
-  (`skills/revision-funcional/SKILL.md`).
+  (`.claude/skills/revision-funcional/SKILL.md`).
 - **Juez (rol juez)** — revisión **independiente** del *código* (el diff de cada
-  incremento) antes del commit. **Reporta, no edita** (`skills/revision-critica/SKILL.md`).
+  incremento) antes del commit. **Reporta, no edita** (`.claude/skills/revision-critica/SKILL.md`).
 - **Juez de seguridad (rol juez)** — auditoría **independiente** de lo *explotable*
   (inyección, control de acceso, secretos, dependencias, IaC, prompt injection), solo
   cuando el incremento toca superficie de riesgo, y una vez sobre el conjunto. Severidad
   × explotabilidad, con confianza. **Reporta, no corrige**
-  (`skills/revision-seguridad/SKILL.md`).
+  (`.claude/skills/revision-seguridad/SKILL.md`).
 - **Rebanada de Operación/Despliegue** — cómo entra a producción el trabajo: entorno
   de prueba, runbook verificado, protección de datos, autorización explícita y juez
-  (`skills/desplegando-a-produccion/SKILL.md`).
+  (`.claude/skills/desplegando-a-produccion/SKILL.md`).
 - **Reentrada / triage** — cómo entra el trabajo nuevo *después del cierre* (Fase 5): lo
   **dispara el cierre** y **no re-ejecuta el arranque** —solo la rebanada que el cambio
   necesita—. Una sola pregunta —¿cambia un `C#` o el set de oro de `contexto.md`?— decide
@@ -247,16 +247,46 @@ conteo, también con PASA limpio) y sus bloqueantes/vacíos en `docs/trazabilida
 Y la **regla del segundo hallazgo** (`AGENTS.md` §8) convierte en linter/hook todo
 hallazgo mecanizable que se repita.
 
-## Portabilidad: AGENTS.md es el núcleo
+## Portabilidad: pensada para Claude Code, ajustable a otra IA
 
-`AGENTS.md` contiene todas las instrucciones del proyecto; es la **fuente de
-verdad** y el estándar que leen las distintas herramientas. `CLAUDE.md` solo lo
-importa (`@AGENTS.md`) más notas propias de Claude Code. Si cambias de
-herramienta, te llevas `AGENTS.md` y funciona.
+La plantilla **asume que el agente es Claude Code**: las skills viven en
+`.claude/skills/` (su ubicación nativa, donde las autodescubre sin symlinks ni copias
+que sincronizar) y los tres roles de revisión están declarados en `.claude/agents/`
+con su skill precargada. `AGENTS.md` sigue siendo la **fuente de verdad** de las
+instrucciones —es el estándar que varias herramientas leen de forma nativa—;
+`CLAUDE.md` solo lo importa (`@AGENTS.md`) más notas propias de Claude Code.
 
 > Una regla en `AGENTS.md` moldea el comportamiento del agente pero no lo
 > garantiza. Lo que no puede fallar (tests obligatorios, escaneos) va en
 > CI / pre-commit / hooks.
+
+### Si vas a usar otra IA (instrucciones para el agente)
+
+Agente: si tu herramienta no es Claude Code, ejecuta este ajuste **una sola vez, antes
+del Bootstrap**, y registra lo que cambies en un commit propio:
+
+1. **Instrucciones.** `AGENTS.md` es el canon y probablemente tu herramienta ya lo lee
+   (es el estándar compartido). Si usa otro archivo (p. ej. reglas propias del editor),
+   créalo **importando o remitiendo a** `AGENTS.md`; no dupliques contenido. `CLAUDE.md`
+   puede quedarse (no estorba) o eliminarse.
+2. **Skills.** Son markdown puro en `.claude/skills/<nombre>/SKILL.md`, referenciadas
+   **por ruta** desde `AGENTS.md` y `docs/`: cualquier herramienta que lea archivos las
+   usa tal cual, sin autodescubrimiento. Si la tuya tiene un mecanismo propio de skills,
+   regístralas allí; si prefieres otra ubicación, muévelas y actualiza toda referencia
+   (`grep -rl '\.claude/skills/' --include='*.md' . scripts/`) y los chequeos 5 y 6 de
+   `scripts/check_docs.sh`.
+3. **Roles de revisión.** `.claude/agents/` es específico de Claude Code; ignóralo o
+   bórralo. El equivalente portable ya existe: la sección **«Prompt de invocación»** de
+   cada skill de revisión (`revision-funcional`, `revision-critica`,
+   `revision-seguridad`). Lánzala como tu herramienta permita una pasada con **contexto
+   fresco** (un subagente, otra sesión, otro chat). Lo que no puede perderse: contexto
+   propio (no hereda el hilo de quien construyó), veredicto PASA/FALLA, y el rastro en
+   `docs/plan.md` + `docs/trazabilidad.md`.
+4. **Enforcement.** `.githooks/`, `scripts/check_docs.sh` y `.editorconfig` son
+   git/shell puro: funcionan igual con cualquier herramienta. No los toques.
+5. **Verifica el ajuste:** `sh scripts/check_docs.sh` debe dar PASA y ninguna ruta
+   referenciada en `AGENTS.md`/`docs/` puede quedar rota. Registra el ajuste como
+   commit con su porqué.
 
 ## Estructura
 
@@ -278,12 +308,14 @@ herramienta, te llevas `AGENTS.md` y funciona.
 │   └── MEMORIA.md           lecciones del proyecto
 ├── material/            entrada obligatoria: documentos de contexto (se leen)
 ├── analisis/            entrada opcional: artefactos analíticos (notebooks, datos)
-├── skills/              procedimientos reutilizables — una carpeta por skill, con
-│   └── <nombre>/            SKILL.md (frontmatter name + description) y references/
-│       └── SKILL.md         si aplica; se cargan solo cuando disparan
+├── .claude/
+│   ├── skills/          las skills, en su ubicación nativa de Claude Code — una carpeta
+│   │   └── <nombre>/        por skill con SKILL.md (frontmatter name + description) y
+│   │       └── SKILL.md     references/ si aplica; se cargan solo cuando disparan
+│   └── agents/          roles de revisión declarados (revisor funcional, juez de
+│                        código, juez de seguridad) con su skill precargada
 ├── scripts/
 │   └── check_docs.sh        integridad del rastro documental (lo corre el pre-commit)
-├── .claude/skills/      symlinks a skills/ para que Claude Code las autodescubra
 ├── .githooks/           hooks versionados (commit-msg enlazado; pre-commit: secretos + checks)
 ├── .editorconfig        estilo base agnóstico del lenguaje
 └── .gitignore
@@ -292,6 +324,6 @@ herramienta, te llevas `AGENTS.md` y funciona.
 ---
 
 > **Al iniciar tu proyecto real**, reemplaza el contenido de arriba por el README
-> de tu proyecto (formato: `skills/escribiendo-readme/SKILL.md`): descripción, diagrama
+> de tu proyecto (formato: `.claude/skills/escribiendo-readme/SKILL.md`): descripción, diagrama
 > gerencial, estructura, entradas/salidas y cómo ejecutarlo. Lo sustantivo
 > (objetivos, criterios, stack) vive en `docs/contexto.md`.

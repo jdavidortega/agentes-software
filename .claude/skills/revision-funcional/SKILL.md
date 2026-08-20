@@ -41,7 +41,7 @@ allowed-tools: Read, Grep, Glob, Bash, Edit
 Lanza al subagente con este encargo **tal cual** —neutro: sin explicarle cómo llegaste
 al encuadre ni justificarle sus elecciones; su valor está en que no hereda tu framing—:
 
-> Actúa como revisor funcional según `skills/revision-funcional/SKILL.md`: léelo y aplica su
+> Actúa como revisor funcional según `.claude/skills/revision-funcional/SKILL.md`: léelo y aplica su
 > rúbrica completa. Verifica que `docs/contexto.md` y `docs/plan.md` sean completos y
 > consistentes contra su fuente (`material/` y `analisis/`), que cada `C#` tenga
 > incremento en `docs/trazabilidad.md` y que las decisiones de alto impacto estén como

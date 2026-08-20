@@ -39,7 +39,7 @@ Lanza al subagente con este encargo **tal cual** —neutro: sin resumirle tu sol
 adelantarle conclusiones; su valor está en que no hereda tu framing—, rellenando solo
 el incremento y el rango del diff:
 
-> Actúa como juez de código según `skills/revision-critica/SKILL.md`: léelo y aplica su
+> Actúa como juez de código según `.claude/skills/revision-critica/SKILL.md`: léelo y aplica su
 > rúbrica completa. Revisa el incremento `I#` (diff: `git diff <rango>`) contra
 > `docs/contexto.md`, `docs/plan.md`, `docs/convenciones.md`,
 > `docs/definicion-de-hecho.md` y los hallazgos previos en `docs/trazabilidad.md`.
@@ -105,7 +105,7 @@ el incremento y el rango del diff:
 - **Seguridad (binario, es un gancho — no la auditoría):** ¿el diff toca superficie de
   riesgo (entrada no confiable, authn/authz, secretos, persistencia, IaC/despliegue,
   superficie de IA/LLM)? Si **sí**, la **pasada del juez de seguridad**
-  (`skills/revision-seguridad/SKILL.md`) es requisito para PASA, y sus hallazgos
+  (`.claude/skills/revision-seguridad/SKILL.md`) es requisito para PASA, y sus hallazgos
   `R-S#.n` deben estar cerrados. Si **no**, hazlo constar ("sin superficie de riesgo").
   Tú no la auditas: verificas que ocurrió.
 - **No funcionales:** solo los acordados en el encuadre (rendimiento, observabilidad…);

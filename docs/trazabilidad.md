@@ -53,7 +53,7 @@ verificado. Si la remediación es MECANIZABLE, la celda de resolución registra 
 MUTACIÓN EXACTA QUE AHORA MUERE (archivo + antes → después) y `verificado` lo marca un
 revisor independiente que la re-ejecuta en una copia y añade una no nombrada; si es
 decisión/proceso/ausencia, lo cierra quien lo levantó o la persona en el gate.
-`verificado` NUNCA se marca a mano (AGENTS.md §2, skills/verificando-por-sabotaje/).
+`verificado` NUNCA se marca a mano (AGENTS.md §2, .claude/skills/verificando-por-sabotaje/).
 Incluye los de seguridad (`R-S#.n`): misma tabla, mismo ciclo. En
 esos, la columna Criterio lleva el `C#` que protege o la categoría OWASP/CWE. Las
 sugerencias no se rastrean aquí: van como aviso al gate (las acogidas → backlog de

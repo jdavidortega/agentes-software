@@ -15,7 +15,7 @@ con la guarda anti-sobredimensionamiento.
 
 ## Formato de una skill
 
-Una skill es **una carpeta**, no un archivo: `skills/<nombre-corto>/SKILL.md`. El
+Una skill es **una carpeta**, no un archivo: `.claude/skills/<nombre-corto>/SKILL.md`. El
 nombre de la carpeta es el identificador (minúsculas, números y guiones; ≤64
 caracteres) y **debe coincidir con el campo `name`**.
 
@@ -51,7 +51,7 @@ Si la skill necesita material de apoyo, la carpeta admite (**solo si hace falta*
 guarda anti-sobredimensionamiento también aplica aquí):
 
 ```
-skills/<nombre>/
+.claude/skills/<nombre>/
 ├── SKILL.md          obligatorio
 ├── references/       documentación adicional que se abre solo cuando aplica
 ├── scripts/          código ejecutable de la skill
@@ -65,24 +65,22 @@ siempre se leen juntas, un solo `SKILL.md` es lo correcto.
 
 ## Descubrimiento
 
-Las skills viven aquí —fuente de verdad, agnóstica de herramienta, referenciada por
-ruta desde `AGENTS.md`—. `.claude/skills/<nombre>` es un **symlink** a cada carpeta,
-que es lo que hace que Claude Code las autodescubra y cargue solo su `description`
-hasta que una dispara. Al crear una skill nueva, crea también su symlink:
-
-```sh
-ln -s ../../skills/<nombre> .claude/skills/<nombre>
-```
+Las skills viven aquí, en `.claude/skills/` — la ubicación **nativa** de Claude Code:
+las autodescubre y carga solo su `description` hasta que una dispara. No hay symlinks
+ni copias que mantener sincronizadas: esta carpeta es la única fuente de verdad, y las
+rutas de `AGENTS.md` y `docs/` apuntan aquí, así que cualquier otra herramienta puede
+usarlas leyéndolas por ruta (ver «Portabilidad» en el `README.md` raíz). Crear una
+skill nueva es crear su carpeta con `SKILL.md`; nada más.
 
 `scripts/check_docs.sh` verifica lo mecanizable de todo esto (frontmatter presente,
-`name` == carpeta, `description` no vacía y dentro del límite, symlink existente).
+`name` == carpeta, `description` no vacía y dentro del límite).
 
 ## Roles como agentes declarados (`.claude/agents/`)
 
 Los tres roles de revisión (revisor funcional, juez de código, juez de seguridad) están
-además **declarados como agentes** en `.claude/agents/<rol>.md` — la misma jugada que los
-symlinks: la skill sigue siendo la fuente de verdad agnóstica, y el agente declarado es la
-capa específica de Claude Code. Lo que la declaración aporta sobre el prompt de invocación:
+además **declarados como agentes** en `.claude/agents/<rol>.md`: la skill sigue siendo la
+fuente de verdad (la rúbrica), y el agente declarado es la capa que la precarga y fija el
+rol. Lo que la declaración aporta sobre el prompt de invocación:
 
 - **`skills:`** precarga la rúbrica completa en el contexto del subagente al arrancar; deja
   de depender de que obedezca la instrucción de leerla.

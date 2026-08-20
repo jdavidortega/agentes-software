@@ -185,11 +185,11 @@ El elegido se cablea en `scripts/check.sh` y el `pre-commit`.
 - **Herméticas:** sin dependencia de `.env` real ni de servicios externos; inyectar
   o mockear. Un test cuyo resultado cambia por un `.env` es frágil.
 - **El camino principal siempre en la suite** y estrategia completa en
-  `skills/probando-con-datos-reales/SKILL.md` (flujos reales, tests que aportan, mutation
+  `.claude/skills/probando-con-datos-reales/SKILL.md` (flujos reales, tests que aportan, mutation
   testing en Fase 4).
 - **Cada garantía nueva se sabotea antes de cerrar el incremento:** se deshace a propósito
   en una **copia** del árbol y se comprueba que la suite se pone en rojo (procedimiento y
-  arnés: `skills/verificando-por-sabotaje/SKILL.md`). Una garantía que ninguna prueba puede
+  arnés: `.claude/skills/verificando-por-sabotaje/SKILL.md`). Una garantía que ninguna prueba puede
   romper es un comentario. En una copia, no en el árbol de trabajo: con revisiones en
   paralelo, una mutación sin commitear pone la suite en rojo para todos.
 

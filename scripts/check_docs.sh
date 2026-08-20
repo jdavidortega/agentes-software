@@ -48,19 +48,19 @@ if [ -f docs/estado.md ] && grep -qE 'Fase actual:\*?\*?[[:space:]]*F[2-5]' docs
     && err "AGENTS.md conserva placeholders de plantilla (_[...]_) con el proyecto ya arrancado"
 fi
 
-# 5) Estructura de las skills: carpeta con SKILL.md, frontmatter con name (== carpeta)
-#    y description no vacía dentro del límite, y symlink en .claude/skills/.
-if [ -d skills ]; then
-  for d in skills/*/; do
+# 5) Estructura de las skills (.claude/skills/, su ubicación nativa): carpeta con
+#    SKILL.md, frontmatter con name (== carpeta) y description no vacía dentro del límite.
+if [ -d .claude/skills ]; then
+  for d in .claude/skills/*/; do
     [ -d "$d" ] || continue
     name=$(basename "$d")
     f="${d}SKILL.md"
     if [ ! -f "$f" ]; then
-      err "skills/$name/ no tiene SKILL.md (una skill es una carpeta con SKILL.md)"
+      err ".claude/skills/$name/ no tiene SKILL.md (una skill es una carpeta con SKILL.md)"
       continue
     fi
     echo "$name" | grep -qE '^[a-z0-9][a-z0-9-]{0,63}$' \
-      || err "skills/$name: el nombre debe ser minúsculas, números y guiones (≤64 chars)"
+      || err ".claude/skills/$name: el nombre debe ser minúsculas, números y guiones (≤64 chars)"
     head -1 "$f" | grep -qx -- '---' \
       || err "$f no abre con frontmatter YAML (---)"
     fm=$(awk 'NR==1 && $0=="---" {inb=1; next} inb && $0=="---" {exit} inb {print}' "$f")
@@ -75,13 +75,11 @@ if [ -d skills ]; then
       n=$(printf '%s' "$desc" | wc -m | tr -d ' ')
       [ "$n" -le 1024 ] || err "$f: description de $n caracteres (máximo 1024)"
     fi
-    [ -L ".claude/skills/$name" ] \
-      || err ".claude/skills/$name no existe: sin el symlink Claude Code no descubre la skill"
   done
 fi
 
 # 6) Agentes declarados (.claude/agents/): frontmatter con name (== archivo),
-#    description no vacía, y cada skill precargada existe en skills/.
+#    description no vacía, y cada skill precargada existe en .claude/skills/.
 if [ -d .claude/agents ]; then
   for f in .claude/agents/*.md; do
     [ -f "$f" ] || continue
@@ -98,8 +96,8 @@ if [ -d .claude/agents ]; then
       | awk '/^skills:/ {insk=1; next} insk && /^[^ ]/ {insk=0} insk {print}' \
       | sed -n 's/^[[:space:]]*-[[:space:]]*//p')
     for s in $askills; do
-      [ -f "skills/$s/SKILL.md" ] \
-        || err "$f precarga la skill '$s' pero skills/$s/SKILL.md no existe"
+      [ -f ".claude/skills/$s/SKILL.md" ] \
+        || err "$f precarga la skill '$s' pero .claude/skills/$s/SKILL.md no existe"
     done
   done
 fi

@@ -35,7 +35,7 @@ allowed-tools: Read, Grep, Glob, Bash, Edit
    `scripts/check.sh`, o pásale otra con `--suite`):
 
    ```sh
-   python skills/verificando-por-sabotaje/scripts/sabotear.py mutaciones.json
+   python .claude/skills/verificando-por-sabotaje/scripts/sabotear.py mutaciones.json
    ```
 
    ```json

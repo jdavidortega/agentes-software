@@ -97,3 +97,8 @@ ln -s ../../skills/<nombre> .claude/skills/<nombre>
 - **`probando-con-datos-reales/`** — camino principal en la suite, tests que
   aportan, set de oro como regresión, mutation testing en Fase 4. Se dispara en el
   diseño de la estrategia de pruebas y en cada incremento.
+- **`verificando-por-sabotaje/`** — demostrar que una garantía existe deshaciéndola a
+  propósito en una copia y viendo la suite en rojo; incluye el arnés y el protocolo del
+  aserto falsable. Se dispara al cerrar cada incremento (garantías nuevas), al pasar un
+  hallazgo de `resuelto` a `verificado` (la mutación escrita en la fila) y antes de
+  publicar cualquier aserto de verificación.

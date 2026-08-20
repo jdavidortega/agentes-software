@@ -21,6 +21,9 @@ Antes de marcar como terminado:
 - [ ] Las pruebas pasan (y hay pruebas para lo nuevo). Los pares del **set de oro**
   que el incremento cubra y sean automatizables están como **tests de regresión**
   (según lo decidido en el diseño).
+- [ ] **Cada garantía nueva fue saboteada en una copia** y la suite se puso en rojo
+  (`skills/verificando-por-sabotaje/SKILL.md`): una garantía que ninguna prueba puede
+  romper es un comentario.
 - [ ] **Tests herméticos:** ninguna prueba depende de config de entorno (`.env`) ni
   llama a servicios externos; lo externo se inyecta o se mockea.
 - [ ] **El camino principal está en la suite:** si el camino real depende de un

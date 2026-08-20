@@ -153,7 +153,8 @@ El elegido se cablea en `scripts/check.sh` y el `pre-commit`.
 <!-- Disciplina mínima de control de versiones. -->
 - Git **configurado desde el inicio** del proyecto, **con los hooks de la plantilla
   activos**: `git config core.hooksPath .githooks` (versionados en `.githooks/`;
-  `commit-msg` exige el trailer de enlace, `pre-commit` bloquea `.env`/secretos y corre
+  `commit-msg` exige el trailer de enlace —y que todo `Cierra:` nombre un hallazgo
+  con fila en `docs/trazabilidad.md`—, `pre-commit` bloquea `.env`/secretos y corre
   `scripts/check.sh` + `scripts/check_docs.sh`).
 - **Trunk-based:** se trabaja sobre la rama principal, con commits pequeños y
   enlazados; una rama solo si la persona la pide (experimento, cambio grande), no por

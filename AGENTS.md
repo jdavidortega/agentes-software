@@ -258,7 +258,9 @@ que no puede permitirse ser "mayormente seguida" se refuerza con un mecanismo **
 solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo una vez con
 `git config core.hooksPath .githooks` (parte del Bootstrap del arranque)—:
 
-- **`commit-msg`** exige el trailer de enlace (`Ref:`/`Cierra:`): ningún commit sin rastro.
+- **`commit-msg`** exige el trailer de enlace (`Ref:`/`Cierra:`) y que todo `Cierra:`
+  nombre un hallazgo **con fila** en `docs/trazabilidad.md`: un `Cierra:` es una afirmación
+  sobre otro documento, y las afirmaciones cruzadas se mecanizan o se vuelven prosa.
 - **`pre-commit`** bloquea versionar un `.env`/secreto, corre `scripts/check.sh` (lint +
   formato + tests del stack, definido en el diseño): ningún commit con el estilo roto o
   tests en rojo; y corre **`scripts/check_docs.sh`** (integridad del rastro: `C#` sin fila

@@ -12,3 +12,7 @@ node_modules/
 dist/
 build/
 .DS_Store
+
+# Bitácora local de evolución de la plantilla: trazabilidad detallada de las
+# mejoras (qué se modificó y por qué). Solo local, no viaja con la plantilla.
+mejoras/

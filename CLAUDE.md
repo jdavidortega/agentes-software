@@ -15,3 +15,9 @@ Aquí, y SOLO aquí, va lo que es propio de Claude Code (no portable):
 
 Todo lo común al proyecto va en AGENTS.md, no aquí.
 -->
+
+- **Roles como agentes declarados:** el revisor funcional, el juez de código y el juez de
+  seguridad están declarados en `.claude/agents/` (contexto propio, herramientas acotadas
+  con `tools` y su rúbrica precargada con `skills`). Al invocar una revisión, usa esos
+  agentes. El «Prompt de invocación» de cada SKILL.md queda como fallback portable para
+  herramientas sin subagentes declarables (ver `skills/README.md` §Roles como agentes).

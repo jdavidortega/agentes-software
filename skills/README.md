@@ -33,9 +33,12 @@ allowed-tools: Read, Grep, Glob, Bash, Edit              # opcional: acota herra
   decidir si abre la skill, así que responde **dos** preguntas —*qué hace* y *cuándo
   usarla*— y nombra los disparadores con las palabras que aparecerán en el pedido
   real. Una descripción vaga es una skill que nunca se activa.
-- **`allowed-tools`** acota las herramientas mientras la skill está activa. Útil como
-  guarda en roles de solo lectura o casi (las dos revisiones). No filtra por ruta: lo
-  que no puede expresarse ahí sigue siendo prosa + rastro exigible (`AGENTS.md` §8).
+- **`allowed-tools` concede permisos, no restringe:** autoriza las herramientas listadas
+  durante el turno que invoca la skill (el agente no pide aprobación para usarlas); las
+  demás siguen disponibles. La **restricción dura** de herramientas de un rol vive en el
+  campo `tools` del agente declarado en `.claude/agents/` (ver §Roles como agentes).
+  Ninguna de las dos filtra por ruta: lo que no puede expresarse ahí sigue siendo
+  prosa + rastro exigible (`AGENTS.md` §8).
 
 Después del frontmatter, el cuerpo:
 
@@ -73,6 +76,27 @@ ln -s ../../skills/<nombre> .claude/skills/<nombre>
 
 `scripts/check_docs.sh` verifica lo mecanizable de todo esto (frontmatter presente,
 `name` == carpeta, `description` no vacía y dentro del límite, symlink existente).
+
+## Roles como agentes declarados (`.claude/agents/`)
+
+Los tres roles de revisión (revisor funcional, juez de código, juez de seguridad) están
+además **declarados como agentes** en `.claude/agents/<rol>.md` — la misma jugada que los
+symlinks: la skill sigue siendo la fuente de verdad agnóstica, y el agente declarado es la
+capa específica de Claude Code. Lo que la declaración aporta sobre el prompt de invocación:
+
+- **`skills:`** precarga la rúbrica completa en el contexto del subagente al arrancar; deja
+  de depender de que obedezca la instrucción de leerla.
+- **`tools:`** restringe de verdad las herramientas del rol («reporta, no escribe» pasa de
+  prosa a mecanismo — `AGENTS.md` §8). Ojo: los roles sí necesitan `Edit` (registran
+  hallazgos en `docs/trazabilidad.md`) y `Bash` (el juez corre `check.sh`); la restricción
+  acota lo accidental, no lo determinado.
+- **`description`** habilita la delegación automática, y **`model`** permite un modelo
+  distinto al del principal (diversifica puntos ciegos).
+
+El «Prompt de invocación» de cada SKILL.md **se conserva tal cual**: es el fallback
+portable para herramientas sin subagentes declarables (Codex, Cursor…).
+`scripts/check_docs.sh` verifica lo mecanizable de los agentes (frontmatter, `name` ==
+archivo, `description`, skills precargadas existentes).
 
 ## Skills actuales
 <!-- Lista de las skills de este proyecto, con su disparador en una línea. -->

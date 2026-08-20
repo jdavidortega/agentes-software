@@ -80,6 +80,30 @@ if [ -d skills ]; then
   done
 fi
 
+# 6) Agentes declarados (.claude/agents/): frontmatter con name (== archivo),
+#    description no vacía, y cada skill precargada existe en skills/.
+if [ -d .claude/agents ]; then
+  for f in .claude/agents/*.md; do
+    [ -f "$f" ] || continue
+    aname=$(basename "$f" .md)
+    head -1 "$f" | grep -qx -- '---' \
+      || err "$f no abre con frontmatter YAML (---)"
+    afm=$(awk 'NR==1 && $0=="---" {inb=1; next} inb && $0=="---" {exit} inb {print}' "$f")
+    afm_name=$(printf '%s\n' "$afm" | sed -n 's/^name:[[:space:]]*//p' | head -1)
+    [ "$afm_name" = "$aname" ] \
+      || err "$f: name '$afm_name' no coincide con el archivo '$aname'"
+    printf '%s\n' "$afm" | grep -qE '^description:[[:space:]]*[^[:space:]]' \
+      || err "$f: falta description (con ella Claude Code decide cuándo delegar)"
+    askills=$(printf '%s\n' "$afm" \
+      | awk '/^skills:/ {insk=1; next} insk && /^[^ ]/ {insk=0} insk {print}' \
+      | sed -n 's/^[[:space:]]*-[[:space:]]*//p')
+    for s in $askills; do
+      [ -f "skills/$s/SKILL.md" ] \
+        || err "$f precarga la skill '$s' pero skills/$s/SKILL.md no existe"
+    done
+  done
+fi
+
 # --- Chequeos de modo cierre (F4/F5) ------------------------------------------
 
 if [ "$MODE" = "cierre" ]; then

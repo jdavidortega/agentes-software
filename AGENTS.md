@@ -80,8 +80,24 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
    (`Ref:`/`Cierra:`), y trazabilidad al día (`docs/plan.md` + `docs/trazabilidad.md`).
    **Salida de la fase (cuándo termina el bucle):** cuando **todos los criterios `C#`
    están en estado `verificado`** en `docs/trazabilidad.md` y todo hallazgo `R-I#.n` y
-   `R-S#.n` cerró su ciclo completo (`resuelto` y luego `verificado` por quien lo
-   levantó; ninguno `abierto`). Recién entonces se pasa a la Fase 4.
+   `R-S#.n` cerró su ciclo completo (ninguno `abierto`). **Cómo se pasa a `verificado`**
+   depende de qué sea la remediación, y la regla es escalonada:
+
+   - **Remediación mecanizable** (código, SQL, un chequeo): quien la resuelve **deja escrita
+     en su fila la mutación exacta que ahora muere**, y el hallazgo pasa a `verificado`
+     cuando un **revisor independiente** —no necesariamente quien lo levantó— la deshace en
+     una **copia** del árbol, la suite se pone en rojo, y **añade al menos una mutación que
+     el autor del arreglo no nombró**. Esa última cláusula es la que hace que la regla
+     funcione: sin ella es marcarse la tarea con el examen que uno eligió. El procedimiento y
+     sus trampas están en `skills/verificando-por-sabotaje/SKILL.md`.
+   - **Remediación que es una decisión, un proceso o una ausencia** (un ADR, que una pasada
+     ocurrió, un dato medido): no se finge una mutación. La fila declara qué la sostiene, y
+     el ciclo lo cierra **quien lo levantó**; si ya no está, lo cierra **la persona en el
+     gate**, nunca un juez nuevo — desde fuera no se distingue una pasada real de un trámite,
+     ni si un ADR resuelve la tensión que el otro juez vio o solo una adyacente.
+
+   **Nunca a mano.** Marcar `verificado` sin una de esas dos vías es la forma más barata de
+   perder el rastro. Recién entonces se pasa a la Fase 4.
 4. **Validación** — la DoD por incremento revisa **cada pieza al construirla**; esta
    fase valida **el conjunto ensamblado**: que todos los `C#` y el set de oro se
    cumplen **a la vez**, integrados, sobre datos reales (end-to-end), sin regresiones.
@@ -223,7 +239,13 @@ El "cómo hacemos las cosas aquí" (estilo, patrones, comandos) vive en
 
 ## 7. Memoria y skills (ciclo de aprendizaje)
 
-- Una lección puntual va a `docs/MEMORIA.md`.
+- Una lección puntual va a `docs/MEMORIA.md`, en la lista cronológica.
+- **Al cerrar el ciclo, la lista se sintetiza.** Treinta lecciones en orden de llegada son
+  materia prima: nadie las lee antes de trabajar. El cierre deja una sección **§Lo crítico**
+  al principio de `docs/MEMORIA.md` con las pocas que **cambiaron el método**, y cada una
+  atada al **mecanismo concreto** que dejó a cambio —un ADR, una regla en
+  `docs/convenciones.md`, un chequeo en `check_docs.sh`, una skill—. Una lección sin
+  mecanismo se olvida en la siguiente sesión; con mecanismo, no hace falta recordarla.
 - Cuando una lección se repite y se vuelve un patrón estable, **promuévela a una
   skill** en `skills/` (un procedimiento reutilizable): una **carpeta** por skill con
   su `SKILL.md` (frontmatter `name` + `description`) y su symlink en `.claude/skills/`.

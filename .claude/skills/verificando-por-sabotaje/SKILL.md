@@ -1,7 +1,7 @@
 ---
 name: verificando-por-sabotaje
 description: "Cómo demostrar que una garantía o un aserto de verificación existen de verdad: deshacer la garantía a propósito en una copia del árbol y comprobar que la suite se pone en rojo, o forzar el escenario de fallo del aserto antes de publicarlo. Úsala al cerrar cada incremento (toda garantía nueva se sabotea antes del commit), al pasar un hallazgo de `resuelto` a `verificado` (la regla escalonada de AGENTS.md §2 exige la mutación que lo mata, escrita en su fila), al escribir o modificar cualquier comprobación que respalde un criterio, y cuando un juez o una revisión afirma que algo está protegido. Incluye el arnés reutilizable y las trampas conocidas (mutar siempre en una copia, mediciones no deterministas, guardas con falso negativo)."
-allowed-tools: Read, Grep, Glob, Bash, Edit
+allowed-tools: Read, Grep, Glob, Bash
 ---
 # Skill: Verificando por sabotaje
 
@@ -90,6 +90,11 @@ allowed-tools: Read, Grep, Glob, Bash, Edit
 - **Añade una mutación que el autor no nombró.** Es la cláusula que hace funcionar la
   regla escalonada: re-ejecutar solo lo que la fila dice es marcarse la tarea con el
   examen que uno eligió.
+- **Trampa nueva → al reporte.** Si el sabotaje revela un obstáculo operativo nuevo (un
+  caché que miente, un flag necesario, un entorno que se comporta distinto), repórtalo
+  en la sección **Obstáculos** de tu veredicto: el principal lo suma a estas Notas o a
+  `docs/convenciones.md`. La skill se afina con el uso; un obstáculo no reportado se
+  redescubre a precio completo.
 - **Lo que no es mecanizable no se sabotea, se declara.** Ninguna mutación mata "elegimos
   A sobre B". Ahí aplica la otra vía de `AGENTS.md` §2 (identidad o gate humano). Lo que
   **sí** puedes sabotear de un ADR son sus **opciones descartadas**: si implementar la

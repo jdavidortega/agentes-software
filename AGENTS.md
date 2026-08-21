@@ -278,5 +278,8 @@ Lo que **no** es mecanizable —que la revisión independiente (juez / revisor f
 juez de seguridad) ocurrió— se vuelve obligatorio por su **artefacto**: cada revisión deja su línea de
 cierre en la bitácora de `docs/plan.md` (qué revisó, veredicto y conteo de hallazgos,
 **también cuando es PASA limpio**) y sus bloqueantes/vacíos como filas en
-`docs/trazabilidad.md`; no se cierra un incremento sin ese rastro ni con hallazgos
-`abierto`. El gate humano lo verifica.
+`docs/trazabilidad.md`. El **reporte del revisor las trae listas** —incluida la
+sección de **obstáculos** (setup, flags, workarounds)— y **las registra el
+principal** tal cual: los revisores no tienen herramientas de escritura. No se
+cierra un incremento sin ese rastro ni con hallazgos `abierto`. El gate humano lo
+verifica.

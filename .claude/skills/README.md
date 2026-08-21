@@ -84,10 +84,13 @@ rol. Lo que la declaración aporta sobre el prompt de invocación:
 
 - **`skills:`** precarga la rúbrica completa en el contexto del subagente al arrancar; deja
   de depender de que obedezca la instrucción de leerla.
-- **`tools:`** restringe de verdad las herramientas del rol («reporta, no escribe» pasa de
-  prosa a mecanismo — `AGENTS.md` §8). Ojo: los roles sí necesitan `Edit` (registran
-  hallazgos en `docs/trazabilidad.md`) y `Bash` (el juez corre `check.sh`); la restricción
-  acota lo accidental, no lo determinado.
+- **`tools:`** restringe de verdad las herramientas del rol: los revisores llevan solo
+  `Read, Grep, Glob, Bash` — leen y ejecutan (`git diff`, `check.sh`, escáneres) pero
+  **no pueden escribir**, como recomienda la guía oficial para el rol de code-reviewer.
+  Su reporte trae las filas y la línea de bitácora **listas** (más los **Obstáculos**
+  encontrados) y el principal las registra tal cual: «reporta, no escribe» pasa de
+  prosa a mecanismo (`AGENTS.md` §8), y dos revisiones en paralelo ya no pueden
+  pisarse el rastro.
 - **`description`** habilita la delegación automática, y **`model`** fija el modelo del
   rol. El esquema elegido: **`sonnet`** para las revisiones acotadas por rúbrica
   (revisor funcional, juez de código por incremento — distinto al modelo que construye:

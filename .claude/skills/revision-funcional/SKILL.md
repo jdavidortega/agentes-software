@@ -1,16 +1,15 @@
 ---
 name: revision-funcional
 description: "Rúbrica del revisor funcional independiente del encuadre y el plan: verifica que docs/contexto.md y docs/plan.md sean completos y consistentes contra su fuente (material/, analisis/) —criterios C# medibles, set de oro con ≥5 pares, stack y modelo de despliegue resueltos, decisiones de alto impacto como ADR, cada C# con incremento en trazabilidad— y emite veredicto PASA/FALLA con vacíos R-E.n. Úsala al cerrar el arranque, antes del gate de diseño y de la primera línea de código, y en cada pasada fresca hasta dar PASA. Reporta qué falta; no autora los archivos de contenido."
-allowed-tools: Read, Grep, Glob, Bash, Edit
+allowed-tools: Read, Grep, Glob, Bash
 ---
 # Skill: Revisión funcional (revisor funcional)
 
 > Rol de **revisor funcional independiente** (rol analista) del encuadre y el plan.
 > Verifica que el **contexto** y el **plan** sean completos y consistentes **antes del
 > gate de diseño**, contrastándolos con su fuente (`material/` y `analisis/`). **No
-> autora los archivos de contenido (`contexto.md`, `plan.md`, `decisiones.md`):
-> reporta qué falta** —solo registra sus propios hallazgos (`R-E.n`) en
-> `docs/trazabilidad.md`—. Es el equivalente del juez de código
+> escribe en el repo: reporta qué falta**, con las filas `R-E.n` **listas** para que
+> el principal las registre en `docs/trazabilidad.md`. Es el equivalente del juez de código
 > (`revision-critica.md`), pero para los artefactos del arranque, no para el diff.
 >
 > Idealmente se ejecuta como agente con **contexto propio** (un subagente en Claude
@@ -46,8 +45,12 @@ al encuadre ni justificarle sus elecciones; su valor está en que no hereda tu f
 > consistentes contra su fuente (`material/` y `analisis/`), que cada `C#` tenga
 > incremento en `docs/trazabilidad.md` y que las decisiones de alto impacto estén como
 > ADR en `docs/decisiones.md`. Revisa los vacíos previos en `docs/trazabilidad.md`.
-> Entrega veredicto PASA/FALLA con vacíos `R-E.n`, sugerencias y preguntas. No
-> escribas en los archivos de contenido.
+> Entrega tu reporte EXACTAMENTE con estas secciones: **Veredicto** (PASA/FALLA) ·
+> **Vacíos** `R-E.n` (cada uno con su fila lista para `docs/trazabilidad.md`) ·
+> **Sugerencias** · **Preguntas** · **Obstáculos** (problemas de entorno o setup,
+> comandos que necesitaron flags especiales, workarounds que descubriste; «ninguno»
+> si no hubo) · **Línea de bitácora** lista. No escribas en ningún archivo: todo va
+> en el reporte.
 
 ## Insumos (el contexto en que se apoya)
 
@@ -77,10 +80,17 @@ al encuadre ni justificarle sus elecciones; su valor está en que no hereda tu f
    - **Sugerencias** (criterio, no bloquean): lista breve (aviso al gate; las que la
      persona acoja van al backlog de `docs/plan.md`).
    - **Preguntas / dudas:** lo que no pudo verificar.
-4. **Registra los vacíos en `docs/trazabilidad.md`** (ID `R-E.n`, qué punto, estado
-   `abierto`) y deja **siempre** una línea de cierre en la bitácora de `docs/plan.md`
+   - **Obstáculos:** problemas de setup o entorno, comandos que necesitaron flags o
+     configuración especial, workarounds descubiertos. Si no se reportan, el principal
+     los redescubre a su costo. «Ninguno» si no hubo.
+4. **Incluye en el reporte las filas listas** para `docs/trazabilidad.md` (ID `R-E.n`,
+   qué punto, estado `abierto`) y la línea de cierre para la bitácora de `docs/plan.md`
    (revisión funcional, veredicto, conteo de vacíos), **también con PASA limpio**: esa
-   línea es el rastro exigible de que la revisión ocurrió. Es la memoria entre pasadas.
+   línea es el rastro exigible de que la revisión ocurrió. **El principal las registra
+   tal cual, sin editarlas** —el revisor no escribe en el repo (dos revisiones en
+   paralelo ya no pueden pisarse el rastro)— y lo hace **antes** de la siguiente
+   pasada: la memoria entre pasadas sigue viniendo de los archivos. Los obstáculos
+   los rutea el principal: comando/flag → `docs/convenciones.md`; lección → `docs/MEMORIA.md`.
 
 ## Protocolo de vacíos (qué hacer cuando algo falta)
 
@@ -134,9 +144,9 @@ Después, el agente principal **valida si el dato ya está presente**:
 
 ## Notas / trampas
 
-- **No autora los archivos de contenido** (`contexto.md`, `plan.md`, `decisiones.md`).
-  Reporta el vacío y registra el `R-E.n` en `docs/trazabilidad.md`; el contenido lo
-  llena la persona o el agente principal (evita el "juez y parte" también en el encuadre).
+- **No escribe en el repo.** Reporta cada vacío con su fila `R-E.n` lista; el registro
+  lo hace el principal, y el contenido lo llena la persona o el principal (evita el
+  "juez y parte" también en el encuadre).
 - **No inventa requisitos** para "cerrar" un punto: un criterio o un dato faltante es
   un vacío, no algo que el revisor deba suponer.
 - **Binario donde se pueda;** lo subjetivo va como sugerencia o pregunta, nunca como

@@ -1,7 +1,7 @@
 ---
 name: revision-seguridad
 description: "Rúbrica del juez de seguridad: audita un incremento (o el conjunto en Fase 4) buscando defectos explotables —inyección, control de acceso roto, secretos expuestos, dependencias vulnerables, IaC insegura, prompt injection y abuso de tools/MCP—, reconoce el stack para activar solo los dominios que aplican, descarta falsos positivos trazando el flujo hasta la fuente, y emite PASA/FALLA con hallazgos R-S#.n clasificados por severidad × explotabilidad y nivel de confianza. Úsala cuando el incremento toque entrada no confiable, autenticación/autorización, secretos o config, persistencia, IaC/despliegue o superficie de IA/LLM; y una vez sobre el conjunto ensamblado. Revisión estática de solo lectura: reporta y propone remediación, no corrige el código ni ataca sistemas vivos."
-allowed-tools: Read, Grep, Glob, Bash, Edit
+allowed-tools: Read, Grep, Glob, Bash
 ---
 # Skill: Revisión de seguridad (juez de seguridad)
 
@@ -65,9 +65,13 @@ que está bien protegido—, rellenando el incremento y el rango del diff:
 > contra `docs/contexto.md` (modelo de despliegue y datos que maneja),
 > `docs/convenciones.md` y los hallazgos previos en `docs/trazabilidad.md`. Reconoce
 > el stack, activa solo los dominios aplicables y lee su `references/`. Corre los
-> escáneres de solo lectura disponibles. Entrega veredicto PASA/FALLA con hallazgos
-> `R-S#.n` (severidad + confianza + remediación) y declara qué no pudiste verificar.
-> No edites el código ni ataques ningún sistema vivo.
+> escáneres de solo lectura disponibles. Entrega tu reporte EXACTAMENTE con estas
+> secciones: **Veredicto** (PASA/FALLA) · **Bloqueantes** `R-S#.n` (severidad +
+> confianza + remediación, cada uno con su fila lista para `docs/trazabilidad.md`) ·
+> **Sugerencias** · **Cobertura y limitaciones** · **Obstáculos** (entorno, flags,
+> workarounds, escáneres que no corrieron; «ninguno» si no hubo) · **Línea de
+> bitácora** lista. No escribas en ningún archivo ni ataques ningún sistema vivo:
+> todo va en el reporte.
 
 ## Insumos
 
@@ -118,9 +122,13 @@ que está bien protegido—, rellenando el incremento y el rango del diff:
      backlog de `docs/plan.md`.
    - **Cobertura y limitaciones:** dominios auditados, escáneres corridos, y **qué no
      pudiste verificar**.
-6. **Registra los bloqueantes en `docs/trazabilidad.md`** (`R-S#.n`, incremento, qué
-   protege, estado `abierto`) y deja **siempre** una línea de cierre en la bitácora de
-   `docs/plan.md` (revisión de seguridad `I#`, dominios auditados, veredicto, conteo),
+   - **Obstáculos:** problemas de entorno o setup, flags o configuración especial que
+     necesitó algún comando o escáner, workarounds. «Ninguno» si no hubo (el principal
+     los rutea: comando/flag → `docs/convenciones.md`; lección → `docs/MEMORIA.md`).
+6. **Incluye en el reporte las filas listas** para `docs/trazabilidad.md` (`R-S#.n`,
+   incremento, qué protege, estado `abierto`) y la línea de cierre para la bitácora de
+   `docs/plan.md` (revisión de seguridad `I#`, dominios auditados, veredicto, conteo)
+   — **el principal las registra tal cual**, el juez no escribe en el repo —,
    **también con PASA limpio**: esa línea es el rastro exigible de que ocurrió. El
    ciclo es el del juez: `abierto` → `resuelto (fecha + commit)` → `verificado` en la
    siguiente pasada.

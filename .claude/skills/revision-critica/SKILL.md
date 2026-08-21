@@ -1,7 +1,7 @@
 ---
 name: revision-critica
 description: "Rúbrica del juez/revisor independiente de código: verifica un incremento (o el conjunto ensamblado) contra la Definición de Hecho, los criterios C# y el set de oro, ejecuta scripts/check.sh por sí mismo, exige evidencia de la verificación con datos reales y emite veredicto PASA/FALLA con bloqueantes R-I#.n. Úsala al cerrar cada incremento de la Fase 3 —antes del commit y del gate humano— y en la pasada sobre el conjunto de la Fase 4. Reporta; no construye ni edita el código."
-allowed-tools: Read, Grep, Glob, Bash, Edit
+allowed-tools: Read, Grep, Glob, Bash
 ---
 # Skill: Revisión crítica (agente juez)
 
@@ -44,8 +44,12 @@ el incremento y el rango del diff:
 > `docs/contexto.md`, `docs/plan.md`, `docs/convenciones.md`,
 > `docs/definicion-de-hecho.md` y los hallazgos previos en `docs/trazabilidad.md`.
 > Ejecuta `scripts/check.sh` tú mismo y exige evidencia de la verificación con datos
-> reales. Entrega veredicto PASA/FALLA con bloqueantes `R-I#.n`, sugerencias y
-> preguntas. No edites el código.
+> reales. Entrega tu reporte EXACTAMENTE con estas secciones: **Veredicto**
+> (PASA/FALLA) · **Bloqueantes** `R-I#.n` (cada uno con su fila lista para
+> `docs/trazabilidad.md`) · **Sugerencias** · **Preguntas** · **Obstáculos**
+> (problemas de entorno o setup, comandos que necesitaron flags especiales,
+> workarounds; «ninguno» si no hubo) · **Línea de bitácora** lista. No escribas en
+> ningún archivo: todo va en el reporte.
 
 ## Insumos (el contexto en que se apoya)
 
@@ -72,15 +76,26 @@ el incremento y el rango del diff:
    - **Sugerencias** (criterio, no bloquean): lista breve (aviso al gate, no se
      rastrean como hallazgos; las que la persona acoja van al backlog de `docs/plan.md`).
    - **Preguntas / dudas:** lo que no pudo verificar.
-5. **Registra los bloqueantes en `docs/trazabilidad.md`** (ID, incremento, criterio,
-   estado `abierto`) y deja **siempre** una línea de cierre en la bitácora de
-   `docs/plan.md` (revisión I#, veredicto, conteo de hallazgos, "ver trazabilidad"),
-   **también cuando el veredicto es PASA sin hallazgos**: esa línea es el rastro
-   exigible de que la revisión ocurrió. Es la memoria entre fases.
+   - **Obstáculos:** problemas de setup o entorno, comandos que necesitaron flags o
+     configuración especial, workarounds descubiertos (p. ej. para correr `check.sh` o
+     reproducir la evidencia). Si no se reportan, el principal los redescubre a su
+     costo. «Ninguno» si no hubo.
+5. **Incluye en el reporte las filas listas** para `docs/trazabilidad.md` (ID,
+   incremento, criterio, estado `abierto`) y la línea de cierre para la bitácora de
+   `docs/plan.md` (revisión I#, veredicto, conteo, "ver trazabilidad"), **también
+   cuando el veredicto es PASA sin hallazgos**: esa línea es el rastro exigible de que
+   la revisión ocurrió. **El principal las registra tal cual, sin editarlas** —el juez
+   no escribe en el repo (dos revisiones en paralelo ya no pueden pisarse el rastro)—
+   y **antes** de la siguiente pasada: la memoria entre fases sigue viniendo de los
+   archivos. Los obstáculos los rutea el principal: comando/flag →
+   `docs/convenciones.md`; lección → `docs/MEMORIA.md`.
 6. El agente principal resuelve los bloqueantes como subtareas; al cerrarlos actualiza
-   su estado a `resuelto (fecha + commit)` en `docs/trazabilidad.md` y enlaza el commit
-   (`Cierra: R-I#.n`). El juez los marca `verificado` en la siguiente pasada. Solo con
-   todo en PASA: commit final del incremento + gate humano.
+   su estado a `resuelto (fecha + commit)` en `docs/trazabilidad.md`, enlaza el commit
+   (`Cierra: R-I#.n`) y, si la remediación es mecanizable, deja en la fila **la
+   mutación que ahora muere**. El paso a `verificado` sigue la regla escalonada de
+   `AGENTS.md` §2 (revisor independiente que re-ejecuta la mutación en una copia y
+   añade una no nombrada; ver `.claude/skills/verificando-por-sabotaje/SKILL.md`).
+   Solo con todo en PASA: commit final del incremento + gate humano.
 
 ## Rúbrica (dimensiones)
 

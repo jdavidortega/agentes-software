@@ -88,8 +88,13 @@ rol. Lo que la declaración aporta sobre el prompt de invocación:
   prosa a mecanismo — `AGENTS.md` §8). Ojo: los roles sí necesitan `Edit` (registran
   hallazgos en `docs/trazabilidad.md`) y `Bash` (el juez corre `check.sh`); la restricción
   acota lo accidental, no lo determinado.
-- **`description`** habilita la delegación automática, y **`model`** permite un modelo
-  distinto al del principal (diversifica puntos ciegos).
+- **`description`** habilita la delegación automática, y **`model`** fija el modelo del
+  rol. El esquema elegido: **`sonnet`** para las revisiones acotadas por rúbrica
+  (revisor funcional, juez de código por incremento — distinto al modelo que construye:
+  diversifica puntos ciegos, y cuesta ~2.5× menos) y **`opus` fijado, no `inherit`,**
+  para el juez de conjunto (F4) y el de seguridad: ahí aparecieron los defectos más
+  caros, y fijarlo evita que un principal en un modelo superior (p. ej. Fable) arrastre
+  a los jueces a ese costo sin necesidad. Sin `model`, un agente hereda el del principal.
 
 El «Prompt de invocación» de cada SKILL.md **se conserva tal cual**: es el fallback
 portable para herramientas sin subagentes declarables (Codex, Cursor…).

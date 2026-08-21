@@ -71,7 +71,8 @@ Antes de marcar como terminado:
 - [ ] **Compactación del cierre:** `docs/estado.md` regenerado (fase, `C#` con alias y
   estado, hallazgos abiertos, próximo paso); bitácora de incrementos cerrados
   colapsada a una línea; hallazgos `verificado` archivados en el Histórico de
-  `docs/trazabilidad.md`.
+  `docs/trazabilidad.md`; **línea de consumo** registrada (`scripts/consumo.py`;
+  ver `docs/convenciones.md` §Contexto).
 - [ ] **Commit de la fase/incremento** hecho, con mensaje concreto y suficiente.
 - [ ] Hay revisión humana del cambio.
 - [ ] Las lecciones, si las hubo, están en `docs/MEMORIA.md`.

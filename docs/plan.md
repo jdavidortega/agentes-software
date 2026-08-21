@@ -39,7 +39,8 @@ qué revisó, veredicto y conteo de hallazgos, "ver trazabilidad"), TAMBIÉN cua
 PASA sin hallazgos: esa línea es el rastro de que la revisión ocurrió. El detalle de
 hallazgos y su estado vive en docs/trazabilidad.md.
 COMPACTACIÓN: al cerrar un incremento, sus líneas se colapsan a UNA (resumen del
-incremento); el detalle queda en git. -->
+incremento); el detalle queda en git. Al cierre va también la línea de consumo
+(scripts/consumo.py; formato en docs/convenciones.md §Contexto). -->
 - [AAAA-MM-DD] _…_
 
 ## Fuera de alcance / backlog

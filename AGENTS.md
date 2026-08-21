@@ -116,8 +116,10 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
      **backlog** de `docs/plan.md` (y, si se decide perseguirla, abre un nuevo ciclo
      de encuadre). La Fase 4 valida contra lo **acordado**, no contra ideas nuevas.
    → Gate: la persona confirma que el conjunto cumple la Definición de Hecho.
-5. **Cierre y aprendizaje** — retrospectiva breve; lecciones a `docs/MEMORIA.md`. **Su
-   ligereza es deliberada:** un cierre no debe cargar ceremonial pesado (sería
+5. **Cierre y aprendizaje** — retrospectiva breve; lecciones a `docs/MEMORIA.md`. La
+   retro incluye la **tabla de consumo de tokens por fase** (de las líneas de la
+   bitácora; ver `docs/convenciones.md` §Contexto): es el dato que permite afinar el
+   método y detectar sobredimensionamiento. **Su ligereza es deliberada:** un cierre no debe cargar ceremonial pesado (sería
    contradecir la guarda anti-sobredimensionamiento). No le falta estructura; no la
    necesita.
    → **Handoff:** al confirmar que todos los `C#` quedaron verificados, el agente **se lo

@@ -69,6 +69,17 @@ documentos de cara a terceros (README, ADRs, `contexto.md`) se escriben para un 
   la fase actual. Compactar no es truncar: es reescribir corto sin perder lo que decide.
 - **Señal de poda adicional:** un documento vivo con más de ~2 páginas de contenido
   operativo se compacta en el siguiente cierre, sin esperar la fase.
+- **Consumo por rebanada (no invasivo: una línea):** al cierre de cada incremento y de
+  cada fase, corre `python3 scripts/consumo.py` (acumulado por modelo desde los
+  transcripts locales) y registra **una línea** en la bitácora de `docs/plan.md`:
+  `Consumo I5 «alias»: +X entrada / +Y salida (acum X'/Y')` — el delta se calcula contra
+  la línea anterior. La retro de F5 arma la tabla por fase y la **evalúa**: es el dato
+  que detecta sobredimensionamiento del método, no ceremonia. Si el script falla
+  (formato interno cambió), regístralo con `/usage` y anota el hallazgo.
+- **Lecturas masivas y barridos → subagente de búsqueda:** inventarios, lecturas de
+  archivos grandes o barridos exploratorios se delegan a un subagente con contexto
+  propio (p. ej. el agente Explore integrado) y el principal consume **solo las
+  conclusiones**: el contexto del principal es el recurso más caro del método.
 
 ## Estilo de código
 <!-- El estándar NO se debate por proyecto: se usa la convención de nombres IDIOMÁTICA del

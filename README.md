@@ -12,8 +12,8 @@ Un **agente principal** conduce el arranque, construye el código y es el **úni
 escribe**. Cuatro **revisores independientes** (revisor funcional, juez de código, juez de
 conjunto y juez de seguridad) arrancan con contexto propio, sin herramientas de edición,
 y devuelven un veredicto PASA/FALLA con las filas listas para que el principal las
-registre; que no tocaron nada lo verifica el principal con `git status`, no la
-herramienta (`AGENTS.md` §9). Las **skills** son los procedimientos que cada rol carga solo cuando
+registre; que no tocaron nada lo verifica el principal con la **huella del contenido**
+(`scripts/huella.sh`), no la herramienta (`AGENTS.md` §9). Las **skills** son los procedimientos que cada rol carga solo cuando
 aplican; `docs/` es la memoria compartida (un lugar por dato, `estado.md` como punto de
 reentrada); y lo que no puede fallar vive en **hooks de git**, no en prosa. El detalle de
 cada pieza está en «Cómo está armado el sistema» y en el glosario de «Definiciones».
@@ -69,7 +69,7 @@ protección de datos y autorización explícita, con su propia pasada de juez
 Una foto de las piezas y sus relaciones permanentes (sin tiempo: quién invoca, quién
 escribe, qué se precarga, qué bloquea). Lo que hace visible: la **asimetría de
 permisos** (una sola flecha «escribe»; los revisores no tienen herramientas de
-edición y el principal comprueba con `git status` que no tocaron nada), la
+edición y el principal comprueba con la huella del contenido que no tocaron nada), la
 **independencia de contexto** de los revisores (solo reciben la invocación, no la
 memoria del principal), el **modelo por rol** y que el enforcement actúa sobre el
 **commit**, no sobre el agente.
@@ -97,7 +97,7 @@ flowchart LR
     Ctx -->|"ingesta y muestreo"| Principal
     Ctx -->|"fuente contra la que contrasta"| RF
     Principal -->|"invoca con contexto fresco"| RF & JC & JJ & JS
-    RF & JC & JJ & JS -->|"veredicto + filas listas<br/>(git status intacto, lo verifica el principal)"| Principal
+    RF & JC & JJ & JS -->|"veredicto + filas listas<br/>(huella intacta, lo verifica el principal)"| Principal
     Skills -.->|"precargada en el rol"| RF & JC & JJ & JS
     Skills -.->|"bajo demanda"| Principal
     Principal -->|"escribe"| Docs & Codigo
@@ -147,8 +147,8 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
 - **Revisor / subagente** — rol declarado en `.claude/agents/` que el principal invoca
   con **contexto fresco** (no hereda su memoria), herramientas `Read, Grep, Glob, Bash`
   (sin herramientas de edición; `Bash` podría escribir o salir a la red, así que se le
-  instruye no hacerlo y el principal **verifica con `git status`** que el árbol no
-  cambió), rúbrica precargada desde `.claude/skills/` y modelo fijo. **Reporta, no
+  instruye no hacerlo y el principal **verifica con la huella del contenido**
+  (`scripts/huella.sh`) que nada cambió), rúbrica precargada desde `.claude/skills/` y modelo fijo. **Reporta, no
   escribe:** devuelve veredicto y filas listas; el principal las registra. Protocolo
   completo en `AGENTS.md` §9.
 - **Sistema agéntico** — el conjunto: los agentes, el **reparto de permisos** entre
@@ -287,7 +287,9 @@ git config core.hooksPath .githooks
   intérprete explícito: su ausencia es fallo, no aviso.
 - **`commit-msg`** — valida **todos** los trailers contra una gramática cerrada
   (`Ref: F1|F2|F4|F5`, `Ref: I<n>` que existe en `plan.md`, `Cierra: R-E.n | R-I#.n |
-  R-S#.n | R-F4.n` con fila en `trazabilidad.md`), rechaza familias desconocidas, y un
+  R-S#.n | R-F4.n` con fila en `trazabilidad.md`), rechaza familias desconocidas, exige
+  para `Ref: I<n>`, `F2` y `F4` un **recibo de revisión vigente** (línea de bitácora con
+  PASA y `huella` igual a la del índice: `scripts/huella.sh`), y un
   `Ref: F4|F5` dispara `scripts/check_docs.sh cierre` (condiciones de salida del ciclo:
   nada `abierto` ni `resuelto` sin `verificado`, todo `C#` verificado con incremento, sin
   ADR en `propuesta` ni ADR-000). Escape puntual: `git commit --no-verify`.
@@ -318,7 +320,7 @@ que varias herramientas leen de forma nativa—; `CLAUDE.md` solo lo importa
 > Una regla en `AGENTS.md` moldea el comportamiento del agente pero no lo garantiza. Lo
 > que no puede fallar va en git hooks y CI, que son iguales en cualquier herramienta.
 > Y en ninguna herramienta la plantilla aísla por sí sola a los revisores: en todas,
-> «no escribe» es instrucción + verificación del principal con `git status`
+> «no escribe» es instrucción + verificación del principal con la huella del contenido
 > (`AGENTS.md` §9).
 
 ### Si vas a usar otra IA (instrucciones para el agente)
@@ -358,8 +360,12 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
   trabajo hasta la raíz del repo) con frontmatter `name` + `description`, y carga el
   cuerpo solo cuando la skill aplica —el mismo contrato que esta plantilla—. **No lee
   `.claude/skills/`**: crea `.agents/skills` como **enlace simbólico** a `.claude/skills`
-  (`ln -s .claude/skills .agents/skills`) o copia la carpeta; con enlace no hay dos
-  copias que sincronizar.
+  —el destino de un enlace relativo se resuelve desde la carpeta que lo contiene, así que
+  es `mkdir -p .agents && ln -s ../.claude/skills .agents/skills`, no `ln -s
+  .claude/skills …`— y comprueba que resuelve (`ls .agents/skills/` debe listar las ocho
+  skills); o copia la carpeta. Con enlace no hay dos copias que sincronizar (en Windows,
+  copia). Esto verifica el enlace, no que tu versión de Codex cargó las skills: eso se
+  comprueba en Codex.
 - **Roles:** Codex declara subagentes como archivos **TOML** en `.codex/agents/` (uno por
   rol), con `name`, `description`, `developer_instructions` (el cuerpo del `.md` del rol,
   más «lee `.claude/skills/<skill>/SKILL.md` antes de empezar», porque Codex **no
@@ -408,6 +414,7 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 │                        juez de conjunto, juez de seguridad) con su skill precargada
 ├── scripts/
 │   ├── check_docs.sh        integridad del rastro documental (pre-commit, commit-msg y a mano)
+│   ├── huella.sh            huella del contenido revisable: ata cada revisión a lo que juzgó
 │   └── consumo.py           consumo de tokens por modelo desde los transcripts locales
 ├── .githooks/           hooks versionados (commit-msg enlazado; pre-commit: secretos + checks)
 ├── .editorconfig        estilo base agnóstico del lenguaje

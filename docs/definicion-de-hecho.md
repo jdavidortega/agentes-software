@@ -3,7 +3,9 @@
 > La compuerta de calidad. Adáptala a tu proyecto. Se usa en **dos momentos**:
 > **(1) por incremento** (Fase 3): cada pieza la cumple al construirla; **(2) sobre el
 > conjunto** (Fase 4 y cada hito): el sistema ensamblado la cumple a la vez, integrado y
-> sobre datos reales (end-to-end), sin regresiones, con **pasada del juez de conjunto**
+> sobre datos reales (end-to-end), sin regresiones —en un **hito**, sobre el **alcance del
+> hito** (lo construido hasta ahí y sus interacciones; los criterios de incrementos futuros
+> se excluyen por nombre), en la Fase 4 sobre todo—, con **pasada del juez de conjunto**
 > y **mutation testing informativo** (los mutantes sobrevivientes del camino crítico se
 > tratan como hallazgos del juez; ver `.claude/skills/probando-con-datos-reales/SKILL.md`).
 >

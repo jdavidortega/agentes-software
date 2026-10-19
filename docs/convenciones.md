@@ -30,6 +30,9 @@ Verificados contra la doc oficial actual de cada herramienta. -->
   un máximo fijo y timeouts (§Recursos). Debe **tolerar la suite de tests vacía** (p. ej. `pytest` sale con código 5 sin tests;
   `jest` necesita `--passWithNoTests`): si no, bloquea los commits del arranque (`Ref: F2`)
   cuando aún no hay código. Con el primer test, falla de verdad.
+- **`scripts/huella.sh`** — huella del contenido revisable (todo salvo los documentos de
+  rastro). La calcula el revisor para su recibo y el principal antes y después de cada
+  revisión; `commit-msg` la exige en el recibo de `Ref: I<n>`, `F2` y `F4`.
 - **`scripts/check_docs.sh`** — integridad del rastro documental (viene con la
   plantilla). El `pre-commit` lo corre sobre la exportación del índice; el `commit-msg`
   corre el modo `cierre` cuando el trailer es `Ref: F4|F5`; y el agente lo corre **a mano

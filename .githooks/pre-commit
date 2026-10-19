@@ -52,6 +52,15 @@ git checkout-index -a --prefix="$tmp/" || { echo "✗ pre-commit: no pude export
 fase=$(grep -oE 'Fase actual:\*?\*?[[:space:]]*F[0-9]' "$tmp/docs/estado.md" 2>/dev/null | grep -oE 'F[0-9]' | head -1)
 if [ -f scripts/check.sh ]; then
   sh scripts/check.sh || { echo "✗ pre-commit: scripts/check.sh falló (lint/formato/tests)." >&2; exit 1; }
+  # 5) Lo probado tiene que ser lo guardado TAMBIÉN después de la suite: un formatter
+  #    con auto-fix o un test que escribe un fixture dejarían en el árbol algo distinto
+  #    de lo que va al commit. Se compara otra vez y, si cambió, se rechaza.
+  if ! git diff --quiet; then
+    echo "✗ pre-commit: scripts/check.sh modificó archivos rastreados después de la comparación:" >&2
+    git diff --name-only | sed 's/^/    /' >&2
+    echo "  Lo que se commitea no es lo que se probó. Stagea los cambios (git add -u) y repite el commit." >&2
+    exit 1
+  fi
 else
   case "$fase" in
     F2|F3|F4|F5)

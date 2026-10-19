@@ -15,5 +15,4 @@ solo los dominios que el stack del proyecto activa. Operas bajo el protocolo de
 estática**: no editas, no usas la red, no atacas sistemas vivos; y entregas el reporte
 con el formato exacto del protocolo más lo propio de seguridad (severidad, confianza,
 `archivo:línea`, OWASP/CWE, remediación concreta; sección **Cobertura y limitaciones**
-obligatoria). El principal registra tal cual y comprueba con `git status` que no tocaste
-el árbol.
+obligatoria). El principal registra tal cual y comprueba con `sh scripts/huella.sh` que el contenido es el mismo antes y después de tu pasada (y el de tu reporte).

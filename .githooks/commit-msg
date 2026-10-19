@@ -4,8 +4,11 @@
 #   Ref: F1|F2|F4|F5        cierre de fase        Ref: I<n>        incremento (existe en plan.md)
 #   Cierra: R-E.<n>         vacío del revisor     Cierra: R-I<i>.<n> | R-S<i>.<n> | R-F4.<n>
 # Se validan TODOS los trailers presentes (uno malformado junto a uno válido también
-# rechaza), los IDs se resuelven contra el ÍNDICE (lo que va al commit), y Ref: F4|F5
-# dispara el modo cierre de check_docs. Salida de emergencia: git commit --no-verify.
+# rechaza), los IDs se resuelven contra el ÍNDICE (lo que va al commit), Ref: F4|F5
+# dispara el modo cierre de check_docs, y Ref: I<n> | F2 | F4 exigen un RECIBO DE REVISIÓN
+# vigente: una línea de bitácora en docs/plan.md con PASA y `huella <h>` igual a la huella
+# del índice (scripts/huella.sh indice). Así la revisión corresponde al contenido que se
+# guarda, no a una versión anterior. Salida de emergencia: git commit --no-verify.
 msg_file="$1"
 FAIL=0
 fail() { echo "✗ commit-msg: $1" >&2; FAIL=1; }
@@ -19,15 +22,31 @@ if [ -z "$trailers" ]; then
 fi
 
 cierre=0
+# Recibo de revisión: línea de bitácora en plan.md (índice) con PASA y la huella actual.
+recibo() {  # $1 patrón del alcance (ERE); 0 si la ÚLTIMA revisión de ese alcance es PASA con la huella actual
+  h=$(sh scripts/huella.sh indice 2>/dev/null) || return 1
+  last=$(idx docs/plan.md | grep -iE '^- .*revisi[oó]n' | grep -E "$1" | tail -1)
+  [ -n "$last" ] || return 1
+  printf '%s' "$last" | grep -qE '(^|[^A-Za-z])PASA([^A-Za-z]|$)' || return 1
+  printf '%s' "$last" | grep -qE "huella[: ]+$h([^0-9a-f]|$)"
+}
 IFS='
 '
 for line in $trailers; do
   if printf '%s' "$line" | grep -qE '^Ref:[[:space:]]*F[1245][[:space:]]*$'; then
     printf '%s' "$line" | grep -qE 'F[45]' && cierre=1
+    if printf '%s' "$line" | grep -qE 'F2'; then
+      recibo 'funcional' || fail "'$line' sin recibo vigente: la bitácora de docs/plan.md necesita una línea 'Revisión funcional … PASA … huella $(sh scripts/huella.sh indice 2>/dev/null)' (la huella de lo que se commitea). Si el encuadre cambió tras la revisión, hay que repetirla."
+    fi
+    if printf '%s' "$line" | grep -qE 'F4'; then
+      recibo '(conjunto|F4)' || fail "'$line' sin recibo vigente del juez de conjunto: línea 'Revisión … conjunto … PASA … huella $(sh scripts/huella.sh indice 2>/dev/null)' en docs/plan.md."
+    fi
   elif printf '%s' "$line" | grep -qE '^Ref:[[:space:]]*I[0-9]+[[:space:]]*$'; then
     id=$(printf '%s' "$line" | grep -oE 'I[0-9]+')
     idx docs/plan.md | grep -qE "^- \[[ xX]\] $id " \
       || fail "'$line' pero $id no existe como incremento en docs/plan.md (formato: '- [ ] $id «alias» — …')."
+    recibo "(^|[^A-Za-z0-9])$id([^0-9]|$)" \
+      || fail "'$line' sin recibo vigente del juez: la bitácora de docs/plan.md necesita 'Revisión … $id … PASA … huella $(sh scripts/huella.sh indice 2>/dev/null)' (la huella del índice ahora). Si el código cambió después de la revisión, la revisión no vale: repítela."
   elif printf '%s' "$line" | grep -qE '^Cierra:[[:space:]]*R-(E\.[0-9]+|I[0-9]+\.[0-9]+|S[0-9]+\.[0-9]+|F4\.[0-9]+)[[:space:]]*$'; then
     id=$(printf '%s' "$line" | grep -oE 'R-(E|I[0-9]+|S[0-9]+|F4)\.[0-9]+')
     esc=$(printf '%s' "$id" | sed 's/\./\\./g')

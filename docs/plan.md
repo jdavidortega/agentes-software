@@ -47,9 +47,11 @@ exige exactamente estas; una prueba fuera del plan que no proteja un criterio es
 
 <!-- Una línea por avance o ajuste. Lo que cambió respecto al plan y por qué.
 Las decisiones con alternativas van a docs/decisiones.md; aquí queda el rastro.
-Registra una línea de cierre de CADA revisión independiente (juez o revisor funcional:
-qué revisó, veredicto y conteo de hallazgos, "ver trazabilidad"), TAMBIÉN cuando es
-PASA sin hallazgos: esa línea es el rastro de que la revisión ocurrió. El detalle de
+Registra una línea de cierre de CADA revisión independiente, TAMBIÉN cuando es PASA sin
+hallazgos: es el RECIBO de la revisión y el commit-msg lo exige. Formato fijo:
+  - [AAAA-MM-DD] Revisión <rol> · <alcance> · PASA|FALLA · <n> bloqueantes · huella <h> · ver trazabilidad
+donde <alcance> es `I3`, `F2 encuadre y plan`, `hito I1–I3: C1–C3 y componentes …; excluye C4 (I5)`
+o `conjunto F4`, y <h> es la salida de `sh scripts/huella.sh` sobre lo revisado (AGENTS.md §9). El detalle de
 hallazgos y su estado vive en docs/trazabilidad.md.
 COMPACTACIÓN: al cerrar un incremento, sus líneas se colapsan a UNA (resumen del
 incremento); el detalle queda en git. Al cierre va también la línea de consumo

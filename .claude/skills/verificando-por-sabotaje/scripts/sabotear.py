@@ -20,9 +20,13 @@ the guarantee is real. `SURVIVES` means the guarantee is a comment.
 
 A mutation that could NOT be applied (`ANCHOR LOST`: the `before` text is not in the file;
 `MISSING`: the file does not exist; `ESCAPES`: the path resolves outside the copy, e.g. a
-symlink) is reported apart and NEVER counted as a kill. Exit codes: 0 = every mutation was
-applied and died; 1 = at least one survived; 2 = at least one could not be applied (the spec
-is stale or unsafe -- fix the spec, do not read it as a pass).
+symlink) is reported apart and NEVER counted as a kill. Neither is a red suite that is red
+for the WRONG reason: a mutant that does not compile or import (`INVALID`), or a run that
+timed out (`TIMEOUT`), proves nothing about the behavior the test allegedly protects -- it
+is reported apart with the lines of output that explain it, and the spec must be fixed.
+Every `DIES` keeps the tail of the suite output as evidence of *why* it went red.
+Exit codes: 0 = every mutation was applied, valid and died; 1 = at least one survived;
+2 = at least one could not be applied or was invalid (fix the spec; never read 2 as a pass).
 
 Resources: the copy skips dependency and build directories and every `.env*` except
 `.env.example` (recursively); it refuses trees above `--max-mb` (default 500) unless
@@ -109,8 +113,29 @@ def measure(root: Path) -> tuple[int, int]:
     return total, count
 
 
-def suite(tree: Path, command: list[str], timeout: int) -> bool:
-    """True when the suite is green in `tree`. A crash or a timeout counts as red."""
+class Run:
+    """One suite execution: whether it was green, and why not when it was not."""
+
+    def __init__(self, green: bool, timed_out: bool, output: str) -> None:
+        self.green, self.timed_out, self.output = green, timed_out, output
+
+    def tail(self, lines: int = 3) -> str:
+        rows = [r for r in self.output.strip().splitlines() if r.strip()]
+        return " | ".join(r.strip()[:120] for r in rows[-lines:]) if rows else "(no output)"
+
+
+# Output that means the mutant never got to run the behavior: a broken file, a missing
+# module or interpreter, a build error. Red for these reasons is not a detection.
+INVALID_PATTERNS = (
+    "SyntaxError", "IndentationError", "ImportError", "ModuleNotFoundError",
+    "cannot find module", "Cannot find module", "command not found", "No such file or directory",
+    "compilation failed", "error[E", "error TS", "SyntaxError:", "Unexpected token",
+    "could not compile", "undefined: ", "panic: ", "NameError:",
+)
+
+
+def suite(tree: Path, command: list[str], timeout: int) -> Run:
+    """Run the suite in `tree`. A crash or a timeout counts as red, with its output kept."""
     try:
         done = subprocess.run(
             command,
@@ -119,20 +144,62 @@ def suite(tree: Path, command: list[str], timeout: int) -> bool:
             timeout=timeout,
             env={**os.environ, **ENVIRONMENT},
         )
-    except subprocess.TimeoutExpired:
-        return False
-    return done.returncode == 0
+    except subprocess.TimeoutExpired as exc:
+        out = (exc.stdout or b"").decode("utf-8", "replace") + (exc.stderr or b"").decode("utf-8", "replace")
+        return Run(False, True, out)
+    out = done.stdout.decode("utf-8", "replace") + done.stderr.decode("utf-8", "replace")
+    return Run(done.returncode == 0, False, out)
 
 
-def plant(tree: Path, root: Path, commit: str | None) -> None:
-    """Fill `tree` with the code to mutate: a commit, or the working tree as it stands."""
+def looks_invalid(run: Run) -> str | None:
+    """The pattern that marks this red run as a broken mutant rather than a detection."""
+    for pattern in INVALID_PATTERNS:
+        if pattern in run.output:
+            return pattern
+    return None
+
+
+def compiles(path: Path) -> str | None:
+    """For Python files, the compile error of the mutated file, or None if it compiles."""
+    if path.suffix != ".py":
+        return None
+    try:
+        compile(path.read_text(encoding="utf-8"), str(path), "exec")
+    except SyntaxError as exc:
+        return f"SyntaxError line {exc.lineno}: {exc.msg}"
+    return None
+
+
+def prune(tree: Path) -> list[str]:
+    """Remove from an extracted tree what the working-tree copy never includes (IGNORED
+    patterns and every secret `.env*`). Returns what was removed: a secret that was
+    versioned in the commit is a finding in itself."""
+    removed = []
+    for directory, dirs, files in os.walk(tree, topdown=True):
+        skip = ignore(directory, dirs + files)
+        for name in list(dirs):
+            if name in skip:
+                shutil.rmtree(Path(directory) / name, ignore_errors=True)
+                dirs.remove(name)
+                removed.append(str(Path(directory, name).relative_to(tree)))
+        for name in files:
+            if name in skip:
+                (Path(directory) / name).unlink(missing_ok=True)
+                removed.append(str(Path(directory, name).relative_to(tree)))
+    return removed
+
+
+def plant(tree: Path, root: Path, commit: str | None) -> list[str]:
+    """Fill `tree` with the code to mutate: a commit, or the working tree as it stands.
+    Both paths honor the same exclusions; returns what had to be pruned (commit mode)."""
     if commit:
         tree.mkdir()
         subprocess.run(f"git archive {commit} | tar -x -C {tree}", shell=True, cwd=root, check=True)
-        return
+        return prune(tree)
     # `symlinks=True`: links are copied as links, never dereferenced -- and `contained()`
     # below refuses to mutate through any of them.
     shutil.copytree(root, tree, ignore=ignore, symlinks=True)
+    return []
 
 
 def contained(tree: Path, relative: str) -> Path | None:
@@ -192,9 +259,24 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory() as temporary:
         tree = Path(temporary) / "tree"
-        plant(tree, root, arguments.commit)
-        if not suite(tree, command, arguments.timeout):
+        pruned = plant(tree, root, arguments.commit)
+        if arguments.commit:
+            size, files = measure(tree)
+            mb = size / 1_000_000
+            print(f"copy from commit {arguments.commit}: {files} files, {mb:.0f} MB after pruning")
+            secrets = [p for p in pruned if is_secret(Path(p).name)]
+            if secrets:
+                print(f"  WARNING the commit versions secret files (removed from the copy): {', '.join(secrets)}")
+            if mb > arguments.max_mb and not arguments.force:
+                print(
+                    f"refusing: the commit tree is {mb:.0f} MB (> --max-mb {arguments.max_mb}) even after pruning; pass --force",
+                    file=sys.stderr,
+                )
+                return 2
+        base = suite(tree, command, arguments.timeout)
+        if not base.green:
             print("the suite is not green before mutating: every result would be noise", file=sys.stderr)
+            print("  " + base.tail(), file=sys.stderr)
             return 2
         origin = f"commit {arguments.commit}" if arguments.commit else "the working tree"
         print(f"base green over {origin}")
@@ -217,14 +299,33 @@ def main() -> int:
                 continue
             path.write_text(original.replace(mutation["before"], mutation["after"], 1), encoding="utf-8")
             try:
-                green = suite(tree, command, arguments.timeout)
+                error = compiles(path)
+                run = None if error else suite(tree, command, arguments.timeout)
             finally:
                 path.write_text(original, encoding="utf-8")
-            print(f"  {'SURVIVES' if green else 'DIES    '} {label}")
-            (survived if green else died).append(label)
+            if error:
+                # The mutant never ran: a red suite here would say nothing about behavior.
+                print(f"  INVALID  {label}: mutant does not compile ({error})")
+                invalid.append(label)
+                continue
+            if run.green:
+                print(f"  SURVIVES {label}")
+                survived.append(label)
+                continue
+            if run.timed_out:
+                print(f"  TIMEOUT  {label}: the suite exceeded {arguments.timeout}s; not a detection ({run.tail(1)})")
+                invalid.append(label)
+                continue
+            reason = looks_invalid(run)
+            if reason:
+                print(f"  INVALID  {label}: red for the wrong reason ({reason}) -- {run.tail(2)}")
+                invalid.append(label)
+                continue
+            print(f"  DIES     {label} -- {run.tail(2)}")
+            died.append(label)
 
     print(f"\napplied {len(died) + len(survived)}/{len(mutations)}: {len(died)} die, {len(survived)} survive; "
-          f"{len(invalid)} not applied")
+          f"{len(invalid)} not applied or invalid")
     if survived:
         print("guarantees no test protects: " + ", ".join(survived))
     if invalid:

@@ -15,5 +15,9 @@ Los defectos que más han costado no estaban en ningún módulo sino en cómo se
 (orden de efectos, encadenamientos transitivos, simetrías a medio cubrir). Verificas que
 los `C#` y el set de oro se cumplen **a la vez**, end-to-end, sobre datos reales, sin
 regresiones; ejecutas tú mismo los chequeos y exiges evidencia. Operas bajo el protocolo
-de `AGENTS.md` §9 (contexto propio, sin edición ni red, formato exacto del reporte); tus
-bloqueantes son `R-F4.n` (columna Incr. = `F4`) y se corrigen en la Fase 3.
+de `AGENTS.md` §9 (contexto propio, sin edición ni red, formato exacto del reporte con
+**alcance** explícito —en un hito: los criterios ya cubiertos y los componentes construidos
+hasta ahí con sus interacciones, excluyendo por nombre los criterios planificados para
+incrementos futuros; en la Fase 4: todos— y `huella` de `sh scripts/huella.sh`); tus
+bloqueantes son `R-F4.n` (columna Incr. = `F4`, numeración que continúa entre pasadas) y
+se corrigen en la Fase 3.

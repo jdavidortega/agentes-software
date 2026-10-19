@@ -47,10 +47,15 @@ allowed-tools: Read, Grep, Glob, Bash
 3. **Lee el veredicto y el código de salida.** `DIES` es lo que buscas. `SURVIVES` es un
    hallazgo: la garantía no existe y hay que escribir la prueba que falta. `ANCHOR LOST`
    (el texto `before` ya no está), `MISSING` (el archivo no existe) y `ESCAPES` (la ruta sale
-   de la copia, p. ej. un enlace simbólico) son mutaciones **no aplicadas**: se cuentan
-   aparte, nunca como muertas, y el arnés sale con código **2**. Solo el código **0** (todas
-   aplicadas, todas mueren) acredita; **1** = hay supervivientes; **2** = spec rancio o
-   inseguro, arréglalo —no es un permiso para dar la garantía por buena—.
+   de la copia, p. ej. un enlace simbólico) son mutaciones **no aplicadas**; `INVALID` (el
+   mutante no compila o no importa: la suite se puso roja **por la razón equivocada**, no
+   porque un test detectara el comportamiento) y `TIMEOUT` son mutaciones **inválidas**.
+   Todas se cuentan aparte, nunca como muertas, y el arnés sale con código **2**. Cada
+   `DIES` trae las últimas líneas de la salida de la suite: la evidencia de **por qué** se
+   puso roja (que sea por el assert del comportamiento, no por un error de entorno). Solo
+   el código **0** (todas aplicadas, válidas y muertas) acredita; **1** = hay
+   supervivientes; **2** = spec rancio, inseguro o inválido, arréglalo —no es un permiso
+   para dar la garantía por buena—.
 4. **Copia la mutación a la fila del hallazgo** en `docs/trazabilidad.md`, en la celda de
    resolución. Cuesta una línea y convierte tu convicción privada en un artefacto que otro
    re-ejecuta en segundos, sin conocer tu sesión.
@@ -93,7 +98,9 @@ allowed-tools: Read, Grep, Glob, Bash
 - **Verificar contra un commit exige que lo verificado esté en el commit.** Pedir
   "verifícalo contra `git archive HEAD`" con la remediación sin commitear produce falsos
   negativos con aspecto de rigor. El arnés usa el árbol de trabajo por defecto;
-  `--commit` cuando de verdad quieres el commit.
+  `--commit` cuando de verdad quieres el commit. En ese modo aplica las **mismas
+  exclusiones y el mismo tope** que en el árbol (poda tras extraer) y **avisa si el commit
+  versiona un `.env`**: eso es un hallazgo de seguridad, no un detalle del arnés.
 - **Un guarda con falso negativo es peor que uno ausente**, porque da permiso. Cuando un
   chequeo afirma algo sobre texto ("no hay `DELETE`"), sabotéalo con la forma que el
   lenguaje admite y tu regex no: palabra al final de la cláusula, otra indentación,

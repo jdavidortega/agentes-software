@@ -89,8 +89,11 @@ rol. Lo que la declaración aporta sobre el prompt de invocación:
   tienen herramientas de edición**, como recomienda la guía oficial para el rol de
   code-reviewer. Honestidad sobre la frontera: `Bash` sí puede escribir archivos o salir
   a la red, y ni `tools` ni `allowed-tools` lo impiden; se les instruye no hacerlo y el
-  **principal lo verifica** comparando `git status --porcelain` antes y después de cada
-  revisión (`AGENTS.md` §9): si el árbol cambió, la revisión se invalida. Su reporte trae
+  **principal lo verifica** comparando la **huella del contenido** (`sh scripts/huella.sh`:
+  hash de todo el proyecto salvo los documentos de rastro) antes y después de cada
+  revisión y con la huella del reporte (`AGENTS.md` §9): si cambió, la revisión se
+  invalida. `git status` no sirve para esto: no distingue dos versiones de un archivo ya
+  modificado. Detecta, no previene: red y archivos ignorados quedan fuera. Su reporte trae
   las filas y la línea de bitácora **listas** y el principal las registra tal cual.
 - **`description`** habilita la delegación automática, y **`model`** fija el modelo del
   rol. El esquema elegido: **`sonnet`** para las revisiones acotadas por rúbrica

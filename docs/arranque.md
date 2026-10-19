@@ -355,6 +355,10 @@ abiertos.**
 - [ ] El plan no contradice ningún no-objetivo del encuadre y no excede los criterios
   (anti-exceso).
 - [ ] No quedan vacíos (`R-E.n`) en estado `abierto` en `docs/trazabilidad.md`.
+- [ ] El **recibo** de la revisión funcional está en la bitácora de `docs/plan.md` (línea
+  `Revisión funcional · F2 encuadre y plan · PASA · … · huella <h>`): el commit `Ref: F2`
+  lo exige con la huella de lo que se commitea; si el encuadre o el plan cambian después,
+  la revisión se repite.
 
 ---
 

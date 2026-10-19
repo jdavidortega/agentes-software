@@ -3,9 +3,10 @@
 #
 # Modo "commit" (por defecto): lo corre el pre-commit sobre una exportación del ÍNDICE
 # (lo que de verdad se versiona), y el agente lo corre a mano al inicio de sesión. Sobre
-# la plantilla recién copiada (sin fase real en estado.md) solo aplica lo estructural;
-# con el proyecto iniciado (estado.md en F2..F5) aplica además el CONTRATO POR FASE:
-# archivos obligatorios, IDs únicos y existentes, hooks instalados.
+# la plantilla recién copiada (sin fase real en estado.md) aplica lo estructural y la
+# INSTALACIÓN (hooks activos y ejecutables: un clon nuevo FALLA hasta el Bootstrap, a
+# propósito); con el proyecto iniciado (estado.md en F2..F5) aplica además el CONTRATO
+# POR FASE: archivos obligatorios, IDs únicos y existentes, estados leídos por columna.
 # Modo "cierre": lo dispara el commit-msg cuando el trailer es Ref: F4 o Ref: F5, y se
 # puede correr a mano. Añade las condiciones de salida del ciclo.
 #
@@ -23,7 +24,12 @@ if has docs/estado.md; then
   FASE=$(grep -oE 'Fase actual:\*?\*?[[:space:]]*F[0-9]' docs/estado.md | grep -oE 'F[0-9]' | head -1)
 fi
 INICIADO=0
-case "$FASE" in F2|F3|F4|F5) INICIADO=1 ;; esac
+case "$FASE" in
+  "" ) ;;
+  F1) ;;
+  F2|F3|F4|F5) INICIADO=1 ;;
+  *) err "docs/estado.md declara una fase inválida ($FASE): solo F1..F5. Una fase desconocida no es 'modo plantilla'."; INICIADO=1 ;;
+esac
 [ "$MODE" = "cierre" ] && INICIADO=1
 
 # --- 0) Contrato por fase: archivos obligatorios y hooks instalados --------------
@@ -35,16 +41,50 @@ if [ "$INICIADO" -eq 1 ]; then
   done
   # scripts/check.sh es salida del diseño: existe desde el cierre de F2.
   has scripts/check.sh || err "falta scripts/check.sh (lint+formato+tests; salida obligatoria del diseño, F2)"
-  # Hooks de la plantilla activos (solo verificable dentro de un repo; en la exportación
-  # del índice no hay .git y el propio hook ya demuestra que están activos).
-  if git rev-parse --git-dir >/dev/null 2>&1; then
-    [ "$(git config core.hooksPath 2>/dev/null)" = ".githooks" ] \
-      || err "core.hooksPath no es .githooks: los hooks de la plantilla no están activos (git config core.hooksPath .githooks)"
-    for h in .githooks/pre-commit .githooks/commit-msg; do
-      [ -x "$h" ] || err "$h no es ejecutable: git lo IGNORA en silencio (chmod +x $h && git update-index --chmod=+x $h)"
-    done
-  fi
 fi
+
+# --- 0b) Instalación: siempre que haya repo, en cualquier fase y modo (V01). En la
+#     exportación del índice no hay .git y el propio hook ya demuestra que corre.
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  [ "$(git config core.hooksPath 2>/dev/null)" = ".githooks" ] \
+    || err "core.hooksPath no es .githooks: los hooks de la plantilla no están activos (git config core.hooksPath .githooks)"
+  for h in .githooks/pre-commit .githooks/commit-msg; do
+    [ -x "$h" ] || err "$h no es ejecutable: git lo IGNORA en silencio (chmod +x $h && git update-index --chmod=+x $h)"
+    git ls-files -s "$h" 2>/dev/null | grep -q '^100755' \
+      || err "$h está versionado sin bit ejecutable (git update-index --chmod=+x $h): un clon nuevo lo recibiría ignorado"
+  done
+fi
+
+# --- Trazabilidad leída por TABLA y COLUMNA (no por patrones sueltos) ----------------------
+# Produce líneas "TIPO ID INCR ESTADO": TIPO=C (cobertura) | E (vacíos) | R (juez). Las
+# columnas se identifican por su encabezado real, así `verificado` en la Nota no cuenta.
+filas_trazabilidad() {
+  [ -f docs/trazabilidad.md ] || return 0
+  awk -F'|' '
+    function trim(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    /^\|/ {
+      n=0; for(i=2;i<NF;i++){ n++; f[n]=trim($i) }
+      if (f[1] ~ /^-+$/) next                         # separador
+      if (f[1]=="Criterio"||f[1]=="Vacío"||f[1]=="Hallazgo") {  # encabezado: ubicar columnas
+        tipo = (f[1]=="Criterio") ? "C" : (f[1]=="Vacío") ? "E" : "R"
+        ce=0; ci=0
+        for(k=1;k<=n;k++){ if(f[k]=="Estado") ce=k; if(f[k] ~ /^Incr/) ci=k }
+        next
+      }
+      if (tipo=="" || ce==0) next
+      id=f[1]; if (id !~ /^(C[0-9]+|R-)/) next           # filas de ejemplo (C1 «…» cuenta; R-E._ no)
+      if (id ~ /_/) next
+      incr = (ci>0) ? f[ci] : "-"; gsub(/ /,"",incr); if(incr=="") incr="-"
+      est=f[ce]; sub(/ .*$/,"",est)                       # primera palabra: "pendiente / cubierto" → pendiente
+      print tipo, id, incr, est
+    }' docs/trazabilidad.md
+}
+FILAS=$(filas_trazabilidad)
+
+# Unicidad: un C# o un hallazgo con dos filas es un registro ambiguo (V04/V10).
+for dup in $(printf '%s\n' "$FILAS" | awk 'NF{print $2}' | sort | uniq -d); do
+  err "trazabilidad.md tiene más de una fila para $dup: un ID se registra una sola vez (en cualquier tabla); una pasada nueva continúa la numeración, no la repite"
+done
 
 # --- 1) Criterios C#: únicos en encuadre.md y con fila en trazabilidad.md -------------
 if has docs/encuadre.md; then
@@ -65,9 +105,9 @@ if has docs/plan.md; then
     err "$i está definido más de una vez en plan.md"
   done
   if [ "$INICIADO" -eq 1 ]; then
-    cited=$( { has docs/trazabilidad.md && grep -E '^\|' docs/trazabilidad.md | grep -oE '(^|[^A-Za-z0-9-])I[0-9]+' ; \
-               has docs/estado.md && grep -oE 'incremento activo:[[:space:]]*I[0-9]+' docs/estado.md ; } \
-             | grep -oE 'I[0-9]+' | sort -u)
+    cited=$( { printf '%s\n' "$FILAS" | awk 'NF{print $3}' | grep -oE 'I[0-9]+' ; \
+               has docs/estado.md && grep -oE 'incremento activo:[[:space:]]*I[0-9]+' docs/estado.md | grep -oE 'I[0-9]+' ; } \
+             | sort -u)
     for i in $cited; do
       printf '%s\n' "$plan_ids" | grep -qx "$i" \
         || err "$i se cita en trazabilidad/estado pero no existe como incremento en plan.md"
@@ -110,6 +150,10 @@ check_frontmatter() {  # $1 archivo, $2 claves permitidas (regex alternativa). D
   printf '%s\n' "$FM" | grep -q "$(printf '\t')" && err "$f: tabuladores en el frontmatter (YAML inválido)"
   bad=$(printf '%s\n' "$FM" | grep -vE "^($keys):([[:space:]].*)?$|^[[:space:]]+-[[:space:]]+[^[:space:]]|^[[:space:]]*$|^[[:space:]]*#")
   [ -z "$bad" ] || err "$f: líneas de frontmatter no válidas o claves desconocidas: $(printf '%s' "$bad" | head -2 | tr '\n' '|')"
+  # Un valor que abre comillas tiene que cerrarlas en la misma línea (YAML inválido si no).
+  unq=$(printf '%s\n' "$FM" | sed -n -E 's/^[a-z-]+:[[:space:]]+(["'"'"'].*)$/\1/p' | sed -E 's/[[:space:]]*#[^"'"'"']*$//' \
+        | awk '{ q=substr($0,1,1); if (substr($0,length($0),1)!=q || length($0)<2) print }')
+  [ -z "$unq" ] || err "$f: valor entre comillas sin cerrar en el frontmatter: $(printf '%s' "$unq" | head -1 | cut -c1-60)…"
   return 0
 }
 
@@ -159,17 +203,18 @@ fi
 # --- Modo cierre (F4/F5): condiciones de salida del ciclo ----------------------------------
 if [ "$MODE" = "cierre" ]; then
   if has docs/trazabilidad.md; then
-    n_abiertos=$(grep -E '^\| *R-' docs/trazabilidad.md | grep -cE '\| *abierto *\|')
-    [ "$n_abiertos" -gt 0 ] && err "hay $n_abiertos hallazgo(s)/vacío(s) en estado 'abierto' al cierre"
-    n_resueltos=$(grep -E '^\| *R-(I|S|F4)' docs/trazabilidad.md | grep -cE '\| *resuelto\b')
-    [ "$n_resueltos" -gt 0 ] && err "hay $n_resueltos hallazgo(s) en 'resuelto' que nunca pasaron a 'verificado' (condición de salida de las Fases 3 y 4)"
-    # Todo C# verificado y con incremento (fila: | C# | alias | I# | estado | nota |).
+    n_abiertos=$(printf '%s\n' "$FILAS" | awk '$1!="C" && $4=="abierto"' | grep -c .)
+    [ "$n_abiertos" -gt 0 ] && err "hay $n_abiertos hallazgo(s)/vacío(s) con Estado 'abierto' al cierre"
+    n_resueltos=$(printf '%s\n' "$FILAS" | awk '$1=="R" && $4=="resuelto"' | grep -c .)
+    [ "$n_resueltos" -gt 0 ] && err "hay $n_resueltos hallazgo(s) con Estado 'resuelto' que nunca pasaron a 'verificado' (condición de salida de las Fases 3 y 4)"
+    # Todo C# con incremento (columna Incremento) y Estado 'verificado' (columna Estado).
     for c in $(grep -oE '^- C[0-9]+:' docs/encuadre.md 2>/dev/null | grep -oE 'C[0-9]+' | sort -u); do
-      row=$(grep -E "^\| *$c *\|" docs/trazabilidad.md | head -1)
-      printf '%s' "$row" | grep -qE '^\|[^|]*\|[^|]*\|[^|]*I[0-9]+' \
-        || err "$c no tiene incremento asignado en trazabilidad.md al cierre"
-      printf '%s' "$row" | grep -qE '\| *verificado *\|' \
-        || err "$c no está en estado 'verificado' al cierre"
+      row=$(printf '%s\n' "$FILAS" | awk -v c="$c" '$1=="C" && $2==c' | head -1)
+      [ -n "$row" ] || { err "$c no tiene fila en trazabilidad.md al cierre"; continue; }
+      printf '%s' "$row" | awk '{exit ($3 ~ /I[0-9]+/) ? 0 : 1}' \
+        || err "$c no tiene incremento asignado (columna Incremento) en trazabilidad.md al cierre"
+      printf '%s' "$row" | awk '{exit ($4=="verificado") ? 0 : 1}' \
+        || err "$c no está en Estado 'verificado' al cierre (la columna Estado manda, no la Nota)"
     done
   fi
   if has docs/decisiones.md; then

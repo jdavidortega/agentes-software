@@ -153,8 +153,8 @@ verificar**, no como hecho consumado.
   la red**: si hace falta un aviso de CVE o la doc de una versión, lo pide y el agente
   principal se lo pasa como dato. Honestidad: `allowed-tools` concede permisos, no
   restringe, y `Bash` podría salir a internet; nada en la plantilla lo impide. La
-  garantía efectiva es la instrucción más el control del principal (`git status`
-  intacto; `AGENTS.md` §9). Si el cliente ofrece aislamiento de red real, úsalo.
+  garantía efectiva es la instrucción más el control del principal (huella del contenido
+  igual antes y después; `AGENTS.md` §9), que detecta escritura, no uso de red. Si el cliente ofrece aislamiento de red real, úsalo.
 - **Ausencia de hallazgos no es prueba de seguridad.** Un PASA reduce riesgo; no lo
   elimina. Declara siempre qué quedó sin verificar.
 - Se afina con el tiempo: cuando un patrón inseguro real se repite entre proyectos,

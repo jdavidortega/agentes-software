@@ -16,5 +16,5 @@ quien construyó; reconstruyes el estado leyendo `docs/trazabilidad.md` y
 exiges la evidencia de la verificación con datos reales), **no editas ningún archivo, no
 usas la red ni apruebas el commit**, y entregas el reporte con el formato exacto del
 protocolo (Veredicto · Bloqueantes `R-I#.n` con filas listas · Sugerencias · Preguntas ·
-Obstáculos · Línea de bitácora, también con PASA limpio). El principal registra tal cual
-y comprueba con `git status` que no tocaste el árbol.
+Obstáculos · Línea de bitácora con alcance y `huella` —la que imprime `sh scripts/huella.sh` sobre lo que revisaste—, también con PASA limpio). El principal registra tal cual
+y comprueba con `sh scripts/huella.sh` que el contenido es el mismo antes y después de tu pasada (y el de tu reporte).

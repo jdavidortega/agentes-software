@@ -130,9 +130,14 @@ a la persona fuera de un gate.
    no puede validarse solo al cierre: la misma pasada del juez de conjunto (y de
    seguridad si aplica) corre **sobre lo ensamblado hasta ahí** cada vez que se cumple
    un hito —**tres incrementos cerrados** desde la última, o **antes de cualquier
-   despliegue**—, con el mismo rastro (línea de bitácora, `R-F4.n`). Lo que encuentra
-   vuelve a la Fase 3 como corrección; la Fase 4 formal queda como la última pasada,
-   más corta porque el conjunto ya fue validado por partes.
+   despliegue**—, con el mismo rastro (línea de bitácora, `R-F4.n`). **El alcance de un
+   hito no es el del cierre:** la pasada cubre los criterios ya cubiertos o verificados y
+   los componentes construidos hasta ahí, **más sus interacciones**, y **excluye por
+   nombre** los criterios planificados para incrementos futuros (el recibo lo dice:
+   `hito I1–I3: C1–C3 y componentes X, Y; excluye C4 (I5)`); un criterio futuro no se
+   aprueba ni se reprueba en un hito. La Fase 4 formal cubre **todos** y queda como la
+   última pasada, más corta porque el conjunto ya fue validado por partes. Lo que un hito
+   encuentra vuelve a la Fase 3 como corrección.
    - Si **el conjunto NO cumple lo acordado**, no se sigue: se vuelve atrás según la
      causa. **Defecto / regresión / cobertura faltante** (los requisitos están bien) →
      **Fase 3**, incremento de corrección. **El encuadre estaba mal o falta un
@@ -345,10 +350,15 @@ se escribe una sola vez aquí:
    `scripts/check.sh`, escáneres de solo lectura). **No edita ningún archivo, no aprueba el
    commit, no usa la red, no ataca sistemas vivos.** Honestidad sobre la frontera: no tiene
    herramientas de edición, pero `Bash` podría escribir o salir a internet y la plantilla
-   no lo impide por sí sola. Por eso el principal **captura `git status --porcelain` antes
-   de invocarlo y lo compara después**; si el árbol cambió, la revisión **se invalida** y se
-   repite tras entender qué pasó. Si el revisor necesita un dato externo (un CVE, la doc
-   de una versión), lo pide y el principal se lo pasa.
+   no lo impide por sí sola. Por eso el principal **captura la huella del contenido**
+   (`sh scripts/huella.sh`: hash de todo el proyecto salvo los documentos de rastro) **antes
+   de invocarlo, exige que el reporte traiga la que el revisor calculó, y la compara con la
+   de después**; si alguna difiere, la revisión **se invalida** y se repite tras entender
+   qué pasó. (`git status` no sirve: no distingue dos versiones de un archivo ya
+   modificado.) Es **detección, no prevención**: no ve uso de red ni archivos ignorados; si
+   el cliente ofrece aislamiento real de red o archivos, úsalo además. Si el revisor
+   necesita un dato externo (un CVE, la doc de una versión), lo pide y el principal se lo
+   pasa.
 4. **Verifica, no cree.** Ejecuta él mismo `scripts/check.sh`; para lo no mecanizable exige
    la **evidencia** (el comando y su salida, o el par `entrada → salida` observado) o la
    reproduce. Una afirmación sin evidencia no cuenta para PASA.
@@ -358,8 +368,15 @@ se escribe una sola vez aquí:
    acoja van al backlog de `docs/plan.md`) · **Preguntas** (lo que no pudo verificar) ·
    **Cobertura y limitaciones** (seguridad: dominios auditados, escáneres corridos, qué
    quedó sin verificar) · **Obstáculos** (setup, flags, workarounds; «ninguno» si no hubo) ·
-   **Línea de bitácora** lista para `docs/plan.md` (qué revisó, veredicto, conteo),
-   **también con PASA limpio**: esa línea es el rastro de que la revisión ocurrió.
+   **Línea de bitácora** lista para `docs/plan.md`, **también con PASA limpio**, con este
+   contenido fijo: fecha · `Revisión <rol>` · **alcance** (`I3`; `F2 encuadre y plan`; `hito
+   I1–I3: C1–C3 y componentes X, Y; excluye C4 (I5)`; `conjunto F4`) · veredicto · conteo de
+   hallazgos · `huella <sh scripts/huella.sh>`. Esa línea es el **recibo** de la revisión:
+   la huella ata el veredicto al contenido exacto que se juzgó, y el `commit-msg` exige un
+   recibo con PASA y huella igual a la del índice para `Ref: I<n>`, `Ref: F2` y `Ref: F4`.
+   Si el contenido cambia después de la revisión, el recibo deja de valer y la revisión
+   se repite. Lo que el recibo **no** prueba es la aprobación humana: esa la da la persona
+   en el gate y queda en su respuesta, no en un archivo que escribe el principal.
    Binario donde se pueda; lo subjetivo va como sugerencia o pregunta, nunca como FALLA
    silenciosa; una sugerencia que no sirve a un criterio acordado es sobredimensionar.
 6. **Registro.** El principal registra filas y línea **tal cual, sin editarlas**, antes de la

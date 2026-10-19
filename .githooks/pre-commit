@@ -6,21 +6,12 @@
 # vacío (patrón canónico) para que las guardas apliquen también ahí.
 against=$(git rev-parse --verify HEAD 2>/dev/null || git hash-object -t tree /dev/null)
 
-# 1) Nunca versionar secretos (defensa en profundidad, aunque el proyecto no use .env):
-#    .env y variantes quedan fuera; .env.example SÍ se versiona (es la plantilla sin
-#    valores reales, ver docs/convenciones.md §Variables de entorno y secretos).
-if git diff --cached --name-only "$against" | grep -E '(^|/)\.env($|\.)' | grep -vE '(^|/)\.env\.example$' | grep -q .; then
-  echo "✗ pre-commit: intentas commitear un .env. Va en .gitignore, nunca al repo." >&2
-  exit 1
-fi
-#    Llaves privadas (PEM/OpenSSH/PKCS8) detectadas por CONTENIDO añadido, venga en el
-#    archivo que venga. El patrón se construye partido (K''EY) y se excluye .githooks/
-#    para que este propio hook no se detecte a sí mismo al commitearse.
-key_re='BEGIN .*PRIVATE K''EY'
-if git diff --cached "$against" -- . ':(exclude).githooks' | grep -Eq "^\+.*$key_re"; then
-  echo "✗ pre-commit: lo staged añade una llave privada (PEM/OpenSSH/PKCS8). Nunca al repo." >&2
-  exit 1
-fi
+# 1) Guardas de CONTENIDO (secretos, registros y suite que no desaparecen, append-only de
+#    los recibos): una sola implementación, scripts/guardas.sh, la misma que usa el replay en
+#    CI (scripts/pruebas/validar_historial.sh). Base = HEAD (o el árbol vacío), candidato = el índice.
+git ls-files --error-unmatch scripts/guardas.sh >/dev/null 2>&1 \
+  || { echo "✗ pre-commit: scripts/guardas.sh no está versionado. Viene con la plantilla; sin él no hay guardas de contenido." >&2; exit 1; }
+sh scripts/guardas.sh "$against" INDICE || { echo "✗ pre-commit: guardas de contenido (arriba)." >&2; exit 1; }
 
 # 1b) Flags del índice que hacen MENTIR a todo lo demás: con assume-unchanged (h) o
 #     skip-worktree (S) git da por idéntico un archivo que cambió, `git diff --quiet`
@@ -30,35 +21,6 @@ if [ -n "$flags" ]; then
   echo "✗ pre-commit: archivos con assume-unchanged/skip-worktree (ocultan cambios a las guardas):" >&2
   printf '%s\n' "$flags" | sed 's/^/    /' >&2
   echo "  Quita el flag (git update-index --no-assume-unchanged / --no-skip-worktree <archivo>) y repite." >&2
-  exit 1
-fi
-
-# 1c) docs/revisiones.log es append-only: lo ya guardado en HEAD tiene que ser PREFIJO exacto
-#     de lo que se commitea. Añadir líneas vale (incluida una rectificación nueva); borrar o
-#     editar recibos, no. Reparar un registro corrupto es una excepción con --no-verify y su
-#     lección en MEMORIA.md, no un camino normal.
-if git rev-parse --verify HEAD >/dev/null 2>&1 && git cat-file -e HEAD:docs/revisiones.log 2>/dev/null; then
-  if ! git ls-files --error-unmatch docs/revisiones.log >/dev/null 2>&1; then
-    echo "✗ pre-commit: docs/revisiones.log está en HEAD y el commit lo elimina. Los recibos no se borran en ninguna fase (append-only)." >&2
-    exit 1
-  fi
-  prev=$(git show HEAD:docs/revisiones.log | wc -c | tr -d ' ')
-  tmpa=$(mktemp 2>/dev/null || mktemp -t rl); tmpb=$(mktemp 2>/dev/null || mktemp -t rl)
-  git show HEAD:docs/revisiones.log > "$tmpa"; git show :docs/revisiones.log | head -c "$prev" > "$tmpb"
-  if ! cmp -s "$tmpa" "$tmpb"; then
-    rm -f "$tmpa" "$tmpb"
-    echo "✗ pre-commit: docs/revisiones.log perdió o alteró recibos ya guardados en HEAD (es append-only)." >&2
-    echo "  Un FALLA no se borra: se añade la revisión nueva debajo. Restaura el contenido previo y añade." >&2
-    exit 1
-  fi
-  rm -f "$tmpa" "$tmpb"
-fi
-
-# 1d) La suite es una obligación ADQUIRIDA: desde que scripts/check.sh existe en HEAD (salida del
-#     diseño), ningún commit la elimina, en ninguna fase (reencuadre incluido). Cambiarla sí.
-if git rev-parse --verify HEAD >/dev/null 2>&1 && git cat-file -e HEAD:scripts/check.sh 2>/dev/null \
-   && ! git ls-files --error-unmatch scripts/check.sh >/dev/null 2>&1; then
-  echo "✗ pre-commit: scripts/check.sh está en HEAD y el commit lo elimina. La suite es obligación adquirida desde el diseño; volver a F1 no la retira." >&2
   exit 1
 fi
 

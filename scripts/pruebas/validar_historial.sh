@@ -2,8 +2,10 @@
 # Validador de transiciones sobre el HISTORIAL (viene con la plantilla; README §Enforcement).
 # Reejecuta sobre cada commit de un rango lo que los hooks exigen al commitear: el contrato
 # del commit-msg (trailers, recibos vigentes por huella, hito, código solo con Ref: I<n>) y
-# las guardas del pre-commit que dependen del contenido (append-only de revisiones.log,
-# registros y suite que no se eliminan, check_docs sobre el árbol del commit). Es lo que CI
+# las guardas de contenido del pre-commit (scripts/guardas.sh: secretos, append-only de
+# revisiones.log, registros y suite que no se eliminan) más check_docs sobre el árbol del
+# commit. Un MERGE limpio (árbol = fusión automática de sus padres) pasa sin trailer; uno que
+# añade contenido al fusionar se valida como cualquier commit (commit-msg decide). Es lo que CI
 # ejecuta para que un `git commit --no-verify` local no pase inadvertido en el remoto.
 #
 #   sh scripts/pruebas/validar_historial.sh                 → commits de origin/main..HEAD (o todo HEAD si no hay origin/main)
@@ -24,21 +26,10 @@ for c in $commits; do
   TOTAL=$((TOTAL+1)); ok=1
   corto=$(git log -1 --format='%h %s' "$c")
   base=$(git rev-parse --verify -q "$c^" 2>/dev/null || true)
-  # a) revisiones.log: lo guardado en el padre es prefijo exacto; y ni el log ni la suite desaparecen.
-  if [ -n "$base" ]; then
-    for f in docs/revisiones.log scripts/check.sh; do
-      if git cat-file -e "$base:$f" 2>/dev/null && ! git cat-file -e "$c:$f" 2>/dev/null; then
-        fallo "$f estaba en el commit anterior y este lo elimina"
-      fi
-    done
-    if git cat-file -e "$base:docs/revisiones.log" 2>/dev/null && git cat-file -e "$c:docs/revisiones.log" 2>/dev/null; then
-      a=$(mktemp 2>/dev/null || mktemp -t vh); b=$(mktemp 2>/dev/null || mktemp -t vh)
-      git show "$base:docs/revisiones.log" > "$a"
-      git show "$c:docs/revisiones.log" | head -c "$(wc -c < "$a" | tr -d ' ')" > "$b"
-      cmp -s "$a" "$b" || fallo "docs/revisiones.log alteró o perdió recibos ya guardados (append-only)"
-      rm -f "$a" "$b"
-    fi
-  fi
+  # a) Guardas de contenido: las MISMAS del pre-commit (scripts/guardas.sh): secretos, registros
+  #    y suite que no desaparecen, append-only de los recibos. Base = padre (o árbol vacío).
+  gb=${base:-$(git hash-object -t tree /dev/null)}
+  err=$(sh scripts/guardas.sh "$gb" "$c" 2>&1) || fallo "guardas: $(printf '%s' "$err" | tr '\n' ' ' | cut -c1-300)"
   # b) check_docs sobre el árbol del commit, con la fase que declaraba el padre.
   tmp=$(mktemp -d 2>/dev/null || mktemp -d -t vh)
   git archive "$c" | tar -x -C "$tmp"
@@ -46,7 +37,10 @@ for c in $commits; do
   ( cd "$tmp" && FASE_PREVIA="$prev" sh "$OLDPWD/scripts/check_docs.sh" commit ) 2>"$tmp/.err" || fallo "check_docs: $(tr '\n' ' ' < "$tmp/.err" | cut -c1-200)"
   rm -rf "$tmp"
   # c) El contrato del commit-msg sobre ese commit (mensaje, árbol e historial anteriores).
+  #    Para un merge, el propio commit-msg decide: limpio (árbol = fusión automática de los
+  #    padres) pasa sin trailer; si añade contenido, se le exige como a cualquier commit.
   err=$(REV="$c" sh .githooks/commit-msg /dev/null 2>&1) || fallo "commit-msg: $(printf '%s' "$err" | tr '\n' ' ' | cut -c1-300)"
+  [ "$(git rev-list --parents -n 1 "$c" | wc -w | tr -d ' ')" -gt 2 ] && corto="$corto (merge)"
   if [ "$ok" -eq 1 ]; then echo "  ok    $corto"; else echo "  FALLO $corto"; MAL=$((MAL+1)); fi
 done
 echo "validar_historial: $((TOTAL-MAL))/$TOTAL commits cumplen el contrato ($RANGO)"

@@ -50,8 +50,10 @@ allowed-tools: Read, Grep, Glob, Bash
    de la copia, p. ej. un enlace simbólico) son mutaciones **no aplicadas**; `INVALID` (el
    mutante no compila o no importa: la suite se puso roja **por la razón equivocada**, no
    porque un test detectara el comportamiento), `TIMEOUT` y `UNVERIFIED` (la suite se puso
-   roja pero su salida **no trae la firma de un aserto fallido** —`AssertionError`, `FAILED`,
-   `not ok`…—: un `exit 1` mudo o un parser que rechaza el mutante no acreditan nada) son
+   roja pero su salida **no trae la firma de un aserto fallido** —`AssertionError`, `FAILED
+   test…`, `not ok`, `Expected:`…—: un `exit 1` mudo, un parser que rechaza el mutante o
+   un traceback genérico (`RuntimeError` de un helper, un error de preparación) no
+   acreditan nada, porque no dicen que una prueba comprobó el comportamiento) son
    mutaciones **inválidas**. Todas se cuentan aparte, nunca como muertas, y el arnés sale
    con código **2**. `DIES` exige esa evidencia positiva: si tu runner imprime otra firma,
    pásala con `--kill-pattern`; `--trust-exit-code` acepta cualquier rojo y lo deja dicho

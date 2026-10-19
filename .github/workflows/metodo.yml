@@ -1,7 +1,18 @@
 # CI mínima del método (viene con la plantilla; README §Enforcement, convenciones §Git).
 # Reejecuta en el remoto lo que los hooks locales exigen, para que un `--no-verify` no pase:
-# el rastro documental, el contrato de cada commit nuevo, la regresión de los propios hooks
+# el rastro documental, el contrato de cada commit NUEVO, la regresión de los propios hooks
 # y la suite del producto. Sin red salvo el checkout; sin credenciales.
+#
+# Qué commits se validan (política explícita):
+#   push          los del evento: before..after. Primer push de una rama (before = 0000…) →
+#                 desde la base con la rama por defecto; sin esa base (primera subida del
+#                 repositorio) → todo el historial.
+#   pull_request  los commits REALES de la rama (base..head); el merge sintético que GitHub
+#                 hace en el checkout no es un commit del método: a él solo se le pasa el
+#                 doctor y la regresión sobre el árbol integrado.
+# Un proyecto "iniciado" es el que declara una fase (lectura idéntica a la del doctor:
+# `Fase actual:` seguido de F1..F5, con o sin negritas). La plantilla vacía no tiene
+# contrato de commits que validar.
 name: metodo
 on:
   push:
@@ -15,13 +26,34 @@ jobs:
           fetch-depth: 0            # validar_historial necesita el historial completo
       - name: Hooks activos (el doctor lo exige dentro de un repo)
         run: git config core.hooksPath .githooks
-      - name: Rastro documental
+      - name: Rastro documental (árbol del checkout; en PR, el árbol integrado)
         run: sh scripts/check_docs.sh
-      - name: Contrato de cada commit nuevo (solo con el proyecto iniciado; la plantilla vacía no tiene commits enlazados)
+      - name: Contrato de cada commit nuevo
+        env:
+          EVENTO: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          grep -qE 'Fase actual:\*\* F[1-5]' docs/estado.md || { echo "plantilla sin iniciar: no hay contrato de commits que validar"; exit 0; }
-          base=$(git rev-parse --verify -q origin/main 2>/dev/null || git rev-parse --verify -q origin/master 2>/dev/null || true)
-          if [ -n "$base" ] && [ "$base" != "$(git rev-parse HEAD)" ]; then sh scripts/pruebas/validar_historial.sh "$base..HEAD"; else sh scripts/pruebas/validar_historial.sh HEAD; fi
+          if ! grep -qE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' docs/estado.md; then
+            echo "plantilla sin iniciar: no hay contrato de commits que validar"; exit 0
+          fi
+          case "$EVENTO" in
+            pull_request)
+              rango="$PR_BASE..$PR_HEAD" ;;
+            push)
+              if printf '%s' "$BEFORE" | grep -qE '^0+$'; then
+                base=$(git rev-parse --verify -q "origin/$DEFAULT_BRANCH" 2>/dev/null || true)
+                if [ -n "$base" ] && [ "$base" != "$AFTER" ]; then rango="$(git merge-base "$base" "$AFTER")..$AFTER"; else rango="$AFTER"; fi
+              else
+                rango="$BEFORE..$AFTER"
+              fi ;;
+            *) rango="HEAD" ;;
+          esac
+          echo "rango: $rango"
+          sh scripts/pruebas/validar_historial.sh "$rango"
       - name: Regresión de los hooks
         run: sh scripts/pruebas/regresion.sh
       - name: Suite del producto (desde F2)

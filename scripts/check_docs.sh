@@ -49,7 +49,7 @@ esac
 for f in AGENTS.md README.md contexto/README.md docs/estado.md docs/encuadre.md \
          docs/plan.md docs/trazabilidad.md docs/decisiones.md docs/convenciones.md \
          docs/definicion-de-hecho.md docs/despliegue.md docs/MEMORIA.md docs/revisiones.log \
-         scripts/check_docs.sh scripts/huella.sh scripts/recibos.sh \
+         scripts/check_docs.sh scripts/huella.sh scripts/recibos.sh scripts/trazabilidad.sh \
          .githooks/pre-commit .githooks/commit-msg \
          .claude/skills/dirigiendo-revisiones/SKILL.md .claude/skills/revision-funcional/SKILL.md \
          .claude/skills/revision-critica/SKILL.md .claude/skills/revision-seguridad/SKILL.md \
@@ -83,51 +83,14 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
   done
 fi
 
-# --- Trazabilidad leída por TABLA y COLUMNA (no por patrones sueltos) ----------------------
-# Produce líneas "TIPO ID INCR ESTADO": TIPO=C (cobertura) | E (vacíos) | R (juez). Las
-# columnas se identifican por su encabezado real, así `verificado` en la Nota no cuenta.
-filas_trazabilidad() {
-  [ -f docs/trazabilidad.md ] || return 0
-  awk -F'|' '
-    function trim(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-    /^[ \t]*\|/ {
-      # Una fila con sangría la lee el hook igual que esta función, pero se avisa: con cuatro
-      # espacios Markdown la muestra como código y la persona no vería la tabla completa.
-      if ($0 ~ /^[ \t]+\|/) { s=$0; sub(/\|.*$/,"",s); print "SANGRIA", NR, "-", "-" }
-      n=0; for(i=2;i<NF;i++){ n++; f[n]=trim($i) }
-      if (f[1] ~ /^-+$/) next                         # separador
-      if (f[1]=="Criterio"||f[1]=="Vacío"||f[1]=="Hallazgo") {  # encabezado: ubicar columnas
-        tipo = (f[1]=="Criterio") ? "C" : (f[1]=="Vacío") ? "E" : "R"
-        ncol=n; ce=0; ci=0
-        for(k=1;k<=n;k++){ if(f[k]=="Estado") ce=k; if(f[k] ~ /^Incr/) ci=k }
-        hdr=""; for(k=1;k<=n;k++) { c=f[k]; gsub(/ /,"_",c); hdr = hdr (k>1?",":"") c }
-        print "HDR", tipo, hdr, "-"
-        next
-      }
-      if (tipo=="") next
-      id=f[1]
-      # Filas de ejemplo de la plantilla: SOLO estas formas exactas (y C1 con incremento I_).
-      ej = (id=="C_" || id=="R-E._" || id=="R-I_._" || (tipo=="C" && ci>0 && f[ci]=="I_"))
-      if (ej) { print "EJ", id, "-", "-"; next }
-      if (ce==0) { print "NOEST", id, "-", "-"; next }   # fila bajo un encabezado sin columna Estado
-      if (n!=ncol) { print "ARIDAD", id, n, ncol; next }   # celdas ≠ columnas del encabezado: fila incompleta
-      if (id !~ /^(C[0-9]+|R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+)$/) { print "X", id, "-", "-"; next }
-      # Fila en la tabla equivocada: un C# fuera de Cobertura, un R-E fuera de Vacíos, etc.
-      if ((tipo=="C" && id !~ /^C/) || (tipo=="E" && id !~ /^R-E\./) || (tipo=="R" && (id ~ /^C/ || id ~ /^R-E\./))) { print "T", id, "-", "-"; next }
-      incr = (ci>0) ? f[ci] : "-"; gsub(/ /,"",incr); if(incr=="") incr="-"
-      # El ID y la columna Incr. nombran el MISMO incremento: R-I3.n / R-S3.n ⇒ I3; R-F4.n / R-SF4.n ⇒ F4.
-      if (tipo=="R") { want=id; sub(/^R-(I|S)/,"I",want); sub(/^R-S?F4/,"F4",want); sub(/\.[0-9]+$/,"",want)
-                       if (incr!=want) { print "INCR", id, incr, want; next } }
-      est=f[ce]; sub(/ .*$/,"",est)                       # primera palabra: "pendiente / cubierto" → pendiente
-      print tipo, id, incr, est
-    }
-    /^## Histórico/ { hist=1 }
-    hist && /^- / { if ($0 ~ /_\(ejemplo\)_/) { print "EJ", "historico", "-", "-"; next }
-                     if (match($0, /R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+/)) { id=substr($0, RSTART, RLENGTH)
-                     est = ($0 ~ /· *verificado/) ? "verificado" : "desconocido"; print "H", id, "-", est } }
-    ' docs/trazabilidad.md
-}
-FILAS=$(filas_trazabilidad)
+# --- Trazabilidad: lector ÚNICO (scripts/trazabilidad.sh), el mismo del commit-msg y del replay.
+#     Produce "TIPO ID INCR ESTADO"; aquí se juzgan las filas, no se vuelven a leer.
+if has scripts/trazabilidad.sh; then
+  FILAS=$(sh scripts/trazabilidad.sh docs/trazabilidad.md)
+else
+  err "falta scripts/trazabilidad.sh (viene con la plantilla): sin él no se puede leer docs/trazabilidad.md"; FILAS=""
+fi
+
 # Las TRES tablas deben existir con sus columnas; un encabezado renombrado ("Situación")
 # no puede volver invisible un hallazgo.
 if has docs/trazabilidad.md; then
@@ -162,7 +125,7 @@ for bad in $(printf '%s\n' "$FILAS" | awk '$1=="T"{print $2}'); do
   err "trazabilidad.md: $bad está en la tabla equivocada (C# en Cobertura; R-E en Vacíos; R-I/R-S/R-F4/R-SF4 en el Registro del juez)"
 done
 for ln in $(printf '%s\n' "$FILAS" | awk '$1=="SANGRIA"{print $2}'); do
-  err "trazabilidad.md línea $ln: fila de tabla con sangría; las filas empiezan en la columna 1 (con sangría Markdown puede mostrarla como código y esconderla)"
+  err "trazabilidad.md línea $ln: fila o entrada del Histórico con sangría; se lee igual, pero empieza en la columna 1 (Markdown puede mostrarla como código y esconderla a la persona)"
 done
 printf '%s\n' "$FILAS" | awk '$1=="ARIDAD"' | while read -r _ id n ncol; do
   echo "  ✗ check_docs: trazabilidad.md: la fila $id tiene $n celdas y su encabezado $ncol: fila incompleta o desbordada (una celda que falta deja un estado sin leer)" >&2
@@ -215,6 +178,11 @@ if has docs/encuadre.md; then
     # Y al revés: una fila de cobertura cuyo criterio no existe en el encuadre es huérfana.
     for c in $(printf '%s\n' "$FILAS" | awk '$1=="C"{print $2}'); do
       printf '%s\n' "$CRIT" | grep -qx "$c" || err "trazabilidad.md cubre $c, que no está definido en encuadre.md (criterio huérfano)"
+    done
+    # Un hallazgo cuya columna Criterio nombra un C<n> nombra uno que existe (otra cosa, p. ej.
+    # una categoría OWASP/CWE en seguridad, se admite tal cual).
+    for c in $(printf '%s\n' "$FILAS" | awk '$1=="R" && $5 ~ /^C[0-9]+$/ {print $2 ":" $5}'); do
+      printf '%s\n' "$CRIT" | grep -qx "${c#*:}" || err "trazabilidad.md: ${c%%:*} dice proteger ${c#*:}, que no está definido en encuadre.md"
     done
     # Desde el plan aprobado (F2) todo criterio tiene incremento asignado: un C# sin I# es un
     # plan incompleto, no una decisión diferida (si se excluye, se saca del encuadre con ADR).
@@ -289,24 +257,51 @@ check_frontmatter() {  # $1 archivo, $2 claves permitidas (regex alternativa). D
   # Un escalar SIN comillas no puede contener ': ' (YAML lo lee como mapeo anidado → error).
   colon=$(printf '%s\n' "$FM" | grep -E '^[a-z-]+:[[:space:]]+[^"'"'"'\[[:space:]]' | sed -E 's/^[a-z-]+:[[:space:]]+//; s/[[:space:]]+#.*$//' | grep -E ': ')
   [ -z "$colon" ] || err "$f: valor sin comillas con ': ' dentro (YAML inválido; entrecomíllalo): $(printf '%s' "$colon" | head -1 | cut -c1-50)"
-  # Un valor que abre comillas tiene que cerrarlas en la misma línea (YAML inválido si no).
-  unq=$(printf '%s\n' "$FM" | sed -n -E 's/^[a-z-]+:[[:space:]]+(["'"'"'].*)$/\1/p' | sed -E 's/[[:space:]]*#[^"'"'"']*$//' \
-        | awk '{ q=substr($0,1,1); if (substr($0,length($0),1)!=q || length($0)<2) print }')
-  [ -z "$unq" ] || err "$f: valor entre comillas sin cerrar en el frontmatter: $(printf '%s' "$unq" | head -1 | cut -c1-60)…"
-  # Dentro de "…" toda comilla doble interior va escapada (\"); dentro de '…' la simple se
-  # dobla (''). Una comilla interior suelta es YAML inválido aunque abra y cierre bien.
-  badq=$(printf '%s\n' "$FM" | sed -n -E 's/^[a-z-]+:[[:space:]]+(["'"'"'].*)$/\1/p' | sed -E 's/[[:space:]]*#[^"'"'"']*$//' \
-        | awk -v ok='0abtnvfre"/\\N_LPxuU ' '{ q=substr($0,1,1); n=length($0); if (n<2 || substr($0,n,1)!=q) next
-                 inner=substr($0,2,n-2)
-                 if (q=="\"") { s=inner
-                                 while (match(s, /\\./)) { c=substr(s,RSTART+1,1); if (index(ok, c)==0) { print; break }
-                                   # \xHH \uHHHH \UHHHHHHHH: exactamente esos dígitos hexadecimales
-                                   L=(c=="x")?2:(c=="u")?4:(c=="U")?8:0; h=substr(s,RSTART+2,L)
-                                   if (L && (length(h)<L || h ~ /[^0-9a-fA-F]/)) { print; break }
-                                   s=substr(s,RSTART+2+L) }
-                                 gsub(/\\(x..|u....|U........|.)/,"",s); if (index(s,"\"")) print }
-                 else { s=inner; gsub(/'"'"''"'"'/,"",s); if (index(s,"'"'"'")) print } }')
-  [ -z "$badq" ] || err "$f: comilla interior sin escapar o escape inválido (\\q, \\s…) en un valor del frontmatter (YAML inválido): $(printf '%s' "$badq" | head -1 | cut -c1-60)…"
+  # Escalares entre comillas: se recorre la cadena ENTERA carácter a carácter (no por sufijos),
+  # como lo haría un parser. "…": \ escapa solo [0abtnvfre"/\N_LPxuU espacio], con \x \u \U
+  # seguidos de 2/4/8 hex; una " sin escapar dentro es error; una \ justo antes de la " final
+  # la escapa y deja el valor sin cerrar. '…': la única secuencia es ''. Bloques (>, |) y
+  # colecciones ([…], {…}) no son texto: tampoco se aceptan como description.
+  quoted=$(printf '%s\n' "$FM" | sed -n -E 's/^[a-z-]+:[[:space:]]+(["'"'"'].*)$/\1/p' | sed -E 's/[[:space:]]+#[^"'"'"']*$//' \
+        | awk -v ok='0abtnvfre"/\\N_LPxuU ' '
+    { q=substr($0,1,1); n=length($0); bad=""
+      if (n<2 || substr($0,n,1)!=q) bad="sin cerrar"
+      else if (q=="\"") {
+        i=2
+        while (i<n && bad=="") {
+          c=substr($0,i,1)
+          if (c=="\\") {
+            e=substr($0,i+1,1)
+            if (i+1>=n) { bad="la barra escapa la comilla de cierre: valor sin cerrar"; break }
+            if (index(ok,e)==0) { bad="escape inválido \\" e; break }
+            L=(e=="x")?2:(e=="u")?4:(e=="U")?8:0; h=substr($0,i+2,L)
+            if (L && (length(h)<L || h ~ /[^0-9a-fA-F]/ || i+1+L>=n)) { bad="escape \\" e " incompleto o no hexadecimal"; break }
+            i+=2+L
+          } else if (c=="\"") { bad="comilla doble interior sin escapar"; break }
+          else i++
+        }
+      } else {
+        i=2
+        while (i<n && bad=="") {
+          c=substr($0,i,1)
+          if (c=="\047") { if (i+1<n && substr($0,i+1,1)=="\047") i+=2; else { bad="comilla simple interior sin doblar"; break } }
+          else i++
+        }
+      }
+      if (bad!="") print bad ": " substr($0,1,50) }')
+  [ -z "$quoted" ] || err "$f: valor entre comillas inválido en el frontmatter (YAML): $(printf '%s' "$quoted" | head -1)"
+  for k in description name; do
+    v=$(printf '%s\n' "$FM" | sed -n "s/^$k:[[:space:]]*//p" | head -1 | sed -E 's/[[:space:]]+#.*$//')
+    case "$v" in
+      \[*|\{*|\>*|\|*) err "$f: $k es una lista, un mapa o un bloque ($(printf '%s' "$v" | cut -c1-20)); tiene que ser texto en una línea" ;;
+    esac
+    # Sin comillas, YAML interpreta estos escalares como nulo, booleano o número, no como
+    # texto: `description: null` es YAML válido cuyo valor NO es una cadena. Entre comillas
+    # ("null", "true") sí son texto.
+    if printf '%s' "$v" | grep -qE '^(~|null|Null|NULL|true|True|TRUE|false|False|FALSE|[-+]?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?|0x[0-9a-fA-F]+|0o[0-7]+|[-+]?\.(inf|Inf|INF)|\.(nan|NaN|NAN))$'; then
+      err "$f: $k: '$v' sin comillas es un nulo, booleano o número en YAML, no texto; escribe el texto (o entrecomíllalo si de verdad es ese literal)"
+    fi
+  done
   return 0
 }
 

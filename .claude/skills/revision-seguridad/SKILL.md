@@ -86,11 +86,19 @@ que está bien protegido—, rellenando el incremento y el rango del diff:
      historial reciente y en config. El `pre-commit` ya bloquea `.env` y llaves
      privadas por contenido: aquí se busca lo que ese patrón no ve (una API key
      literal en el código, un token en un fixture, una URL con credenciales).
-   - **Dependencias:** vulnerabilidades conocidas y dependencias no fijadas. Corre lo
-     que **exista** en el entorno (`npm audit`, `pip-audit`, `osv-scanner`,
-     `trivy fs`, `gitleaks`); si no hay ninguno, **dilo como limitación**, no lo
-     omitas en silencio. Una dependencia **nueva** sin aprobación es además hallazgo
-     de `revision-critica` (`AGENTS.md` §3).
+   - **Dependencias:** vulnerabilidades conocidas y dependencias no fijadas. **Sin red**
+     (regla del rol). Los escáneres no se comportan igual: `npm audit` envía el inventario
+     de dependencias al registro; `pip-audit` y `osv-scanner` consultan una base remota por
+     defecto; `trivy` descarga su base al arrancar, pero admite modo **air-gapped** con una
+     base precargada (`--skip-db-update`, `--offline-scan`;
+     https://trivy.dev/docs/latest/advanced/air-gap/). Regla: el juez corre solo lo que
+     **no sale de la máquina** —un escáner en modo offline con base local declarada (fecha
+     y versión de la base), `gitleaks`/`detect-secrets` sobre el repo—; todo lo que consulta
+     o envía algo afuera lo corre el **principal** antes de invocarlo, bajo la política del
+     proyecto, y le pasa el reporte como **dato** (archivo en `contexto/exploracion/`, con
+     fecha y versión de la base consultada). Sin reporte, **dilo como limitación**, no lo omitas en silencio. Una
+     dependencia **nueva** sin aprobación es además hallazgo de `revision-critica`
+     (`AGENTS.md` §3).
 4. **Triage antes de reportar** (es lo que separa una revisión útil de una ruidosa).
    Por cada candidato:
    - **Traza el flujo hasta la fuente:** ¿el *sink* recibe de verdad entrada no

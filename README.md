@@ -315,8 +315,14 @@ Los hooks son locales y esquivables (`git commit --no-verify`): con remoto compa
 `scripts/pruebas/regresion.sh` se cablean también en CI (ver `docs/convenciones.md` §Git).
 **`validar_historial.sh`** reejecuta el contrato de los hooks sobre cada commit de un rango
 (`origin/main..HEAD` por defecto): trailers, recibos vigentes por huella, hito, código solo
-con `Ref: I<n>`, append-only, registros y suite que no desaparecen, `check_docs` sobre el
-árbol del commit. Es lo que hace que un `--no-verify` local falle en el remoto.
+con `Ref: I<n>`, las mismas guardas de contenido del `pre-commit` (`scripts/guardas.sh`:
+secretos, append-only, registros y suite que no desaparecen) y `check_docs` sobre el árbol
+del commit. Un merge **limpio** (su árbol es exactamente la fusión automática de sus padres)
+pasa sin trailer; uno que **añade contenido al fusionar** (resolución de conflictos, archivo
+nuevo) se valida como cualquier commit, local y remotamente. Es lo que hace que un
+`--no-verify` local falle en el remoto. Doctor, hook y replay leen `docs/trazabilidad.md`
+con un solo lector (`scripts/trazabilidad.sh`) y los recibos con un solo parser
+(`scripts/recibos.sh`): una fila o un recibo significan lo mismo en los tres.
 **`regresion.sh`** es la regresión de los propios hooks: autocontenida (toma de este
 repositorio solo la instrumentación y genera un proyecto sintético), crea repositorios
 temporales sin red ni credenciales y comprueba cada regla con su caso negativo y su caso
@@ -455,6 +461,8 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 │   ├── huella.sh            huellas: vigencia (lo revisable: todo salvo revisiones.log,
 │   │                        trazabilidad, estado y MEMORIA) e integridad (todo el árbol)
 │   ├── recibos.sh           parser único de revisiones.log (hook y doctor)
+│   ├── trazabilidad.sh      lector único de trazabilidad.md (doctor, hook y replay)
+│   ├── guardas.sh           guardas de contenido entre dos estados (pre-commit y replay)
 │   ├── consumo.py           consumo de tokens por modelo desde los transcripts locales
 │   └── pruebas/
 │       ├── regresion.sh     regresión de los hooks y scripts (repos temporales; sin red)

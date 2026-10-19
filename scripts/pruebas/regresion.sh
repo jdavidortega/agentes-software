@@ -117,7 +117,7 @@ rm -rf "$B/mejoras"
 en "$B" git init -q && en "$B" git config core.hooksPath .githooks
 chmod +x "$B"/.githooks/* "$B"/scripts/*.sh "$B"/scripts/pruebas/*.sh 2>/dev/null
 en "$B" git add -A >/dev/null
-for x in .githooks/pre-commit .githooks/commit-msg scripts/check_docs.sh scripts/huella.sh scripts/recibos.sh; do
+for x in .githooks/pre-commit .githooks/commit-msg scripts/check_docs.sh scripts/huella.sh scripts/recibos.sh scripts/trazabilidad.sh scripts/guardas.sh; do
   en "$B" git update-index --chmod=+x "$x"
 done
 echo "== etapa: plantilla recién copiada ($([ "$PRISTINA" -eq 1 ] && echo 'documentos de la plantilla' || echo 'documentos sintéticos'))"
@@ -190,7 +190,7 @@ espera falla "fase ausente con proyecto iniciado se rechaza" "no declara una fas
 
 Ref: I1"
 copia plantilla a01c
-espera falla "F1: eliminar docs/revisiones.log se rechaza" "elimina|append-only|falta docs/revisiones.log" -- sh -c 'cd "$1" && git rm -q docs/revisiones.log && git -c core.hooksPath=.githooks commit -q -m "limpia
+espera falla "F1: eliminar docs/revisiones.log se rechaza" "desaparece|append-only|falta docs/revisiones.log" -- sh -c 'cd "$1" && git rm -q docs/revisiones.log && git -c core.hooksPath=.githooks commit -q -m "limpia
 
 Ref: F1"' sh "$D"
 copia plantilla a01d; fase "$D" "F_"; echo "- nota" >> "$D/docs/MEMORIA.md"
@@ -263,7 +263,7 @@ espera falla "log reescrito (recibo borrado) se rechaza" "append-only" -- commit
 
 Ref: F1"
 copia f3 r5
-espera falla "log eliminado en F3 se rechaza" "elimina|falta docs/revisiones.log" -- sh -c 'cd "$1" && git rm -q docs/revisiones.log && git -c core.hooksPath=.githooks commit -q -m "x
+espera falla "log eliminado en F3 se rechaza" "desaparece|falta docs/revisiones.log" -- sh -c 'cd "$1" && git rm -q docs/revisiones.log && git -c core.hooksPath=.githooks commit -q -m "x
 
 Ref: F1"' sh "$D"
 copia f3 p9; recibo_bruto "$D" "fecha=ayer rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x"
@@ -345,8 +345,8 @@ espera falla "un recibo de hito suelto (sin su commit Ref: hito) no cuenta como 
 Ref: I4"
 copia f3-tres h4
 recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=requerida cubre=C1 excluye=ninguno componentes=app
-recibo_bruto "$D" "fecha=2026-10-19 rol=juez-seguridad tipo=hito alcance=hito:I1-I3 veredicto=PASA bloqueantes=0 huella=000000000000 ejecutor=x"
-espera falla "hito con seguridad=requerida cuyo recibo de seguridad tiene otra huella se rechaza" "juez-seguridad" -- commitea "$D" "hito
+recibo_bruto "$D" "fecha=2026-10-19 rol=juez-seguridad tipo=hito alcance=hito:I1-I3 veredicto=PASA bloqueantes=0 huella=000000000000 ejecutor=x cubre=C1 excluye=ninguno componentes=app"
+espera falla "hito con seguridad=requerida cuyo recibo de seguridad tiene otra huella se rechaza" "juez-seguridad .hito hito:I1-I3. tiene huella 000000000000" -- commitea "$D" "hito
 
 Ref: hito:I1-I3"
 copia f3-tres h5
@@ -374,6 +374,80 @@ for i in 1 2 3 4; do recibo "$D" juez-codigo incremento I$i PASA 0 seguridad=no-
 espera pasa "recibos preparados para I1..I4 no bloquean el cierre de I1: el contador son commits cerrados" "" -- commitea "$D" "I1
 
 Ref: I1"
+
+copia f3-tres h10
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C999 excluye=C1 componentes=app
+espera falla "hito con cubre=C999 (criterio inexistente) se rechaza" "C999, que no está definido" -- commitea "$D" "hito
+
+Ref: hito:I1-I3"
+copia f3-tres h11
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1 excluye=C1 componentes=app
+espera falla "hito con C1 a la vez en cubre= y excluye= se rechaza" "a la vez en cubre" -- commitea "$D" "hito
+
+Ref: hito:I1-I3"
+tres_criterios() {  # tres_criterios <dir>: encuadre con C1..C3 y su cobertura (I1, I2, I3)
+  printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: suma devuelve a+b.\n- C2: resta devuelve a-b.\n- C3: multiplica devuelve a*b.\n' > "$1/docs/encuadre.md"
+  trazabilidad "$1" "$C1_PEND
+| C2 | «resta» | I2 | pendiente | |
+| C3 | «multiplica» | I3 | pendiente | |" "" ""
+}
+copia f3-tres h12; tres_criterios "$D"
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1,C2 excluye=C3 componentes=app
+espera pasa "hito con listas válidas (cubre=C1,C2 excluye=C3) se acepta" "" -- commitea "$D" "hito
+
+Ref: hito:I1-I3"
+copia f3-tres h13; tres_criterios "$D"
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1,C2 excluye=C2,C3 componentes=app
+espera falla "hito con listas solapadas (cubre=C1,C2 excluye=C2,C3) se rechaza por C2" "C2 aparece a la vez" -- commitea "$D" "hito
+
+Ref: hito:I1-I3"
+copia f3-tres h15; tres_criterios "$D"
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1,C1 excluye=C3 componentes=app
+espera falla "hito con un criterio repetido en la lista (cubre=C1,C1) se rechaza" "cubre= del recibo del hito repite C1" -- commitea "$D" "hito
+
+Ref: hito:I1-I3"
+copia f3-tres h16; tres_criterios "$D"
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1 excluye=C2,C3,C2 componentes=app
+espera falla "hito con un criterio repetido NO contiguo en excluye (C2,C3,C2) se rechaza" "excluye= del recibo del hito repite C2" -- commitea "$D" "hito
+
+Ref: hito:I1-I3"
+copia f3-tres h17; tres_criterios "$D"
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1,C1 excluye=C2,C3 componentes=app
+sin_hooks "$D" "hito colado
+
+Ref: hito:I1-I3" || die "no pude colar el hito con repetición"
+espera falla "validar_historial rechaza un hito con cubre repetido colado con --no-verify" "cubre= del recibo del hito repite C1" -- en "$D" sh scripts/pruebas/validar_historial.sh "HEAD~1..HEAD"
+copia f3-tres h14; tres_criterios "$D"
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1,C999 excluye=C3 componentes=app
+espera falla "hito con una lista que incluye C999 se rechaza por C999" "C999, que no está definido" -- commitea "$D" "hito
+
+Ref: hito:I1-I3"
+
+echo "== Familias de conjunto e Histórico"
+copia f3 f1; trazabilidad "$D" "$C1_PEND" "" '| R-SF4.1 | «composicion» | F4 | C1 | fuga entre módulos | abierto | — |
+| R-F4.1 | «ensamblado» | F4 | C1 | orden de arranque | resuelto | 2026-10-19 10:00 · abc1234 |'
+espera pasa "R-SF4.1 y R-F4.1 con Incr. F4 son filas válidas para el doctor" "" -- commitea "$D" "registra hallazgos del conjunto
+
+Ref: F1"
+trazabilidad "$D" "$C1_VERIF" "" '| R-SF4.1 | «composicion» | F4 | C1 | fuga entre módulos | abierto | — |'
+fase "$D" F4 "— «ninguno»"; printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — (satisface: C1)\n' > "$D/docs/plan.md"
+recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+espera falla "R-SF4.1 abierto bloquea el cierre (Ref: F4)" "abierto" -- commitea "$D" "validación
+
+Ref: F4"
+copia cierre f2; printf '  - `R-I2.1 «sin-prueba» · abierto`\n' >> "$D/docs/trazabilidad.md"
+recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+espera falla "entrada del Histórico con sangría y sin verificado no se vuelve invisible: cierre rechazado" "Histórico sin|sangría" -- commitea "$D" "cierre
+
+Ref: F5"
+copia f3 f3; trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «fantasma» | I1 | C999 | protege un criterio que no existe | resuelto | 2026-10-19 10:00 · abc1234 |'
+espera falla "hallazgo cuya columna Criterio nombra C999 (inexistente) se rechaza" "C999, que no está definido" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 f4; trazabilidad "$D" "$C1_PEND" "" '| R-S1.1 | «inyeccion» | I1 | CWE-89 | categoría, no un C<n> | resuelto | 2026-10-19 10:00 · abc1234 |'
+espera pasa "hallazgo de seguridad con categoría CWE en Criterio se acepta" "" -- commitea "$D" "docs
+
+Ref: F1"
 
 echo "== Cierre: criterios, IDs, alcance funcional"
 copia cierre z1; printf '# Encuadre\n\n- Objetivo: sumar\n' > "$D/docs/encuadre.md"
@@ -445,15 +519,39 @@ espera falla "escape \\q en el frontmatter se rechaza" "escape inválido" -- com
 
 Ref: F1"
 copia f3 y2; yaml_desc "$D" '"Texto \u12 corto"'
-espera falla "escape \\u12 (unicode incompleto) se rechaza" "escape inválido" -- commitea "$D" "docs
+espera falla "escape \\u12 (unicode incompleto) se rechaza" "escape .u incompleto" -- commitea "$D" "docs
 
 Ref: F1"
 copia f3 y3; yaml_desc "$D" '"Texto \xGG"'
-espera falla "escape \\xGG (hexadecimal ilegal) se rechaza" "escape inválido" -- commitea "$D" "docs
+espera falla "escape \\xGG (hexadecimal ilegal) se rechaza" "escape .x incompleto o no hexadecimal" -- commitea "$D" "docs
 
 Ref: F1"
 copia f3 y4; yaml_desc "$D" '""'
 espera falla "description vacía (\"\") se rechaza" "description vacía" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y6; yaml_desc "$D" '"Texto "malo" y \n"'
+espera falla "comilla interior sin escapar ANTES de un escape se rechaza (lectura completa)" "comilla doble interior" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y7; yaml_desc "$D" '"abc\"'
+espera falla "barra que escapa la comilla de cierre se rechaza" "sin cerrar" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y8; yaml_desc "$D" '[]'
+espera falla "description como lista ([]) se rechaza: tiene que ser texto" "lista, un mapa o un bloque" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y9; yaml_desc "$D" 'null'
+espera falla "description: null (nulo YAML, no texto) se rechaza" "nulo, booleano o número" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y10; yaml_desc "$D" '~'
+espera falla "description: ~ (nulo YAML) se rechaza" "nulo, booleano o número" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y11; yaml_desc "$D" '"null"'
+espera pasa "description: \"null\" entre comillas es texto y se acepta" "" -- commitea "$D" "docs
 
 Ref: F1"
 copia f3 y5; yaml_desc "$D" '"Dice \"hola\", \u00e9 y \x41 \\ y sigue"'
@@ -472,6 +570,12 @@ espera falla "mutante shell sin fi es INVALID (exit 2), no DIES" "INVALID" -- en
 espera pasa "--suite ./gate.sh corre la copia mutada y el aserto (FAIL) acredita: DIES" "DIES" -- en "$S" python3 -I "$SAB" gate.json --suite ./gate.sh
 espera falla "rojo sin firma de aserto (exit 1 mudo) es UNVERIFIED, no DIES" "UNVERIFIED" -- en "$S" python3 -I "$SAB" silencio.json --suite ./gate.sh
 espera pasa "--trust-exit-code acepta el rojo mudo y lo declara en el resumen" "DIES.*|trust-exit-code" -- en "$S" python3 -I "$SAB" silencio.json --suite ./gate.sh --trust-exit-code
+printf 'VALUE = 1\n' > "$S/cfg.py"; printf 'import cfg\nif cfg.VALUE != 1:\n    raise RuntimeError("helper fixture unavailable")\n' > "$S/app.py"
+printf '#!/bin/sh\npython3 app.py || exit 1\nexit 0\n' > "$S/scripts/check.sh"
+printf '[{"label":"helper","file":"cfg.py","before":"VALUE = 1","after":"VALUE = 2"}]\n' > "$S/helper.json"
+espera falla "RuntimeError de un helper (sin aserto) no acredita: UNVERIFIED" "UNVERIFIED" -- en "$S" python3 -I "$SAB" helper.json
+printf 'import cfg\nassert cfg.VALUE == 1, "VALUE cambió"\n' > "$S/app.py"
+espera pasa "el mismo mutante con un aserto real sí muere: DIES" "DIES" -- en "$S" python3 -I "$SAB" helper.json
 printf 'SELECT 1;\n' > "$S/query.sql"
 printf '#!/bin/sh\npython3 -c "import sqlite3;sqlite3.connect(\\":memory:\\").executescript(open(\\"query.sql\\").read())" || exit 1\nexit 0\n' > "$S/scripts/check.sh"
 printf '[{"label":"selec","file":"query.sql","before":"SELECT","after":"SELEC"}]\n' > "$S/sql.json"
@@ -490,6 +594,58 @@ copia f3-tres v1; printf 'w = 1\n' >> "$D/app.py"
 sin_hooks "$D" "colado sin trailer ni recibo" || die "no pude preparar el commit colado"
 espera falla "validar_historial detecta el commit colado con --no-verify (sin trailer, código sin recibo)" "FALLO.*colado|falta el trailer" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD
 espera pasa "validar_historial sobre el historial previo al colado sigue en verde" "commits cumplen" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1
+copia f3-tres v2; printf 'SECRETO=x\n' > "$D/.env"; en "$D" git add -f .env; echo "- nota" >> "$D/docs/MEMORIA.md"
+sin_hooks "$D" "cuela un .env
+
+Ref: F1" || die "no pude preparar el commit con .env"
+espera falla "validar_historial rechaza el .env colado con --no-verify (misma guarda que el pre-commit)" "guardas: .*\.env" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia f3-tres v3; printf -- '-----BEGIN RSA PRIVATE K''EY-----\nAAAA\n-----END RSA PRIVATE K''EY-----\n' > "$D/id_rsa.txt"; printf 'w = 1\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I4 PASA 0 seguridad=no-aplica
+sin_hooks "$D" "cuela una llave
+
+Ref: I4" || die "no pude preparar el commit con llave"
+espera falla "validar_historial rechaza una llave privada colada con --no-verify" "llave privada" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia f3-tres v4; printf 'SECRETO=x\n' > "$D/.env"; en "$D" git add -f .env; echo "- nota" >> "$D/docs/MEMORIA.md"
+espera falla "el pre-commit rechaza el mismo .env (misma guarda)" "\.env" -- commitea "$D" "memoria
+
+Ref: F1"
+# Ramas: "rama" trae el hito y el I4 revisados; la principal avanza con un commit de rastro.
+R2="$W/etapas/ramas"; cp -R "$W/etapas/f3-tres" "$R2"
+en "$R2" git checkout -q -b rama && recibo "$R2" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
+commitea "$R2" "hito
+
+Ref: hito:I1-I3" || die "no pude preparar la rama (hito)"
+printf 'w = 1\n' >> "$R2/app.py"; recibo "$R2" juez-codigo incremento I4 PASA 0 seguridad=no-aplica
+commitea "$R2" "I4
+
+Ref: I4" || die "no pude preparar la rama (I4)"
+en "$R2" git checkout -q master 2>/dev/null || en "$R2" git checkout -q main; echo "- nota" >> "$R2/docs/MEMORIA.md"; commitea "$R2" "memoria
+
+Ref: F1" || die "no pude avanzar la rama principal"
+echo "== Merges: limpio frente a contenido añadido al fusionar"
+copia ramas v5
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-edit rama || die "no pude hacer el merge"
+espera pasa "validar_historial acepta un merge limpio (árbol = fusión automática) sin trailer y valida los commits de la rama" "ok .*\(merge\)" -- en "$D" sh scripts/pruebas/validar_historial.sh "HEAD~4..HEAD"
+copia ramas m1
+espera pasa "con hooks activos, un merge limpio sin trailer se acepta localmente" "" -- en "$D" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit rama
+copia ramas m2
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-commit rama >/dev/null 2>&1; printf 'def nuevo():\n    return 1\n' > "$D/merge_only.py"; en "$D" git add merge_only.py
+espera falla "con hooks activos, un merge que añade código al fusionar (merge_only.py) se rechaza" "cambia contenido respecto de la fusión" -- en "$D" git -c core.hooksPath=.githooks commit -q --no-edit
+copia ramas m3
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-commit rama >/dev/null 2>&1; printf 'def nuevo():\n    return 1\n' > "$D/merge_only.py"; en "$D" git add merge_only.py
+en "$D" git -c core.hooksPath=/dev/null commit -q --no-verify --no-edit || die "no pude colar el merge"
+espera falla "validar_historial rechaza el merge con código añadido al fusionar, colado con --no-verify" "cambia contenido respecto de la fusión" -- en "$D" sh scripts/pruebas/validar_historial.sh "HEAD~1..HEAD"
+copia ramas m5
+python3 - "$D/app.py" <<'EOF'
+import sys; p=sys.argv[1]; t=open(p).read(); open(p,'w').write('# cabecera de la principal\n'+t)
+EOF
+en "$D" git add -A && en "$D" git -c core.hooksPath=/dev/null commit -q --no-verify -m "principal toca app.py arriba" || die "no pude preparar el lado principal"
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-edit rama >/dev/null 2>&1 || die "git no fusionó app.py solo"
+espera pasa "merge con fusión de contenido automática (ambos lados tocan app.py, sin conflicto) cuenta como limpio" "ok .*\(merge\)" -- en "$D" sh scripts/pruebas/validar_historial.sh "HEAD~1..HEAD"
+copia ramas m4
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-commit rama >/dev/null 2>&1; printf '# Nota de la fusión\n' > "$D/docs/fusion.md"; en "$D" git add docs/fusion.md
+espera pasa "un merge que solo añade rastro (docs/) con su trailer se acepta" "" -- en "$D" git -c core.hooksPath=.githooks commit -q -m "Merge rama con nota
+
+Ref: F1"
 
 echo
 echo "regresion: $((TOTAL-MAL))/$TOTAL casos en verde"

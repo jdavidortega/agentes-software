@@ -149,10 +149,15 @@ INVALID_PATTERNS = (
 
 # What a FAILED ASSERTION looks like in the common runners. Only output matching this (and
 # none of INVALID_PATTERNS) accredits a kill. Override with --kill-pattern for another stack.
+# Only ASSERTION signatures: a generic traceback, a "failed" verb or a helper's RuntimeError
+# say that something broke, not that a test asserted on the behavior (measured: a fixture
+# helper raising RuntimeError used to read as DIES). What is not an assertion is UNVERIFIED.
 KILL_PATTERN = (
-    r"AssertionError|assert |FAILED|FAIL:|FAIL\b|failed\b|✗|✕|not ok|Expected|expected|"
-    r"Traceback \(most recent call last\)|panic: |--- FAIL|test result: FAILED|Failures:|"
-    r"\d+ failing|\d+ failed|Error: .*expect"
+    r"AssertionError|assert |assertion failed|^\s*assert\b|"            # python, c, rust, shell asserts
+    r"\bFAILED\b.*(test|::|\.py|\.js|\.ts|\.rb|\.go)|FAIL:|^--- FAIL|test result: FAILED|"  # pytest/unittest/go/cargo
+    r"✗ |✕ |● .* › |Expected: |Received: |expect\(|toEqual|toBe\(|"      # jest/mocha/vitest
+    r"^not ok \d|Failures:|Failure/Error:|\d+ failures?, |\d+ failing\b|"  # tap/rspec/minitest/mocha
+    r"Assertion.*failed|assertEquals|assertThat|expected .* but (was|got)"  # junit & friends
 )
 
 
@@ -391,7 +396,7 @@ def main() -> int:
                 print(f"  INVALID  {label}: red for the wrong reason ({reason}) -- {run.tail(2)}")
                 invalid.append(label)
                 continue
-            if not arguments.trust_exit_code and not re.search(arguments.kill_pattern, run.output):
+            if not arguments.trust_exit_code and not re.search(arguments.kill_pattern, run.output, re.MULTILINE):
                 # Red, but nothing says a test asserted anything: the behavior may never have run.
                 print(f"  UNVERIFIED {label}: red without a failed-assertion signature; not a kill "
                       f"(pass --kill-pattern for this stack, or --trust-exit-code deliberately) -- {run.tail(2)}")

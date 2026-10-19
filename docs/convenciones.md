@@ -90,7 +90,9 @@ de un requerimiento tiene que poder hacerse leyendo, no descifrando.
   `Ref: hito:I<a>-I<b>` (recibo del juez de conjunto —y de seguridad si la requiere— con la
   huella de ese commit; el rango existe en el plan y cada incremento del rango ya tiene su
   commit `Ref: I`). El `commit-msg` cuenta los commits `Ref: I<k>` distintos desde el último
-  commit de hito y rechaza el cuarto: un recibo de hito suelto en el log no cuenta. En cada
+  commit de hito y rechaza el cuarto: un recibo de hito suelto en el log no cuenta.
+  `cubre=` y `excluye=` son conjuntos de criterios existentes (`C1,C2`), disjuntos y sin
+  repeticiones; `excluye=ninguno` vale. En cada
   hito: pasada del juez de conjunto sobre lo ensamblado, síntesis de `docs/MEMORIA.md` §Lo
   crítico, mutation testing informativo si hay camino crítico.
 - **Momentos de compactación (fijos, no a criterio):** al cierre de **cada incremento**
@@ -263,8 +265,21 @@ revertir) vive en docs/despliegue.md. -->
   `sh scripts/pruebas/validar_historial.sh origin/main..HEAD` (el contrato de los hooks
   reejecutado sobre cada commit nuevo: así un `--no-verify` local falla en el remoto) y
   `sh scripts/pruebas/regresion.sh` (la regresión de los propios hooks, sin red ni
-  credenciales). `.github/workflows/metodo.yml` trae exactamente eso para GitHub Actions;
-  en otro CI se copian los cuatro comandos.
+  credenciales). `.github/workflows/metodo.yml` trae exactamente eso para GitHub Actions
+  con la política de rango explícita (push: `before..after`; rama nueva: desde la base con
+  la rama por defecto; PR: los commits reales de la rama, nunca el merge sintético); en
+  otro CI se copian los cuatro comandos y esa política. **Merges:** uno limpio (árbol igual a
+  la fusión automática de sus dos padres) no lleva trailer; si al fusionar se resuelve un
+  conflicto o se añade algo, ese contenido es nuevo: trailer y, si toca código, `Ref: I<n>`
+  con recibo sobre la huella del merge. Lo decide el `commit-msg`, en local y en el replay. Las guardas de contenido
+  (secretos, append-only, registros y suite que no desaparecen) son **una sola
+  implementación**, `scripts/guardas.sh`, que usan el `pre-commit` y el replay.
+- **Límites del modelo de cierre (deliberados):** varios commits `Ref: I3` cuentan como
+  **un** incremento cerrado (el contador cuenta incrementos distintos; una corrección
+  reabre el mismo `I#`, un alcance nuevo exige otro). Un commit `Ref: I<n>` con recibo
+  vigente mientras `estado.md` declara F1 acredita la revisión de ese contenido, no que
+  hubo gate de diseño: la fase es un resumen vivo, no una máquina de estados, y la
+  aprobación humana vive en el chat.
 - **Commit al cierre de CADA fase, no solo en los incrementos de código.** El error
   típico es no commitear nada hasta el primer incremento de la Fase 3 y dejar las
   Fases 1–2 sin guardar. Concretamente, hay al menos un commit:
@@ -287,7 +302,7 @@ revertir) vive en docs/despliegue.md. -->
   si su resolución amerita commit propio). Es la trazabilidad en el
   historial (ver `docs/trazabilidad.md`). **Qué entra sin `Ref: I<n>`:** solo el rastro
   (`docs/`, `contexto/`, `mejoras/`), la plantilla (`.claude/`, `.codex/`, `.githooks/`, `.github/`,
-  `scripts/check_docs.sh|huella.sh|recibos.sh|consumo.py|check.sh`, `scripts/pruebas/`) y la
+  `scripts/check_docs.sh|huella.sh|recibos.sh|trazabilidad.sh|guardas.sh|consumo.py|check.sh`, `scripts/pruebas/`) y la
   configuración del repo (`README.md`, `AGENTS.md`, `.gitignore`…). Todo lo demás es código
   del producto: `Ref: I<n>` y recibo del juez, siempre; un `Cierra:` solo o un `Ref: F#` con
   código se rechaza. Ampliar esa lista (`SIN_REVISION` en el hook) es un ADR.

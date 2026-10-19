@@ -30,7 +30,7 @@ case "$FASE" in F2|F3|F4|F5) INICIADO=1 ;; esac
 if [ "$INICIADO" -eq 1 ]; then
   for f in AGENTS.md README.md contexto/README.md docs/estado.md docs/encuadre.md \
            docs/plan.md docs/trazabilidad.md docs/decisiones.md docs/convenciones.md \
-           docs/definicion-de-hecho.md docs/MEMORIA.md scripts/check_docs.sh; do
+           docs/definicion-de-hecho.md docs/despliegue.md docs/MEMORIA.md scripts/check_docs.sh; do
     has "$f" || err "falta $f (obligatorio con el proyecto iniciado)"
   done
   # scripts/check.sh es salida del diseño: existe desde el cierre de F2.
@@ -40,6 +40,9 @@ if [ "$INICIADO" -eq 1 ]; then
   if git rev-parse --git-dir >/dev/null 2>&1; then
     [ "$(git config core.hooksPath 2>/dev/null)" = ".githooks" ] \
       || err "core.hooksPath no es .githooks: los hooks de la plantilla no están activos (git config core.hooksPath .githooks)"
+    for h in .githooks/pre-commit .githooks/commit-msg; do
+      [ -x "$h" ] || err "$h no es ejecutable: git lo IGNORA en silencio (chmod +x $h && git update-index --chmod=+x $h)"
+    done
   fi
 fi
 
@@ -97,16 +100,17 @@ fi
 # --- Frontmatter: gramática estricta (sin parser YAML; cada línea debe ser válida) ---------
 # Acepta: `clave: valor` (con comentario # opcional), `clave:` seguida de ítems `  - valor`,
 # y líneas en blanco. Rechaza tabuladores, claves desconocidas y cualquier otra forma.
-check_frontmatter() {  # $1 archivo, $2 claves permitidas (regex alternativa)
-  f="$1"; keys="$2"
+check_frontmatter() {  # $1 archivo, $2 claves permitidas (regex alternativa). Deja el bloque en $FM.
+  # Se invoca SIN sustitución de comando: así `err` fija FAIL en este shell, no en un subshell.
+  f="$1"; keys="$2"; FM=""
   head -1 "$f" | grep -qx -- '---' || { err "$f no abre con frontmatter YAML (---)"; return 1; }
   awk 'NR==1 {next} $0=="---" {found=1; exit} END {exit !found}' "$f" \
     || { err "$f: frontmatter sin cierre (---)"; return 1; }
-  fm=$(awk 'NR==1 {next} $0=="---" {exit} {print}' "$f")
-  printf '%s\n' "$fm" | grep -q "$(printf '\t')" && err "$f: tabuladores en el frontmatter (YAML inválido)"
-  bad=$(printf '%s\n' "$fm" | grep -vE "^($keys):([[:space:]].*)?$|^[[:space:]]+-[[:space:]]+[^[:space:]]|^[[:space:]]*$|^[[:space:]]*#")
+  FM=$(awk 'NR==1 {next} $0=="---" {exit} {print}' "$f")
+  printf '%s\n' "$FM" | grep -q "$(printf '\t')" && err "$f: tabuladores en el frontmatter (YAML inválido)"
+  bad=$(printf '%s\n' "$FM" | grep -vE "^($keys):([[:space:]].*)?$|^[[:space:]]+-[[:space:]]+[^[:space:]]|^[[:space:]]*$|^[[:space:]]*#")
   [ -z "$bad" ] || err "$f: líneas de frontmatter no válidas o claves desconocidas: $(printf '%s' "$bad" | head -2 | tr '\n' '|')"
-  printf '%s\n' "$fm"
+  return 0
 }
 
 # --- 5) Skills: carpeta con SKILL.md, name == carpeta, description no vacía ≤1024 ---------
@@ -117,7 +121,8 @@ if [ -d .claude/skills ]; then
     if ! has "$f"; then err ".claude/skills/$name/ no tiene SKILL.md (una skill es una carpeta con SKILL.md)"; continue; fi
     echo "$name" | grep -qE '^[a-z0-9][a-z0-9-]{0,63}$' \
       || err ".claude/skills/$name: el nombre debe ser minúsculas, números y guiones (≤64 chars)"
-    fm=$(check_frontmatter "$f" 'name|description|allowed-tools') || continue
+    check_frontmatter "$f" 'name|description|allowed-tools' || continue
+    fm="$FM"
     fm_name=$(printf '%s\n' "$fm" | sed -n 's/^name:[[:space:]]*//p' | head -1)
     [ "$fm_name" = "$name" ] || err "$f: name '$fm_name' no coincide con la carpeta '$name'"
     desc=$(printf '%s\n' "$fm" | sed -n 's/^description:[[:space:]]*//p' | head -1 \
@@ -136,7 +141,8 @@ if [ -d .claude/agents ]; then
   for f in .claude/agents/*.md; do
     has "$f" || continue
     aname=$(basename "$f" .md)
-    afm=$(check_frontmatter "$f" 'name|description|tools|model|skills') || continue
+    check_frontmatter "$f" 'name|description|tools|model|skills' || continue
+    afm="$FM"
     afm_name=$(printf '%s\n' "$afm" | sed -n 's/^name:[[:space:]]*//p' | head -1)
     [ "$afm_name" = "$aname" ] || err "$f: name '$afm_name' no coincide con el archivo '$aname'"
     printf '%s\n' "$afm" | grep -qE '^description:[[:space:]]*[^[:space:]]' \

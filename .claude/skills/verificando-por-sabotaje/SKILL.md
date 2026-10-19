@@ -44,9 +44,13 @@ allowed-tools: Read, Grep, Glob, Bash
      "before": "if item.seen_at >= window_start:",
      "after":  "if True:"}]
    ```
-3. **Lee el veredicto.** `DIES` es lo que buscas. `SURVIVES` es un hallazgo: la garantía no
-   existe y hay que escribir la prueba que falta. `ANCHOR LOST` es un spec rancio —el
-   código se movió—, que es otro problema y no un permiso para dar la garantía por buena.
+3. **Lee el veredicto y el código de salida.** `DIES` es lo que buscas. `SURVIVES` es un
+   hallazgo: la garantía no existe y hay que escribir la prueba que falta. `ANCHOR LOST`
+   (el texto `before` ya no está), `MISSING` (el archivo no existe) y `ESCAPES` (la ruta sale
+   de la copia, p. ej. un enlace simbólico) son mutaciones **no aplicadas**: se cuentan
+   aparte, nunca como muertas, y el arnés sale con código **2**. Solo el código **0** (todas
+   aplicadas, todas mueren) acredita; **1** = hay supervivientes; **2** = spec rancio o
+   inseguro, arréglalo —no es un permiso para dar la garantía por buena—.
 4. **Copia la mutación a la fila del hallazgo** en `docs/trazabilidad.md`, en la celda de
    resolución. Cuesta una línea y convierte tu convicción privada en un artefacto que otro
    re-ejecuta en segundos, sin conocer tu sesión.
@@ -70,9 +74,17 @@ allowed-tools: Read, Grep, Glob, Bash
 ## Notas / trampas
 
 - **Siempre en una copia, nunca en el árbol de trabajo.** Con varias revisiones en vuelo,
-  una mutación sin commitear pone la suite en rojo para todos. El arnés copia solo; si
+  una mutación sin commitear pone la suite en rojo para todos. El arnés copia solo y se
+  niega a mutar a través de un enlace simbólico o de una ruta que salga de la copia; si
   escribes el tuyo, verifica el `cwd` antes de mutar. Y una instrucción de sabotaje sin
   decir **dónde** es una instrucción incompleta.
+- **RAM: una suite a la vez.** La copia excluye dependencias, builds y todo `.env*`
+  (salvo `.env.example`) y se niega por encima de `--max-mb` (500 por defecto; `--force`
+  si sabes por qué). Las mutaciones corren en serie con pistas de un solo worker en el
+  entorno (`SABOTAJE_SERIE=1` y los knobs comunes; `scripts/check.sh` debe respetarlas,
+  ver `docs/convenciones.md` §Recursos). **Nunca** lances el sabotaje con otra suite, un
+  mutation testing o un segundo subagente corriendo: dos suites en paralelo es como se
+  queda sin memoria la máquina (lección aprendida a precio completo).
 - **Una herramienta de medición se valida corriéndola dos veces y comparando:** si no da
   lo mismo, lo que mide no existe. Trampa conocida en Python: CPython valida el `.pyc`
   contra el mtime del fuente truncado a segundos, así que un bucle de mutación reutiliza

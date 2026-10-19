@@ -30,6 +30,19 @@ docs/trazabilidad.md). Marca el estado. -->
 - [ ] I1 «…» — _…_ (satisface: C_)
 - [ ] I2 «…» — _…_ (satisface: C_)
 
+## Plan de pruebas
+
+<!-- OBLIGATORIO: se decide en el diseño y se ajusta por incremento. Responde "qué
+pruebas son necesarias", no "cuántas": ≥1 flujo end-to-end por criterio C# (con datos de
+forma real), unitarios SOLO donde el flujo no llega (y por qué), qué pares del set de oro
+se automatizan como regresión y cuáles quedan como verificación manual explícita. La DoD
+exige exactamente estas; una prueba fuera del plan que no proteja un criterio es exceso
+(gold-plating) y el juez la señala. Formato: .claude/skills/probando-con-datos-reales/SKILL.md -->
+
+| Incremento | Criterio | End-to-end (qué flujo, con qué datos) | Unitarios justificados | Set de oro automatizado | Manual explícita |
+|------------|----------|----------------------------------------|------------------------|-------------------------|------------------|
+| I_ «…» | C_ | _…_ | _…_ (razón) | pares _…_ | pares _…_ |
+
 ## Bitácora
 
 <!-- Una línea por avance o ajuste. Lo que cambió respecto al plan y por qué.

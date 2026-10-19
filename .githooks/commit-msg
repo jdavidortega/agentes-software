@@ -1,28 +1,53 @@
 #!/bin/sh
-# Hook de la plantilla. Exige que el mensaje ENLACE lo que resuelve (ver
-# docs/convenciones.md §Git y docs/trazabilidad.md): un trailer "Ref:" (cierre de
-# fase/incremento) o "Cierra:" (hallazgo del juez, del juez de conjunto, del revisor
-# funcional o de seguridad). Es el rastro
-# mínimo que hace auditable el historial; ningún commit sin él.
-# Además, un "Cierra:" es una afirmación sobre docs/trazabilidad.md: el hallazgo que
-# nombra tiene que existir como fila (se citaron hallazgos sin crear sus filas y
-# ningún mecanismo lo cazó; las afirmaciones cruzadas se mecanizan o son prosa).
-# Salida de emergencia (úsala solo si sabes por qué): git commit --no-verify
+# Hook de la plantilla. El mensaje ENLAZA lo que resuelve (docs/trazabilidad.md §IDs y
+# docs/convenciones.md §Git) con trailers de UNA gramática cerrada:
+#   Ref: F1|F2|F4|F5        cierre de fase        Ref: I<n>        incremento (existe en plan.md)
+#   Cierra: R-E.<n>         vacío del revisor     Cierra: R-I<i>.<n> | R-S<i>.<n> | R-F4.<n>
+# Se validan TODOS los trailers presentes (uno malformado junto a uno válido también
+# rechaza), los IDs se resuelven contra el ÍNDICE (lo que va al commit), y Ref: F4|F5
+# dispara el modo cierre de check_docs. Salida de emergencia: git commit --no-verify.
 msg_file="$1"
-if ! grep -Eq '^(Ref|Cierra):[[:space:]]*(F[1245]|I[0-9]+|R-(E|I|S|F4)[0-9.]+)' "$msg_file"; then
-  echo "✗ commit-msg: falta el trailer de enlace." >&2
-  echo "  Usa  'Ref: F1|F2|F4|F5'  o  'Ref: I3'  o  'Cierra: R-I3.1' / 'Cierra: R-S3.1' / 'Cierra: R-F4.1' / 'Cierra: R-E.1'." >&2
-  echo "  Ver docs/convenciones.md §Git. (Emergencia: git commit --no-verify)" >&2
-  exit 1
-fi
 FAIL=0
-for id in $(grep -E '^Cierra:' "$msg_file" | grep -oE 'R-(E|I|S|F4)[0-9.]+' | sed 's/\.$//'); do
-  esc=$(printf '%s' "$id" | sed 's/\./\\./g')
-  grep -qE "^\| *$esc *\|" docs/trazabilidad.md 2>/dev/null || {
-    echo "✗ commit-msg: 'Cierra: $id' pero $id no tiene fila en docs/trazabilidad.md." >&2
-    echo "  Un Cierra: afirma sobre otro documento: primero la fila, después el commit." >&2
-    FAIL=1
-  }
+fail() { echo "✗ commit-msg: $1" >&2; FAIL=1; }
+
+# Lectura desde el índice (lo que se commitea), con el árbol como respaldo.
+idx() { git show ":$1" 2>/dev/null || cat "$1" 2>/dev/null; }
+
+trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
+if [ -z "$trailers" ]; then
+  fail "falta el trailer de enlace. Usa 'Ref: F1|F2|F4|F5', 'Ref: I3', o 'Cierra: R-I3.1' / 'R-S3.1' / 'R-F4.1' / 'R-E.1' (docs/convenciones.md §Git)."
+fi
+
+cierre=0
+IFS='
+'
+for line in $trailers; do
+  if printf '%s' "$line" | grep -qE '^Ref:[[:space:]]*F[1245][[:space:]]*$'; then
+    printf '%s' "$line" | grep -qE 'F[45]' && cierre=1
+  elif printf '%s' "$line" | grep -qE '^Ref:[[:space:]]*I[0-9]+[[:space:]]*$'; then
+    id=$(printf '%s' "$line" | grep -oE 'I[0-9]+')
+    idx docs/plan.md | grep -qE "^- \[[ xX]\] $id " \
+      || fail "'$line' pero $id no existe como incremento en docs/plan.md (formato: '- [ ] $id «alias» — …')."
+  elif printf '%s' "$line" | grep -qE '^Cierra:[[:space:]]*R-(E\.[0-9]+|I[0-9]+\.[0-9]+|S[0-9]+\.[0-9]+|F4\.[0-9]+)[[:space:]]*$'; then
+    id=$(printf '%s' "$line" | grep -oE 'R-(E|I[0-9]+|S[0-9]+|F4)\.[0-9]+')
+    esc=$(printf '%s' "$id" | sed 's/\./\\./g')
+    idx docs/trazabilidad.md | grep -qE "^\| *$esc *\|" \
+      || fail "'$line' pero $id no tiene fila en docs/trazabilidad.md. Un Cierra: afirma sobre otro documento: primero la fila, después el commit."
+  else
+    fail "trailer malformado o familia desconocida: '$line'. Gramática: Ref: F1|F2|F4|F5 · Ref: I<n> · Cierra: R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n>."
+  fi
 done
+unset IFS
+
+# Ref: F4|F5 es una afirmación de cierre: se comprueba con check_docs en modo cierre,
+# sobre la exportación del índice.
+if [ "$cierre" -eq 1 ] && [ "$FAIL" -eq 0 ]; then
+  tmp=$(mktemp -d 2>/dev/null || mktemp -d -t commitmsg)
+  trap 'rm -rf "$tmp"' EXIT INT TERM
+  git checkout-index -a --prefix="$tmp/" \
+    && ( cd "$tmp" && sh scripts/check_docs.sh cierre ) \
+    || fail "el trailer declara cierre de fase (Ref: F4|F5) pero check_docs.sh cierre no da PASA sobre lo que se commitea."
+fi
+
 [ "$FAIL" -eq 1 ] && exit 1
 exit 0

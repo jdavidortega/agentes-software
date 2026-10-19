@@ -5,16 +5,11 @@ allowed-tools: Read, Grep, Glob, Bash
 ---
 # Skill: Revisión funcional (revisor funcional)
 
-> Rol de **revisor funcional independiente** (rol analista) del encuadre y el plan.
-> Verifica que el **contexto** y el **plan** sean completos y consistentes **antes del
-> gate de diseño**, contrastándolos con su fuente (`contexto/`). **No
-> escribe en el repo: reporta qué falta**, con las filas `R-E.n` **listas** para que
-> el principal las registre en `docs/trazabilidad.md`. Es el equivalente del juez de código
-> (`revision-critica`), pero para los artefactos del arranque, no para el diff.
->
-> Idealmente se ejecuta como agente con **contexto propio** (un subagente en Claude
-> Code; una pasada de revisión aparte en otra herramienta), para no heredar las
-> racionalizaciones de quien redactó el encuadre —ahí está su valor—.
+> Rúbrica del **revisor funcional** (rol analista): verifica que el **encuadre** y el
+> **plan** sean completos y consistentes **antes del gate de diseño**, contrastándolos
+> con su fuente (`contexto/`). Es el equivalente del juez de código para los artefactos
+> del arranque. Cómo se dispara, con qué contexto, qué puede hacer, el formato exacto
+> del reporte y cómo se registra: **`AGENTS.md` §9**. Aquí vive solo la rúbrica.
 
 ## Cuándo usarla
 
@@ -22,18 +17,6 @@ allowed-tools: Read, Grep, Glob, Bash
   código (Fase 3). Es la revisión funcional independiente de la Fase 2 del arranque: sustituye la
   autovalidación por una revisión con rol propio.
 - Se repite (pasada fresca) cada vez que se resuelve un hueco, hasta dar PASA.
-
-## Quién la dispara y su memoria
-
-- La **dispara el agente principal** (orquestador): al cerrar el diseño, invoca al
-  revisor funcional (un **subagente** con contexto propio) y le pasa qué revisar,
-  apuntándolo a los archivos y a las carpetas de origen.
-- Cada revisión arranca con **contexto fresco** (a propósito: así no se ancla ni
-  arrastra aprobaciones previas). **No** se "resume" el subagente.
-- La continuidad entre pasadas **no viene de la memoria, viene de los archivos.** El
-  revisor reconstruye el estado leyendo `docs/trazabilidad.md` (huecos previos `R-E.n`
-  y su estado) y `docs/decisiones.md`, y **verifica que los huecos `abierto` previos
-  estén `resuelto`** antes de dar PASA.
 
 ## Prompt de invocación (para el agente principal)
 
@@ -45,12 +28,9 @@ al encuadre ni justificarle sus elecciones; su valor está en que no hereda tu f
 > consistentes contra su fuente (`contexto/`), que cada `C#` tenga
 > incremento en `docs/trazabilidad.md` y que las decisiones de alto impacto estén como
 > ADR en `docs/decisiones.md`. Revisa los vacíos previos en `docs/trazabilidad.md`.
-> Entrega tu reporte EXACTAMENTE con estas secciones: **Veredicto** (PASA/FALLA) ·
-> **Vacíos** `R-E.n` (cada uno con su fila lista para `docs/trazabilidad.md`) ·
-> **Sugerencias** · **Preguntas** · **Obstáculos** (problemas de entorno o setup,
-> comandos que necesitaron flags especiales, workarounds que descubriste; «ninguno»
-> si no hubo) · **Línea de bitácora** lista. No escribas en ningún archivo: todo va
-> en el reporte.
+> Sigue el protocolo de `AGENTS.md` §9 y entrega el reporte con su formato exacto
+> (Veredicto · Vacíos `R-E.n` con filas listas · Sugerencias · Preguntas · Obstáculos ·
+> Línea de bitácora). No escribas en ningún archivo ni uses la red: todo va en el reporte.
 
 ## Insumos (el contexto en que se apoya)
 
@@ -75,25 +55,8 @@ al encuadre ni justificarle sus elecciones; su valor está en que no hereda tu f
    completes tú).
 2. Evalúa por dimensiones (rúbrica abajo). Cada punto obligatorio: **PASA/FALLA**
    (binario); la coherencia derivada: **observación** de criterio.
-3. Entrega el veredicto en este formato:
-   - **Veredicto:** PASA / FALLA (FALLA si algún punto obligatorio falla o hay
-     inconsistencia bloqueante).
-   - **Vacíos** (bloqueantes): lista; a cada uno un ID `R-E.<n>`, qué punto obligatorio
-     incumple y por qué. Cada vacío es accionable.
-   - **Sugerencias** (criterio, no bloquean): lista breve (aviso al gate; las que la
-     persona acoja van al backlog de `docs/plan.md`).
-   - **Preguntas / dudas:** lo que no pudo verificar.
-   - **Obstáculos:** problemas de setup o entorno, comandos que necesitaron flags o
-     configuración especial, workarounds descubiertos. Si no se reportan, el principal
-     los redescubre a su costo. «Ninguno» si no hubo.
-4. **Incluye en el reporte las filas listas** para `docs/trazabilidad.md` (ID `R-E.n`,
-   qué punto, estado `abierto`) y la línea de cierre para la bitácora de `docs/plan.md`
-   (revisión funcional, veredicto, conteo de vacíos), **también con PASA limpio**: esa
-   línea es el rastro exigible de que la revisión ocurrió. **El principal las registra
-   tal cual, sin editarlas** —el revisor no escribe en el repo (dos revisiones en
-   paralelo ya no pueden pisarse el rastro)— y lo hace **antes** de la siguiente
-   pasada: la memoria entre pasadas sigue viniendo de los archivos. Los obstáculos
-   los rutea el principal: comando/flag → `docs/convenciones.md`; lección → `docs/MEMORIA.md`.
+3. Entrega el reporte en el **formato del protocolo** (`AGENTS.md` §9): cada vacío con ID
+   `R-E.<n>`, qué punto obligatorio incumple y por qué; cada uno accionable.
 
 ## Protocolo de vacíos (qué hacer cuando algo falta)
 
@@ -149,13 +112,8 @@ Después, el agente principal **valida si el dato ya está presente**:
 
 ## Notas / trampas
 
-- **No escribe en el repo.** Reporta cada vacío con su fila `R-E.n` lista; el registro
-  lo hace el principal, y el contenido lo llena la persona o el principal (evita el
-  "juez y parte" también en el encuadre).
 - **No inventa requisitos** para "cerrar" un punto: un criterio o un dato faltante es
   un vacío, no algo que el revisor deba suponer.
-- **Binario donde se pueda;** lo subjetivo va como sugerencia o pregunta, nunca como
-  FALLA silenciosa.
 - **No infla:** no pide artefactos (esquemas, NFR, documentos) que el proyecto no
   necesita; eso también es sobredimensionamiento.
 - Se afina con el tiempo: si una verificación de consistencia se repite, súmala a la

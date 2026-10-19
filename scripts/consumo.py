@@ -6,8 +6,11 @@ Usage:
     python3 scripts/consumo.py --json     # machine-readable
     python3 scripts/consumo.py --dir DIR  # explicit transcript directory
 
-Reads every *.jsonl under ~/.claude/projects/<slug-of-cwd>/ (main thread, sidechains and
-agent-*.jsonl subagent files alike), deduplicates messages, and sums usage per model.
+Reads every *.jsonl under ~/.claude/projects/<slug-of-cwd>/ RECURSIVELY (main thread,
+sidechains, and subagent transcripts, which live in nested directories such as
+<session>/subagents/), deduplicates messages, and sums usage per model. The report states
+how many files were read at the top level and how many in nested directories, so a run
+that saw no subagent files says so instead of looking complete.
 Record ONE line in the bitacora of docs/plan.md at each increment/phase close (see
 docs/convenciones.md, "Contexto por sesion y compactacion"); the delta against the
 previous line is that slice's consumption.
@@ -60,11 +63,12 @@ def find_transcript_dir(cwd: Path) -> Path:
     )
 
 
-def collect(directory: Path) -> tuple[dict, int, int]:
+def collect(directory: Path) -> tuple[dict, int, int, int]:
     per_model: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     seen: set[tuple] = set()
     calls = 0
-    files = sorted(directory.glob("*.jsonl"))
+    files = sorted(directory.rglob("*.jsonl"))
+    nested = sum(1 for f in files if f.parent != directory)
     if not files:
         sys.exit(f"{directory} no tiene archivos .jsonl")
     for fp in files:
@@ -97,7 +101,7 @@ def collect(directory: Path) -> tuple[dict, int, int]:
             f"0 mensajes con usage en {directory} — el formato interno pudo cambiar; "
             "verifica con /usage dentro de Claude Code y ajusta este script."
         )
-    return per_model, calls, len(files)
+    return per_model, calls, len(files), nested
 
 
 def main() -> int:
@@ -109,14 +113,17 @@ def main() -> int:
     directory = args.dir if args.dir else find_transcript_dir(Path.cwd())
     if not directory.is_dir():
         sys.exit(f"{directory} no existe")
-    per_model, calls, n_files = collect(directory)
+    per_model, calls, n_files, nested = collect(directory)
 
     if args.json:
-        print(json.dumps({"dir": str(directory), "archivos": n_files, "llamadas": calls,
-                          "por_modelo": per_model}, indent=1, sort_keys=True))
+        print(json.dumps({"dir": str(directory), "archivos": n_files, "archivos_anidados": nested,
+                          "llamadas": calls, "por_modelo": per_model}, indent=1, sort_keys=True))
         return 0
 
-    print(f"Consumo acumulado — {n_files} archivo(s) de transcript, {calls} llamadas")
+    print(f"Consumo acumulado — {n_files} archivo(s) de transcript ({nested} en subdirectorios: "
+          f"subagentes), {calls} llamadas")
+    if nested == 0:
+        print("aviso: ningún transcript anidado; si hubo subagentes, su consumo NO está aquí.", file=sys.stderr)
     header = f"{'modelo':<28}" + "".join(f"{label:>12}" for _, label in USAGE_FIELDS)
     print(header)
     totals: dict[str, int] = defaultdict(int)

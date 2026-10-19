@@ -8,11 +8,12 @@ línea de código.
 
 Lo que esta plantilla configura no es un agente sino un **sistema agéntico**: varios
 agentes con roles, permisos y memoria distintos, coordinados bajo compuertas humanas.
-Un **agente principal** conduce el arranque, construye el código y es el **único con
-permiso de escritura**. Cuatro **revisores independientes** (revisor funcional, juez de
-código, juez de conjunto y juez de seguridad) arrancan con contexto propio, solo leen y
-ejecutan, y devuelven un veredicto PASA/FALLA con las filas listas para que el principal
-las registre. Las **skills** son los procedimientos que cada rol carga solo cuando
+Un **agente principal** conduce el arranque, construye el código y es el **único que
+escribe**. Cuatro **revisores independientes** (revisor funcional, juez de código, juez de
+conjunto y juez de seguridad) arrancan con contexto propio, sin herramientas de edición,
+y devuelven un veredicto PASA/FALLA con las filas listas para que el principal las
+registre; que no tocaron nada lo verifica el principal con `git status`, no la
+herramienta (`AGENTS.md` §9). Las **skills** son los procedimientos que cada rol carga solo cuando
 aplican; `docs/` es la memoria compartida (un lugar por dato, `estado.md` como punto de
 reentrada); y lo que no puede fallar vive en **hooks de git**, no en prosa. El detalle de
 cada pieza está en «Cómo está armado el sistema» y en el glosario de «Definiciones».
@@ -22,10 +23,9 @@ cada pieza está en «Cómo está armado el sistema» y en el glosario de «Defi
 1. Copia el contenido de este repo a tu nuevo proyecto.
 2. El agente ejecuta primero el **Bootstrap (paso 0)**: verifica que git esté
    configurado, que los hooks estén activos (`git config core.hooksPath .githooks`),
-   que `.env*` esté ignorado y que exista un **remoto** con push inicial — o que
-   declares el proyecto como **PoC sin remoto** (excepción explícita; nada llega a
-   producción sin remoto). Se hace un commit **al cierre de cada fase y de cada
-   incremento** (no solo en la ejecución).
+   que `.env*` esté ignorado y que exista un **remoto** con push inicial (sin
+   excepciones: todo proyecto, grande o pequeño, sigue el mismo método). Se hace un
+   commit **al cierre de cada fase y de cada incremento** (no solo en la ejecución).
 3. **Deja primero tus entradas en `contexto/`.** Es la **única carpeta de entrada**:
    documentos (antecedentes, specs, notas), datos de entrada y de salida, notebooks y
    resultados previos van todos a su raíz, **sin clasificarlos** —el agente los tipifica
@@ -68,9 +68,11 @@ protección de datos y autorización explícita, con su propia pasada de juez
 
 Una foto de las piezas y sus relaciones permanentes (sin tiempo: quién invoca, quién
 escribe, qué se precarga, qué bloquea). Lo que hace visible: la **asimetría de
-permisos** (una sola flecha «escribe»), la **independencia de contexto** de los
-revisores (solo reciben la invocación, no la memoria del principal), el **modelo por
-rol** y que el enforcement actúa sobre el **commit**, no sobre el agente.
+permisos** (una sola flecha «escribe»; los revisores no tienen herramientas de
+edición y el principal comprueba con `git status` que no tocaron nada), la
+**independencia de contexto** de los revisores (solo reciben la invocación, no la
+memoria del principal), el **modelo por rol** y que el enforcement actúa sobre el
+**commit**, no sobre el agente.
 
 ```mermaid
 flowchart LR
@@ -78,10 +80,10 @@ flowchart LR
 
     subgraph Agentes
       Principal["Agente principal<br/>construye · UNICO que escribe<br/>modelo: el de la sesion"]
-      RF["revisor-funcional<br/>sonnet · solo lectura"]
-      JC["juez-codigo<br/>sonnet · solo lectura"]
-      JJ["juez-conjunto<br/>opus · solo lectura"]
-      JS["juez-seguridad<br/>opus · solo lectura"]
+      RF["revisor-funcional<br/>sonnet · sin edicion"]
+      JC["juez-codigo<br/>sonnet · sin edicion"]
+      JJ["juez-conjunto<br/>opus · sin edicion"]
+      JS["juez-seguridad<br/>opus · sin edicion"]
     end
 
     Skills[".claude/skills/<br/>rubricas y procedimientos<br/>se cargan solo cuando aplican"]
@@ -95,7 +97,7 @@ flowchart LR
     Ctx -->|"ingesta y muestreo"| Principal
     Ctx -->|"fuente contra la que contrasta"| RF
     Principal -->|"invoca con contexto fresco"| RF & JC & JJ & JS
-    RF & JC & JJ & JS -->|"veredicto + filas listas"| Principal
+    RF & JC & JJ & JS -->|"veredicto + filas listas<br/>(git status intacto, lo verifica el principal)"| Principal
     Skills -.->|"precargada en el rol"| RF & JC & JJ & JS
     Skills -.->|"bajo demanda"| Principal
     Principal -->|"escribe"| Docs & Codigo
@@ -109,18 +111,19 @@ precargada) y su rúbrica en `.claude/skills/`; ver `.claude/skills/README.md` �
 
 ## Diagrama de la metodología
 
-El orden en que ocurre todo y dónde interviene cada control: la persona en los dos
-gates, una revisión independiente en tres momentos, y el arco de reentrada que decide
+El orden en que ocurre todo y dónde interviene cada control: la persona en los gates
+(uno por actividad del arranque, uno por incremento, y los de diseño y validación), una
+revisión independiente en tres momentos, y el arco de reentrada que decide
 con una sola pregunta —¿cambia un `C#` o el set de oro?— si el trabajo nuevo vuelve al
 encuadre o va directo a la ejecución.
 
 ```mermaid
 flowchart LR
-    A["Arranque<br/>ingesta · encuadre · diseno"] -->|revisor funcional| G1{Gate}
+    A["Arranque<br/>ingesta · encuadre · diseno<br/>(gate por actividad)"] -->|revisor funcional| G1{"Gate de<br/>diseno"}
     G1 --> B["Ejecucion<br/>incrementos pequenos"]
-    B -->|"juez de codigo<br/>(+ seguridad si aplica)"| B
+    B -->|"juez de codigo (+ seguridad si aplica)<br/>+ gate por incremento"| B
     B --> C["Validacion<br/>del conjunto"]
-    C -->|"juez de conjunto<br/>+ seguridad"| G2{Gate}
+    C -->|"juez de conjunto<br/>+ seguridad"| G2{"Gate de<br/>validacion"}
     G2 --> D["Cierre<br/>lecciones a MEMORIA"]
     D -.->|"trabajo nuevo:<br/>¿cambia un C#?"| A
     D -.->|"no cambia:<br/>defecto o ajuste"| B
@@ -139,13 +142,15 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
   (lee archivos, ejecuta comandos), decide la siguiente acción y actúa, en bucle, hasta
   cumplirlo o detenerse. Aquí son agentes el principal y cada uno de los cuatro revisores.
 - **Agente principal** — el que ejecuta `docs/arranque.md`, conduce a la persona,
-  construye el código y registra el rastro. Es el **único con permiso de escritura**;
+  construye el código y registra el rastro. Es el **único que escribe** en el repo;
   hereda el modelo de la sesión.
 - **Revisor / subagente** — rol declarado en `.claude/agents/` que el principal invoca
-  con **contexto fresco** (no hereda su memoria), herramientas acotadas a lectura y
-  ejecución (`Read, Grep, Glob, Bash`), rúbrica precargada desde `.claude/skills/` y
-  modelo fijo. **Reporta, no escribe:** devuelve veredicto y filas listas; el principal
-  las registra.
+  con **contexto fresco** (no hereda su memoria), herramientas `Read, Grep, Glob, Bash`
+  (sin herramientas de edición; `Bash` podría escribir o salir a la red, así que se le
+  instruye no hacerlo y el principal **verifica con `git status`** que el árbol no
+  cambió), rúbrica precargada desde `.claude/skills/` y modelo fijo. **Reporta, no
+  escribe:** devuelve veredicto y filas listas; el principal las registra. Protocolo
+  completo en `AGENTS.md` §9.
 - **Sistema agéntico** — el conjunto: los agentes, el **reparto de permisos** entre
   ellos, la **memoria compartida** en `docs/`, las **compuertas humanas** y el
   **enforcement** en hooks. Es lo que esta plantilla configura; ningún agente por sí solo
@@ -157,11 +162,10 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
   sobredimensionamiento.
 - **Gate / compuerta** — punto donde la persona **aprueba explícitamente** antes de
   avanzar. No se sigue sin su OK.
-- **Bootstrap (paso 0)** — precondición del arranque: hooks activos, `.env` ignorado y
-  remoto con push inicial (o **PoC declarada**). Sin esto, el agente se detiene.
-- **Modo PoC declarada** — la persona declara el proyecto como prueba de concepto:
-  relaja remoto, muestreo y tamaño del set de oro **de forma explícita y registrada**;
-  no relaja gates, juez ni ADRs. Su promoción a producto exige las condiciones plenas.
+- **Bootstrap (paso 0)** — precondición del arranque: hooks activos y ejecutables,
+  `.env` ignorado, remoto con push inicial y `check_docs` en PASA. Sin esto, el agente se
+  detiene. No hay modo "prueba de concepto" con menos rigor: la distinción complicaba
+  sin aportar; un proyecto pequeño se encuadra igual, solo que con menos contenido.
 - **`contexto/`** — la **única carpeta de entrada** (obligatoria, ≥1 archivo): documentos
   que se leen y artefactos que se ejecutan o inspeccionan (notebooks, datos de entrada
   y de salida, resultados previos) conviven en su raíz; la persona no clasifica, el
@@ -184,8 +188,7 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
   técnico** que condiciona un incremento, antes de construir sobre él. Su resultado es
   un hallazgo; rehacer cuesta más que el experimento.
 - **Set de oro** — ≥5 pares `entrada → salida esperada` que definen la **calidad
-  aceptable** (no solo que "funcione"), con al menos un ejemplo concreto (en PoC
-  declarada: mínimo 2–3).
+  aceptable** (no solo que "funcione"), con al menos un ejemplo concreto.
 - **Stack** — el lenguaje, framework, build y estilo de arquitectura elegidos.
 - **Hallazgo** — un **hecho observado** (p. ej. en el muestreo: "el prototipo no
   implementa el filtro de frescura"). Se **registra como dato** en `docs/encuadre.md`;
@@ -220,6 +223,16 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
 - **Rebanada de Operación/Despliegue** — cómo entra a producción el trabajo: entorno
   de prueba, runbook verificado, protección de datos, autorización explícita y juez
   (`.claude/skills/desplegando-a-produccion/SKILL.md`).
+- **Hito** — tres incrementos cerrados desde el anterior, o el momento previo a un
+  despliegue. En cada hito corre el juez de conjunto sobre lo ensamblado y se sintetiza
+  `docs/MEMORIA.md`: la validación y el aprendizaje no esperan a un cierre que puede
+  tardar meses.
+- **Plan de pruebas** — qué pruebas son necesarias por incremento (`docs/plan.md`): un
+  flujo end-to-end por criterio, unitarios solo donde el flujo no llega, set de oro
+  automatizado o manual explícito. La DoD exige exactamente esas; el exceso es hallazgo.
+- **Resumen ejecutivo (gate)** — la forma de pedir aprobación: qué se decidió escrito en
+  texto completo (no por siglas), el cambio en cinco líneas, qué se aprueba y dónde está
+  el detalle (`AGENTS.md` §2).
 - **Reentrada / triage** — cómo entra el trabajo nuevo *después del cierre* (Fase 5): lo
   **dispara el cierre** y **no re-ejecuta el arranque** —solo la rebanada que el cambio
   necesita—. Una sola pregunta —¿cambia un `C#` o el set de oro de `encuadre.md`?— decide
@@ -265,14 +278,22 @@ Actívalos una vez por proyecto:
 git config core.hooksPath .githooks
 ```
 
-- **`pre-commit`** — bloquea versionar un `.env`/secreto, corre `scripts/check.sh`
-  (lint + formato + tests; ese script lo creas en el diseño con los comandos de tu
-  stack) y corre `scripts/check_docs.sh` (integridad del rastro documental: `C#` sin
-  fila, ADRs referenciados inexistentes, placeholders sin llenar).
-- **`commit-msg`** — exige el trailer `Ref:`/`Cierra:`; sin él rechaza el commit
-  (escape puntual: `git commit --no-verify`).
-- **`scripts/check_docs.sh cierre`** — al cerrar F4/F5, los chequeos completos:
-  hallazgos sin cerrar su ciclo (`resuelto` sin `verificado`), plantilla ADR-000 viva.
+- **`pre-commit`** — bloquea versionar un `.env`/secreto; exige que **lo verificado sea
+  lo versionado** (rechaza si hay archivos rastreados con cambios sin stagear); corre
+  `scripts/check_docs.sh` sobre una **exportación del índice** (contrato documental por
+  fase: archivos obligatorios, `C#` e `I#` únicos y existentes, ADRs referenciados,
+  frontmatter válido, hooks activos); y corre `scripts/check.sh` (lint + formato + tests;
+  lo creas en el diseño), **obligatorio desde la Fase 2**. Los scripts se invocan con
+  intérprete explícito: su ausencia es fallo, no aviso.
+- **`commit-msg`** — valida **todos** los trailers contra una gramática cerrada
+  (`Ref: F1|F2|F4|F5`, `Ref: I<n>` que existe en `plan.md`, `Cierra: R-E.n | R-I#.n |
+  R-S#.n | R-F4.n` con fila en `trazabilidad.md`), rechaza familias desconocidas, y un
+  `Ref: F4|F5` dispara `scripts/check_docs.sh cierre` (condiciones de salida del ciclo:
+  nada `abierto` ni `resuelto` sin `verificado`, todo `C#` verificado con incremento, sin
+  ADR en `propuesta` ni ADR-000). Escape puntual: `git commit --no-verify`.
+- **`scripts/check_docs.sh`** a mano, al **inicio de cada sesión**: además de lo anterior
+  verifica `core.hooksPath` y el bit ejecutable de los hooks (git ignora en silencio un
+  hook no ejecutable).
 - **`.editorconfig`** — estilo base (charset, espacios) que aplican los editores.
 
 Los hooks son locales y esquivables (`git commit --no-verify`): con remoto compartido,
@@ -284,47 +305,79 @@ conteo, también con PASA limpio) y sus bloqueantes/vacíos en `docs/trazabilida
 Y la **regla del segundo hallazgo** (`AGENTS.md` §8) convierte en linter/hook todo
 hallazgo mecanizable que se repita.
 
-## Portabilidad: pensada para Claude Code, ajustable a otra IA
+## Portabilidad: pensada para Claude Code, con adaptador para Codex
 
 La plantilla **asume que el agente es Claude Code**: las skills viven en
 `.claude/skills/` (su ubicación nativa, donde las autodescubre sin symlinks ni copias
 que sincronizar) y los cuatro roles de revisión (revisor funcional, juez de código, juez
 de conjunto y juez de seguridad) están declarados en `.claude/agents/` con su skill
-precargada. `AGENTS.md` sigue siendo la **fuente de verdad** de las
-instrucciones —es el estándar que varias herramientas leen de forma nativa—;
-`CLAUDE.md` solo lo importa (`@AGENTS.md`) más notas propias de Claude Code.
+precargada. `AGENTS.md` es la **fuente de verdad** de las instrucciones —es el estándar
+que varias herramientas leen de forma nativa—; `CLAUDE.md` solo lo importa
+(`@AGENTS.md`) más notas propias de Claude Code.
 
-> Una regla en `AGENTS.md` moldea el comportamiento del agente pero no lo
-> garantiza. Lo que no puede fallar (tests obligatorios, escaneos) va en
-> CI / pre-commit / hooks.
+> Una regla en `AGENTS.md` moldea el comportamiento del agente pero no lo garantiza. Lo
+> que no puede fallar va en git hooks y CI, que son iguales en cualquier herramienta.
+> Y en ninguna herramienta la plantilla aísla por sí sola a los revisores: en todas,
+> «no escribe» es instrucción + verificación del principal con `git status`
+> (`AGENTS.md` §9).
 
 ### Si vas a usar otra IA (instrucciones para el agente)
 
 Agente: si tu herramienta no es Claude Code, ejecuta este ajuste **una sola vez, antes
-del Bootstrap**, y registra lo que cambies en un commit propio:
+del Bootstrap**, registra lo que cambies en un commit propio, y **no borres** los roles
+de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adaptador.
 
-1. **Instrucciones.** `AGENTS.md` es el canon y probablemente tu herramienta ya lo lee
-   (es el estándar compartido). Si usa otro archivo (p. ej. reglas propias del editor),
-   créalo **importando o remitiendo a** `AGENTS.md`; no dupliques contenido. `CLAUDE.md`
-   puede quedarse (no estorba) o eliminarse.
-2. **Skills.** Son markdown puro en `.claude/skills/<nombre>/SKILL.md`, referenciadas
-   **por ruta** desde `AGENTS.md` y `docs/`: cualquier herramienta que lea archivos las
-   usa tal cual, sin autodescubrimiento. Si la tuya tiene un mecanismo propio de skills,
-   regístralas allí; si prefieres otra ubicación, muévelas y actualiza toda referencia
-   (`grep -rl '\.claude/skills/' --include='*.md' . scripts/`) y los chequeos 5 y 6 de
-   `scripts/check_docs.sh`.
-3. **Roles de revisión.** `.claude/agents/` es específico de Claude Code; ignóralo o
-   bórralo. El equivalente portable ya existe: la sección **«Prompt de invocación»** de
-   cada skill de revisión (`revision-funcional`, `revision-critica`,
-   `revision-seguridad`). Lánzala como tu herramienta permita una pasada con **contexto
-   fresco** (un subagente, otra sesión, otro chat). Lo que no puede perderse: contexto
-   propio (no hereda el hilo de quien construyó), veredicto PASA/FALLA, y el rastro en
-   `docs/plan.md` + `docs/trazabilidad.md`.
+1. **Instrucciones.** `AGENTS.md` es el canon y probablemente tu herramienta ya lo lee.
+   Si usa otro archivo (p. ej. reglas propias del editor), créalo **importando o
+   remitiendo a** `AGENTS.md`; no dupliques contenido. `CLAUDE.md` puede quedarse (no
+   estorba) o eliminarse.
+2. **Skills.** Son markdown con frontmatter `name` + `description`, el mismo formato que
+   leen otras herramientas; están referenciadas **por ruta** desde `AGENTS.md` y `docs/`,
+   así que cualquier agente que lea archivos las usa tal cual. Si tu herramienta tiene
+   autodescubrimiento en otra carpeta, **enlázala o cópiala** allí; si prefieres
+   moverlas, actualiza toda referencia (`grep -rl '\.claude/skills/' --include='*.md' .
+   scripts/`) y los chequeos 5 y 6 de `scripts/check_docs.sh`.
+3. **Roles de revisión.** Si tu herramienta declara subagentes, crea uno por rol con el
+   **cuerpo de `.claude/agents/<rol>.md`** como instrucción, la orden de leer su skill
+   (`.claude/skills/<skill>/SKILL.md`) al arrancar —si no puede precargarla— y el modelo
+   del rol. Si no declara subagentes, el **«Prompt de invocación»** de cada skill de
+   revisión lanza la pasada en otra sesión o chat. Lo que no puede perderse, en ambos
+   casos: **contexto propio** (no hereda el hilo de quien construyó), **un revisor a la
+   vez**, veredicto PASA/FALLA con el **formato del protocolo** (`AGENTS.md` §9) y el
+   rastro en `docs/plan.md` + `docs/trazabilidad.md`.
 4. **Enforcement.** `.githooks/`, `scripts/check_docs.sh` y `.editorconfig` son
    git/shell puro: funcionan igual con cualquier herramienta. No los toques.
 5. **Verifica el ajuste:** `sh scripts/check_docs.sh` debe dar PASA y ninguna ruta
    referenciada en `AGENTS.md`/`docs/` puede quedar rota. Registra el ajuste como
    commit con su porqué.
+
+### Adaptador concreto: OpenAI Codex (verificado contra su documentación, oct. 2026)
+
+- **Instrucciones:** Codex lee `AGENTS.md` de forma nativa. Nada que hacer.
+- **Skills:** Codex descubre `.agents/skills/<nombre>/SKILL.md` (desde el directorio de
+  trabajo hasta la raíz del repo) con frontmatter `name` + `description`, y carga el
+  cuerpo solo cuando la skill aplica —el mismo contrato que esta plantilla—. **No lee
+  `.claude/skills/`**: crea `.agents/skills` como **enlace simbólico** a `.claude/skills`
+  (`ln -s .claude/skills .agents/skills`) o copia la carpeta; con enlace no hay dos
+  copias que sincronizar.
+- **Roles:** Codex declara subagentes como archivos **TOML** en `.codex/agents/` (uno por
+  rol), con `name`, `description`, `developer_instructions` (el cuerpo del `.md` del rol,
+  más «lee `.claude/skills/<skill>/SKILL.md` antes de empezar», porque Codex **no
+  precarga skills** en un agente) y `model`. Dos diferencias que debes saber: (a) el
+  subagente **hereda** el sandbox, las aprobaciones, el proveedor y los servidores MCP
+  del principal —un archivo de agente **no puede** darle un sandbox de solo lectura
+  propio—, así que «no edita» es exactamente lo que ya es aquí: instrucción + `git
+  status` del principal; (b) no existe `tools:` por rol; lo más cercano es
+  `features.shell_tool = false`, que **no** sirve a los revisores porque necesitan
+  ejecutar `scripts/check.sh`.
+- **Un revisor a la vez (RAM):** en `~/.codex/config.toml`,
+  `agents.max_concurrent_threads_per_session = 1`. Es la regla de `AGENTS.md` §3 hecha
+  configuración.
+- **Hooks de Codex:** si tu versión ofrece hooks locales de ciclo de vida, úsalos para
+  avisos; **lo que no puede fallar sigue en `.githooks/`**, que no depende del cliente.
+- **Verifica, no asumas:** la documentación cambia. Antes de confiar en el adaptador,
+  comprueba en tu versión que Codex cargó `AGENTS.md`, listó las skills y resolvió el
+  modelo de cada rol; anota lo que difiera en `docs/MEMORIA.md`.
 
 ## Estructura
 
@@ -342,6 +395,7 @@ del Bootstrap**, y registra lo que cambies en un commit propio:
 │   ├── decisiones.md        ADR-lite (con ciclo de vida del estado)
 │   ├── convenciones.md      cómo hacemos las cosas aquí
 │   ├── definicion-de-hecho.md
+│   ├── despliegue.md        runbook vivo: dónde está cada cosa, cómo se despliega, verifica y revierte
 │   ├── plantilla-requerimiento.md   cómo escribir un requerimiento (inicial y de reentrada)
 │   └── MEMORIA.md           lecciones del proyecto
 ├── contexto/            única carpeta de entrada (obligatoria): documentos, datos y
@@ -350,10 +404,11 @@ del Bootstrap**, y registra lo que cambies en un commit propio:
 │   ├── skills/          las skills, en su ubicación nativa de Claude Code — una carpeta
 │   │   └── <nombre>/        por skill con SKILL.md (frontmatter name + description) y
 │   │       └── SKILL.md     references/ si aplica; se cargan solo cuando disparan
-│   └── agents/          roles de revisión declarados (revisor funcional, juez de
-│                        código, juez de seguridad) con su skill precargada
+│   └── agents/          roles de revisión declarados (revisor funcional, juez de código,
+│                        juez de conjunto, juez de seguridad) con su skill precargada
 ├── scripts/
-│   └── check_docs.sh        integridad del rastro documental (lo corre el pre-commit)
+│   ├── check_docs.sh        integridad del rastro documental (pre-commit, commit-msg y a mano)
+│   └── consumo.py           consumo de tokens por modelo desde los transcripts locales
 ├── .githooks/           hooks versionados (commit-msg enlazado; pre-commit: secretos + checks)
 ├── .editorconfig        estilo base agnóstico del lenguaje
 └── .gitignore

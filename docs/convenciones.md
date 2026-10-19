@@ -25,13 +25,16 @@ Verificados contra la doc oficial actual de cada herramienta. -->
   "no veo el cambio" son por no reiniciar/reconstruir el proceso.
 - Lint / formato:
 - **`scripts/check.sh`** — agrega lint + formato + tests en un solo comando; lo ejecuta el
-  `pre-commit`. Es **salida obligatoria del diseño**; hasta que exista, el hook solo avisa.
-  Debe **tolerar la suite de tests vacía** (p. ej. `pytest` sale con código 5 sin tests;
+  `pre-commit`. Es **salida obligatoria del diseño**: desde que `docs/estado.md` declara
+  F2 o posterior, su ausencia **bloquea** el commit (antes, solo avisa). Un solo worker o
+  un máximo fijo y timeouts (§Recursos). Debe **tolerar la suite de tests vacía** (p. ej. `pytest` sale con código 5 sin tests;
   `jest` necesita `--passWithNoTests`): si no, bloquea los commits del arranque (`Ref: F2`)
   cuando aún no hay código. Con el primer test, falla de verdad.
 - **`scripts/check_docs.sh`** — integridad del rastro documental (viene con la
-  plantilla; también lo corre el `pre-commit`). Al cierre de F4/F5 se ejecuta con
-  chequeos completos: `scripts/check_docs.sh cierre`.
+  plantilla). El `pre-commit` lo corre sobre la exportación del índice; el `commit-msg`
+  corre el modo `cierre` cuando el trailer es `Ref: F4|F5`; y el agente lo corre **a mano
+  al inicio de cada sesión** (`sh scripts/check_docs.sh`), que es cuando también verifica
+  que los hooks están activos y son ejecutables.
 
 ## Identificadores y alias
 
@@ -51,6 +54,15 @@ activa, sin relleno ni adornos; una sigla se define la primera vez que aparece; 
 documentos de cara a terceros (README, ADRs, `encuadre.md`) se escriben para un lector
 **externo al proyecto**. Concreto > elegante.
 
+**Concreto también en los IDs.** `C3 «exportar-excel»`, `I5 «motor-indicadores»` o
+`R-I3.1` sirven para **referenciar entre documentos** y compactar contexto; **no** son
+una forma de hablar con la persona ni de redactar una decisión. Cuando un ID aparece
+en el chat, en un gate, en un ADR o en un reporte de revisión, va **con su enunciado
+completo** la primera vez ("C3 «exportar-excel»: el reporte mensual se exporta a Excel
+con las columnas de la vista") y las siguientes al menos con el alias. Un documento o un
+mensaje que solo cita siglas se vuelve ilegible cuando el proyecto crece; el seguimiento
+de un requerimiento tiene que poder hacerse leyendo, no descifrando.
+
 ## Contexto por sesión y compactación
 
 - **Lectura por sesión:** `docs/estado.md` + este archivo + la rebanada que la tarea
@@ -58,6 +70,12 @@ documentos de cara a terceros (README, ADRs, `encuadre.md`) se escriben para un 
 - **Dato en un solo lugar:** cifras, umbrales y conteos viven en un documento canónico;
   el resto **referencia** (`ID «alias»`), no copia. Sin copias no existe la clase de
   errores de "propagación documental".
+- **`estado.md` en cada parada:** además de los cierres, se regenera al terminar una
+  sesión, al dejar un gate pendiente o al quedar bloqueado, con la sección «Pendiente»
+  en frases completas. Es lo único que se escribe fuera de los momentos fijos.
+- **Hito:** tres incrementos cerrados desde el último hito, o el momento previo a un
+  despliegue. En cada hito: pasada del juez de conjunto sobre lo ensamblado, síntesis
+  de `docs/MEMORIA.md` §Lo crítico, mutation testing informativo si hay camino crítico.
 - **Momentos de compactación (fijos, no a criterio):** al cierre de **cada incremento**
   (ver la DoD: `docs/estado.md` regenerado, bitácora del incremento a una línea,
   hallazgos `verificado` al Histórico de `docs/trazabilidad.md`), al cierre de **cada
@@ -80,6 +98,31 @@ documentos de cara a terceros (README, ADRs, `encuadre.md`) se escriben para un 
   archivos grandes o barridos exploratorios se delegan a un subagente con contexto
   propio (p. ej. el agente Explore integrado) y el principal consume **solo las
   conclusiones**: el contexto del principal es el recurso más caro del método.
+
+## Recursos de la máquina (RAM, CPU)
+
+Lección aprendida a precio completo: varios agentes o sabotajes a la vez **tumbaron la
+máquina**. Las reglas son duras, no preferencias:
+
+- **Un subagente a la vez por defecto.** Los revisores (funcional, juez de código, juez de
+  conjunto, seguridad) corren **en serie**; lanzar dos o más en paralelo es una acción
+  que requiere aprobación explícita de la persona (`AGENTS.md` §3) y solo tiene sentido
+  si ninguno ejecuta la suite.
+- **Una suite a la vez.** Nunca coinciden: la suite del `pre-commit`, un sabotaje
+  (`sabotear.py`), mutation testing, o un revisor ejecutando `scripts/check.sh`. El que
+  llega espera a que termine el que corre.
+- **`scripts/check.sh` acotado:** tests con **un solo worker** o un máximo fijo
+  (`pytest -p no:xdist` o `-n 1`; `jest --maxWorkers=2`; `go test -p 1`; `cargo test -j 1`;
+  `mvn -T 1`…), **timeout** por test y por suite, y debe respetar `SABOTAJE_SERIE=1`
+  (lo exporta el arnés): con esa variable, un solo worker siempre. Nada de `watch`.
+- **Mutation testing** solo en la Fase 4 y por hito, con la máquina libre; nunca en el
+  `pre-commit` ni en paralelo con otra cosa.
+- **Copias del árbol** (sabotaje) sin dependencias ni builds (`node_modules`, `.venv`,
+  `dist`, `target`…) y con tope de tamaño (`--max-mb`); si el proyecto necesita las
+  dependencias dentro de la copia, se declara en el plan de pruebas con su costo.
+- **Antes de un trabajo pesado** (suite completa, mutation testing, varios subagentes),
+  el agente mira la memoria disponible y, si está justa, lo dice y degrada (en serie,
+  menos workers) en lugar de lanzar y esperar.
 
 ## Estilo de código
 <!-- El estándar NO se debate por proyecto: se usa la convención de nombres IDIOMÁTICA del
@@ -119,7 +162,9 @@ El elegido se cablea en `scripts/check.sh` y el `pre-commit`.
 -
 
 ## Entorno y paridad dev ↔ producción
-<!-- Llénalo al inicio. Casi todos los "funciona en mi máquina" salen de aquí. -->
+<!-- Llénalo al inicio. Casi todos los "funciona en mi máquina" salen de aquí. Aquí van
+las REGLAS de paridad; el runbook (dónde está cada cosa, cómo desplegar, verificar y
+revertir) vive en docs/despliegue.md. -->
 - **Modelo de despliegue:** _[se decide en el encuadre — ver la sección «Modelo de
   despliegue» de `encuadre.md`: contenedor (Docker/compose), host directo,
   serverless…]_. Condiciona rutas, montajes y el bucle de cambios.

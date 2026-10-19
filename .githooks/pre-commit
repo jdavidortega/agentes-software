@@ -1,5 +1,6 @@
 #!/bin/sh
 # Hook de la plantilla. Guardas DURAS e independientes del lenguaje antes de cada commit.
+# Principio: lo que se verifica es lo que se versiona (el ÍNDICE), no el árbol de trabajo.
 
 # En el PRIMER commit del proyecto HEAD aún no existe: se compara contra el árbol
 # vacío (patrón canónico) para que las guardas apliquen también ahí.
@@ -21,19 +22,43 @@ if git diff --cached "$against" -- . ':(exclude).githooks' | grep -Eq "^\+.*$key
   exit 1
 fi
 
-# 2) Lint + formato + tests del stack. El DISEÑO debe definirlos y dejarlos en
-#    scripts/check.sh (ver docs/convenciones.md §Comandos clave; debe tolerar la suite
-#    de tests aún vacía). Si existe, debe pasar.
-if [ -x scripts/check.sh ]; then
-  scripts/check.sh || { echo "✗ pre-commit: scripts/check.sh falló (lint/formato/tests)." >&2; exit 1; }
-else
-  echo "• pre-commit: no hay scripts/check.sh. Define lint+formato+tests del stack y" >&2
-  echo "  cabléalos ahí (salida obligatoria del diseño; ver docs/convenciones.md)." >&2
+# 2) Lo verificado debe ser lo versionado. Un `git add -p` parcial deja el árbol de
+#    trabajo distinto del índice: la suite pasaría sobre código que no se commitea.
+#    Regla: ningún archivo rastreado con cambios sin stagear en el momento del commit.
+if ! git diff --quiet; then
+  echo "✗ pre-commit: hay archivos rastreados con cambios sin stagear:" >&2
+  git diff --name-only | sed 's/^/    /' >&2
+  echo "  Lo que se prueba tiene que ser lo que se versiona: stagea todo (git add -u) o guarda aparte (git stash -k)." >&2
+  exit 1
 fi
 
-# 3) Integridad del rastro documental (viene con la plantilla; modo commit).
-#    Al cierre de F4/F5 se corre además: scripts/check_docs.sh cierre (ver AGENTS.md §8).
-if [ -x scripts/check_docs.sh ]; then
-  scripts/check_docs.sh commit || { echo "✗ pre-commit: scripts/check_docs.sh falló (rastro documental)." >&2; exit 1; }
+# 3) Integridad del rastro documental, sobre una EXPORTACIÓN DEL ÍNDICE (exactamente lo
+#    que va al commit). El script se invoca con intérprete explícito: su bit de ejecución
+#    no decide si el control corre, y su ausencia es un fallo, no un aviso.
+if ! git ls-files --error-unmatch scripts/check_docs.sh >/dev/null 2>&1; then
+  echo "✗ pre-commit: scripts/check_docs.sh no está versionado. Viene con la plantilla; sin él no hay control del rastro." >&2
+  exit 1
+fi
+tmp=$(mktemp -d 2>/dev/null || mktemp -d -t precommit)
+trap 'rm -rf "$tmp"' EXIT INT TERM
+git checkout-index -a --prefix="$tmp/" || { echo "✗ pre-commit: no pude exportar el índice." >&2; exit 1; }
+( cd "$tmp" && sh scripts/check_docs.sh commit ) \
+  || { echo "✗ pre-commit: scripts/check_docs.sh falló sobre el índice (rastro documental)." >&2; exit 1; }
+
+# 4) Lint + formato + tests del stack (scripts/check.sh, salida obligatoria del diseño;
+#    debe tolerar la suite de tests aún vacía). Corre sobre el árbol de trabajo, que por
+#    (2) coincide con el índice en todo archivo rastreado. Con el proyecto INICIADO
+#    (docs/estado.md en F2..F5) su ausencia bloquea; antes, avisa.
+fase=$(grep -oE 'Fase actual:\*?\*?[[:space:]]*F[0-9]' "$tmp/docs/estado.md" 2>/dev/null | grep -oE 'F[0-9]' | head -1)
+if [ -f scripts/check.sh ]; then
+  sh scripts/check.sh || { echo "✗ pre-commit: scripts/check.sh falló (lint/formato/tests)." >&2; exit 1; }
+else
+  case "$fase" in
+    F2|F3|F4|F5)
+      echo "✗ pre-commit: no hay scripts/check.sh y el proyecto está en $fase. Es salida obligatoria del diseño (docs/convenciones.md §Comandos clave)." >&2
+      exit 1 ;;
+    *)
+      echo "• pre-commit: aún no hay scripts/check.sh (llega con el diseño, F2); hasta entonces solo aviso." >&2 ;;
+  esac
 fi
 exit 0

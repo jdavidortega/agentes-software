@@ -34,7 +34,9 @@ description: "Procedimiento de la rebanada de Operación/Despliegue: réplica lo
    de datos reales en el entorno de prueba; ninguna operación que borre datos corre
    sin plan de reversión probado.
 5. **Runbook verificado contra el entorno real**, no contra la memoria: cada paso
-   ejecutado o cotejado en el entorno de destino.
+   ejecutado o cotejado en el entorno de destino. **Vive en `docs/despliegue.md`** (dónde
+   está cada cosa, cómo se despliega, cómo se verifica en producción, cómo se revierte,
+   historial): lo que no está escrito ahí se olvida para el siguiente despliegue.
 6. **`--confirm-prod`:** los scripts de despliegue exigen un flag explícito de
    confirmación y muestran un **resumen de lo que van a impactar** antes de actuar.
    Además, la autorización de la persona es **en ese momento**, no heredada
@@ -43,8 +45,8 @@ description: "Procedimiento de la rebanada de Operación/Despliegue: réplica lo
    la reversión futura queda **en el backlog** de `docs/plan.md`, no solo en las
    Consecuencias del ADR.
 8. **Secretos solo por entorno**, nunca en bundles ni en el repo; uno expuesto se
-   **rota**. Precondición de la rebanada: el repo tiene **remoto** (si venía de una
-   PoC sin remoto, se crea aquí, antes que nada).
+   **rota**. El repo tiene **remoto** desde el Bootstrap: el ensamblado se reconstruye
+   desde él, nunca desde un bundle generado en producción.
 
 ## Sección del modelo de despliegue (lee solo la tuya)
 

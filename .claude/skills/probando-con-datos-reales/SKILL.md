@@ -41,7 +41,15 @@ description: "Estrategia de pruebas del proyecto: el camino principal siempre en
    valida con su herramienta (`unzip -t` para Excel/zip, `%%EOF` para PDF, abrir la
    imagen). Origen: un proxy corrompía los binarios servidos y todos los tests
    unitarios estaban verdes.
-7. **Mutation testing en la Fase 4 (informativo).** Sobre el código del camino
+7. **Las necesarias, no más.** El exceso de pruebas también cuesta (tiempo de suite,
+   RAM, mantenimiento, ruido al refactorizar) y no protege nada que la prueba de flujo
+   no proteja ya. El **plan de pruebas** de `docs/plan.md` fija, por incremento, qué
+   end-to-end cubre cada criterio, qué unitarios se justifican y por qué, y qué del
+   set de oro se automatiza; la DoD exige **exactamente esas**. Una prueba fuera del
+   plan que no protege un criterio, que duplica a otra o que no puede fallar es un
+   hallazgo del juez (dimensión Pruebas), no mérito. Esta metodología **no es TDD**:
+   el test de flujo va primero, pero no se escribe un test por cada línea.
+8. **Mutation testing en la Fase 4 y por hito (informativo).** Sobre el código del camino
    crítico, con la herramienta del stack —verifica la vigente en la doc oficial;
    referencia: `mutmut` (Python), Stryker (JS/TS), PIT (Java)—. Los **mutantes
    sobrevivientes en el camino crítico se registran como hallazgos del juez** (test
@@ -50,8 +58,9 @@ description: "Estrategia de pruebas del proyecto: el camino principal siempre en
 
 ## Pasos
 
-1. **Diseño:** clasifica el set de oro (automatizable / manual), define cómo se
-   graba/fixturea el servicio externo del camino principal, y déjalo en el plan.
+1. **Diseño:** escribe el **plan de pruebas** en `docs/plan.md` (por incremento: flujo
+   end-to-end por criterio, unitarios justificados, set de oro automatizable / manual,
+   cómo se graba/fixturea el servicio externo del camino principal).
 2. **Por incremento:** escribe primero el test de flujo del criterio que cubre;
    añade unitarios donde el flujo no llega; verifica que cada test falla si rompes
    el comportamiento (rómpelo a propósito una vez).

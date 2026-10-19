@@ -5,12 +5,10 @@ allowed-tools: Read, Grep, Glob, Bash
 ---
 # Skill: Revisión crítica (agente juez)
 
-> Rol de **juez/revisor independiente**. Verifica de forma crítica cada incremento
-> antes del commit y del gate humano, y el conjunto ensamblado en la Fase 4.
-> **No construye ni edita el código: reporta.**
-> Idealmente se ejecuta como agente con **contexto propio** (un subagente en Claude
-> Code; una pasada de revisión aparte en otra herramienta), para no heredar las
-> racionalizaciones de quien escribió el código —ahí está su valor.
+> Rúbrica del **juez de código** (incrementos) y del **juez de conjunto** (hitos y Fase 4).
+> Cómo se dispara, con qué contexto, qué puede hacer, el formato exacto del reporte y
+> cómo se registra: **protocolo de revisión independiente, `AGENTS.md` §9**. Aquí vive
+> solo la rúbrica.
 
 ## Cuándo usarla
 
@@ -19,19 +17,6 @@ allowed-tools: Read, Grep, Glob, Bash
 - En la **Fase 4 (Validación)**: una pasada sobre el **conjunto ensamblado** —los `C#`
   y el set de oro cumpliéndose a la vez, end-to-end—. Obligatoria pero enfocada al
   ensamblado: no re-revisa cada diff ya juzgado.
-
-## Quién la dispara y su memoria
-
-- La **dispara el agente principal** (orquestador): al llegar al cierre del
-  incremento, invoca al juez (un **subagente** con contexto propio) y le pasa qué
-  revisar, apuntándolo a los archivos y al diff. El skill es la rúbrica; el subagente
-  es quien la ejecuta; el principal es quien lo lanza.
-- Cada revisión arranca con **contexto fresco** (a propósito: así el juez no se ancla
-  ni arrastra aprobaciones previas). **No** se "resume" el subagente.
-- La continuidad entre fases **no viene de la memoria, viene de los archivos.** El
-  juez reconstruye el historial leyendo `docs/trazabilidad.md` (hallazgos previos y su
-  estado) y `docs/decisiones.md`, y **verifica que los hallazgos `abierto` previos
-  estén `resuelto`** antes de dar PASA.
 
 ## Prompt de invocación (para el agente principal)
 
@@ -42,14 +27,12 @@ el incremento y el rango del diff:
 > Actúa como juez de código según `.claude/skills/revision-critica/SKILL.md`: léelo y aplica su
 > rúbrica completa. Revisa el incremento `I#` (diff: `git diff <rango>`) contra
 > `docs/encuadre.md`, `docs/plan.md`, `docs/convenciones.md`,
-> `docs/definicion-de-hecho.md` y los hallazgos previos en `docs/trazabilidad.md`.
-> Ejecuta `scripts/check.sh` tú mismo y exige evidencia de la verificación con datos
-> reales. Entrega tu reporte EXACTAMENTE con estas secciones: **Veredicto**
-> (PASA/FALLA) · **Bloqueantes** `R-I#.n` (cada uno con su fila lista para
-> `docs/trazabilidad.md`) · **Sugerencias** · **Preguntas** · **Obstáculos**
-> (problemas de entorno o setup, comandos que necesitaron flags especiales,
-> workarounds; «ninguno» si no hubo) · **Línea de bitácora** lista. No escribas en
-> ningún archivo: todo va en el reporte.
+> `docs/definicion-de-hecho.md` (lista A) y los hallazgos previos en `docs/trazabilidad.md`.
+> Sigue el protocolo de `AGENTS.md` §9: ejecuta `scripts/check.sh` tú mismo, exige
+> evidencia de la verificación con datos reales, y entrega el reporte con su formato
+> exacto (Veredicto · Bloqueantes `R-I#.n` —`R-F4.n` si revisas el conjunto— con filas
+> listas · Sugerencias · Preguntas · Obstáculos · Línea de bitácora). No escribas en
+> ningún archivo ni uses la red: todo va en el reporte.
 
 ## Insumos (el contexto en que se apoya)
 
@@ -65,41 +48,18 @@ el incremento y el rango del diff:
 2. **Verifica, no creas:** ejecuta tú mismo `scripts/check.sh` (lint + formato + tests)
    en lugar de aceptar que "pasan"; para lo no mecanizable (verificación con datos
    reales, set de oro) exige la evidencia —el comando y su salida, o el par
-   `entrada → salida` observado— o reprodúcela. Una afirmación sin evidencia no
-   cuenta para PASA.
+   `entrada → salida` observado— o reprodúcela.
 3. Evalúa por dimensiones, una a una (rúbrica abajo). Cada dimensión: **PASA/FALLA**
    si es binaria; **observación** si es de criterio.
-4. Entrega el veredicto en este formato:
-   - **Veredicto:** PASA / FALLA (FALLA si alguna dimensión binaria falla).
-   - **Bloqueantes** (binarios): lista; asigna a cada uno un ID `R-I<incr>.<n>` y el
-     criterio `C#` que protege; cada uno es una subtarea accionable.
-   - **Sugerencias** (criterio, no bloquean): lista breve (aviso al gate, no se
-     rastrean como hallazgos; las que la persona acoja van al backlog de `docs/plan.md`).
-   - **Preguntas / dudas:** lo que no pudo verificar.
-   - **Obstáculos:** problemas de setup o entorno, comandos que necesitaron flags o
-     configuración especial, workarounds descubiertos (p. ej. para correr `check.sh` o
-     reproducir la evidencia). Si no se reportan, el principal los redescubre a su
-     costo. «Ninguno» si no hubo.
-5. **Incluye en el reporte las filas listas** para `docs/trazabilidad.md` (ID,
-   incremento, criterio, estado `abierto`) y la línea de cierre para la bitácora de
-   `docs/plan.md` (revisión I#, veredicto, conteo, "ver trazabilidad"), **también
-   cuando el veredicto es PASA sin hallazgos**: esa línea es el rastro exigible de que
-   la revisión ocurrió. **El principal las registra tal cual, sin editarlas** —el juez
-   no escribe en el repo (dos revisiones en paralelo ya no pueden pisarse el rastro)—
-   y **antes** de la siguiente pasada: la memoria entre fases sigue viniendo de los
-   archivos. Los obstáculos los rutea el principal: comando/flag →
-   `docs/convenciones.md`; lección → `docs/MEMORIA.md`.
-6. El agente principal resuelve los bloqueantes como subtareas; al cerrarlos actualiza
-   su estado a `resuelto (fecha + commit)` en `docs/trazabilidad.md`, enlaza el commit
-   (`Cierra: R-I#.n`) y, si la remediación es mecanizable, deja en la fila **la
-   mutación que ahora muere**. El paso a `verificado` sigue la regla escalonada de
-   `AGENTS.md` §2 (revisor independiente que re-ejecuta la mutación en una copia y
-   añade una no nombrada; ver `.claude/skills/verificando-por-sabotaje/SKILL.md`).
-   Solo con todo en PASA: commit final del incremento + gate humano.
+4. Entrega el reporte en el **formato del protocolo** (`AGENTS.md` §9). Los bloqueantes
+   llevan ID `R-I<incr>.<n>` (incremento) o `R-F4.<n>` (conjunto) y el criterio `C#` que
+   protegen; cada uno es una subtarea accionable. El principal registra, resuelve y el
+   paso a `verificado` sigue la regla escalonada de `AGENTS.md` §2.
 
 ## Rúbrica (dimensiones)
 
-- **Definición de Hecho:** corre `docs/definicion-de-hecho.md` punto por punto (binario).
+- **Definición de Hecho:** corre la **lista A** de `docs/definicion-de-hecho.md` punto por
+  punto (binario). La lista B (commit, compactación, gate) es del principal, después.
 - **Consistencia de arquitectura:** el cambio respeta el enfoque/arquitectura de
   `plan.md`; no introduce dependencias ni abstracciones sin ADR; el **lenguaje/stack es el
   de `encuadre.md`** (no se coló otro por inercia).
@@ -114,8 +74,12 @@ el incremento y el rango del diff:
   excepciones (nada de `catch` vacío ni tragar errores), los fallos se propagan o se
   registran con contexto.
 - **Documentación:** interfaces públicas documentadas, completa pero concisa (ver DoD).
-- **Pruebas:** cada funcionalidad (o apoyo a funcionalidad) tiene una prueba que la
-  respalda; tests herméticos. No exige 100% mecánico: cobertura de **comportamiento**.
+- **Pruebas:** las del **plan de pruebas** del incremento (`docs/plan.md`), ni menos ni
+  más: ≥1 flujo end-to-end por criterio cubierto con datos de forma real, unitarios solo
+  donde el flujo no llega, herméticos, y cada uno capaz de fallar. **El exceso es
+  hallazgo:** una prueba que no protege un criterio, que duplica otra o que no puede
+  fallar (assert trivial, repite la implementación) se reporta igual que una faltante.
+  No exige 100% mecánico: cobertura de **comportamiento**.
 - **Funcionales:** cumple criterios de éxito y set de oro de `encuadre.md`.
 - **Seguridad (binario, es un gancho — no la auditoría):** ¿el diff toca superficie de
   riesgo (entrada no confiable, authn/authz, secretos, persistencia, IaC/despliegue,
@@ -129,11 +93,9 @@ el incremento y el rango del diff:
 
 ## Notas / trampas
 
-- **No edita el código ni aprueba el commit.** Reporta; deciden el agente principal y
-  la persona (evita el "juez y parte").
-- **Binario donde se pueda;** lo subjetivo va como sugerencia o pregunta, nunca como
-  FALLA silenciosa.
+- **En el conjunto (hito / Fase 4)** la pregunta central es de composición: ¿qué
+  invariante de un módulo deja de valer cuando otro falla o cuando ambos corren juntos?
+  Orden de efectos, encadenamientos transitivos, simetrías a medio cubrir: no se
+  re-revisa cada diff ya juzgado.
 - **No infles:** una sugerencia que no sirve a un criterio acordado es gold-plating.
-- Si la herramienta lo permite, usar para el juez un **modelo distinto** al que
-  construyó diversifica puntos ciegos (opcional, no requisito).
 - Se afina con el tiempo: si una verificación se repite, súmala a la rúbrica.

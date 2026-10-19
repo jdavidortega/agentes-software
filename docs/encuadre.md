@@ -44,7 +44,7 @@ generados. Una fila por cada una. Para un sistema con varias piezas (back, base 
 datos, front) inventaría las de cada frontera que el sistema expone o consume, no las
 internas. Cada fila cita su MUESTRA REAL en contexto/ (o el acceso con el que se
 obtuvo) y si se validó contra ella; si aún no existe insumo real, aplica la regla de
-tres casos de docs/arranque.md: bosquejo del modelo de datos validado con la persona y
+dos casos de docs/arranque.md: bosquejo del modelo de datos validado con la persona y
 supuesto con validación diferida al primer insumo real. El revisor funcional contrasta
 esta tabla contra contexto/: una entrada sin muestra ni bosquejo es un vacío R-E.n. -->
 

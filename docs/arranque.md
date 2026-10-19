@@ -51,10 +51,6 @@ gate** (un mensaje); no la decidas en silencio ni interrogues con un sí/no. Tra
 construir, la reentrada que tocó código **revalida la Fase 4 sobre el conjunto** (sin
 regresiones), no solo el incremento nuevo.
 
-> Nota: una **PoC que se promueve a producto** también reentra, y esa reentrada exige
-> primero las condiciones plenas que el modo PoC relajó (remoto, muestreo de insumos
-> reales, set de oro completo) antes de cualquier rebanada de producción.
-
 ## REGLA DURA
 
 No pasas a la siguiente actividad hasta que **(a)** su validador esté en **PASA**
@@ -62,11 +58,10 @@ No pasas a la siguiente actividad hasta que **(a)** su validador esté en **PASA
 **apruebe** explícitamente. Si un validador da FALLA, te detienes, dices qué
 falta y qué archivo ajustar, y vuelves a validar. La aprobación es por actividad.
 
-**Cómo pides la aprobación (gate accionable).** Si no mostraste el contenido en el
-chat (está bien por eficiencia de tokens), no pidas un OK en abstracto: indica **qué
-archivos revisar** y **qué información concreta** contiene cada uno —p. ej. "revisa
-`docs/encuadre.md`: los criterios `C1–C4`, el set de oro y el modelo de despliegue"— y
-di que **debe validarlos antes de continuar**. Nada de "ya quedó, ¿seguimos?".
+**Cómo pides la aprobación.** Con un **resumen ejecutivo en el chat** (`AGENTS.md` §2):
+qué se decidió en texto completo —criterios, pares del set de oro, stack, despliegue
+escritos, no citados por sigla—, qué se pide aprobar y dónde está el detalle. Nada de
+"ya quedó, ¿seguimos?".
 
 **Precondición de arranque:** no se construye el encuadre sin entradas. La carpeta
 `contexto/` debe tener **≥1 archivo real** (además de su `README.md`). Si está
@@ -80,31 +75,15 @@ Antes de la Ingesta. Condición de salida binaria; si una condición dura falla,
 agente **se detiene** y pide resolverla.
 
 **Validador (PASA/FALLA):**
-- [ ] `git config core.hooksPath` devuelve `.githooks` (hooks de la plantilla activos)
-  — dura, siempre.
+- [ ] `git config core.hooksPath` devuelve `.githooks` y `.githooks/pre-commit` y
+  `.githooks/commit-msg` son **ejecutables** (git ignora en silencio un hook sin bit de
+  ejecución); `sh scripts/check_docs.sh` da PASA — dura, siempre.
 - [ ] `.env*` está en `.gitignore` (excepto `.env.example`) — dura, siempre.
 - [ ] Existe la carpeta `scripts/` con `check_docs.sh` (viene con la plantilla; el
   `check.sh` del stack llega en el diseño).
-- [ ] **Remoto:** `git remote -v` devuelve ≥1 remoto **y** el push inicial fue exitoso,
-  **o** la persona declaró **PoC sin remoto** (ver «Modo PoC declarada»). La excepción
-  queda registrada, y crear el remoto pasa a ser **precondición de la rebanada de
-  Operación/Despliegue**: nada llega a producción desde un repo sin remoto.
-
-## Modo PoC declarada (transversal)
-
-La persona puede declarar el proyecto como **prueba de concepto**. Queda registrado una
-sola vez (nota en `docs/encuadre.md` y `docs/estado.md`) y relaja de forma **explícita
-y acotada**:
-
-- **Remoto opcional** (ver Bootstrap).
-- **Muestreo** sustituible por una **descripción de entrada/salida esperada** acordada
-  con la persona.
-- **Set de oro** mínimo de **2–3 pares** (pueden ser sintéticos acordados) en vez de ≥5.
-
-Todo lo demás —gates, juez, revisor funcional, ADRs, commits enlazados— se mantiene: la
-PoC relaja el **rigor de los insumos**, no la **disciplina del método**. Si la PoC se
-promueve a producto, la **reentrada exige las condiciones plenas** (remoto, muestreo
-real, set de oro completo) antes de cualquier rebanada de producción.
+- [ ] **Remoto:** `git remote -v` devuelve ≥1 remoto **y** el push inicial fue exitoso
+  — dura, siempre: nada llega a producción desde un repo sin remoto, y los hooks locales
+  se esquivan; el remoto (y su CI, si lo hay) es la copia que no.
 
 ## Transversal (durante todo el arranque)
 
@@ -200,7 +179,7 @@ en `docs/encuadre.md` (no es una decisión) y marca la fila de §Entradas y sali
 la decisión como ADR en estado `propuesta` indicando en qué actividad se resuelve (ver
 Transversal). Es barato y evita rediseñar en plena ejecución.
 
-**Regla de tres casos para el insumo real (proporcional, no dogmática):**
+**Regla de dos casos para el insumo real:**
 
 1. **Existe y es accesible** → se carga, obligatorio; el agente se detiene y lo pide.
    "Accesible" incluye **conexiones a servicios y bases de datos vivas**: si el insumo
@@ -210,8 +189,11 @@ Transversal). Es barato y evita rediseñar en plena ejecución.
    mismos**: un requerimiento que los datos reales contradicen es un **hallazgo del
    encuadre**, no una sorpresa de la Fase 3.
 2. **No existe aún** (diseño desde cero: la persona confirma que no hay datos de
-   prueba, ni servicio/BD consultable, ni estructura de datos en `contexto/`) → no
-   bloquea, pero **no se sustituye por prosa**: si el sistema tiene entradas y/o
+   prueba, ni servicio/BD consultable, ni estructura de datos en `contexto/`). Antes de
+   aceptar este caso, **pregunta si puede aportar algo**: una muestra que tenga a mano,
+   un archivo de salida de un sistema anterior, o la **estructura de salida de ejemplo**
+   escrita por ella; casi siempre existe algo y va a `contexto/`. Si de verdad no hay →
+   no bloquea, pero **no se sustituye por prosa**: si el sistema tiene entradas y/o
    salidas —y siempre las tiene—, el agente lo **reporta**, **diseña un bosquejo del
    modelo de datos** (campos, tipos, un ejemplo concreto por entrada/salida; el set de
    oro cumple ese rol para las salidas; solo lo que los criterios exigen,
@@ -219,7 +201,6 @@ Transversal). Es barato y evita rediseñar en plena ejecución.
    como el «Modelo de datos» de `docs/plan.md` (contrato); la fila de §Entradas y
    salidas queda marcada `[supuesto]` y su **validación se difiere al primer insumo
    real** (anotada en `docs/estado.md`; no se evapora).
-3. **PoC declarada** → rigor proporcional (ver «Modo PoC declarada»).
 
 **Validador (PASA/FALLA):**
 - [ ] `contexto/` tiene ≥1 archivo real además del `README.md` (precondición dura).
@@ -233,7 +214,7 @@ Transversal). Es barato y evita rediseñar en plena ejecución.
   `contexto/README.md`.
 - [ ] `docs/encuadre.md` §Entradas y salidas tiene una fila por cada entrada y salida
   del sistema, cada una **validada contra 1–3 muestras reales** o cubierta por el caso
-  2/3 de la regla de tres casos (bosquejo del modelo de datos —o descripción de
+  2 de la regla de dos casos (bosquejo del modelo de datos —o descripción de
   entrada/salida— validado con la persona y `[supuesto]` con validación diferida
   anotada).
 - [ ] Ninguna decisión de arquitectura/stack pendiente depende de un `[supuesto]` que
@@ -267,14 +248,13 @@ marcador `-` ni el comentario `<!-- -->`— las secciones:
 - [ ] Objetivos
 - [ ] No-objetivos
 - [ ] Criterios de éxito (cada `C#` con su **alias**)
-- [ ] Set de oro: ≥5 pares `entrada → salida esperada` (orientativo 5–10; en **PoC
-  declarada**, mínimo 2–3, pueden ser sintéticos acordados) que definan la calidad
+- [ ] Set de oro: ≥5 pares `entrada → salida esperada` (orientativo 5–10) que definan la calidad
   aceptable (no solo la funcionalidad), con **al menos un ejemplo concreto de entrada
   y de salida** (inline o como archivo referenciado, no solo el formato). Usa las
   muestras de salida de §Entradas y salidas como base cuando existan.
 - [ ] **Entradas y salidas**: una fila por cada entrada y salida del sistema, con muestra
   real en `contexto/` (o acceso) y validada, o `[supuesto]` con validación diferida
-  anotada (regla de tres casos). Toda salida inventariada tiene su ejemplo en el set de
+  anotada (regla de dos casos). Toda salida inventariada tiene su ejemplo en el set de
   oro.
 - [ ] **Stack y arquitectura** definidos (lenguaje+versión, framework+versión, build,
   estilo de arquitectura), con versiones verificadas contra la doc oficial.
@@ -284,6 +264,9 @@ marcador `-` ni el comentario `<!-- -->`— las secciones:
   Operación/Despliegue— y **empaquetado** —contenedor (default recomendado: aislamiento
   y paridad dev/prod), host directo o serverless; desviarse del contenedor lleva razón
   registrada—.
+- [ ] `docs/despliegue.md` **sembrado** con el modelo decidido (destino, empaquetado, ADR)
+  y la sección «Cómo se ejecuta en local»; el resto se completa en la rebanada de
+  Operación/Despliegue.
 - [ ] **Alcance del rastro decidido:** si `docs/` y `contexto/` viajan con
   el entregable, se excluyen del empaquetado/imagen, o van en repo aparte (relevante
   con terceros o entradas sensibles). Si hubo opciones, ADR.
@@ -333,9 +316,10 @@ incremento cuesta más que el experimento.
 - [ ] `docs/trazabilidad.md` **sembrada**: una fila por criterio `C#` (con su alias) y
   su(s) incremento(s), en estado `pendiente` (la revisión funcional siguiente la exige).
   Cada `I#` del plan lleva su alias.
-- [ ] Decidido **qué pares del set de oro se automatizan** como tests de regresión
-  (los viables; el resto queda como verificación manual explícita). La estrategia
-  sigue `.claude/skills/probando-con-datos-reales/SKILL.md` (el camino principal en la suite).
+- [ ] **Plan de pruebas** en `docs/plan.md`: por incremento, el flujo end-to-end que cubre
+  cada criterio, los unitarios justificados, qué pares del set de oro se automatizan como
+  regresión y cuáles quedan como verificación manual explícita. Las necesarias, no más
+  (`.claude/skills/probando-con-datos-reales/SKILL.md`).
 - [ ] **Linter y formatter del stack elegidos** (los idiomáticos por defecto) y su comando
   agregado en `scripts/check.sh` + `docs/convenciones.md`, cableado al `pre-commit`;
   `check.sh` **tolera la suite de tests aún vacía** (ver `docs/convenciones.md`).

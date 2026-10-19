@@ -84,17 +84,18 @@ rol. Lo que la declaración aporta sobre el prompt de invocación:
 
 - **`skills:`** precarga la rúbrica completa en el contexto del subagente al arrancar; deja
   de depender de que obedezca la instrucción de leerla.
-- **`tools:`** restringe de verdad las herramientas del rol: los revisores llevan solo
-  `Read, Grep, Glob, Bash` — leen y ejecutan (`git diff`, `check.sh`, escáneres) pero
-  **no pueden escribir**, como recomienda la guía oficial para el rol de code-reviewer.
-  Su reporte trae las filas y la línea de bitácora **listas** (más los **Obstáculos**
-  encontrados) y el principal las registra tal cual: «reporta, no escribe» pasa de
-  prosa a mecanismo (`AGENTS.md` §8), y dos revisiones en paralelo ya no pueden
-  pisarse el rastro.
+- **`tools:`** acota las herramientas del rol: los revisores llevan solo
+  `Read, Grep, Glob, Bash` — leen y ejecutan (`git diff`, `check.sh`, escáneres) y **no
+  tienen herramientas de edición**, como recomienda la guía oficial para el rol de
+  code-reviewer. Honestidad sobre la frontera: `Bash` sí puede escribir archivos o salir
+  a la red, y ni `tools` ni `allowed-tools` lo impiden; se les instruye no hacerlo y el
+  **principal lo verifica** comparando `git status --porcelain` antes y después de cada
+  revisión (`AGENTS.md` §9): si el árbol cambió, la revisión se invalida. Su reporte trae
+  las filas y la línea de bitácora **listas** y el principal las registra tal cual.
 - **`description`** habilita la delegación automática, y **`model`** fija el modelo del
   rol. El esquema elegido: **`sonnet`** para las revisiones acotadas por rúbrica
   (revisor funcional, juez de código por incremento — distinto al modelo que construye:
-  diversifica puntos ciegos, y cuesta ~2.5× menos) y **`opus` fijado, no `inherit`,**
+  diversifica puntos ciegos y cuesta menos) y **`opus` fijado, no `inherit`,**
   para el juez de conjunto (F4) y el de seguridad: ahí aparecieron los defectos más
   caros, y fijarlo evita que un principal en un modelo superior (p. ej. Fable) arrastre
   a los jueces a ese costo sin necesidad. Sin `model`, un agente hereda el del principal.
@@ -102,8 +103,11 @@ rol. Lo que la declaración aporta sobre el prompt de invocación:
 El diagrama de componentes del `README.md` raíz («Cómo está armado el sistema») dibuja
 estas relaciones: quién invoca, quién escribe, qué se precarga y qué bloquea.
 
-El «Prompt de invocación» de cada SKILL.md **se conserva tal cual**: es el fallback
-portable para herramientas sin subagentes declarables (Codex, Cursor…).
+Lo **común a los cuatro roles** —quién los dispara, contexto fresco, qué pueden hacer,
+formato exacto del reporte, registro— está escrito **una sola vez** en `AGENTS.md` §9
+(protocolo de revisión independiente); las skills guardan solo su rúbrica y los agentes
+solo su rol. El «Prompt de invocación» de cada SKILL.md **se conserva**: es el fallback
+portable para herramientas sin subagentes declarables.
 `scripts/check_docs.sh` verifica lo mecanizable de los agentes (frontmatter, `name` ==
 archivo, `description`, skills precargadas existentes).
 

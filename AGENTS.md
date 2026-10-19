@@ -18,10 +18,15 @@ detente y pídelo. Se hace **un commit al cierre de cada fase y de cada incremen
 cierre quedan cada uno en su commit. Ningún gate se cruza con cambios sin commitear
 (ver `docs/convenciones.md`).
 
-**Reentrada al contexto (proyecto en marcha):** en cada sesión, lee `docs/estado.md`
-(el resumen vivo) y `docs/convenciones.md`, y abre los demás documentos **solo en la
-rebanada que la tarea toca**. No se relee todo el rastro por sesión: el detalle vive
-en los documentos por rebanada y la historia, en git.
+**Reentrada al contexto (proyecto en marcha):** en cada sesión, corre
+`sh scripts/check_docs.sh` (rastro íntegro, hooks activos y ejecutables; si FALLA, eso es
+lo primero que se arregla), lee `docs/estado.md` (el resumen vivo) y
+`docs/convenciones.md`, y abre los demás documentos **solo en la rebanada que la tarea
+toca**. No se relee todo el rastro por sesión: el detalle vive
+en los documentos por rebanada y la historia, en git. **Al parar** —fin de sesión, gate
+pendiente, bloqueo—, regenera `docs/estado.md` con lo **pendiente** escrito en frases
+completas (qué falta del incremento y qué se espera de la persona): lo que no queda
+escrito al parar se pierde.
 
 ## 1. Qué es este proyecto
 
@@ -40,13 +45,22 @@ pasa a la siguiente fase sin aprobación explícita de la persona.
 `README.md` quedó **verificado contra la realidad del código** (qué hace, cómo se
 ejecuta, entradas/salidas) y corregido en ese mismo commit si estaba desfasado —el
 agente lo hace por defecto, sin que la persona lo pida; ningún gate se solicita con
-el README desactualizado (formato: `.claude/skills/escribiendo-readme/SKILL.md`)—. Si no
-mostraste el contenido en el chat —está bien no hacerlo, por eficiencia de tokens—,
-no pidas un OK en abstracto: dile a la persona **qué documentos revisar** (p. ej.
-`docs/encuadre.md`, `docs/plan.md`, `docs/decisiones.md`) y **qué información
-concreta** contiene cada uno (los criterios `C#`, el set de oro, los incrementos, la
-decisión registrada…), y que **debe validarlos antes de continuar**. El mensaje del
-gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimos?".
+el README desactualizado (formato: `.claude/skills/escribiendo-readme/SKILL.md`)—.
+
+**El gate es un resumen ejecutivo en el chat, no un índice de archivos.** Cuando el
+proyecto crece hay muchos documentos y nadie los relee para aprobar; lo que aumenta la
+probabilidad de que se lea —y de que la aprobación sea real— es un resumen con lo
+relevante **y** la referencia al documento original. El mensaje del gate trae, en este
+orden: (1) **qué se decidió**, en texto completo y lenguaje concreto —cada criterio,
+incremento o decisión **escrito**, no citado por sigla: "C3 «exportar-excel»: el
+reporte mensual se exporta a Excel con las mismas columnas de la vista" y no solo "C3"—;
+(2) la **arquitectura o el cambio** en cinco líneas (o el diagrama gerencial si cambió);
+(3) **qué se pide aprobar** exactamente y qué pasa después; (4) **dónde está el detalle**
+(`docs/encuadre.md` §…, `docs/plan.md` §…, ADR por título). Antes de enviarlo, el
+agente verifica que el documento original dice lo mismo que el resumen: el resumen no
+sustituye el documento, lo representa. Nada de "ya terminé, ¿seguimos?" ni de "revisa
+X" sin decir qué contiene X. La misma regla aplica a cualquier decisión que se le pida
+a la persona fuera de un gate.
 
 1. **Encuadre** — contexto, objetivos, criterios de éxito, *no-objetivos*, **set de
    oro** (ejemplos de salida esperada), **stack y arquitectura** y **modelo de
@@ -112,6 +126,13 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
    **pasada de seguridad sobre el conjunto** —los defectos de composición no aparecen
    incremento a incremento (`.claude/skills/revision-seguridad/SKILL.md`)—.
    Ver `docs/definicion-de-hecho.md`.
+   **No espera al final: también por hito.** La Fase 3 puede durar meses y el conjunto
+   no puede validarse solo al cierre: la misma pasada del juez de conjunto (y de
+   seguridad si aplica) corre **sobre lo ensamblado hasta ahí** cada vez que se cumple
+   un hito —**tres incrementos cerrados** desde la última, o **antes de cualquier
+   despliegue**—, con el mismo rastro (línea de bitácora, `R-F4.n`). Lo que encuentra
+   vuelve a la Fase 3 como corrección; la Fase 4 formal queda como la última pasada,
+   más corta porque el conjunto ya fue validado por partes.
    - Si **el conjunto NO cumple lo acordado**, no se sigue: se vuelve atrás según la
      causa. **Defecto / regresión / cobertura faltante** (los requisitos están bien) →
      **Fase 3**, incremento de corrección. **El encuadre estaba mal o falta un
@@ -124,7 +145,10 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
 5. **Cierre y aprendizaje** — retrospectiva breve; lecciones a `docs/MEMORIA.md`. La
    retro incluye la **tabla de consumo de tokens por fase** (de las líneas de la
    bitácora; ver `docs/convenciones.md` §Contexto): es el dato que permite afinar el
-   método y detectar sobredimensionamiento. **Su ligereza es deliberada:** un cierre no debe cargar ceremonial pesado (sería
+   método y detectar sobredimensionamiento. **El aprendizaje no espera al cierre:** las
+   lecciones se anotan al cerrar cada incremento, y la síntesis «Lo crítico» de
+   `docs/MEMORIA.md` (§7) se rehace en cada hito y al cierre de cada fase, porque un
+   cierre que tarda meses no puede ser el único momento en que el método aprende. **Su ligereza es deliberada:** un cierre no debe cargar ceremonial pesado (sería
    contradecir la guarda anti-sobredimensionamiento). No le falta estructura; no la
    necesita.
    → **Handoff:** al confirmar que todos los `C#` quedaron verificados, el agente **se lo
@@ -141,7 +165,12 @@ juez**. Con servicios o bases de datos reales, los resultados se validan primero
 **entorno de prueba** con OK de la persona; el plan de despliegue **protege los datos
 de producción** (respaldo verificado antes de cualquier operación destructiva). El
 procedimiento vive en `.claude/skills/desplegando-a-produccion/SKILL.md` (núcleo común + la sección
-del modelo de despliegue que el encuadre decidió).
+del modelo de despliegue que el encuadre decidió), y **lo que este proyecto concretamente
+hace** —dónde está el código, qué base de datos, dónde viven las credenciales (nunca sus
+valores), cómo se despliega, se verifica en producción y se revierte— vive en
+**`docs/despliegue.md`**, el runbook vivo: se siembra en el encuadre con lo local, se
+completa en esta rebanada y es **lectura obligatoria** antes de tocar producción y en
+toda reentrada que lo haga. Las pruebas en local no sustituyen lo que ahí dice.
 → Gate: la persona autoriza el impacto a producción de forma explícita y puntual.
 
 ### Reentrada — trabajo nuevo después del cierre
@@ -180,6 +209,9 @@ No las generalices: una aprobación es por acción, no permanente.
 - Introducir una abstracción nueva (capa, patrón, framework).
 - Cambiar la estructura del proyecto o interfaces públicas.
 - Cualquier acción destructiva o irreversible (borrar datos, force-push, migraciones).
+- **Lanzar más de un subagente a la vez**, o una suite/sabotaje/mutation testing mientras
+  otra corre: por defecto todo va **en serie** (`docs/convenciones.md` §Recursos). Varios
+  agentes en paralelo agotaron la memoria de la máquina en proyectos reales.
 - Cualquier acción contra **producción**: autorización explícita de la persona **en
   ese momento** (no heredada de una aprobación anterior). Los scripts de despliegue
   exigen confirmación explícita (`--confirm-prod`; ver
@@ -192,7 +224,7 @@ el efecto es significativo o marginal; sin datos, se declara supuesto y se trata
 tal. Ninguna decisión de **arquitectura o stack** se toma sobre un `[supuesto]` que un
 insumo real **existente y accesible** resolvería (incluye pedir conexión/credenciales a
 servicios o bases de datos): pide el insumo y detente. Si aún no existe (diseño desde
-cero, PoC), acuerda con la persona la entrada/salida esperada —si el sistema tiene
+cero), acuerda con la persona la entrada/salida esperada —si el sistema tiene
 entradas o salidas, como **bosquejo del modelo de datos** diseñado y validado (ver
 `docs/arranque.md`, caso 2)— y marca el supuesto con **validación diferida al primer
 insumo real**. Un supuesto **técnico** que condiciona un incremento se confirma con un
@@ -247,8 +279,9 @@ El "cómo hacemos las cosas aquí" (estilo, patrones, comandos) vive en
 ## 7. Memoria y skills (ciclo de aprendizaje)
 
 - Una lección puntual va a `docs/MEMORIA.md`, en la lista cronológica.
-- **Al cerrar el ciclo, la lista se sintetiza.** Treinta lecciones en orden de llegada son
-  materia prima: nadie las lee antes de trabajar. El cierre deja una sección **§Lo crítico**
+- **En cada hito y al cerrar cada fase, la lista se sintetiza** (no solo al cierre del
+  ciclo, que puede tardar meses). Treinta lecciones en orden de llegada son materia
+  prima: nadie las lee antes de trabajar. La síntesis deja una sección **§Lo crítico**
   al principio de `docs/MEMORIA.md` con las pocas que **cambiaron el método**, y cada una
   atada al **mecanismo concreto** que dejó a cambio —un ADR, una regla en
   `docs/convenciones.md`, un chequeo en `check_docs.sh`, una skill—. Una lección sin
@@ -265,26 +298,75 @@ que no puede permitirse ser "mayormente seguida" se refuerza con un mecanismo **
 solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo una vez con
 `git config core.hooksPath .githooks` (parte del Bootstrap del arranque)—:
 
-- **`commit-msg`** exige el trailer de enlace (`Ref:`/`Cierra:`) y que todo `Cierra:`
-  nombre un hallazgo **con fila** en `docs/trazabilidad.md`: un `Cierra:` es una afirmación
-  sobre otro documento, y las afirmaciones cruzadas se mecanizan o se vuelven prosa.
-- **`pre-commit`** bloquea versionar un `.env`/secreto, corre `scripts/check.sh` (lint +
-  formato + tests del stack, definido en el diseño): ningún commit con el estilo roto o
-  tests en rojo; y corre **`scripts/check_docs.sh`** (integridad del rastro: `C#` sin fila
-  de trazabilidad, ADRs referenciados inexistentes, placeholders sin llenar). En el cierre
-  (F4/F5) se ejecuta `scripts/check_docs.sh cierre`, con los chequeos completos (hallazgos
-  sin cerrar su ciclo, plantilla ADR-000 viva).
+- **`commit-msg`** valida **todos** los trailers contra una gramática cerrada y resuelve
+  cada ID contra el índice: `Ref: I<n>` existe en `docs/plan.md`; todo `Cierra:` nombra un
+  hallazgo **con fila** en `docs/trazabilidad.md` (un `Cierra:` es una afirmación sobre
+  otro documento, y las afirmaciones cruzadas se mecanizan o se vuelven prosa); y
+  `Ref: F4|F5` **dispara el modo cierre** de `check_docs` (nada `abierto`, nada `resuelto`
+  sin `verificado`, todo `C#` verificado con incremento, sin ADR `propuesta` ni ADR-000).
+- **`pre-commit`** bloquea versionar un `.env`/secreto; **rechaza si hay cambios sin
+  stagear en archivos rastreados** (lo que se verifica tiene que ser lo que se versiona);
+  corre **`scripts/check_docs.sh`** sobre una exportación del **índice** (contrato por fase:
+  archivos obligatorios, `C#`/`I#` únicos y existentes, ADRs referenciados, frontmatter
+  válido); y corre `scripts/check.sh` (lint + formato + tests), **obligatorio desde la
+  Fase 2**: ningún commit con el estilo roto o tests en rojo. Ambos scripts se invocan con
+  intérprete explícito; su ausencia es fallo.
+- **Al inicio de cada sesión** el agente corre `sh scripts/check_docs.sh`: con ello
+  verifica también que los hooks están activos (`core.hooksPath`) y son ejecutables.
 
 **Regla del segundo hallazgo:** cuando un hallazgo de convención **mecanizable** se
 repite, no se corrige a mano otra vez: la regla se añade al linter/hook **en ese mismo
 incremento** y el juez verifica que quedó cableada.
 
-Lo que **no** es mecanizable —que la revisión independiente (juez / revisor funcional /
-juez de seguridad) ocurrió— se vuelve obligatorio por su **artefacto**: cada revisión deja su línea de
-cierre en la bitácora de `docs/plan.md` (qué revisó, veredicto y conteo de hallazgos,
-**también cuando es PASA limpio**) y sus bloqueantes/vacíos como filas en
-`docs/trazabilidad.md`. El **reporte del revisor las trae listas** —incluida la
-sección de **obstáculos** (setup, flags, workarounds)— y **las registra el
-principal** tal cual: los revisores no tienen herramientas de escritura. No se
-cierra un incremento sin ese rastro ni con hallazgos `abierto`. El gate humano lo
-verifica.
+Lo que **no** es mecanizable —que la revisión independiente ocurrió— se vuelve
+obligatorio por su **artefacto** (línea de bitácora y filas de trazabilidad, que el
+revisor trae listas y el principal registra) y por el control de que el revisor no tocó
+el árbol. El detalle es el **protocolo de revisión independiente** (§9). No se cierra un
+incremento sin ese rastro ni con hallazgos `abierto`. El gate humano lo verifica.
+
+## 9. Protocolo de revisión independiente
+
+Aplica igual a los cuatro roles —**revisor funcional** (encuadre y plan; vacíos `R-E.n`),
+**juez de código** (cada incremento; `R-I#.n`), **juez de conjunto** (Fase 4 y cada hito;
+`R-F4.n`) y **juez de seguridad** (incrementos con superficie de riesgo y el conjunto;
+`R-S#.n`)—. La **rúbrica** de cada uno vive en su skill (`.claude/skills/revision-*/`); el
+**rol** (herramientas, modelo, skill precargada) en `.claude/agents/`. Lo común es esto, y
+se escribe una sola vez aquí:
+
+1. **Quién lo dispara.** El agente principal, al cerrar la actividad, **en serie** (§3): un
+   revisor a la vez, nunca con una suite o un sabotaje corriendo.
+2. **Contexto fresco.** El revisor arranca sin la memoria del principal; el principal le
+   pasa **qué revisar** (archivos, rango del diff) y nada más: no le resume su solución ni
+   le adelanta conclusiones —su valor es que no hereda ese framing—. La continuidad entre
+   pasadas viene de los **archivos**: el revisor reconstruye el estado leyendo
+   `docs/trazabilidad.md` y `docs/decisiones.md`, y verifica que los hallazgos `abierto`
+   previos estén `resuelto` antes de dar PASA.
+3. **Qué puede hacer y qué no.** Lee, busca y ejecuta (`Read, Grep, Glob, Bash`: `git diff`,
+   `scripts/check.sh`, escáneres de solo lectura). **No edita ningún archivo, no aprueba el
+   commit, no usa la red, no ataca sistemas vivos.** Honestidad sobre la frontera: no tiene
+   herramientas de edición, pero `Bash` podría escribir o salir a internet y la plantilla
+   no lo impide por sí sola. Por eso el principal **captura `git status --porcelain` antes
+   de invocarlo y lo compara después**; si el árbol cambió, la revisión **se invalida** y se
+   repite tras entender qué pasó. Si el revisor necesita un dato externo (un CVE, la doc
+   de una versión), lo pide y el principal se lo pasa.
+4. **Verifica, no cree.** Ejecuta él mismo `scripts/check.sh`; para lo no mecanizable exige
+   la **evidencia** (el comando y su salida, o el par `entrada → salida` observado) o la
+   reproduce. Una afirmación sin evidencia no cuenta para PASA.
+5. **Formato del reporte, exacto:** **Veredicto** (PASA/FALLA) · **Bloqueantes** (o
+   **Vacíos** en el revisor funcional), cada uno con su ID de la familia del rol y su **fila
+   lista** para `docs/trazabilidad.md` · **Sugerencias** (no se rastrean; las que la persona
+   acoja van al backlog de `docs/plan.md`) · **Preguntas** (lo que no pudo verificar) ·
+   **Cobertura y limitaciones** (seguridad: dominios auditados, escáneres corridos, qué
+   quedó sin verificar) · **Obstáculos** (setup, flags, workarounds; «ninguno» si no hubo) ·
+   **Línea de bitácora** lista para `docs/plan.md` (qué revisó, veredicto, conteo),
+   **también con PASA limpio**: esa línea es el rastro de que la revisión ocurrió.
+   Binario donde se pueda; lo subjetivo va como sugerencia o pregunta, nunca como FALLA
+   silenciosa; una sugerencia que no sirve a un criterio acordado es sobredimensionar.
+6. **Registro.** El principal registra filas y línea **tal cual, sin editarlas**, antes de la
+   siguiente pasada, y rutea los obstáculos (comando/flag → `docs/convenciones.md`; lección
+   → `docs/MEMORIA.md`). Luego resuelve los bloqueantes como subtareas (`resuelto` + commit
+   `Cierra:`), y el paso a `verificado` sigue la regla escalonada de §2.
+7. **Modelo y fallback.** El modelo lo fija el rol en `.claude/agents/` (`sonnet` en las
+   revisiones acotadas, `opus` en conjunto y seguridad). En una herramienta sin subagentes
+   declarables, el «Prompt de invocación» de cada skill lanza la pasada con contexto
+   fresco y este mismo protocolo.

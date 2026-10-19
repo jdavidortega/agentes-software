@@ -6,6 +6,17 @@ sí: es una plantilla que copias a tu proyecto real. El agente la sigue paso a
 paso, con una **compuerta humana entre cada fase**, antes de escribir la primera
 línea de código.
 
+Lo que esta plantilla configura no es un agente sino un **sistema agéntico**: varios
+agentes con roles, permisos y memoria distintos, coordinados bajo compuertas humanas.
+Un **agente principal** conduce el arranque, construye el código y es el **único con
+permiso de escritura**. Cuatro **revisores independientes** (revisor funcional, juez de
+código, juez de conjunto y juez de seguridad) arrancan con contexto propio, solo leen y
+ejecutan, y devuelven un veredicto PASA/FALLA con las filas listas para que el principal
+las registre. Las **skills** son los procedimientos que cada rol carga solo cuando
+aplican; `docs/` es la memoria compartida (un lugar por dato, `estado.md` como punto de
+reentrada); y lo que no puede fallar vive en **hooks de git**, no en prosa. El detalle de
+cada pieza está en «Cómo está armado el sistema» y en el glosario de «Definiciones».
+
 ## Cómo usarla
 
 1. Copia el contenido de este repo a tu nuevo proyecto.
@@ -52,7 +63,65 @@ Además, cuando el proyecto llega a producción, se abre la rebanada de
 protección de datos y autorización explícita, con su propia pasada de juez
 (`.claude/skills/desplegando-a-produccion/SKILL.md`).
 
+## Cómo está armado el sistema
+
+Una foto de las piezas y sus relaciones permanentes (sin tiempo: quién invoca, quién
+escribe, qué se precarga, qué bloquea). Lo que hace visible: la **asimetría de
+permisos** (una sola flecha «escribe»), la **independencia de contexto** de los
+revisores (solo reciben la invocación, no la memoria del principal), el **modelo por
+rol** y que el enforcement actúa sobre el **commit**, no sobre el agente.
+
+```mermaid
+flowchart LR
+    Persona(["Persona<br/>aprueba en cada gate"])
+
+    subgraph Agentes
+      Principal["Agente principal<br/>construye · UNICO que escribe<br/>modelo: el de la sesion"]
+      RF["revisor-funcional<br/>sonnet · solo lectura"]
+      JC["juez-codigo<br/>sonnet · solo lectura"]
+      JJ["juez-conjunto<br/>opus · solo lectura"]
+      JS["juez-seguridad<br/>opus · solo lectura"]
+    end
+
+    Skills[".claude/skills/<br/>rubricas y procedimientos<br/>se cargan solo cuando aplican"]
+    Docs["docs/<br/>memoria compartida<br/>estado · contexto · plan · trazabilidad · ADR"]
+    Codigo["Codigo del proyecto<br/>+ scripts/check.sh"]
+    Hooks[".githooks/ + check_docs.sh<br/>enforcement duro: bloquea el commit"]
+
+    Persona <-->|"gate: revisa X, que contiene Y"| Principal
+    Principal -->|"invoca con contexto fresco"| RF & JC & JJ & JS
+    RF & JC & JJ & JS -->|"veredicto + filas listas"| Principal
+    Skills -.->|"precargada en el rol"| RF & JC & JJ & JS
+    Skills -.->|"bajo demanda"| Principal
+    Principal -->|"escribe"| Docs & Codigo
+    RF & JC & JJ & JS -->|"leen y ejecutan"| Docs & Codigo
+    Principal -->|"git commit"| Hooks
+    Hooks -->|"valida Ref:/Cierra: · secretos · rastro"| Docs
+```
+
+Los roles están declarados en `.claude/agents/` (herramientas, modelo y skill
+precargada) y su rúbrica en `.claude/skills/`; ver `.claude/skills/README.md` §Roles.
+
 ## Diagrama de la metodología
+
+El orden en que ocurre todo y dónde interviene cada control —la persona en los gates,
+una revisión independiente en tres momentos—. Primero el mapa, en siete nodos:
+
+```mermaid
+flowchart LR
+    A["Arranque<br/>ingesta · encuadre · diseno"] -->|revisor funcional| G1{Gate}
+    G1 --> B["Ejecucion<br/>incrementos pequenos"]
+    B -->|"juez de codigo<br/>(+ seguridad si aplica)"| B
+    B --> C["Validacion<br/>del conjunto"]
+    C -->|"juez de conjunto<br/>+ seguridad"| G2{Gate}
+    G2 --> D["Cierre<br/>lecciones a MEMORIA"]
+    D -.->|"trabajo nuevo:<br/>¿cambia un C#?"| A
+    D -.->|"no cambia:<br/>defecto o ajuste"| B
+```
+
+El juez aparece tres veces porque son tres momentos; en el diagrama de componentes
+aparece una vez porque es una pieza. Abajo, el mismo flujo con todos los gates y
+condiciones de salida.
 
 El flujo completo: el **arranque** (antes de programar, con `material/` como
 precondición y un gate por actividad) y el **ciclo de vida** (la Fase 3 es un bucle que se
@@ -126,6 +195,21 @@ flowchart TD
 
 Glosario de los términos y siglas que usa la metodología (y el diagrama):
 
+- **Agente** — entidad que recibe un objetivo, observa su entorno con herramientas
+  (lee archivos, ejecuta comandos), decide la siguiente acción y actúa, en bucle, hasta
+  cumplirlo o detenerse. Aquí son agentes el principal y cada uno de los cuatro revisores.
+- **Agente principal** — el que ejecuta `docs/arranque.md`, conduce a la persona,
+  construye el código y registra el rastro. Es el **único con permiso de escritura**;
+  hereda el modelo de la sesión.
+- **Revisor / subagente** — rol declarado en `.claude/agents/` que el principal invoca
+  con **contexto fresco** (no hereda su memoria), herramientas acotadas a lectura y
+  ejecución (`Read, Grep, Glob, Bash`), rúbrica precargada desde `.claude/skills/` y
+  modelo fijo. **Reporta, no escribe:** devuelve veredicto y filas listas; el principal
+  las registra.
+- **Sistema agéntico** — el conjunto: los agentes, el **reparto de permisos** entre
+  ellos, la **memoria compartida** en `docs/`, las **compuertas humanas** y el
+  **enforcement** en hooks. Es lo que esta plantilla configura; ningún agente por sí solo
+  lo es.
 - **Encuadre** — Fase 1: definir el *problema* (contexto, objetivos, no-objetivos,
   criterios, set de oro, stack, despliegue) antes de diseñar nada. Vive en
   `docs/contexto.md`.

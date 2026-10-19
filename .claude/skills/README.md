@@ -99,6 +99,9 @@ rol. Lo que la declaración aporta sobre el prompt de invocación:
   caros, y fijarlo evita que un principal en un modelo superior (p. ej. Fable) arrastre
   a los jueces a ese costo sin necesidad. Sin `model`, un agente hereda el del principal.
 
+El diagrama de componentes del `README.md` raíz («Cómo está armado el sistema») dibuja
+estas relaciones: quién invoca, quién escribe, qué se precarga y qué bloquea.
+
 El «Prompt de invocación» de cada SKILL.md **se conserva tal cual**: es el fallback
 portable para herramientas sin subagentes declarables (Codex, Cursor…).
 `scripts/check_docs.sh` verifica lo mecanizable de los agentes (frontmatter, `name` ==

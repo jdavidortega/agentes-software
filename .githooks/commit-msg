@@ -9,7 +9,8 @@
 # válida del mismo rol+tipo+alcance
 # debe ser PASA con `huella` igual a la del índice (scripts/huella.sh indice), de modo que la
 # revisión corresponde al contenido que se guarda:
-#   Ref: I<n> → juez-codigo incremento I<n> (+ juez-seguridad si el recibo dice seguridad=requerida)
+#   Ref: I<n> → juez-codigo incremento I<n> (+ juez-seguridad si el recibo dice seguridad=requerida);
+#               y no más de 3 incrementos PASA desde la última pasada del juez de conjunto (hito)
 #   Ref: F2   → revisor-funcional encuadre F2 (o reentrada:C<n>), y ningún vacío R-E.* abierto
 #   Ref: F4   → juez-conjunto conjunto F4 (no sirve un recibo de hito) (+ seguridad si requerida)
 #   Ref: F5   → exactamente lo de F4 (conjunto + seguridad), vigente sobre lo que se commitea
@@ -76,6 +77,10 @@ for line in $trailers; do
       || fail "'$line' pero $id no existe como incremento en docs/plan.md (formato: '- [ ] $id «alias» — …')."
     rec=$(ultimo_recibo juez-codigo incremento "$id")
     exige_recibo juez-codigo incremento "$id" "'$line'" && exige_seguridad_si_aplica "$rec" incremento "$id"
+    # Contador del hito (AGENTS.md §2): tres incrementos cerrados desde la última pasada
+    # de conjunto obligan a un hito antes de cerrar el cuarto.
+    n=$(sh scripts/recibos.sh incrementos-sin-hito "$LOGTMP" 2>/dev/null || echo 0)
+    [ "${n:-0}" -le 3 ] || fail "'$line': hay $n incrementos con PASA del juez de código desde la última pasada del juez de conjunto; el hito (tipo=hito, cada tres incrementos) es obligatorio antes de cerrar este."
   elif printf '%s' "$line" | grep -qE '^Cierra:[[:space:]]*R-(E\.[0-9]+|I[0-9]+\.[0-9]+|S[0-9]+\.[0-9]+|F4\.[0-9]+|SF4\.[0-9]+)[[:space:]]*$'; then
     id=$(printf '%s' "$line" | grep -oE 'R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+')
     est=$(idx docs/trazabilidad.md | awk -F'|' -v id="$id" '

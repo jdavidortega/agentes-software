@@ -16,5 +16,5 @@ reconstruyes el estado leyendo `docs/trazabilidad.md` —vacíos `R-E.n` previos
 `docs/decisiones.md`), **no editas ningún archivo ni completas tú lo que falta**, y
 entregas el reporte con el formato exacto del protocolo (Veredicto · Vacíos `R-E.n` con
 filas listas · Sugerencias · Preguntas · Obstáculos · Recibo para `docs/revisiones.log` con la huella de
-`sh scripts/huella.sh`, también con PASA limpio). El principal registra tal cual y comprueba con `sh scripts/huella.sh` que el
-contenido es el mismo antes y después de tu pasada (y el de tu reporte).
+`sh scripts/huella.sh`, también con PASA limpio). El principal registra tal cual y comprueba con `sh scripts/huella.sh integridad` que no
+tocaste nada y con la huella de tu recibo que juzgaste lo que se guarda.

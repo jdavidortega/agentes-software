@@ -83,7 +83,8 @@ de un requerimiento tiene que poder hacerse leyendo, no descifrando.
   sesión, al dejar un gate pendiente o al quedar bloqueado, con la sección «Pendiente»
   en frases completas. Es lo único que se escribe fuera de los momentos fijos.
 - **Hito:** tres incrementos cerrados desde el último hito, o el momento previo a un
-  despliegue. En cada hito: pasada del juez de conjunto sobre lo ensamblado, síntesis
+  despliegue. **Mecanizado:** el `commit-msg` cuenta los incrementos con PASA del juez de
+  código desde la última pasada PASA del juez de conjunto y rechaza el cuarto sin hito. En cada hito: pasada del juez de conjunto sobre lo ensamblado, síntesis
   de `docs/MEMORIA.md` §Lo crítico, mutation testing informativo si hay camino crítico.
 - **Momentos de compactación (fijos, no a criterio):** al cierre de **cada incremento**
   (la bitácora del incremento se colapsa a una línea **antes** de pedir la revisión final,
@@ -117,8 +118,11 @@ de un requerimiento tiene que poder hacerse leyendo, no descifrando.
   se carga solo cuando aplica, no al canon que se lee siempre.
 - **Lo que no decide no se escribe:** ni justificaciones largas, ni historia repetida, ni
   listas de lo que no se hizo. El porqué va en el ADR (una vez); el detalle, en git.
-- **Recibos aparte y para siempre:** `docs/revisiones.log` es append-only y no entra en
-  ninguna compactación; es lo que el `commit-msg` lee.
+- **Recibos aparte y para siempre:** `docs/revisiones.log` es append-only (el
+  `pre-commit` exige que lo ya guardado en HEAD sea prefijo exacto de lo nuevo) y no
+  entra en ninguna compactación; es lo que el `commit-msg` lee. Un FALLA no se borra: la
+  revisión nueva se añade debajo. Reparar un registro corrupto es una excepción con
+  `--no-verify` y su lección escrita en `MEMORIA.md`.
 - **Obstáculos de una revisión → `docs/MEMORIA.md` §Operativa**, no a este archivo en
   ese momento: `convenciones.md` es contenido revisado y cambiarlo tras el PASA
   invalidaría el recibo; su promoción aquí va en el siguiente incremento.
@@ -240,6 +244,10 @@ revertir) vive en docs/despliegue.md. -->
   `commit-msg` exige el trailer de enlace —y que todo `Cierra:` nombre un hallazgo
   con fila en `docs/trazabilidad.md`—, `pre-commit` bloquea `.env`/secretos y corre
   `scripts/check.sh` + `scripts/check_docs.sh`).
+- **Sin `assume-unchanged` ni `skip-worktree`:** esos flags hacen que git dé por idéntico
+  un archivo que cambió; la huella y los hooks se calcularían sobre contenido viejo. El
+  `pre-commit`, `huella.sh` y el doctor los rechazan; si aparecen, `git update-index
+  --no-assume-unchanged / --no-skip-worktree <archivo>`.
 - **Trunk-based:** se trabaja sobre la rama principal, con commits pequeños y
   enlazados; una rama solo si la persona la pide (experimento, cambio grande), no por
   defecto. Con **remoto compartido**, `scripts/check.sh` se cablea además en un **CI

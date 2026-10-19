@@ -391,7 +391,8 @@ Confirma que el rastro quedó guardado antes de empezar a construir.
 > **revisión crítica independiente** (rol juez, `.claude/skills/revision-critica/SKILL.md`): emite
 > veredicto + hallazgos (con ID `R-I#.n` y estado en `docs/trazabilidad.md`); los
 > bloqueantes se resuelven como subtareas y se marcan `resuelto` antes de continuar.
-> Aplica la Definición de Hecho (`docs/definicion-de-hecho.md`) —incluida la
-> **compactación del cierre**: `estado.md` regenerado, bitácora podada, hallazgos
-> verificados al Histórico—, haz **commit enlazado** (`Ref:`/`Cierra:`), y anota el
-> avance en `docs/plan.md` y la trazabilidad.
+> Aplica la Definición de Hecho (`docs/definicion-de-hecho.md`) en su orden: todo lo
+> revisable —código, docs, bitácora del incremento ya colapsada en `docs/plan.md`,
+> README— **antes** de pedir el PASA; después, solo los registros fuera de la huella
+> (recibo, filas, `estado.md`, consumo y lecciones en `MEMORIA.md`) y el **commit
+> enlazado** (`Ref:`/`Cierra:`). Procedimiento: `.claude/skills/dirigiendo-revisiones/SKILL.md`.

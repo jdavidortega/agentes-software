@@ -49,6 +49,8 @@ fi
 if git rev-parse --git-dir >/dev/null 2>&1; then
   [ "$(git config core.hooksPath 2>/dev/null)" = ".githooks" ] \
     || err "core.hooksPath no es .githooks: los hooks de la plantilla no están activos (git config core.hooksPath .githooks)"
+  flags=$(git ls-files -v | grep -E '^[a-z]|^S' || true)
+  [ -z "$flags" ] || err "hay archivos con assume-unchanged/skip-worktree ($(printf '%s' "$flags" | head -1 | cut -c3-)…): ocultan cambios a la huella y a los hooks; quítalos"
   for h in .githooks/pre-commit .githooks/commit-msg; do
     [ -x "$h" ] || err "$h no es ejecutable: git lo IGNORA en silencio (chmod +x $h && git update-index --chmod=+x $h)"
     git ls-files -s "$h" 2>/dev/null | grep -q '^100755' \
@@ -74,7 +76,8 @@ filas_trazabilidad() {
         print "HDR", tipo, hdr, "-"
         next
       }
-      if (tipo=="" || ce==0) next
+      if (tipo=="") next
+      if (ce==0) { id=f[1]; if (id ~ /_/) next; print "NOEST", id, "-", "-"; next }   # fila bajo un encabezado sin columna Estado
       id=f[1]; if (id ~ /_/) next                          # filas de ejemplo de la plantilla
       if (id !~ /^(C[0-9]+|R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+)$/) { print "X", id, "-", "-"; next }
       # Fila en la tabla equivocada: un C# fuera de Cobertura, un R-E fuera de Vacíos, etc.
@@ -96,9 +99,15 @@ if has docs/trazabilidad.md; then
               "E:Vacío,Alias,Punto incumplido,Estado,Resuelto (cómo · AAAA-MM-DD HH:MM UTC)" \
               "R:Hallazgo,Alias,Incr.,Criterio,Descripción,Estado,Resuelto (AAAA-MM-DD HH:MM UTC · commit)"; do
     tipo=${want%%:*}; cols=${want#*:}; colsn=$(printf '%s' "$cols" | tr ' ' '_')
-    got=$(printf '%s\n' "$FILAS" | awk -v tp="$tipo" '$1=="HDR" && $2==tp {print $3}' | head -1)
-    [ -n "$got" ] || { err "trazabilidad.md: falta la tabla de tipo $tipo (encabezado: | $(printf '%s' "$cols" | sed 's/,/ | /g') |)"; continue; }
-    [ "$got" = "$colsn" ] || err "trazabilidad.md: encabezado de la tabla $tipo alterado: '$(printf '%s' "$got" | tr '_' ' ')' (esperado '$cols'). Un estado no puede desaparecer por renombrar una columna."
+    nh=$(printf '%s\n' "$FILAS" | awk -v tp="$tipo" '$1=="HDR" && $2==tp' | grep -c .)
+    [ "$nh" -gt 0 ] || { err "trazabilidad.md: falta la tabla de tipo $tipo (encabezado: | $(printf '%s' "$cols" | sed 's/,/ | /g') |)"; continue; }
+    [ "$nh" -eq 1 ] || err "trazabilidad.md: hay $nh tablas de tipo $tipo; cada tabla existe una sola vez (una segunda tabla puede esconder filas)"
+    for got in $(printf '%s\n' "$FILAS" | awk -v tp="$tipo" '$1=="HDR" && $2==tp {print $3}'); do
+      [ "$got" = "$colsn" ] || err "trazabilidad.md: encabezado de la tabla $tipo alterado: '$(printf '%s' "$got" | tr '_' ' ')' (esperado '$cols'). Un estado no puede desaparecer por renombrar una columna."
+    done
+  done
+  for id in $(printf '%s\n' "$FILAS" | awk '$1=="NOEST"{print $2}'); do
+    err "trazabilidad.md: la fila $id está bajo un encabezado sin columna Estado: su estado es invisible"
   done
   for h in $(printf '%s\n' "$FILAS" | awk '$1=="H" && $4!="verificado" {print $2}'); do
     err "trazabilidad.md: $h está en el Histórico sin '· verificado': al Histórico solo llega lo verificado"
@@ -125,7 +134,7 @@ printf '%s\n' "$FILAS" | awk '
   ($1=="R" && $4 !~ /^(abierto|resuelto|verificado)$/) { bad=1 } END { exit bad ? 1 : 0 }' || FAIL=1
 
 # Unicidad: un C# o un hallazgo con dos filas es un registro ambiguo (V04/V10).
-for dup in $(printf '%s\n' "$FILAS" | awk 'NF && $1!="X" && $1!="T" && $1!="HDR" {print $2}' | sort | uniq -d); do
+for dup in $(printf '%s\n' "$FILAS" | awk 'NF && $1!="X" && $1!="T" && $1!="HDR" && $1!="NOEST" {print $2}' | sort | uniq -d); do
   err "trazabilidad.md tiene más de una fila para $dup (tablas o Histórico): un ID se registra una sola vez; una pasada nueva continúa la numeración desde el último, incluido el Histórico"
 done
 
@@ -210,6 +219,14 @@ check_frontmatter() {  # $1 archivo, $2 claves permitidas (regex alternativa). D
   unq=$(printf '%s\n' "$FM" | sed -n -E 's/^[a-z-]+:[[:space:]]+(["'"'"'].*)$/\1/p' | sed -E 's/[[:space:]]*#[^"'"'"']*$//' \
         | awk '{ q=substr($0,1,1); if (substr($0,length($0),1)!=q || length($0)<2) print }')
   [ -z "$unq" ] || err "$f: valor entre comillas sin cerrar en el frontmatter: $(printf '%s' "$unq" | head -1 | cut -c1-60)…"
+  # Dentro de "…" toda comilla doble interior va escapada (\"); dentro de '…' la simple se
+  # dobla (''). Una comilla interior suelta es YAML inválido aunque abra y cierre bien.
+  badq=$(printf '%s\n' "$FM" | sed -n -E 's/^[a-z-]+:[[:space:]]+(["'"'"'].*)$/\1/p' | sed -E 's/[[:space:]]*#[^"'"'"']*$//' \
+        | awk '{ q=substr($0,1,1); n=length($0); if (n<2 || substr($0,n,1)!=q) next
+                 inner=substr($0,2,n-2)
+                 if (q=="\"") { s=inner; gsub(/\\./,"",s); if (index(s,"\"")) print }
+                 else { s=inner; gsub(/'"'"''"'"'/,"",s); if (index(s,"'"'"'")) print } }')
+  [ -z "$badq" ] || err "$f: comilla interior sin escapar en un valor del frontmatter (YAML inválido): $(printf '%s' "$badq" | head -1 | cut -c1-60)…"
   return 0
 }
 

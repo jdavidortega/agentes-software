@@ -24,6 +24,10 @@ MODE="${1:-arbol}"
 EXCL='	docs/(revisiones\.log|trazabilidad\.md|estado\.md|MEMORIA\.md)$'
 [ "$MODE" = "integridad" ] && EXCL='^$'
 git rev-parse --git-dir >/dev/null 2>&1 || { echo "huella: no es un repositorio git" >&2; exit 2; }
+# assume-unchanged (h) / skip-worktree (S) harían que el índice copiado conserve contenido
+# viejo y la huella mienta. No se calcula nada mientras existan.
+flags=$(git ls-files -v | grep -E '^[a-z]|^S' || true)
+[ -z "$flags" ] || { echo "huella: archivos con assume-unchanged/skip-worktree; quítalos (git update-index --no-assume-unchanged/--no-skip-worktree):" >&2; printf '%s\n' "$flags" >&2; exit 2; }
 if [ "$MODE" = "indice" ]; then
   tree=$(git write-tree) || exit 2
 else

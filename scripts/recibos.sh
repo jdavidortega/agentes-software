@@ -8,6 +8,10 @@
 #                                                          → imprime la ÚLTIMA línea válida que
 #                                                            coincide (alcance exacto, o prefijo
 #                                                            "reentrada:" para alcance=F2); vacío si no hay
+#   sh scripts/recibos.sh incrementos-sin-hito [archivo]   → cuántos incrementos DISTINTOS tienen
+#                                                            recibo PASA del juez de código desde la
+#                                                            última pasada PASA del juez de conjunto
+#                                                            (hito o F4). Es el contador del hito.
 #
 # Gramática de una línea (campos clave=valor separados por espacio, sin repetir claves;
 # las líneas que empiezan por # y las vacías se ignoran en ambos modos):
@@ -21,9 +25,10 @@ MODE="${1:-validar}"
 case "$MODE" in
   validar) FILE="${2:-docs/revisiones.log}" ;;
   ultimo)  R="$2"; T="$3"; A="$4"; FILE="${5:-docs/revisiones.log}" ;;
-  *) echo "recibos.sh: modo desconocido '$MODE' (validar | ultimo)" >&2; exit 2 ;;
+  incrementos-sin-hito) FILE="${2:-docs/revisiones.log}" ;;
+  *) echo "recibos.sh: modo desconocido '$MODE' (validar | ultimo | incrementos-sin-hito)" >&2; exit 2 ;;
 esac
-[ -f "$FILE" ] || { [ "$MODE" = "validar" ] && exit 0; exit 0; }
+[ -f "$FILE" ] || { [ "$MODE" = "incrementos-sin-hito" ] && echo 0; exit 0; }
 
 awk -v mode="$MODE" -v R="${R:-}" -v T="${T:-}" -v A="${A:-}" '
 function bad(msg) { print "  ✗ recibos: línea " NR ": " msg " → " substr($0,1,80) > "/dev/stderr"; fail=1; return 0 }
@@ -62,9 +67,14 @@ function bad(msg) { print "  ✗ recibos: línea " NR ": " msg " → " substr($0
   if (t=="hito" && (!("cubre" in f) || !("excluye" in f) || !("componentes" in f))) ok=bad("tipo=hito exige cubre=, excluye= y componentes=")
   if (!ok) next
   if (mode=="ultimo" && r==R && t==T && (a==A || (A=="F2" && a ~ /^reentrada:/))) last=$0
+  if (mode=="incrementos-sin-hito") {
+    if (r=="juez-codigo" && f["veredicto"]=="PASA") seen[a]=1
+    if (r=="juez-conjunto" && f["veredicto"]=="PASA") delete seen
+  }
 }
 END {
   if (mode=="validar") exit fail ? 1 : 0
-  if (fail) exit 1              # un registro inválido no entrega ningún recibo
+  if (fail) exit 1              # un registro inválido no entrega ningún recibo ni conteo
+  if (mode=="incrementos-sin-hito") { n=0; for (k in seen) n++; print n; exit 0 }
   if (last!="") print last
 }' "$FILE"

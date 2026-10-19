@@ -120,8 +120,8 @@ ejemplo en `docs/convenciones.md` §Redacción.
      de encuadre). La Fase 4 valida contra lo **acordado**, no contra ideas nuevas.
    → Gate: la persona confirma que el conjunto cumple la Definición de Hecho.
 5. **Cierre y aprendizaje** — retrospectiva breve; lecciones a `docs/MEMORIA.md`. La
-   retro incluye la **tabla de consumo de tokens por fase** (de las líneas de la
-   bitácora; ver `docs/convenciones.md` §Contexto): es el dato que permite afinar el
+   retro incluye la **tabla de consumo de tokens por fase** (de las líneas de
+   `docs/MEMORIA.md` §Consumo; ver `docs/convenciones.md` §Contexto): es el dato que permite afinar el
    método y detectar sobredimensionamiento. **El aprendizaje no espera al cierre:** las
    lecciones se anotan al cerrar cada incremento, y la síntesis «Lo crítico» de
    `docs/MEMORIA.md` (§7) se rehace en cada hito y al cierre de cada fase, porque un
@@ -327,12 +327,14 @@ Cuatro roles, rúbrica en su skill (`.claude/skills/revision-*/`), rol en
   (todo el árbol, registros incluidos) igual antes y después del revisor, y la de
   **vigencia** (lo revisable) igual a la del recibo. Ninguna ve la red ni lo ignorado.
 - **El recibo ata el veredicto al contenido:** una línea estructurada en
-  `docs/revisiones.log` (append-only, nunca se compacta; un solo parser,
+  `docs/revisiones.log` (append-only **mecanizado**: el `pre-commit` exige que lo guardado
+  en HEAD sea prefijo exacto de lo nuevo; nunca se compacta; un solo parser,
   `scripts/recibos.sh`, para hook y doctor) con rol, tipo, alcance, veredicto,
   bloqueantes (PASA ⇒ 0), `seguridad=requerida|no-aplica` (jueces de código y conjunto),
   `huella`, ejecutor y, en hitos, `cubre`/`excluye`/`componentes`. El `commit-msg` exige el
   **último** recibo válido del alcance en PASA con la huella del índice para `Ref: I<n>`,
-  `F2` (o `reentrada:C<n>`), `F4` y `F5` (F5 exige lo mismo que F4, seguridad incluida).
+  `F2` (o `reentrada:C<n>`), `F4` y `F5` (F5 exige lo mismo que F4, seguridad incluida),
+  y cuenta los incrementos desde la última pasada de conjunto: al cuarto sin hito, rechaza.
   **Todo lo revisable se escribe antes del PASA**; después, solo registros. La aprobación
   humana es otra cosa: la da la persona en el gate.
 - **Reporte breve y exacto:** veredicto, bloqueantes con fila lista, ≤5 sugerencias,

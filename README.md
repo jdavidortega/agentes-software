@@ -379,8 +379,9 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
   precarga skills** en un agente) y `model`. Dos diferencias que debes saber: (a) el
   subagente **hereda** el sandbox, las aprobaciones, el proveedor y los servidores MCP
   del principal —un archivo de agente **no puede** darle un sandbox de solo lectura
-  propio—, así que «no edita» es exactamente lo que ya es aquí: instrucción + `git
-  status` del principal; (b) no existe `tools:` por rol; lo más cercano es
+  propio—, así que «no edita» es exactamente lo que ya es aquí: instrucción + huellas
+  de integridad y vigencia del principal (`scripts/huella.sh`; no ve red ni ignorados);
+  (b) no existe `tools:` por rol; lo más cercano es
   `features.shell_tool = false`, que **no** sirve a los revisores porque necesitan
   ejecutar `scripts/check.sh`.
 - **Modelos:** `sonnet` y `opus` en `.claude/agents/` son alias de Claude Code, no
@@ -427,8 +428,9 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 │                        juez de conjunto, juez de seguridad) con su skill precargada
 ├── scripts/
 │   ├── check_docs.sh        integridad del rastro documental (pre-commit, commit-msg y a mano)
-│   ├── huella.sh            huella del contenido revisable: ata cada revisión a lo que juzgó
-│   │                        (todo salvo revisiones.log, trazabilidad, estado y MEMORIA)
+│   ├── huella.sh            huellas: vigencia (lo revisable: todo salvo revisiones.log,
+│   │                        trazabilidad, estado y MEMORIA) e integridad (todo el árbol)
+│   ├── recibos.sh           parser único de revisiones.log (hook y doctor); contador de hitos
 │   └── consumo.py           consumo de tokens por modelo desde los transcripts locales
 ├── .githooks/           hooks versionados (commit-msg enlazado; pre-commit: secretos + checks)
 ├── .editorconfig        estilo base agnóstico del lenguaje

@@ -22,6 +22,35 @@ if git diff --cached "$against" -- . ':(exclude).githooks' | grep -Eq "^\+.*$key
   exit 1
 fi
 
+# 1b) Flags del índice que hacen MENTIR a todo lo demás: con assume-unchanged (h) o
+#     skip-worktree (S) git da por idéntico un archivo que cambió, `git diff --quiet`
+#     devuelve 0 y la huella se calcula sobre el contenido viejo. Incompatibles con el método.
+flags=$(git ls-files -v | grep -E '^[a-z]|^S' || true)
+if [ -n "$flags" ]; then
+  echo "✗ pre-commit: archivos con assume-unchanged/skip-worktree (ocultan cambios a las guardas):" >&2
+  printf '%s\n' "$flags" | sed 's/^/    /' >&2
+  echo "  Quita el flag (git update-index --no-assume-unchanged / --no-skip-worktree <archivo>) y repite." >&2
+  exit 1
+fi
+
+# 1c) docs/revisiones.log es append-only: lo ya guardado en HEAD tiene que ser PREFIJO exacto
+#     de lo que se commitea. Añadir líneas vale (incluida una rectificación nueva); borrar o
+#     editar recibos, no. Reparar un registro corrupto es una excepción con --no-verify y su
+#     lección en MEMORIA.md, no un camino normal.
+if git rev-parse --verify HEAD >/dev/null 2>&1 && git cat-file -e HEAD:docs/revisiones.log 2>/dev/null \
+   && git ls-files --error-unmatch docs/revisiones.log >/dev/null 2>&1; then
+  prev=$(git show HEAD:docs/revisiones.log | wc -c | tr -d ' ')
+  tmpa=$(mktemp 2>/dev/null || mktemp -t rl); tmpb=$(mktemp 2>/dev/null || mktemp -t rl)
+  git show HEAD:docs/revisiones.log > "$tmpa"; git show :docs/revisiones.log | head -c "$prev" > "$tmpb"
+  if ! cmp -s "$tmpa" "$tmpb"; then
+    rm -f "$tmpa" "$tmpb"
+    echo "✗ pre-commit: docs/revisiones.log perdió o alteró recibos ya guardados en HEAD (es append-only)." >&2
+    echo "  Un FALLA no se borra: se añade la revisión nueva debajo. Restaura el contenido previo y añade." >&2
+    exit 1
+  fi
+  rm -f "$tmpa" "$tmpb"
+fi
+
 # 2) Lo verificado debe ser lo versionado. Un `git add -p` parcial deja el árbol de
 #    trabajo distinto del índice: la suite pasaría sobre código que no se commitea.
 #    Regla: ningún archivo rastreado con cambios sin stagear en el momento del commit.

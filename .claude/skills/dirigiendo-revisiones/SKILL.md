@@ -68,8 +68,10 @@ allowed-tools: Read, Grep, Glob, Bash
 - **Seguridad no se olvida por omisión:** el recibo del juez de código y del de conjunto
   declara `seguridad=requerida|no-aplica`; con `requerida`, el hook exige el recibo del
   juez de seguridad del mismo alcance y la misma huella.
-- **No edites nunca `docs/revisiones.log` salvo para añadir una línea.** Un recibo
-  retocado es la forma más barata de perder el rastro; el hook lo lee, no la persona.
+- **No edites nunca `docs/revisiones.log` salvo para añadir una línea.** El `pre-commit`
+  lo exige (lo guardado en HEAD debe ser prefijo exacto de lo nuevo): un FALLA no se
+  borra, se añade la revisión nueva debajo. Y cada tres incrementos con PASA el hook
+  exige un recibo de hito antes de cerrar el cuarto: planéalo, no te sorprenda.
 - **El gate humano es aparte:** el recibo prueba que la revisión ocurrió sobre este
   contenido; la aprobación la da la persona en el chat con el resumen ejecutivo
   (`AGENTS.md` §2). No se finge ni se registra en nombre de nadie.

@@ -54,8 +54,9 @@ estructurada por pasada, append-only; AGENTS.md §9), que el commit-msg lee y qu
 compactación nunca toca. Aquí, como mucho, una referencia ("revisión I3: ver recibo"). El detalle de
 hallazgos y su estado vive en docs/trazabilidad.md.
 COMPACTACIÓN: al cerrar un incremento, sus líneas se colapsan a UNA (resumen del
-incremento); el detalle queda en git y los recibos siguen intactos en revisiones.log. Al cierre va también la línea de consumo
-(scripts/consumo.py; formato en docs/convenciones.md §Contexto). -->
+incremento) ANTES de pedir la revisión final (este archivo entra en la huella); el
+detalle queda en git y los recibos siguen intactos en revisiones.log. El consumo va a
+MEMORIA.md §Consumo, no aquí. -->
 - [AAAA-MM-DD] _…_
 
 ## Fuera de alcance / backlog

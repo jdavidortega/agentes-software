@@ -25,7 +25,9 @@ adelantarle conclusiones; su valor está en que no hereda tu framing—, rellena
 el incremento y el rango del diff:
 
 > Actúa como juez de código según `.claude/skills/revision-critica/SKILL.md`: léelo y aplica su
-> rúbrica completa. Revisa el incremento `I#` (diff: `git diff <rango>`) contra
+> rúbrica completa. Revisa el incremento `I#` (diff: `git diff <rango>`) —o, si el alcance es
+> un **hito** (`hito:I<a>-I<b>`: solo lo construido hasta ahí y sus interacciones, excluyendo
+> por nombre los criterios futuros) o el **conjunto** (`F4`), el ensamblado completo— contra
 > `docs/encuadre.md`, `docs/plan.md`, `docs/convenciones.md`,
 > `docs/definicion-de-hecho.md` (lista A) y los hallazgos previos en `docs/trazabilidad.md`.
 > Sigue el protocolo de `AGENTS.md` §9: ejecuta `scripts/check.sh` tú mismo, exige

@@ -9,14 +9,20 @@
 # son contenido que el revisor juzga; la bitácora narrativa del incremento se escribe
 # ANTES de pedir la revisión (AGENTS.md §9).
 #
-#   sh scripts/huella.sh           → sobre el ÁRBOL de trabajo (lo que ve el revisor)
-#   sh scripts/huella.sh indice    → sobre el ÍNDICE (lo que va al commit; lo usa commit-msg)
+#   sh scripts/huella.sh              → VIGENCIA: árbol de trabajo sin registros (lo que ve el revisor)
+#   sh scripts/huella.sh indice       → VIGENCIA sobre el ÍNDICE (lo que va al commit; commit-msg)
+#   sh scripts/huella.sh integridad   → INTEGRIDAD: árbol COMPLETO, registros incluidos. El
+#                                       principal la toma antes y después de cada revisor: si
+#                                       cambia, el revisor escribió algo (en lo que sea).
+# Son dos preguntas distintas: "¿sigue valiendo el recibo?" (vigencia) y "¿tocó algo el
+# revisor?" (integridad). Ninguna observa la red ni los archivos ignorados por git.
 #
 # Si el árbol coincide con el índice en los rastreados y no hay no-rastreados pendientes,
 # ambas huellas son iguales: el recibo de la revisión (línea de docs/revisiones.log con `huella=…`)
 # solo es válido para el commit que guarda exactamente ese contenido.
 MODE="${1:-arbol}"
 EXCL='	docs/(revisiones\.log|trazabilidad\.md|estado\.md|MEMORIA\.md)$'
+[ "$MODE" = "integridad" ] && EXCL='^$'
 git rev-parse --git-dir >/dev/null 2>&1 || { echo "huella: no es un repositorio git" >&2; exit 2; }
 if [ "$MODE" = "indice" ]; then
   tree=$(git write-tree) || exit 2

@@ -323,14 +323,18 @@ Cuatro roles, rúbrica en su skill (`.claude/skills/revision-*/`), rol en
   y nada más; reconstruye el estado desde `docs/trazabilidad.md` y `docs/decisiones.md`.
 - **Sin edición, sin red, sin ataques a sistemas vivos; verifica, no cree:** ejecuta
   `scripts/check.sh` él mismo y exige evidencia. La herramienta no lo garantiza; lo
-  **detecta** la huella del contenido (`scripts/huella.sh`) igual antes, en el reporte y
-  después.
+  **detecta** el principal con dos huellas (`scripts/huella.sh`): la de **integridad**
+  (todo el árbol, registros incluidos) igual antes y después del revisor, y la de
+  **vigencia** (lo revisable) igual a la del recibo. Ninguna ve la red ni lo ignorado.
 - **El recibo ata el veredicto al contenido:** una línea estructurada en
-  `docs/revisiones.log` (append-only, nunca se compacta) con rol, tipo, alcance,
-  veredicto, bloqueantes, `seguridad=requerida|no-aplica` (jueces de código y conjunto),
-  `huella` y ejecutor. El `commit-msg` exige el **último** recibo del alcance en PASA con
-  la huella del índice para `Ref: I<n>`, `F2`, `F4` y `F5` (y el de seguridad si fue
-  requerida). La aprobación humana es otra cosa: la da la persona en el gate.
+  `docs/revisiones.log` (append-only, nunca se compacta; un solo parser,
+  `scripts/recibos.sh`, para hook y doctor) con rol, tipo, alcance, veredicto,
+  bloqueantes (PASA ⇒ 0), `seguridad=requerida|no-aplica` (jueces de código y conjunto),
+  `huella`, ejecutor y, en hitos, `cubre`/`excluye`/`componentes`. El `commit-msg` exige el
+  **último** recibo válido del alcance en PASA con la huella del índice para `Ref: I<n>`,
+  `F2` (o `reentrada:C<n>`), `F4` y `F5` (F5 exige lo mismo que F4, seguridad incluida).
+  **Todo lo revisable se escribe antes del PASA**; después, solo registros. La aprobación
+  humana es otra cosa: la da la persona en el gate.
 - **Reporte breve y exacto:** veredicto, bloqueantes con fila lista, ≤5 sugerencias,
   preguntas, obstáculos, recibo. Sin narrativa. Lo subjetivo es sugerencia, nunca FALLA
   silenciosa; lo que no sirve a un criterio acordado es sobredimensionar.

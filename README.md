@@ -307,9 +307,10 @@ git config core.hooksPath .githooks
 Los hooks son locales y esquivables (`git commit --no-verify`): con remoto compartido,
 el mismo `scripts/check.sh` se cablea también en CI (ver `docs/convenciones.md` §Git).
 
-Que el juez y el revisor funcional corrieron (no mecanizable) se exige por su rastro:
-cada revisión deja su línea de cierre en la bitácora de `docs/plan.md` (veredicto y
-conteo, también con PASA limpio) y sus bloqueantes/vacíos en `docs/trazabilidad.md`.
+Que el juez y el revisor funcional corrieron se exige por su rastro: cada revisión deja
+su **recibo** en `docs/revisiones.log` (rol, alcance, veredicto, huella; también con PASA
+limpio) y sus bloqueantes/vacíos en `docs/trazabilidad.md`; el `commit-msg` no acepta la
+transición sin el recibo vigente.
 Y la **regla del segundo hallazgo** (`AGENTS.md` §8) convierte en linter/hook todo
 hallazgo mecanizable que se repita.
 
@@ -368,7 +369,7 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
   `.claude/skills/`**: crea `.agents/skills` como **enlace simbólico** a `.claude/skills`
   —el destino de un enlace relativo se resuelve desde la carpeta que lo contiene, así que
   es `mkdir -p .agents && ln -s ../.claude/skills .agents/skills`, no `ln -s
-  .claude/skills …`— y comprueba que resuelve (`ls .agents/skills/` debe listar las ocho
+  .claude/skills …`— y comprueba que resuelve (`ls .agents/skills/` debe listar las nueve
   skills); o copia la carpeta. Con enlace no hay dos copias que sincronizar (en Windows,
   copia). Esto verifica el enlace, no que tu versión de Codex cargó las skills: eso se
   comprueba en Codex.

@@ -39,6 +39,9 @@ vivo** no es reentrada: va por el bucle de la Fase 3.) Clasifica con una sola pr
   - **Requisito nuevo** (añade un `C#`/capacidad): ingiere el nuevo insumo, **añade** el
     `C#` (+ set de oro si aplica), suma ≥1 incremento al plan, revisor funcional sobre lo
     nuevo, gate. Sigue siendo una rebanada, no una re-ingesta de lo ya encuadrado.
+  - **Rastro de la reentrada:** el revisor funcional deja su recibo con
+    `alcance=reentrada:C<n>` y el commit del encuadre ajustado lleva `Ref: F2` (el hook
+    acepta ese recibo para F2). `Ref: F1` queda para el primer encuadre.
 - **Pregunta/soporte** → respóndela; **mejora opcional** → **backlog** de `docs/plan.md`.
   No abren ciclo (si una mejora se decide perseguir, se vuelve requisito nuevo).
 
@@ -355,10 +358,11 @@ abiertos.**
 - [ ] El plan no contradice ningún no-objetivo del encuadre y no excede los criterios
   (anti-exceso).
 - [ ] No quedan vacíos (`R-E.n`) en estado `abierto` en `docs/trazabilidad.md`.
-- [ ] El **recibo** de la revisión funcional está en la bitácora de `docs/plan.md` (línea
-  `Revisión funcional · F2 encuadre y plan · PASA · … · huella <h>`): el commit `Ref: F2`
-  lo exige con la huella de lo que se commitea; si el encuadre o el plan cambian después,
-  la revisión se repite.
+- [ ] El **recibo** de la revisión funcional está en `docs/revisiones.log`
+  (`rol=revisor-funcional tipo=encuadre alcance=F2 veredicto=PASA bloqueantes=0
+  huella=<h> …`; en una reentrada, `alcance=reentrada:C<n>`): el commit `Ref: F2` lo
+  exige con la huella de lo que se commitea; si el encuadre o el plan cambian después,
+  la revisión se repite (procedimiento: `.claude/skills/dirigiendo-revisiones/SKILL.md`).
 
 ---
 

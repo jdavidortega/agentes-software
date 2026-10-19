@@ -48,7 +48,8 @@ Lanza al subagente con este encargo **tal cual** —neutro: sin adelantarle qué
 que está bien protegido—, rellenando el incremento y el rango del diff:
 
 > Actúa como juez de seguridad según `.claude/skills/revision-seguridad/SKILL.md`: léelo y
-> aplica su rúbrica completa. Audita el incremento `I#` (diff: `git diff <rango>`)
+> aplica su rúbrica completa. Audita el incremento `I#` (diff: `git diff <rango>`) —o el
+> conjunto ensamblado en un hito (`hito:I<a>-I<b>`) o en la Fase 4 (`F4`), con hallazgos `R-SF4.n`—
 > contra `docs/encuadre.md` (modelo de despliegue y datos que maneja),
 > `docs/convenciones.md` y los hallazgos previos en `docs/trazabilidad.md`. Reconoce
 > el stack, activa solo los dominios aplicables y lee su `references/`. Corre los

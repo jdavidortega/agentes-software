@@ -12,10 +12,15 @@ allowed-tools: Read, Grep, Glob, Bash
 
 ## Antes de invocar
 
-1. **Escribe la bitácora del incremento** en `docs/plan.md` (qué cambió y por qué, una
-   línea) y deja el `README.md` al día si cambió comportamiento. Esto es **parte del
-   contenido que se revisa**: `plan.md` y `convenciones.md` cuentan en la huella.
-2. **Stagea todo** (`git add -A`) y toma la huella: `H0=$(sh scripts/huella.sh)`.
+1. **Deja escrito todo lo revisable**: la bitácora del incremento en `docs/plan.md`
+   **ya colapsada a su línea** (qué cambió y por qué), el `README.md` al día si cambió
+   comportamiento, ADRs si hubo decisión. `plan.md` y `convenciones.md` cuentan en la
+   huella: después del PASA no se tocan. Lo que sí se escribe después son los
+   **registros** fuera de la huella (recibo, filas, `estado.md`, consumo y lecciones en
+   `MEMORIA.md`).
+2. **Stagea todo** (`git add -A`) y toma las dos huellas: `V0=$(sh scripts/huella.sh)`
+   (vigencia: lo revisable) e `I0=$(sh scripts/huella.sh integridad)` (integridad: todo,
+   registros incluidos).
 3. Decide **qué rol** toca y su **alcance** (`AGENTS.md` §9): encuadre `F2` → revisor
    funcional; incremento `I<n>` → juez de código (+ seguridad si toca superficie de
    riesgo); hito `hito:I<a>-I<b>` → juez de conjunto (+ seguridad); Fase 4 `F4` → juez de
@@ -37,16 +42,17 @@ allowed-tools: Read, Grep, Glob, Bash
 
 ## Al recibir
 
-6. `H1=$(sh scripts/huella.sh)`. Exige `H0 == H1 == huella del recibo`. Si alguna
-   difiere, la revisión **no vale**: averigua qué cambió (¿escribió el revisor? ¿tocaste
-   algo tú?) y repítela.
+6. **Integridad:** `I1=$(sh scripts/huella.sh integridad)`; exige `I0 == I1`. Si difiere,
+   el revisor escribió algo (código, docs o registros): la revisión **no vale**, averigua
+   qué y repítela. **Vigencia:** exige `V0 == huella del recibo`; si difiere, el revisor
+   juzgó otra cosa. Ninguna de las dos ve la red ni los archivos ignorados por git.
 7. **Registra tal cual, sin editar:** la línea del recibo al final de
    `docs/revisiones.log` (append; nunca se compacta) y las filas de hallazgos en
    `docs/trazabilidad.md` (numeración que continúa, incluido el Histórico). Ambos están
    fuera de la huella, igual que `estado.md` y `MEMORIA.md`: registrarlos no invalida el
    recibo.
-8. **Rutea los obstáculos a `docs/MEMORIA.md`** (sección «Operativa»): comandos, flags,
-   workarounds. Su promoción a `docs/convenciones.md` va en el **siguiente** incremento,
+8. **Rutea los obstáculos a `docs/MEMORIA.md`** (sección «Operativa») y la línea de
+   consumo a `MEMORIA.md` §Consumo: comandos, flags, workarounds, tokens. Su promoción a `docs/convenciones.md` va en el **siguiente** incremento,
    porque `convenciones.md` sí es contenido revisado y cambiarlo ahora invalidaría el
    recibo.
 9. Con **FALLA**: resuelve los bloqueantes como subtareas, deja en cada fila la mutación

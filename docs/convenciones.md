@@ -86,8 +86,10 @@ de un requerimiento tiene que poder hacerse leyendo, no descifrando.
   despliegue. En cada hito: pasada del juez de conjunto sobre lo ensamblado, síntesis
   de `docs/MEMORIA.md` §Lo crítico, mutation testing informativo si hay camino crítico.
 - **Momentos de compactación (fijos, no a criterio):** al cierre de **cada incremento**
-  (ver la DoD: `docs/estado.md` regenerado, bitácora del incremento a una línea,
-  hallazgos `verificado` al Histórico de `docs/trazabilidad.md`), al cierre de **cada
+  (la bitácora del incremento se colapsa a una línea **antes** de pedir la revisión final,
+  porque `plan.md` entra en la huella; tras el PASA solo se tocan registros: `estado.md`
+  regenerado, hallazgos `verificado` al Histórico de `docs/trazabilidad.md`, consumo y
+  lecciones en `MEMORIA.md`), al cierre de **cada
   fase** (mismo barrido sobre lo que la fase dejó) y al cierre del **ciclo** (F5:
   `estado.md` queda en modo reentrada — criterios verificados, backlog vivo, nada "en
   curso"). Nada se pierde: el detalle queda en git y el porqué, en los ADR.
@@ -98,7 +100,8 @@ de un requerimiento tiene que poder hacerse leyendo, no descifrando.
   operativo se compacta en el siguiente cierre, sin esperar la fase.
 - **Consumo por rebanada (no invasivo: una línea):** al cierre de cada incremento y de
   cada fase, corre `python3 scripts/consumo.py` (acumulado por modelo desde los
-  transcripts locales) y registra **una línea** en la bitácora de `docs/plan.md`:
+  transcripts locales) y registra **una línea** en `docs/MEMORIA.md` §Consumo (fuera de
+  la huella: se escribe **después** del PASA sin caducar el recibo):
   `Consumo I5 «alias»: +X entrada / +Y salida (acum X'/Y')` — el delta se calcula contra
   la línea anterior. La retro de F5 arma la tabla por fase y la **evalúa**: es el dato
   que detecta sobredimensionamiento del método, no ceremonia. Si el script falla

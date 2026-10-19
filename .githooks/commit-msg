@@ -5,13 +5,14 @@
 #   Cierra: R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n> | R-SF4.<n>   (fila en trazabilidad, Estado resuelto|verificado)
 # Se validan TODOS los trailers presentes; los IDs se resuelven contra el ÍNDICE (lo que
 # va al commit). Cada transición exige su RECIBO en docs/revisiones.log (registro
-# estructurado, append-only; ver AGENTS.md §9): la ÚLTIMA línea del mismo rol+tipo+alcance
+# estructurado, append-only, leído con scripts/recibos.sh; AGENTS.md §9): la ÚLTIMA línea
+# válida del mismo rol+tipo+alcance
 # debe ser PASA con `huella` igual a la del índice (scripts/huella.sh indice), de modo que la
 # revisión corresponde al contenido que se guarda:
 #   Ref: I<n> → juez-codigo incremento I<n> (+ juez-seguridad si el recibo dice seguridad=requerida)
-#   Ref: F2   → revisor-funcional encuadre F2, y ningún vacío R-E.* con Estado abierto
+#   Ref: F2   → revisor-funcional encuadre F2 (o reentrada:C<n>), y ningún vacío R-E.* abierto
 #   Ref: F4   → juez-conjunto conjunto F4 (no sirve un recibo de hito) (+ seguridad si requerida)
-#   Ref: F5   → el recibo de F4 anterior sigue vigente (el cierre no cambió contenido revisable)
+#   Ref: F5   → exactamente lo de F4 (conjunto + seguridad), vigente sobre lo que se commitea
 # Ref: F4|F5 dispara además check_docs en modo cierre. Emergencia: git commit --no-verify.
 msg_file="$1"
 FAIL=0
@@ -24,18 +25,18 @@ trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
 HUELLA=$(sh scripts/huella.sh indice 2>/dev/null)
 [ -n "$HUELLA" ] || fail "no pude calcular la huella del índice (scripts/huella.sh indice)."
 
-# Recibos: lee docs/revisiones.log del índice; cada línea son campos clave=valor.
-LOG=$(idx docs/revisiones.log)
+# Recibos: docs/revisiones.log del índice, leído por el parser ÚNICO (scripts/recibos.sh),
+# el mismo que usa check_docs: comentarios ignorados, claves únicas, tipos y relaciones
+# (PASA ⇒ bloqueantes=0). Un registro con una línea inválida no entrega ningún recibo.
+LOGTMP=$(mktemp 2>/dev/null || mktemp -t recibos); trap 'rm -f "$LOGTMP"' EXIT INT TERM
+idx docs/revisiones.log > "$LOGTMP"
+sh scripts/recibos.sh validar "$LOGTMP" || fail "docs/revisiones.log tiene líneas inválidas (arriba): corrígelas; mientras tanto ningún recibo cuenta."
 campo() { printf '%s' "$1" | tr ' ' '\n' | sed -n "s/^$2=//p" | head -1; }
-ultimo_recibo() {  # $1 rol  $2 tipo  $3 alcance → imprime la última línea que coincide
-  printf '%s\n' "$LOG" | awk -v r="rol=$1" -v t="tipo=$2" -v a="alcance=$3" '
-    { ok=0; for(i=1;i<=NF;i++){ if($i==r) ok++; if($i==t) ok++; if($i==a) ok++ } if(ok==3) last=$0 }
-    END { if (last!="") print last }'
-}
+ultimo_recibo() { sh scripts/recibos.sh ultimo "$1" "$2" "$3" "$LOGTMP" 2>/dev/null; }
 exige_recibo() {  # $1 rol $2 tipo $3 alcance $4 descripción para el error → 0 si vigente
   rec=$(ultimo_recibo "$1" "$2" "$3")
   if [ -z "$rec" ]; then
-    fail "$4: no hay recibo de $1 ($2 $3) en docs/revisiones.log. Formato: fecha=… rol=$1 tipo=$2 alcance=$3 veredicto=PASA bloqueantes=0 seguridad=requerida|no-aplica huella=$HUELLA ejecutor=…"; return 1
+    fail "$4: no hay recibo válido de $1 ($2 $3) en docs/revisiones.log. Formato: fecha=… rol=$1 tipo=$2 alcance=$3 veredicto=PASA bloqueantes=0 [seguridad=requerida|no-aplica] huella=$HUELLA ejecutor=…"; return 1
   fi
   v=$(campo "$rec" veredicto); h=$(campo "$rec" huella)
   [ "$v" = "PASA" ] || { fail "$4: la última revisión de $1 ($2 $3) fue $v, no PASA."; return 1; }
@@ -50,6 +51,10 @@ exige_seguridad_si_aplica() {  # $1 recibo del juez  $2 tipo  $3 alcance
     *) fail "el recibo del juez ($2 $3) no declara seguridad=requerida|no-aplica."; return 1 ;;
   esac
 }
+exige_conjunto() {  # F4 y F5 exigen lo MISMO: conjunto PASA vigente + seguridad si requerida
+  rec=$(ultimo_recibo juez-conjunto conjunto F4)
+  exige_recibo juez-conjunto conjunto F4 "$1" && exige_seguridad_si_aplica "$rec" conjunto F4
+}
 
 cierre=0
 IFS='
@@ -60,15 +65,10 @@ for line in $trailers; do
     case "$f" in
       F2)
         exige_recibo revisor-funcional encuadre F2 "'$line'" || :
-        n=$(idx docs/trazabilidad.md | awk -F'|' '$2 ~ /^ *R-E\./ { e=$5; gsub(/ /,"",e); if (e=="abierto") c++ } END { print c+0 }')
+        n=$(idx docs/trazabilidad.md | awk -F'|' '$2 ~ /^ *R-E\.[0-9]+ *$/ { e=$5; gsub(/ /,"",e); if (e=="abierto") c++ } END { print c+0 }')
         [ "$n" -eq 0 ] || fail "'$line' con $n vacío(s) R-E.* en Estado abierto en docs/trazabilidad.md: el gate de diseño no se cruza con vacíos abiertos." ;;
-      F4)
-        cierre=1
-        rec=$(ultimo_recibo juez-conjunto conjunto F4)
-        exige_recibo juez-conjunto conjunto F4 "'$line'" && exige_seguridad_si_aplica "$rec" conjunto F4 ;;
-      F5)
-        cierre=1
-        exige_recibo juez-conjunto conjunto F4 "'$line' (el cierre exige que la validación del conjunto siga vigente)" || : ;;
+      F4) cierre=1; exige_conjunto "'$line'" || : ;;
+      F5) cierre=1; exige_conjunto "'$line' (el cierre exige que la validación del conjunto, con su seguridad, siga vigente)" || : ;;
     esac
   elif printf '%s' "$line" | grep -qE '^Ref:[[:space:]]*I[0-9]+[[:space:]]*$'; then
     id=$(printf '%s' "$line" | grep -oE 'I[0-9]+')

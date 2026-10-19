@@ -37,7 +37,7 @@ if [ "$INICIADO" -eq 1 ]; then
   for f in AGENTS.md README.md contexto/README.md docs/estado.md docs/encuadre.md \
            docs/plan.md docs/trazabilidad.md docs/decisiones.md docs/convenciones.md \
            docs/definicion-de-hecho.md docs/despliegue.md docs/MEMORIA.md docs/revisiones.log \
-           scripts/check_docs.sh scripts/huella.sh; do
+           scripts/check_docs.sh scripts/huella.sh scripts/recibos.sh; do
     has "$f" || err "falta $f (obligatorio con el proyecto iniciado)"
   done
   # scripts/check.sh es salida del diseño: existe desde el cierre de F2.
@@ -70,6 +70,8 @@ filas_trazabilidad() {
         tipo = (f[1]=="Criterio") ? "C" : (f[1]=="Vacío") ? "E" : "R"
         ce=0; ci=0
         for(k=1;k<=n;k++){ if(f[k]=="Estado") ce=k; if(f[k] ~ /^Incr/) ci=k }
+        hdr=""; for(k=1;k<=n;k++) { c=f[k]; gsub(/ /,"_",c); hdr = hdr (k>1?",":"") c }
+        print "HDR", tipo, hdr, "-"
         next
       }
       if (tipo=="" || ce==0) next
@@ -82,10 +84,26 @@ filas_trazabilidad() {
       print tipo, id, incr, est
     }
     /^## Histórico/ { hist=1 }
-    hist && /^- / { if (match($0, /R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+/)) print "H", substr($0, RSTART, RLENGTH), "-", "verificado" }
+    hist && /^- / { if (match($0, /R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+/)) { id=substr($0, RSTART, RLENGTH); if ($0 ~ /_/) next
+                     est = ($0 ~ /· *verificado/) ? "verificado" : "desconocido"; print "H", id, "-", est } }
     ' docs/trazabilidad.md
 }
 FILAS=$(filas_trazabilidad)
+# Las TRES tablas deben existir con sus columnas; un encabezado renombrado ("Situación")
+# no puede volver invisible un hallazgo.
+if has docs/trazabilidad.md; then
+  for want in "C:Criterio,Alias,Incremento(s),Estado,Nota" \
+              "E:Vacío,Alias,Punto incumplido,Estado,Resuelto (cómo · AAAA-MM-DD HH:MM UTC)" \
+              "R:Hallazgo,Alias,Incr.,Criterio,Descripción,Estado,Resuelto (AAAA-MM-DD HH:MM UTC · commit)"; do
+    tipo=${want%%:*}; cols=${want#*:}; colsn=$(printf '%s' "$cols" | tr ' ' '_')
+    got=$(printf '%s\n' "$FILAS" | awk -v tp="$tipo" '$1=="HDR" && $2==tp {print $3}' | head -1)
+    [ -n "$got" ] || { err "trazabilidad.md: falta la tabla de tipo $tipo (encabezado: | $(printf '%s' "$cols" | sed 's/,/ | /g') |)"; continue; }
+    [ "$got" = "$colsn" ] || err "trazabilidad.md: encabezado de la tabla $tipo alterado: '$(printf '%s' "$got" | tr '_' ' ')' (esperado '$cols'). Un estado no puede desaparecer por renombrar una columna."
+  done
+  for h in $(printf '%s\n' "$FILAS" | awk '$1=="H" && $4!="verificado" {print $2}'); do
+    err "trazabilidad.md: $h está en el Histórico sin '· verificado': al Histórico solo llega lo verificado"
+  done
+fi
 for bad in $(printf '%s\n' "$FILAS" | awk '$1=="X"{print $2}'); do
   err "trazabilidad.md: ID '$bad' fuera de la gramática (C<n> | R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n> | R-SF4.<n>)"
 done
@@ -107,7 +125,7 @@ printf '%s\n' "$FILAS" | awk '
   ($1=="R" && $4 !~ /^(abierto|resuelto|verificado)$/) { bad=1 } END { exit bad ? 1 : 0 }' || FAIL=1
 
 # Unicidad: un C# o un hallazgo con dos filas es un registro ambiguo (V04/V10).
-for dup in $(printf '%s\n' "$FILAS" | awk 'NF && $1!="X" && $1!="T" {print $2}' | sort | uniq -d); do
+for dup in $(printf '%s\n' "$FILAS" | awk 'NF && $1!="X" && $1!="T" && $1!="HDR" {print $2}' | sort | uniq -d); do
   err "trazabilidad.md tiene más de una fila para $dup (tablas o Histórico): un ID se registra una sola vez; una pasada nueva continúa la numeración desde el último, incluido el Histórico"
 done
 
@@ -235,30 +253,27 @@ if [ -d .claude/agents ]; then
       printf '%s\n' "$afm" | sed -n -E 's/^skills:[[:space:]]*\[(.*)\][[:space:]]*$/\1/p' | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' ; } | grep -v '^$')
     printf '%s\n' "$afm" | grep -qE '^skills:[[:space:]]*[^[[:space:]]' \
       && err "$f: 'skills:' con un valor escalar; usa lista (bloque '- x' o inline '[x, y]')"
+    # Lista inline: corchetes cerrados y cada ítem un identificador de skill, nada más.
+    inl=$(printf '%s\n' "$afm" | grep -E '^skills:[[:space:]]*\[' || true)
+    if [ -n "$inl" ]; then
+      printf '%s' "$inl" | grep -qE '^skills:[[:space:]]*\[[^][]*\][[:space:]]*$' || err "$f: 'skills:' inline sin cerrar o con corchetes anidados: $inl"
+      for s in $(printf '%s' "$inl" | sed -E 's/^skills:[[:space:]]*\[//; s/\].*$//' | tr ',' '\n'); do :; done
+      bad_items=$(printf '%s' "$inl" | sed -E 's/^skills:[[:space:]]*\[//; s/\].*$//' | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -vE '^[a-z0-9][a-z0-9-]*$' || true)
+      [ -z "$bad_items" ] || err "$f: ítem de 'skills:' inline inválido (solo identificadores): '$bad_items'"
+    fi
     for s in $askills; do
       has ".claude/skills/$s/SKILL.md" || err "$f precarga la skill '$s' pero .claude/skills/$s/SKILL.md no existe"
     done
   done
 fi
 
-# --- 7) Recibos de revisión (docs/revisiones.log): cada línea con sus campos válidos ---------
+# --- 7) Recibos de revisión: el parser ÚNICO (scripts/recibos.sh), el mismo del commit-msg --
 if has docs/revisiones.log; then
-  grep -vE '^[[:space:]]*(#|$)' docs/revisiones.log | while IFS= read -r rec; do
-    ok=1
-    for k in fecha rol tipo alcance veredicto bloqueantes huella ejecutor; do
-      printf '%s' "$rec" | grep -qE "(^| )$k=[^ ]+" || { echo "  ✗ check_docs: revisiones.log: falta '$k=' en: $(printf '%s' "$rec" | cut -c1-70)" >&2; ok=0; }
-    done
-    printf '%s' "$rec" | grep -qE '(^| )rol=(revisor-funcional|juez-codigo|juez-conjunto|juez-seguridad)( |$)' || { echo "  ✗ check_docs: revisiones.log: rol desconocido en: $(printf '%s' "$rec" | cut -c1-70)" >&2; ok=0; }
-    printf '%s' "$rec" | grep -qE '(^| )tipo=(encuadre|incremento|hito|conjunto)( |$)' || { echo "  ✗ check_docs: revisiones.log: tipo desconocido en: $(printf '%s' "$rec" | cut -c1-70)" >&2; ok=0; }
-    printf '%s' "$rec" | grep -qE '(^| )veredicto=(PASA|FALLA)( |$)' || { echo "  ✗ check_docs: revisiones.log: veredicto debe ser PASA|FALLA en: $(printf '%s' "$rec" | cut -c1-70)" >&2; ok=0; }
-    printf '%s' "$rec" | grep -qE '(^| )huella=[0-9a-f]{12}( |$)' || { echo "  ✗ check_docs: revisiones.log: huella debe ser 12 hex en: $(printf '%s' "$rec" | cut -c1-70)" >&2; ok=0; }
-    printf '%s' "$rec" | grep -qE '(^| )alcance=(F2|F4|I[0-9]+|hito:I[0-9]+-I[0-9]+|reentrada:C[0-9]+)( |$)' || { echo "  ✗ check_docs: revisiones.log: alcance fuera de gramática (F2 | F4 | I<n> | hito:I<a>-I<b> | reentrada:C<n>) en: $(printf '%s' "$rec" | cut -c1-70)" >&2; ok=0; }
-    if printf '%s' "$rec" | grep -qE '(^| )rol=(juez-codigo|juez-conjunto)( |$)'; then
-      printf '%s' "$rec" | grep -qE '(^| )seguridad=(requerida|no-aplica)( |$)' || { echo "  ✗ check_docs: revisiones.log: juez-codigo/juez-conjunto deben declarar seguridad=requerida|no-aplica en: $(printf '%s' "$rec" | cut -c1-70)" >&2; ok=0; }
-    fi
-    [ "$ok" -eq 1 ] || exit 3
-  done
-  [ $? -eq 3 ] && FAIL=1
+  if has scripts/recibos.sh; then
+    sh scripts/recibos.sh validar docs/revisiones.log || err "docs/revisiones.log tiene recibos inválidos (arriba); el commit-msg no aceptará ninguno hasta corregirlos"
+  else
+    err "falta scripts/recibos.sh (viene con la plantilla): sin él no se pueden validar los recibos"
+  fi
 fi
 
 # --- Modo cierre (F4/F5): condiciones de salida del ciclo ----------------------------------

@@ -17,4 +17,4 @@ exiges la evidencia de la verificación con datos reales), **no editas ningún a
 usas la red ni apruebas el commit**, y entregas el reporte con el formato exacto del
 protocolo (Veredicto · Bloqueantes `R-I#.n` con filas listas · Sugerencias · Preguntas ·
 Obstáculos · Recibo para `docs/revisiones.log` con alcance, `seguridad=requerida|no-aplica` y la `huella` que imprime `sh scripts/huella.sh` sobre lo que revisaste, también con PASA limpio). El principal registra tal cual
-y comprueba con `sh scripts/huella.sh` que el contenido es el mismo antes y después de tu pasada (y el de tu reporte).
+y comprueba con `sh scripts/huella.sh integridad` que no tocaste nada y con la huella de tu recibo que juzgaste lo que se guarda.

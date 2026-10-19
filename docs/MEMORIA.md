@@ -18,5 +18,12 @@ resuelto por rol en otro cliente). Se promueven a docs/convenciones.md en el sig
 incremento; aquí no invalidan recibos. -->
 -
 
+## Consumo
+
+<!-- Una línea por incremento y por fase (scripts/consumo.py; formato en
+docs/convenciones.md §Contexto). Fuera de la huella: se registra tras el PASA. La retro
+de cada fase arma la tabla desde aquí. -->
+-
+
 ## Lecciones
 -

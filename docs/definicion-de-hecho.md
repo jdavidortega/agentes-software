@@ -11,7 +11,12 @@
 >
 > Tiene **dos listas en orden**, para que nadie tenga que aprobar antes de tener evidencia
 > ni commitear antes de la revisión: **A** es lo que el juez verifica **antes del commit**;
-> **B** es lo que el principal hace **después del PASA** para cerrar el incremento.
+> **B** es lo que el principal hace **después del PASA** para cerrar el incremento. Regla
+> del orden: **todo lo revisable queda escrito antes de pedir el PASA** (código, docs,
+> bitácora del incremento ya colapsada a una línea, README); después del PASA solo se
+> tocan los **registros** fuera de la huella (`revisiones.log`, `trazabilidad.md`,
+> `estado.md`, `MEMORIA.md`). Si algo revisable cambia después, el recibo caduca y la
+> revisión se repite; eso no es un defecto del control, es su razón de ser.
 >
 > **Si el conjunto NO cumple (Fase 4):** vuelve atrás según la causa. Defecto o
 > cobertura faltante (requisitos correctos) → Fase 3, incremento de corrección.
@@ -41,8 +46,9 @@
   `.env` por defecto**. Nunca credenciales/rutas quemadas en el código.
 - [ ] **Pasada de seguridad, si el incremento toca superficie de riesgo** (entrada no
   confiable, authn/authz, secretos, persistencia, IaC/despliegue, IA/LLM): hecha, con
-  sus hallazgos `R-S#.n` cerrados y su línea en la bitácora
-  (`.claude/skills/revision-seguridad/SKILL.md`). Si no la toca, el juez lo hace constar.
+  sus hallazgos `R-S#.n` cerrados y su recibo en `docs/revisiones.log`
+  (`.claude/skills/revision-seguridad/SKILL.md`). Si no la toca, el juez lo hace constar
+  con `seguridad=no-aplica` en su recibo.
 - [ ] **Verificación con datos reales y sobre lo generado:** si el incremento toca
   datos o salida, se verificó de forma exploratoria sobre insumos reales
   representativos, no solo fixtures sintéticos; y **lo generado se abre y examina**
@@ -82,12 +88,13 @@
   `docs/trazabilidad.md`; los
   bloqueantes resueltos están en `resuelto` con su mutación escrita (pasan a `verificado`
   por un revisor independiente antes de la salida de la Fase 3; `AGENTS.md` §2).
-- [ ] **Compactación del cierre:** `docs/estado.md` regenerado (fase, `C#` con alias y
-  estado, hallazgos abiertos, **pendiente** y próximo paso); bitácora de incrementos
-  cerrados colapsada a una línea; hallazgos `verificado` archivados en el Histórico de
-  `docs/trazabilidad.md`; **línea de consumo** registrada (`scripts/consumo.py`;
-  ver `docs/convenciones.md` §Contexto).
-- [ ] Las lecciones, si las hubo, están en `docs/MEMORIA.md`.
+- [ ] **Registros del cierre** (todos fuera de la huella): `docs/estado.md` regenerado
+  (fase, `C#` con alias y estado, hallazgos abiertos, **pendiente** y próximo paso);
+  hallazgos `verificado` archivados en el Histórico de `docs/trazabilidad.md`; **línea de
+  consumo** en `docs/MEMORIA.md` §Consumo (`scripts/consumo.py`; ver
+  `docs/convenciones.md` §Contexto); lecciones y obstáculos en `docs/MEMORIA.md`. La
+  bitácora de `docs/plan.md` **no se toca aquí**: su línea del incremento se escribió y
+  colapsó antes de pedir el PASA.
 - [ ] **Commit enlazado** (`Ref: I#` / `Cierra: R-…`) con mensaje concreto y suficiente;
   el `README.md` que cambió va en ese mismo commit.
 - [ ] **Gate humano:** la persona recibe el resumen ejecutivo del incremento (`AGENTS.md`

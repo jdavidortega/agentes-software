@@ -2,7 +2,7 @@
 
 > **Para el agente.** Este es el primer punto de entrada del proyecto: ejecútalo
 > ANTES de cualquier diseño o línea de código. Empiezas por el **Bootstrap del
-> repositorio (paso 0)** y la **ingesta del material**, y solo después construyes el
+> repositorio (paso 0)** y la **ingesta de `contexto/`**, y solo después construyes el
 > encuadre sobre esa base. Tú conduces a la persona paso a paso; no es una lista
 > para que ella lea sola.
 
@@ -25,7 +25,7 @@ primer ciclo. Lo dispara el **cierre** (Fase 5) —en ese momento o en una sesi�
 se reutiliza **solo la rebanada que el cambio necesita**. (Lo pedido **con el plan aún
 vivo** no es reentrada: va por el bucle de la Fase 3.) Clasifica con una sola pregunta:
 
-> **¿El pedido cambia la verdad acordada —un `C#` o el set de oro de `docs/contexto.md`?**
+> **¿El pedido cambia la verdad acordada —un `C#` o el set de oro de `docs/encuadre.md`?**
 
 - **No** → el criterio vigente sigue válido; lo que falla o falta es la implementación
   (defecto, regresión, cobertura faltante, o un ajuste interno que el criterio ya
@@ -34,7 +34,7 @@ vivo** no es reentrada: va por el bucle de la Fase 3.) Clasifica con una sola pr
 - **Sí** → reentra por el **Encuadre**, reutilizando **solo las actividades que el cambio
   exige** (no el arranque entero):
   - **Ajuste** (edita un `C#` o un par del set de oro): ingiere solo el nuevo insumo,
-    **edita** el dato en `contexto.md`, ADR del cambio, y el **revisor funcional** revisa
+    **edita** el dato en `encuadre.md`, ADR del cambio, y el **revisor funcional** revisa
     *solo lo afectado*.
   - **Requisito nuevo** (añade un `C#`/capacidad): ingiere el nuevo insumo, **añade** el
     `C#` (+ set de oro si aplica), suma ≥1 incremento al plan, revisor funcional sobre lo
@@ -42,11 +42,11 @@ vivo** no es reentrada: va por el bucle de la Fase 3.) Clasifica con una sola pr
 - **Pregunta/soporte** → respóndela; **mejora opcional** → **backlog** de `docs/plan.md`.
   No abren ciclo (si una mejora se decide perseguir, se vuelve requisito nuevo).
 
-El insumo aterriza en `material/` (si solo se describe en el chat, **captúralo como brief
+El insumo aterriza en `contexto/` (si solo se describe en el chat, **captúralo como brief
 corto ahí** —formato: `docs/plantilla-requerimiento.md`, plantilla B— y anótalo en el
 manifiesto). Clasifica **por aspecto, no por ticket**: si un
 pedido es defecto en una parte y cambia un criterio en otra, la parte rota va a Fase 3 y
-la que toca `contexto.md`, al Encuadre. **Propón la clasificación y confírmala en el
+la que toca `encuadre.md`, al Encuadre. **Propón la clasificación y confírmala en el
 gate** (un mensaje); no la decidas en silencio ni interrogues con un sí/no. Tras
 construir, la reentrada que tocó código **revalida la Fase 4 sobre el conjunto** (sin
 regresiones), no solo el incremento nuevo.
@@ -65,13 +65,13 @@ falta y qué archivo ajustar, y vuelves a validar. La aprobación es por activid
 **Cómo pides la aprobación (gate accionable).** Si no mostraste el contenido en el
 chat (está bien por eficiencia de tokens), no pidas un OK en abstracto: indica **qué
 archivos revisar** y **qué información concreta** contiene cada uno —p. ej. "revisa
-`docs/contexto.md`: los criterios `C1–C4`, el set de oro y el modelo de despliegue"— y
+`docs/encuadre.md`: los criterios `C1–C4`, el set de oro y el modelo de despliegue"— y
 di que **debe validarlos antes de continuar**. Nada de "ya quedó, ¿seguimos?".
 
-**Precondición de arranque:** no se construye el encuadre sin material. La carpeta
-`material/` debe tener **≥1 archivo real** (además de su `README.md`). Si está
+**Precondición de arranque:** no se construye el encuadre sin entradas. La carpeta
+`contexto/` debe tener **≥1 archivo real** (además de su `README.md`). Si está
 vacía, **detente** y pídelo: aunque sea un brief breve escrito a propósito (formato:
-`docs/plantilla-requerimiento.md`). El encuadre se deriva del material, no de lo que
+`docs/plantilla-requerimiento.md`). El encuadre se deriva de las entradas, no de lo que
 la persona alcance a teclear en frío.
 
 ## Paso 0 · Bootstrap del repositorio
@@ -93,7 +93,7 @@ agente **se detiene** y pide resolverla.
 ## Modo PoC declarada (transversal)
 
 La persona puede declarar el proyecto como **prueba de concepto**. Queda registrado una
-sola vez (nota en `docs/contexto.md` y `docs/estado.md`) y relaja de forma **explícita
+sola vez (nota en `docs/encuadre.md` y `docs/estado.md`) y relaja de forma **explícita
 y acotada**:
 
 - **Remoto opcional** (ver Bootstrap).
@@ -110,7 +110,7 @@ real, set de oro completo) antes de cualquier rebanada de producción.
 
 - **Hallazgo ≠ decisión.** Un **hallazgo** es un hecho observado (p. ej. "el prototipo
   no implementa el filtro de frescura"); se **registra ya** donde informa
-  (`docs/contexto.md`), porque es un dato, no requiere que nadie decida. Una
+  (`docs/encuadre.md`), porque es un dato, no requiere que nadie decida. Una
   **decisión** es qué se *hace* con él; solo existe cuando hay **≥2 opciones
   razonables**. No las mezcles ni llames "decisión" a un hallazgo.
 - Cada decisión con ≥2 opciones razonables → ADR en `docs/decisiones.md` (ADR-lite),
@@ -137,126 +137,131 @@ real, set de oro completo) antes de cualquier rebanada de producción.
 
 ---
 
-## Fase 1 · Ingesta de entradas (material + análisis)
+## Fase 1 · Ingesta de entradas (`contexto/`)
 
 El arranque empieza por aquí: primero **inventarías lo que hay**, confirmas con la
-persona que está completo, y solo entonces lo analizas y rutas. Hay dos carpetas
-de entrada con roles distintos:
-
-- `material/` — lo que se **lee y se rutea**: antecedentes, motivación, specs,
-  notas, decisiones. **Obligatorio** (precondición de arranque). Reglas de ingesta
-  en `material/README.md`.
-- `analisis/` — **artefactos analíticos**: notebooks, scripts, datos de entrada
-  (opcional) y datos de salida/resultados. Es lo que se *ejecuta o inspecciona*,
-  no lo que se *lee*. **Opcional**, pero **revisarla es obligatorio**. Reglas en
-  `analisis/README.md`.
+persona que está completo, y solo entonces lo analizas y rutas. Hay **una sola carpeta
+de entrada**, `contexto/`: documentos que se *leen* (antecedentes, specs, notas,
+decisiones) y artefactos que se *ejecutan o inspeccionan* (notebooks, scripts, datos de
+entrada, datos de salida, resultados previos) conviven en su raíz **sin que la persona
+los clasifique**; la tipificación la haces tú al ingerir. **Obligatoria** (≥1 archivo
+real: precondición de arranque). Reglas de ingesta en `contexto/README.md`. Tu propio
+trabajo exploratorio (muestreo, experimentos) va en `contexto/exploracion/`, nunca en
+la raíz.
 
 **a. Inventaría y confirma (gate de completitud).** Lista lo que encuentres en
-`material/` y en `analisis/` (acuse de recibo) y pregunta: *"¿esto es todo, o
-quieres agregar más antes de que lo analice?"*. No inviertas en analizar hasta que
-la persona cierre el set de entrada. Si `material/` está vacía → aplica la
-precondición de arranque y detente.
+`contexto/` (acuse de recibo, con el **tipo** que le asignas a cada entrada:
+`documento`, `datos de entrada`, `datos de salida`, `artefacto`) y pregunta: *"¿esto es
+todo, o quieres agregar más antes de que lo analice?"*. Pregunta también, explícitamente,
+por las **entradas y salidas del sistema**: todo proceso de software las tiene (una o
+varias: archivos, tablas, respuestas de API, pantallas, artefactos); si de alguna no hay
+muestra en la carpeta, pide la muestra o el **acceso** (servicio, base de datos) para
+obtenerla. No inviertas en analizar hasta que la persona cierre el set de entrada. Si
+`contexto/` está vacía → aplica la precondición de arranque y detente.
 
 **b. Clasifica y rutea (gate de ruteo).** Para cada entrada, **propón** a dónde va
 con su razón y espera el OK antes de escribir en los archivos oficiales. La ingesta
-**siembra los documentos vivos desde el principio** con lo que el material ya
-provea: no se dejan vacíos para "después" si el material tiene contenido para ellos.
-Esto incluye:
+**siembra los documentos vivos desde el principio** con lo que las entradas ya
+provean: no se dejan vacíos para "después" si hay contenido para ellos. Esto incluye:
 
-- De `material/`: los **antecedentes y la motivación** → `docs/contexto.md`; el
-  **stack, tecnologías y arquitectura** que el material defina → sección "Stack y
-  arquitectura" de `docs/contexto.md`; las **convenciones operativas** que el material
-  ya traiga (estilo de código, patrones, comandos de build/test/run, layout de
-  entorno) → `docs/convenciones.md`, **verificando comandos y versiones contra la doc
-  oficial vigente** antes de fijarlos (no los tomes de memoria ni de material que
-  pueda estar desactualizado); los **hallazgos y datos** que aporte →
-  `docs/contexto.md` (hallazgo ≠ decisión); las **decisiones** que implique (≥2
-  opciones razonables) → `docs/decisiones.md`.
-- De `analisis/` (si tiene contenido): los **hallazgos/resultados** del análisis
-  previo → `docs/contexto.md` §Contexto; los **pares datos de entrada → datos de
-  salida** son **candidatos directos al set de oro** de `docs/contexto.md`,
-  proponlos como tales; las **discrepancias** que revele son **hallazgos** →
-  `docs/contexto.md`, y solo las **decisiones** (≥2 opciones) → `docs/decisiones.md`.
-  Los notebooks y datos crudos **se quedan** en `analisis/`
-  como referencia y se **enlazan** desde `contexto.md`; no se copian.
+- De los **documentos**: los **antecedentes y la motivación** → `docs/encuadre.md`
+  §Contexto; el **stack, tecnologías y arquitectura** que definan → §"Stack y
+  arquitectura" de `docs/encuadre.md`; las **convenciones operativas** que ya traigan
+  (estilo de código, patrones, comandos de build/test/run, layout de entorno) →
+  `docs/convenciones.md`, **verificando comandos y versiones contra la doc oficial
+  vigente** antes de fijarlos (no los tomes de memoria ni de un documento que pueda
+  estar desactualizado); los **hallazgos y datos** que aporten → `docs/encuadre.md`
+  (hallazgo ≠ decisión); las **decisiones** que impliquen (≥2 opciones razonables) →
+  `docs/decisiones.md`.
+- De los **datos de entrada y de salida** y los **artefactos** (análisis previo,
+  notebooks, resultados): cada entrada y cada salida del sistema → una **fila en
+  `docs/encuadre.md` §Entradas y salidas** (origen o consumidor, formato, muestra o
+  acceso, validada sí/no); los **hallazgos/resultados** del análisis previo →
+  `docs/encuadre.md` §Contexto; los **pares datos de entrada → datos de salida** son
+  **candidatos directos al set de oro**, proponlos como tales; las **discrepancias** que
+  revelen son **hallazgos** → `docs/encuadre.md`, y solo las **decisiones** (≥2
+  opciones) → `docs/decisiones.md`. Los notebooks y datos crudos **se quedan** en
+  `contexto/` como referencia y se **enlazan** desde `encuadre.md`; no se copian.
 
-**No borres la fuente:** los originales se quedan en su carpeta para trazabilidad;
-solo se eliminan si la persona lo pide. Tras rutear cada archivo de `material/`,
-**registra una fila en el manifiesto** de `material/README.md`. Si el material
-**contradice** algo ya escrito (un criterio, una decisión), no lo archives en
-silencio: señala la inconsistencia y resuélvela con la persona.
+**No borres la fuente:** los originales se quedan en `contexto/` para trazabilidad;
+solo se eliminan si la persona lo pide. Tras rutear cada entrada, **registra una fila
+en el manifiesto** de `contexto/README.md` (con su tipo). Si una entrada **contradice**
+algo ya escrito (un criterio, una decisión), no la archives en silencio: señala la
+inconsistencia y resuélvela con la persona.
 
 **Muestreo de insumos reales (obligatorio antes del gate de diseño).** No diseñes
-solo contra la especificación: abre **1–3 muestras reales de cada insumo** (datos,
-archivos, respuestas de API) y valida contra ellas los supuestos del spec —formato,
-nombres, numeración, casos límite, datos ya pre-extraídos, etc. El trabajo
-exploratorio nuevo vive en `analisis/`. Cada discrepancia con el spec es un
-**hallazgo**: regístralo en `docs/contexto.md` (no es una decisión). Si el hallazgo
-**fuerza una elección** (p. ej. cambia el alcance), abre la decisión como ADR en
-estado `propuesta` indicando en qué actividad se resuelve (ver Transversal). Es
-barato y evita rediseñar en plena ejecución.
+solo contra la especificación: abre **1–3 muestras reales de cada entrada y de cada
+salida** inventariada (datos, archivos, respuestas de API, pantallas o artefactos
+generados) y valida contra ellas los supuestos del spec —formato, nombres, numeración,
+casos límite, datos ya pre-extraídos, etc.—. El trabajo exploratorio nuevo vive en
+`contexto/exploracion/`. Cada discrepancia con el spec es un **hallazgo**: regístralo
+en `docs/encuadre.md` (no es una decisión) y marca la fila de §Entradas y salidas como
+**validada**. Si el hallazgo **fuerza una elección** (p. ej. cambia el alcance), abre
+la decisión como ADR en estado `propuesta` indicando en qué actividad se resuelve (ver
+Transversal). Es barato y evita rediseñar en plena ejecución.
 
 **Regla de tres casos para el insumo real (proporcional, no dogmática):**
 
 1. **Existe y es accesible** → se carga, obligatorio; el agente se detiene y lo pide.
    "Accesible" incluye **conexiones a servicios y bases de datos vivas**: si el insumo
    está detrás de una API o BD, pide credenciales/acceso (solo lectura, a entorno de
-   prueba cuando exista) y descarga muestras reales **antes** de suponer. El muestreo
-   valida los supuestos de diseño **y los requerimientos mismos**: un requerimiento que
-   los datos reales contradicen es un **hallazgo del encuadre**, no una sorpresa de la
-   Fase 3.
+   prueba cuando exista) y descarga muestras reales a `contexto/exploracion/` **antes**
+   de suponer. El muestreo valida los supuestos de diseño **y los requerimientos
+   mismos**: un requerimiento que los datos reales contradicen es un **hallazgo del
+   encuadre**, no una sorpresa de la Fase 3.
 2. **No existe aún** (diseño desde cero: la persona confirma que no hay datos de
-   prueba, ni servicio/BD consultable, ni estructura de datos en `material/` o
-   `analisis/`) → no bloquea, pero **no se sustituye por prosa**: si el sistema tiene
-   entradas y/o salidas, el agente lo **reporta**, **diseña un bosquejo del modelo de
-   datos** (campos, tipos, un ejemplo concreto por entrada/salida; el set de oro
-   cumple ese rol para las salidas; solo lo que los criterios exigen,
+   prueba, ni servicio/BD consultable, ni estructura de datos en `contexto/`) → no
+   bloquea, pero **no se sustituye por prosa**: si el sistema tiene entradas y/o
+   salidas —y siempre las tiene—, el agente lo **reporta**, **diseña un bosquejo del
+   modelo de datos** (campos, tipos, un ejemplo concreto por entrada/salida; el set de
+   oro cumple ese rol para las salidas; solo lo que los criterios exigen,
    anti-sobredimensionamiento) y lo **valida con la persona**. El bosquejo aterriza
-   como el «Modelo de datos» de `docs/plan.md` (contrato); el supuesto queda marcado
-   `[supuesto]` y su **validación se difiere al primer insumo real** (anotada en
-   `docs/estado.md`; no se evapora).
+   como el «Modelo de datos» de `docs/plan.md` (contrato); la fila de §Entradas y
+   salidas queda marcada `[supuesto]` y su **validación se difiere al primer insumo
+   real** (anotada en `docs/estado.md`; no se evapora).
 3. **PoC declarada** → rigor proporcional (ver «Modo PoC declarada»).
 
 **Validador (PASA/FALLA):**
-- [ ] `material/` tiene ≥1 archivo real además del `README.md` (precondición dura).
-- [ ] Se inventarió `material/` y `analisis/` y la persona confirmó que el set de
-  entrada está completo.
-- [ ] Todo el material aportado quedó clasificado y ruteado (con gate).
-- [ ] `analisis/` fue revisada: si tenía contenido, sus hallazgos quedaron ruteados
-  (con gate) y los datos de salida se evaluaron como candidatos a set de oro; si
-  estaba vacía, se registró explícitamente "no hay análisis previo".
-- [ ] Cada archivo de `material/` procesado tiene su fila en el manifiesto de
-  `material/README.md`.
-- [ ] Se muestrearon 1–3 ejemplos reales de cada insumo y se validaron los supuestos
-  del spec contra ellos, o aplicó el caso 2/3 de la regla de tres casos (bosquejo del
-  modelo de datos —o descripción de entrada/salida— validado con la persona y
-  supuestos con validación diferida anotada).
+- [ ] `contexto/` tiene ≥1 archivo real además del `README.md` (precondición dura).
+- [ ] Se inventarió `contexto/` con el tipo de cada entrada y la persona confirmó que
+  el set de entrada está completo, incluidas las **entradas y salidas del sistema**
+  (muestra o acceso para cada una, o confirmación de que aún no existe).
+- [ ] Toda entrada quedó clasificada y ruteada (con gate); los artefactos y datos, si
+  los hubo, dejaron sus hallazgos ruteados y sus salidas evaluadas como candidatas a
+  set de oro; si no hubo datos ni análisis previo, se registró explícitamente.
+- [ ] Cada entrada procesada tiene su fila (con tipo) en el manifiesto de
+  `contexto/README.md`.
+- [ ] `docs/encuadre.md` §Entradas y salidas tiene una fila por cada entrada y salida
+  del sistema, cada una **validada contra 1–3 muestras reales** o cubierta por el caso
+  2/3 de la regla de tres casos (bosquejo del modelo de datos —o descripción de
+  entrada/salida— validado con la persona y `[supuesto]` con validación diferida
+  anotada).
 - [ ] Ninguna decisión de arquitectura/stack pendiente depende de un `[supuesto]` que
   un insumo **existente y accesible** resolvería (incluye servicios/BD con conexión
   solicitable).
-- [ ] Las discrepancias spec↔realidad quedaron como **hallazgos** en `docs/contexto.md`;
+- [ ] Las discrepancias spec↔realidad quedaron como **hallazgos** en `docs/encuadre.md`;
   las que fuerzan una elección, como ADR `propuesta` en `docs/decisiones.md`.
 
 ---
 
 ## Fase 1 · Encuadre (revisar y completar el borrador)
 
-Con la ingesta hecha, ya tienes un **borrador de `docs/contexto.md` derivado del
-material y el análisis**. El encuadre **no parte de cero**: es revisar ese borrador
-con la persona y **cerrar los huecos**. Marca cada dato como `[del material]`,
+Con la ingesta hecha, ya tienes un **borrador de `docs/encuadre.md` derivado de las
+entradas de `contexto/`**. El encuadre **no parte de cero**: es revisar ese borrador
+con la persona y **cerrar los huecos**. Marca cada dato como `[de contexto/]`,
 `[inferido]` o `[FALTA]`, y para cada `[FALTA]` ofrécele elegir el modo: **(a)** tú
 le preguntas **una cosa a la vez** y diligencias tú, o **(b)** le entregas esa
 sección para que la llene y luego la revisas. No avanzas de una sección sin su
 contenido.
 
-Hay partes del encuadre que el material rara vez trae completas —**criterios de
+Hay partes del encuadre que las entradas rara vez traen completas —**criterios de
 éxito, no-objetivos, set de oro y modelo de despliegue**—: ahí la colaboración con
 la persona sigue siendo necesaria; deriva lo que puedas y pregunta dirigido por el
-resto. Para **stack y arquitectura**: primero búscalo en `material/`; si no está,
+resto. Para **stack y arquitectura**: primero búscalo en `contexto/`; si no está,
 **pregúntalo con base en el contexto, no asumas un default**; si hay opciones,
 debátelas y regístralas como ADR (versiones verificadas contra la doc oficial).
 
-**Validador (PASA/FALLA):** en `docs/contexto.md` tienen contenido real —no el
+**Validador (PASA/FALLA):** en `docs/encuadre.md` tienen contenido real —no el
 marcador `-` ni el comentario `<!-- -->`— las secciones:
 - [ ] Contexto
 - [ ] Objetivos
@@ -265,8 +270,12 @@ marcador `-` ni el comentario `<!-- -->`— las secciones:
 - [ ] Set de oro: ≥5 pares `entrada → salida esperada` (orientativo 5–10; en **PoC
   declarada**, mínimo 2–3, pueden ser sintéticos acordados) que definan la calidad
   aceptable (no solo la funcionalidad), con **al menos un ejemplo concreto de entrada
-  y de salida** (inline o como archivo referenciado, no solo el formato). Usa los
-  datos de salida de `analisis/` como base cuando existan.
+  y de salida** (inline o como archivo referenciado, no solo el formato). Usa las
+  muestras de salida de §Entradas y salidas como base cuando existan.
+- [ ] **Entradas y salidas**: una fila por cada entrada y salida del sistema, con muestra
+  real en `contexto/` (o acceso) y validada, o `[supuesto]` con validación diferida
+  anotada (regla de tres casos). Toda salida inventariada tiene su ejemplo en el set de
+  oro.
 - [ ] **Stack y arquitectura** definidos (lenguaje+versión, framework+versión, build,
   estilo de arquitectura), con versiones verificadas contra la doc oficial.
 - [ ] Modelo de despliegue decidido con sus **dos preguntas**: **destino** —¿solo
@@ -275,9 +284,9 @@ marcador `-` ni el comentario `<!-- -->`— las secciones:
   Operación/Despliegue— y **empaquetado** —contenedor (default recomendado: aislamiento
   y paridad dev/prod), host directo o serverless; desviarse del contenedor lleva razón
   registrada—.
-- [ ] **Alcance del rastro decidido:** si `docs/`, `material/` y `analisis/` viajan con
+- [ ] **Alcance del rastro decidido:** si `docs/` y `contexto/` viajan con
   el entregable, se excluyen del empaquetado/imagen, o van en repo aparte (relevante
-  con terceros o material sensible). Si hubo opciones, ADR.
+  con terceros o entradas sensibles). Si hubo opciones, ADR.
 - [ ] No queda ningún `[FALTA]` ni `[inferido]` sin confirmar con la persona.
 - [ ] No queda ningún **ADR en estado `propuesta`** asignado a esta actividad (las
   decisiones diferidas al Encuadre —p. ej. el alcance— quedaron resueltas: `aceptada`).
@@ -308,8 +317,8 @@ inicio, no se descubre al final.
 **Supuesto técnico → experimento, no fe.** Si un incremento se apoya en un supuesto
 técnico sin verificar (la librería que "debería" leer el formato, el servicio que
 "debería" responder así, el rendimiento esperado), el plan antepone un **experimento
-mínimo** en `analisis/` que lo confirme antes de construir sobre él. Su resultado es
-un hallazgo (→ `docs/contexto.md`); si fuerza una elección, ADR. Rehacer un
+mínimo** en `contexto/exploracion/` que lo confirme antes de construir sobre él. Su resultado es
+un hallazgo (→ `docs/encuadre.md`); si fuerza una elección, ADR. Rehacer un
 incremento cuesta más que el experimento.
 
 **Validador (PASA/FALLA):**
@@ -344,14 +353,13 @@ incremento cuesta más que el experimento.
 Esta revisión **no la hace el agente principal por sí mismo**: la ejecuta el **revisor
 funcional** (rol analista) como subagente con **contexto propio** (rol y rúbrica en
 `.claude/skills/revision-funcional/SKILL.md`), para no validar el encuadre contra las
-racionalizaciones de quien lo redactó. Revisa `contexto.md` y `plan.md` **contra su
-fuente** (`material/` y `analisis/`) y verifica que los puntos que deben estar claros
+racionalizaciones de quien lo redactó. Revisa `encuadre.md` y `plan.md` **contra su
+fuente** (`contexto/`, incluida la tabla de §Entradas y salidas) y verifica que los puntos que deben estar claros
 estén resueltos.
 
 El revisor **reporta, no escribe**. Si encuentra un vacío, **indica qué falta** y se
 aplica el protocolo de vacíos del skill: la persona lo **escribe** en el `.md` o
-**agrega un documento** (con nombre indicado, en la carpeta que el principal le señale:
-`material/` o `analisis/`); el principal **valida si ya está** y, de estarlo, re-pasa
+**agrega un documento** (con nombre indicado, en `contexto/`); el principal **valida si ya está** y, de estarlo, re-pasa
 el revisor sobre la parte afectada (no se re-corre todo). **No se avanza con vacíos
 abiertos.**
 

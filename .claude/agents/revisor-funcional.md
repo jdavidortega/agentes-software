@@ -1,6 +1,6 @@
 ---
 name: revisor-funcional
-description: Revisor funcional independiente (rol analista) del encuadre y el plan. Úsalo al cerrar el arranque —antes del gate de diseño y de la primera línea de código— y en cada pasada fresca hasta dar PASA. Verifica que docs/contexto.md y docs/plan.md sean completos y consistentes contra su fuente (material/, analisis/) y emite veredicto PASA/FALLA con vacíos R-E.n. Reporta; no autora los archivos de contenido.
+description: Revisor funcional independiente (rol analista) del encuadre y el plan. Úsalo al cerrar el arranque —antes del gate de diseño y de la primera línea de código— y en cada pasada fresca hasta dar PASA. Verifica que docs/encuadre.md y docs/plan.md sean completos y consistentes contra su fuente (contexto/) y emite veredicto PASA/FALLA con vacíos R-E.n. Reporta; no autora los archivos de contenido.
 tools: Read, Grep, Glob, Bash
 model: sonnet  # revision acotada por rubrica; distinto al principal (diversifica) y 2.5x mas barato
 skills:

@@ -25,7 +25,7 @@ No corre en todo incremento —eso la volvería trámite—. Corre cuando el inc
 **toca superficie de riesgo**; basta **uno** de estos disparadores:
 
 - **Entrada que no controlas:** datos de usuario, archivos subidos, respuestas de API
-  externas, contenido de `material/`, parámetros de URL o CLI.
+  externas, contenido de `contexto/`, parámetros de URL o CLI.
 - **Autenticación, autorización o sesiones** (incluye cualquier endpoint nuevo que
   decida quién ve qué).
 - **Secretos, credenciales o config de entorno.**
@@ -62,7 +62,7 @@ que está bien protegido—, rellenando el incremento y el rango del diff:
 
 > Actúa como juez de seguridad según `.claude/skills/revision-seguridad/SKILL.md`: léelo y
 > aplica su rúbrica completa. Audita el incremento `I#` (diff: `git diff <rango>`)
-> contra `docs/contexto.md` (modelo de despliegue y datos que maneja),
+> contra `docs/encuadre.md` (modelo de despliegue y datos que maneja),
 > `docs/convenciones.md` y los hallazgos previos en `docs/trazabilidad.md`. Reconoce
 > el stack, activa solo los dominios aplicables y lee su `references/`. Corre los
 > escáneres de solo lectura disponibles. Entrega tu reporte EXACTAMENTE con estas
@@ -76,7 +76,7 @@ que está bien protegido—, rellenando el incremento y el rango del diff:
 ## Insumos
 
 - **El diff del incremento** (o el conjunto, en Fase 4) y sus pruebas.
-- `docs/contexto.md`: **qué datos maneja el sistema y cuál es su modelo de
+- `docs/encuadre.md`: **qué datos maneja el sistema y cuál es su modelo de
   despliegue.** Sin esto no se puede juzgar explotabilidad —el mismo código expuesto a
   internet o corriendo como CLI local no tiene el mismo riesgo—.
 - `docs/convenciones.md` (reglas ya acordadas), `docs/decisiones.md` (riesgos
@@ -111,7 +111,7 @@ que está bien protegido—, rellenando el incremento y el rango del diff:
      bloqueante.
    - ¿Hay **sanitización o parametrización aguas arriba** que ya lo cubre?
    - ¿Es **fixture, test o código muerto**? Dilo y bájale severidad.
-   - ¿Es **explotable en el modelo de despliegue real** (`docs/contexto.md`)?
+   - ¿Es **explotable en el modelo de despliegue real** (`docs/encuadre.md`)?
    Cada hallazgo sale con **severidad** y **confianza** (Alta/Media/Baja).
 5. **Entrega el veredicto** en este formato:
    - **Veredicto:** PASA / FALLA.

@@ -25,10 +25,10 @@ en los documentos por rebanada y la historia, en git.
 
 ## 1. Qué es este proyecto
 
-<!-- Una o dos frases. El detalle vive en docs/contexto.md -->
+<!-- Una o dos frases. El detalle vive en docs/encuadre.md -->
 - **Proyecto:** _[nombre]_
 - **Propósito:** _[qué problema resuelve, en una frase]_
-- **Contexto y objetivos completos:** ver `docs/contexto.md`
+- **Contexto y objetivos completos:** ver `docs/encuadre.md`
 
 ## 2. Cómo trabajamos: las 5 fases
 
@@ -43,7 +43,7 @@ agente lo hace por defecto, sin que la persona lo pida; ningún gate se solicita
 el README desactualizado (formato: `.claude/skills/escribiendo-readme/SKILL.md`)—. Si no
 mostraste el contenido en el chat —está bien no hacerlo, por eficiencia de tokens—,
 no pidas un OK en abstracto: dile a la persona **qué documentos revisar** (p. ej.
-`docs/contexto.md`, `docs/plan.md`, `docs/decisiones.md`) y **qué información
+`docs/encuadre.md`, `docs/plan.md`, `docs/decisiones.md`) y **qué información
 concreta** contiene cada uno (los criterios `C#`, el set de oro, los incrementos, la
 decisión registrada…), y que **debe validarlos antes de continuar**. El mensaje del
 gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimos?".
@@ -53,9 +53,11 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
    despliegue** (dos preguntas: **destino** —¿solo local, o también remoto?; el
    despliegue local siempre existe— y **empaquetado** —contenedor recomendado—).
    **Arranca por la ingesta de las entradas, no por el encuadre en
-   frío:** `material/` es **obligatorio** (≥1 archivo) y `analisis/` opcional pero de
-   revisión obligatoria; el encuadre se **deriva** de ahí y luego se completan los
-   huecos. Incluye muestrear insumos reales. No asumas un stack por defecto:
+   frío:** `contexto/` es la **única carpeta de entrada** y es **obligatoria** (≥1
+   archivo): documentos, datos y artefactos conviven ahí sin que la persona los
+   clasifique; el encuadre se **deriva** de ahí y luego se completan los huecos.
+   Incluye inventariar las **entradas y salidas del sistema** (todo proceso las tiene)
+   y muestrear 1–3 ejemplos reales de cada una (`docs/encuadre.md` §Entradas y salidas). No asumas un stack por defecto:
    pregúntalo. Detalle operativo en `docs/arranque.md`.
    → Antes del gate: **commit del encuadre** (`Ref: F1`).
    → Gate: la persona confirma que el encuadre es correcto.
@@ -67,7 +69,7 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
    plan pasan una **revisión funcional independiente** (el agente principal invoca al
    **revisor funcional** como subagente con contexto propio; reporta, no escribe; ver
    `.claude/skills/revision-funcional/SKILL.md`): verifica completitud y consistencia contra la
-   fuente (`material/`, `analisis/`) y no se avanza con vacíos abiertos.
+   fuente (`contexto/`) y no se avanza con vacíos abiertos.
    → Antes del gate: **commit del plan** (`Ref: F2`), con ADRs y trazabilidad inicial.
    → Gate: la persona aprueba el plan antes de escribir código.
 3. **Ejecución iterativa** — incrementos pequeños y revisables, no de un golpe. Cada
@@ -111,7 +113,7 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
      causa. **Defecto / regresión / cobertura faltante** (los requisitos están bien) →
      **Fase 3**, incremento de corrección. **El encuadre estaba mal o falta un
      requisito** (cambian criterios o set de oro) → **Fase 1**, se ajusta
-     `docs/contexto.md`, se registra como **ADR**, re-pasa el **revisor funcional** y
+     `docs/encuadre.md`, se registra como **ADR**, re-pasa el **revisor funcional** y
      el gate. Una **mejora nueva** más allá de lo acordado **no es falla**: va al
      **backlog** de `docs/plan.md` (y, si se decide perseguirla, abre un nuevo ciclo
      de encuadre). La Fase 4 valida contra lo **acordado**, no contra ideas nuevas.
@@ -147,7 +149,7 @@ reentra en este mismo ciclo y se abre **solo la rebanada que el cambio necesita*
 pedido **con el plan aún vivo** no es reentrada: va por el bucle de la Fase 3.) Antes de
 tocar nada, clasifica el pedido con **una sola pregunta** —el mismo pivote que ya usa la
 Fase 4—: **¿cambia la verdad acordada, es decir un `C#` o el set de oro de
-`docs/contexto.md`?**
+`docs/encuadre.md`?**
 
 - **No la cambia** (defecto que incumple un `C#` vigente, regresión, cobertura faltante,
   o un ajuste interno/cosmético que el criterio ya permitía) → el requisito ya existe:
@@ -160,7 +162,7 @@ Fase 4—: **¿cambia la verdad acordada, es decir un `C#` o el set de oro de
 - **Pregunta/soporte** → respóndela; **mejora opcional** más allá de lo acordado →
   **backlog** de `docs/plan.md` (si se decide perseguirla, se vuelve requisito nuevo).
 
-El insumo del trabajo nuevo aterriza como documento en `material/` (si solo se describe
+El insumo del trabajo nuevo aterriza como documento en `contexto/` (si solo se describe
 en el chat, **captúralo como brief corto ahí**). Clasifica **por aspecto, no por ticket**
 (la parte rota va a Fase 3; la que cambia un criterio, al Encuadre), y la reentrada que
 tocó código **revalida la Fase 4 sobre el conjunto** (sin regresiones). El detalle
@@ -191,7 +193,7 @@ cero, PoC), acuerda con la persona la entrada/salida esperada —si el sistema t
 entradas o salidas, como **bosquejo del modelo de datos** diseñado y validado (ver
 `docs/arranque.md`, caso 2)— y marca el supuesto con **validación diferida al primer
 insumo real**. Un supuesto **técnico** que condiciona un incremento se confirma con un
-**experimento mínimo** en `analisis/` antes de construir sobre él: rehacer cuesta más
+**experimento mínimo** en `contexto/exploracion/` antes de construir sobre él: rehacer cuesta más
 que el experimento. En contratos de integración, la fuente de verdad es **lo que el
 consumidor ejecuta**, no la spec.
 
@@ -215,7 +217,7 @@ Antes de añadir algo, pregúntate:
 Riesgo típico: abstracción prematura y dependencias especulativas.
 
 Lo mismo aplica a la **documentación**: lean en dos ejes. Prefiere ampliar un
-archivo a crear uno nuevo, pero no contamines los archivos base (`contexto.md`,
+archivo a crear uno nuevo, pero no contamines los archivos base (`encuadre.md`,
 `convenciones.md`, `AGENTS.md`…) con exceso de detalle. Si un contenido los infla,
 un archivo nuevo es lo correcto: propónlo con explicación y pide autorización.
 
@@ -227,7 +229,7 @@ reloj real (`date -u`), no de memoria. Esto sirve para dos cosas: trazabilidad
 y aprendizaje. La misma regla de marca de tiempo aplica a `docs/trazabilidad.md`.
 
 **Hallazgo ≠ decisión.** Un hallazgo (un hecho observado, p. ej. en el muestreo) se
-**registra como dato** en `docs/contexto.md`; no es una decisión. Solo cuando hay ≥2
+**registra como dato** en `docs/encuadre.md`; no es una decisión. Solo cuando hay ≥2
 opciones razonables nace una decisión. Y una decisión que **no toca decidir todavía**
 no se deja como promesa en prosa: se abre **ya** como ADR en estado `propuesta` con la
 actividad donde se resolverá, y el gate de esa actividad la obliga a cerrar

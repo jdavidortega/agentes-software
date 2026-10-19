@@ -11,11 +11,11 @@ err() { echo "  ✗ check_docs: $1" >&2; FAIL=1; }
 
 # --- Chequeos de modo commit (siempre) ---------------------------------------
 
-# 1) Todo C# definido en contexto.md tiene su fila en trazabilidad.md.
-if [ -f docs/contexto.md ] && [ -f docs/trazabilidad.md ]; then
-  for c in $(grep -oE '^- C[0-9]+:' docs/contexto.md | grep -oE 'C[0-9]+' | sort -u); do
+# 1) Todo C# definido en encuadre.md tiene su fila en trazabilidad.md.
+if [ -f docs/encuadre.md ] && [ -f docs/trazabilidad.md ]; then
+  for c in $(grep -oE '^- C[0-9]+:' docs/encuadre.md | grep -oE 'C[0-9]+' | sort -u); do
     grep -qE "^\| *$c *\|" docs/trazabilidad.md \
-      || err "$c está en contexto.md pero no tiene fila en trazabilidad.md"
+      || err "$c está en encuadre.md pero no tiene fila en trazabilidad.md"
   done
 fi
 

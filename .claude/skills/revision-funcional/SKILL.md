@@ -1,13 +1,13 @@
 ---
 name: revision-funcional
-description: "Rúbrica del revisor funcional independiente del encuadre y el plan: verifica que docs/contexto.md y docs/plan.md sean completos y consistentes contra su fuente (material/, analisis/) —criterios C# medibles, set de oro con ≥5 pares, stack y modelo de despliegue resueltos, decisiones de alto impacto como ADR, cada C# con incremento en trazabilidad— y emite veredicto PASA/FALLA con vacíos R-E.n. Úsala al cerrar el arranque, antes del gate de diseño y de la primera línea de código, y en cada pasada fresca hasta dar PASA. Reporta qué falta; no autora los archivos de contenido."
+description: "Rúbrica del revisor funcional independiente del encuadre y el plan: verifica que docs/encuadre.md y docs/plan.md sean completos y consistentes contra su fuente (contexto/) —criterios C# medibles, entradas y salidas del sistema inventariadas y validadas contra muestras, set de oro con ≥5 pares, stack y modelo de despliegue resueltos, decisiones de alto impacto como ADR, cada C# con incremento en trazabilidad— y emite veredicto PASA/FALLA con vacíos R-E.n. Úsala al cerrar el arranque, antes del gate de diseño y de la primera línea de código, y en cada pasada fresca hasta dar PASA. Reporta qué falta; no autora los archivos de contenido."
 allowed-tools: Read, Grep, Glob, Bash
 ---
 # Skill: Revisión funcional (revisor funcional)
 
 > Rol de **revisor funcional independiente** (rol analista) del encuadre y el plan.
 > Verifica que el **contexto** y el **plan** sean completos y consistentes **antes del
-> gate de diseño**, contrastándolos con su fuente (`material/` y `analisis/`). **No
+> gate de diseño**, contrastándolos con su fuente (`contexto/`). **No
 > escribe en el repo: reporta qué falta**, con las filas `R-E.n` **listas** para que
 > el principal las registre en `docs/trazabilidad.md`. Es el equivalente del juez de código
 > (`revision-critica.md`), pero para los artefactos del arranque, no para el diff.
@@ -41,8 +41,8 @@ Lanza al subagente con este encargo **tal cual** —neutro: sin explicarle cómo
 al encuadre ni justificarle sus elecciones; su valor está en que no hereda tu framing—:
 
 > Actúa como revisor funcional según `.claude/skills/revision-funcional/SKILL.md`: léelo y aplica su
-> rúbrica completa. Verifica que `docs/contexto.md` y `docs/plan.md` sean completos y
-> consistentes contra su fuente (`material/` y `analisis/`), que cada `C#` tenga
+> rúbrica completa. Verifica que `docs/encuadre.md` y `docs/plan.md` sean completos y
+> consistentes contra su fuente (`contexto/`), que cada `C#` tenga
 > incremento en `docs/trazabilidad.md` y que las decisiones de alto impacto estén como
 > ADR en `docs/decisiones.md`. Revisa los vacíos previos en `docs/trazabilidad.md`.
 > Entrega tu reporte EXACTAMENTE con estas secciones: **Veredicto** (PASA/FALLA) ·
@@ -54,13 +54,16 @@ al encuadre ni justificarle sus elecciones; su valor está en que no hereda tu f
 
 ## Insumos (el contexto en que se apoya)
 
-- **Los derivados:** `docs/contexto.md` (problema, objetivos, no-objetivos, criterios
+- **Los derivados:** `docs/encuadre.md` (problema, objetivos, no-objetivos, criterios
   `C#`, set de oro, stack/arquitectura, despliegue) y `docs/plan.md` (enfoque,
   incrementos, fuera de alcance).
-- **La fuente:** `material/` (lo ingerido) y `analisis/` (hallazgos y datos de
-  salida). Aquí está la independencia: no validar el documento contra sí mismo, sino
-  verificar que **el contexto se deriva del material** y **el plan se deriva del
-  contexto** —cazando lo inferido o alucinado—.
+- **La fuente:** `contexto/` (documentos, datos y artefactos aportados por la persona;
+  `contexto/exploracion/` es trabajo del agente, no fuente). Aquí está la
+  independencia: no validar el documento contra sí mismo, sino verificar que **el
+  encuadre se deriva de las entradas** y **el plan se deriva del encuadre** —cazando lo
+  inferido o alucinado—. Contrasta en particular `docs/encuadre.md` §Entradas y salidas
+  contra la carpeta: cada fila cita una muestra que existe (o un bosquejo validado con
+  `[supuesto]` diferido); una entrada o salida sin muestra ni bosquejo es un vacío.
 - `docs/decisiones.md` (¿las decisiones de alto impacto quedaron como ADR?) y
   `docs/trazabilidad.md` (¿cada `C#` tiene incremento?).
 - No hereda la memoria de trabajo de quien redactó: solo archivos + carpetas de
@@ -99,8 +102,7 @@ pide a la persona una de dos cosas (lo gestiona el agente principal, no el revis
 
 - **Escribir el dato faltante** directamente en la sección correspondiente del `.md`, o
 - **Agregar un documento** que lo aporte: la persona indica el **nombre del archivo** y
-  el agente principal le indica **en qué carpeta** dejarlo (`material/` para insumos de
-  contexto; `analisis/` si es un artefacto/datos).
+  lo deja en `contexto/` (el agente principal lo tipifica y lo anota en el manifiesto).
 - Si el vacío es una **decisión con opciones** (p. ej. stack abierto), se resuelve con
   la persona y queda como **ADR** en `docs/decisiones.md` —no hace falta un documento—.
 
@@ -119,7 +121,7 @@ Después, el agente principal **valida si el dato ya está presente**:
 - Criterios de aceptación `C#` medibles.
 - **Set de oro con ≥5 pares `entrada → salida esperada`**, e incluye **al menos un
   ejemplo concreto de entrada y de salida** —inline en el `.md` o como archivo
-  referenciado (p. ej. en `analisis/`)—. No basta describir el formato: tiene que haber
+  referenciado en `contexto/`)—. No basta describir el formato: tiene que haber
   un ejemplo real.
 - **Stack y arquitectura resueltos** (lenguaje+versión, framework+versión, build,
   estilo), con versiones verificadas contra la doc oficial.
@@ -133,8 +135,11 @@ Después, el agente principal **valida si el dato ya está presente**:
 
 **Consistencia (criterio):**
 
-- El **contexto se deriva del material/análisis**: no hay objetivos, restricciones ni
-  datos que no se apoyen en la fuente (lo inferido está marcado y confirmado).
+- El **encuadre se deriva de `contexto/`**: no hay objetivos, restricciones ni datos
+  que no se apoyen en la fuente (lo inferido está marcado y confirmado).
+- **Entradas y salidas validadas:** cada fila de §Entradas y salidas apunta a una
+  muestra real en `contexto/` (o acceso) y está marcada validada, o es `[supuesto]` con
+  validación diferida anotada; toda salida inventariada tiene ejemplo en el set de oro.
 - El **plan se deriva del contexto**: cada incremento sirve a un criterio; nada del
   plan excede los criterios ni contradice un no-objetivo.
 

@@ -1,9 +1,9 @@
-# Plantilla de requerimiento (brief de `material/`)
+# Plantilla de requerimiento (brief de `contexto/`)
 
-> Formato para escribir un requerimiento como documento de `material/`. **No sustituye
-> a `docs/contexto.md`** —la verdad acordada vive allá—: es un insumo de la ingesta; el
-> agente lo rutea con las reglas de siempre (`material/README.md`). Copia la plantilla
-> que toque a `material/brief-<tema>.md`:
+> Formato para escribir un requerimiento como documento de `contexto/`. **No sustituye
+> a `docs/encuadre.md`** —la verdad acordada vive allá—: es un insumo de la ingesta; el
+> agente lo rutea con las reglas de siempre (`contexto/README.md`). Copia la plantilla
+> que toque a `contexto/brief-<tema>.md`:
 >
 > - **A — inicial:** primer ciclo, aún no hay encuadre.
 > - **B — reentrada:** el proyecto ya cerró (Fase 5) y llega trabajo nuevo. En
@@ -11,7 +11,7 @@
 >   Lo pedido con el plan aún vivo no es reentrada (va al bucle de la Fase 3), pero
 >   reportarlo con «Qué pasa hoy / Qué debería pasar» de la B sirve igual.
 >
-> No es obligatoria: `material/` acepta cualquier documento. Úsala cuando no tengas
+> No es obligatoria: `contexto/` acepta cualquier documento. Úsala cuando no tengas
 > specs previas, o como lista de control de qué contiene un requerimiento bien escrito.
 
 ## Reglas de escritura
@@ -41,11 +41,11 @@
 …
 
 ## Criterios de éxito (candidatos a C#)
-<!-- Verificables; uno por comportamiento. Serán los C1, C2… de contexto.md. -->
+<!-- Verificables; uno por comportamiento. Serán los C1, C2… de encuadre.md. -->
 - …
 
 ## Ejemplos entrada → salida (candidatos al set de oro)
-<!-- ≥1 con datos CONCRETOS (no solo el formato). Archivos grandes → analisis/, enlazados. -->
+<!-- ≥1 con datos CONCRETOS (no solo el formato). Archivos grandes → contexto/, enlazados. -->
 - Entrada: _…_ → Salida esperada: _…_
 
 ## No-objetivos conocidos
@@ -58,8 +58,8 @@ con ADR), plazo, datos/privacidad, integraciones, despliegue si ya está decidid
 - …
 
 ## Insumos reales disponibles y referencias
-<!-- Dónde están las muestras (archivos, accesos, API) → van a analisis/ para el
-muestreo; si aún no hay, dilo. Otros documentos que dejas en material/. -->
+<!-- Entradas y salidas del sistema (una o varias) y dónde están sus muestras: archivos
+que dejas en contexto/, o accesos/API/BD para obtenerlas; si aún no hay, dilo. -->
 - …
 
 ## Supuestos y riesgos
@@ -70,9 +70,9 @@ muestreo; si aún no hay, dilo. Otros documentos que dejas en material/. -->
 
 - [ ] El problema explica el **por qué**, no solo el qué.
 - [ ] Hay ≥1 criterio verificable (con condición observable, no adornos).
-- [ ] Hay ≥1 ejemplo `entrada → salida` con datos concretos (o su archivo en `analisis/`).
+- [ ] Hay ≥1 ejemplo `entrada → salida` con datos concretos (o su archivo en `contexto/`).
 - [ ] El stack dice si es **impuesto o abierto**; los supuestos van marcados `[supuesto]`.
-- [ ] Quedó en `material/brief-<tema>.md`.
+- [ ] Quedó en `contexto/brief-<tema>.md`.
 
 El encuadre pedirá más (set de oro ≥5 pares, stack resuelto, despliegue…): no lo
 resuelvas todo aquí; el arranque completa los huecos contigo.
@@ -86,7 +86,7 @@ resuelvas todo aquí; el arranque completa los huecos contigo.
 
 ## Qué pasa hoy
 <!-- Comportamiento observado, con evidencia real: entrada usada, salida obtenida, en
-qué entorno (los archivos de evidencia → analisis/). Si no es falla sino algo nuevo:
+qué entorno (los archivos de evidencia → contexto/). Si no es falla sino algo nuevo:
 "hoy el sistema no hace X". -->
 …
 
@@ -97,7 +97,7 @@ si cambia el set de oro, da el par nuevo o editado. -->
 
 ## Clasificación que propongo
 <!-- Tu hipótesis; el agente hace el triage y lo confirmas en el gate. Pivote:
-¿cambia la verdad acordada (un C# o el set de oro de contexto.md)? -->
+¿cambia la verdad acordada (un C# o el set de oro de encuadre.md)? -->
 - [ ] Defecto / regresión / cobertura faltante / ajuste interno que el criterio ya
       permitía → Fase 3 (no cambia la verdad)
 - [ ] Ajuste — **edita** un `C#` o un par del set de oro → Encuadre (rebanada)
@@ -118,7 +118,7 @@ si cambia el set de oro, da el par nuevo o editado. -->
 - [ ] «Qué debería pasar» es verificable (criterio o par del set de oro).
 - [ ] Si el pedido mezcla aspectos (una parte falla, otra cambia un criterio), van
       **separados**: el triage clasifica **por aspecto, no por ticket**.
-- [ ] Quedó en `material/` (aunque haya nacido en el chat) y anotado en el manifiesto.
+- [ ] Quedó en `contexto/` (aunque haya nacido en el chat) y anotado en el manifiesto.
 
 ---
 

@@ -1,7 +1,7 @@
 # Plan y diseño (vivo)
 
 > Fase 2 — Diseño / plan. Aquí vive la **solución** (el problema está en
-> `contexto.md`). No es estático: nace en el diseño y se ajusta con la evidencia.
+> `encuadre.md`). No es estático: nace en el diseño y se ajusta con la evidencia.
 > Reúne el diseño, el plan por incrementos, la bitácora y el backlog. Manténlo conciso.
 
 ## Enfoque y arquitectura
@@ -16,7 +16,7 @@ inventes si no aporta (anti-sobredimensionamiento). -->
 
 <!-- OBLIGATORIO si el sistema produce salida estructurada; si no, no lo inventes
 (anti-sobredimensionamiento). El esquema de SALIDA se define ANTES de construir:
-campos, tipos y UN ejemplo concreto, coherente con el set de oro de contexto.md.
+campos, tipos y UN ejemplo concreto, coherente con el set de oro de encuadre.md.
 Si no hubo insumo real (caso 2 de la ingesta), aquí aterriza el bosquejo diseñado y
 validado con la persona. Es un CONTRATO: el revisor funcional lo verifica contra lo
 que el consumidor real ejecuta, y cambiarlo después requiere ADR. -->

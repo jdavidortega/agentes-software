@@ -110,7 +110,7 @@ archivo, `description`, skills precargadas existentes).
 ## Skills actuales
 <!-- Lista de las skills de este proyecto, con su disparador en una línea. -->
 - **`revision-funcional/`** — revisor funcional: revisión independiente del encuadre
-  y el plan al cerrar el arranque, contra su fuente (`material/`, `analisis/`); valida
+  y el plan al cerrar el arranque, contra su fuente (`contexto/`); valida
   completitud y consistencia (reporta, no escribe).
 - **`revision-critica/`** — agente juez: revisión crítica independiente de cada
   incremento antes del commit (rúbrica de calidad; reporta, no edita).

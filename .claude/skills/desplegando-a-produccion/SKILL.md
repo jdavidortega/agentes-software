@@ -48,7 +48,7 @@ description: "Procedimiento de la rebanada de Operación/Despliegue: réplica lo
 
 ## Sección del modelo de despliegue (lee solo la tuya)
 
-El modelo lo decidió el encuadre (`docs/contexto.md`). Abre **una** de estas y no las
+El modelo lo decidió el encuadre (`docs/encuadre.md`). Abre **una** de estas y no las
 otras: cargar las tres es gastar contexto en lo que no aplica.
 
 - Contenedores (Docker/compose) → `references/contenedores.md`

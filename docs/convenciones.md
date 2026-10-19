@@ -5,7 +5,7 @@
 
 ## Stack y herramientas
 <!-- Lenguajes, frameworks, gestor de paquetes (¿npm/pnpm/uv?), versiones.
-La DECISIÓN de stack y arquitectura se toma en el encuadre (docs/contexto.md);
+La DECISIÓN de stack y arquitectura se toma en el encuadre (docs/encuadre.md);
 aquí va el detalle operativo (comandos, versiones exactas). No la dupliques. -->
 -
 
@@ -48,7 +48,7 @@ Verificados contra la doc oficial actual de cada herramienta. -->
 
 Aplica a todo lo que el agente redacta (documentos y chat): frases directas y en voz
 activa, sin relleno ni adornos; una sigla se define la primera vez que aparece; los
-documentos de cara a terceros (README, ADRs, `contexto.md`) se escriben para un lector
+documentos de cara a terceros (README, ADRs, `encuadre.md`) se escriben para un lector
 **externo al proyecto**. Concreto > elegante.
 
 ## Contexto por sesión y compactación
@@ -121,7 +121,7 @@ El elegido se cablea en `scripts/check.sh` y el `pre-commit`.
 ## Entorno y paridad dev ↔ producción
 <!-- Llénalo al inicio. Casi todos los "funciona en mi máquina" salen de aquí. -->
 - **Modelo de despliegue:** _[se decide en el encuadre — ver la sección «Modelo de
-  despliegue» de `contexto.md`: contenedor (Docker/compose), host directo,
+  despliegue» de `encuadre.md`: contenedor (Docker/compose), host directo,
   serverless…]_. Condiciona rutas, montajes y el bucle de cambios.
 - **Config anclada a un punto fijo, nunca al `cwd`** (datos, `.env`, índices/bases
   locales): toda ruta relativa al directorio de trabajo es un **bug latente**; ánclala
@@ -175,7 +175,7 @@ El elegido se cablea en `scripts/check.sh` y el `pre-commit`.
 - **Commit al cierre de CADA fase, no solo en los incrementos de código.** El error
   típico es no commitear nada hasta el primer incremento de la Fase 3 y dejar las
   Fases 1–2 sin guardar. Concretamente, hay al menos un commit:
-  - al aprobar el **encuadre** (Fase 1 → `docs/contexto.md` y la ingesta sembrada);
+  - al aprobar el **encuadre** (Fase 1 → `docs/encuadre.md` y la ingesta sembrada);
   - al aprobar el **plan** (Fase 2 → `docs/plan.md`, ADRs, trazabilidad inicial);
   - en **cada incremento** de la Fase 3 (no de un golpe al final);
   - al cerrar la **validación** (Fase 4) y el **cierre/aprendizaje** (Fase 5).

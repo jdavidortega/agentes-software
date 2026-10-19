@@ -64,7 +64,7 @@ description: "Cómo escribir un README informativo que se entienda sin abrir el 
 - **Consistencia interna:** si un título promete "config en dos capas", la lista tiene
   dos elementos, no tres. Esa incoherencia costó horas en producción.
 - **No es el lugar de la verdad acordada:** objetivos, criterios y stack viven en
-  `docs/contexto.md`; el README los resume y enlaza, no los duplica con otras palabras
+  `docs/encuadre.md`; el README los resume y enlaza, no los duplica con otras palabras
   (dato en un solo lugar).
 - Diferir el README "para después" está prohibido por la DoD: reapareció como
   bloqueante siete incrementos más tarde.

@@ -41,7 +41,7 @@ el incremento y el rango del diff:
 
 > Actúa como juez de código según `.claude/skills/revision-critica/SKILL.md`: léelo y aplica su
 > rúbrica completa. Revisa el incremento `I#` (diff: `git diff <rango>`) contra
-> `docs/contexto.md`, `docs/plan.md`, `docs/convenciones.md`,
+> `docs/encuadre.md`, `docs/plan.md`, `docs/convenciones.md`,
 > `docs/definicion-de-hecho.md` y los hallazgos previos en `docs/trazabilidad.md`.
 > Ejecuta `scripts/check.sh` tú mismo y exige evidencia de la verificación con datos
 > reales. Entrega tu reporte EXACTAMENTE con estas secciones: **Veredicto**
@@ -53,7 +53,7 @@ el incremento y el rango del diff:
 
 ## Insumos (el contexto en que se apoya)
 
-- Archivos del proyecto: `docs/contexto.md` (problema + set de oro + criterios `C#`),
+- Archivos del proyecto: `docs/encuadre.md` (problema + set de oro + criterios `C#`),
   `docs/plan.md` (diseño/arquitectura), `docs/trazabilidad.md` (hallazgos previos y
   estado), `docs/decisiones.md`, `docs/convenciones.md` y `docs/definicion-de-hecho.md`.
 - **El diff del incremento** (lo que cambió) y sus pruebas.
@@ -102,7 +102,7 @@ el incremento y el rango del diff:
 - **Definición de Hecho:** corre `docs/definicion-de-hecho.md` punto por punto (binario).
 - **Consistencia de arquitectura:** el cambio respeta el enfoque/arquitectura de
   `plan.md`; no introduce dependencias ni abstracciones sin ADR; el **lenguaje/stack es el
-  de `contexto.md`** (no se coló otro por inercia).
+  de `encuadre.md`** (no se coló otro por inercia).
 - **Estilo, clean y concisión:** **lint y formatter pasan** (`scripts/check.sh`) —base
   determinista—; **nombres idiomáticos y consistentes**, **código en inglés ASCII**
   (identificadores y comentarios, sin acentos), funciones cortas y cohesionadas, sin
@@ -116,7 +116,7 @@ el incremento y el rango del diff:
 - **Documentación:** interfaces públicas documentadas, completa pero concisa (ver DoD).
 - **Pruebas:** cada funcionalidad (o apoyo a funcionalidad) tiene una prueba que la
   respalda; tests herméticos. No exige 100% mecánico: cobertura de **comportamiento**.
-- **Funcionales:** cumple criterios de éxito y set de oro de `contexto.md`.
+- **Funcionales:** cumple criterios de éxito y set de oro de `encuadre.md`.
 - **Seguridad (binario, es un gancho — no la auditoría):** ¿el diff toca superficie de
   riesgo (entrada no confiable, authn/authz, secretos, persistencia, IaC/despliegue,
   superficie de IA/LLM)? Si **sí**, la **pasada del juez de seguridad**

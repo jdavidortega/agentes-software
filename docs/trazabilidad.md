@@ -8,7 +8,7 @@
 
 ## IDs y cómo se enlazan
 
-- **Criterios de éxito:** `C1, C2…` (definidos en `docs/contexto.md`).
+- **Criterios de éxito:** `C1, C2…` (definidos en `docs/encuadre.md`).
 - **Incrementos:** `I1, I2…` (en `docs/plan.md`).
 - **Decisiones:** `ADR-###` (en `docs/decisiones.md`).
 - **Alias:** todo `C#`, `I#` y hallazgo lleva un alias (slug de 2–4 palabras; ver

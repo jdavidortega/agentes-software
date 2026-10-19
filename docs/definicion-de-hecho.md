@@ -11,12 +11,12 @@
 > **Si el conjunto NO cumple (Fase 4):** vuelve atrás según la causa. Defecto o
 > cobertura faltante (requisitos correctos) → Fase 3, incremento de corrección.
 > Encuadre erróneo o requisito nuevo (cambian criterios o set de oro) → Fase 1,
-> ajustar `docs/contexto.md` + ADR + re-revisión funcional. Una mejora más allá de lo
+> ajustar `docs/encuadre.md` + ADR + re-revisión funcional. Una mejora más allá de lo
 > acordado no es falla: va al backlog de `docs/plan.md`.
 
 Antes de marcar como terminado:
 
-- [ ] Cumple los criterios de éxito **y el set de oro** de `docs/contexto.md` (no
+- [ ] Cumple los criterios de éxito **y el set de oro** de `docs/encuadre.md` (no
   solo "funciona": la salida tiene la calidad esperada).
 - [ ] Las pruebas pasan (y hay pruebas para lo nuevo). Los pares del **set de oro**
   que el incremento cubra y sean automatizables están como **tests de regresión**
@@ -61,7 +61,7 @@ Antes de marcar como terminado:
   no narrar el qué línea a línea), sin duplicación ni código muerto; **lint y formatter pasan**
   (`scripts/check.sh`). El código es legible y sigue `docs/convenciones.md`.
 - [ ] No se agregaron dependencias ni abstracciones nuevas sin aprobación.
-- [ ] **El lenguaje/stack usado es el de `docs/contexto.md`** (no se coló otro por inercia).
+- [ ] **El lenguaje/stack usado es el de `docs/encuadre.md`** (no se coló otro por inercia).
 - [ ] No quedó código muerto, TODOs sin registrar, ni "por si acaso".
 - [ ] Las decisiones relevantes están en `docs/decisiones.md`.
 - [ ] `README.md` actualizado **en el mismo commit** que cambia comportamiento,

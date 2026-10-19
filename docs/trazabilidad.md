@@ -30,7 +30,7 @@
   reutiliza**: una pasada nueva **continúa** desde el último `<n>` registrado (incluido el
   Histórico). Un ID con dos filas es un registro inválido (`check_docs` lo rechaza).
 - **Commits** enlazan en el footer: `Ref: F#` (cierre de fase — `F1`, `F2`, `F4`, `F5`),
-  `Ref: I3` (incremento de la Fase 3), `Cierra: R-I3.1` (hallazgo del juez),
+  `Ref: I3` (incremento de la Fase 3), `Ref: hito:I1-I3` (hito), `Cierra: R-I3.1` (hallazgo del juez),
   `Cierra: R-S3.1` / `R-SF4.1` (seguridad), `Cierra: R-F4.1` (juez de conjunto) o
   `Cierra: R-E.1` (vacío del revisor funcional). Un `Cierra:` exige la fila en Estado
   `resuelto` o `verificado`.
@@ -45,7 +45,7 @@ estados en ESTA tabla: su veredicto queda en la bitácora de plan.md y el commit
 
 | Criterio | Alias | Incremento(s) | Estado | Nota |
 |----------|-------|---------------|--------|------|
-| C1 | «…» | I_ | pendiente / cubierto / verificado | |
+| C1 | «…» | I_ | pendiente / cubierto / verificado | fila de ejemplo: se borra al sembrar (F2) |
 
 ## Registro de vacíos del revisor funcional (arranque)
 

@@ -95,7 +95,9 @@
   `docs/convenciones.md` §Contexto); lecciones y obstáculos en `docs/MEMORIA.md`. La
   bitácora de `docs/plan.md` **no se toca aquí**: su línea del incremento se escribió y
   colapsó antes de pedir el PASA.
-- [ ] **Commit enlazado** (`Ref: I#` / `Cierra: R-…`) con mensaje concreto y suficiente;
+- [ ] **Commit enlazado** con `Ref: I#` **siempre** (es lo que exige el recibo del juez
+  sobre el código; `Cierra: R-…` se añade cuando además cierra hallazgos, nunca lo sustituye),
+  con mensaje concreto y suficiente;
   el `README.md` que cambió va en ese mismo commit.
 - [ ] **Gate humano:** la persona recibe el resumen ejecutivo del incremento (`AGENTS.md`
   §2) y revisa el cambio; no se abre el siguiente incremento sin su OK.

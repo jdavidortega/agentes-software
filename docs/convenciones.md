@@ -30,9 +30,12 @@ Verificados contra la doc oficial actual de cada herramienta. -->
   un máximo fijo y timeouts (§Recursos). Debe **tolerar la suite de tests vacía** (p. ej. `pytest` sale con código 5 sin tests;
   `jest` necesita `--passWithNoTests`): si no, bloquea los commits del arranque (`Ref: F2`)
   cuando aún no hay código. Con el primer test, falla de verdad.
-- **`scripts/huella.sh`** — huella del contenido revisable (todo salvo los documentos de
-  rastro). La calcula el revisor para su recibo y el principal antes y después de cada
-  revisión; `commit-msg` la exige en el recibo de `Ref: I<n>`, `F2` y `F4`.
+- **`scripts/huella.sh`** — dos huellas: **vigencia** (lo revisable: todo salvo los
+  registros `revisiones.log`, `trazabilidad.md`, `estado.md`, `MEMORIA.md`), que el revisor
+  pone en su recibo y `commit-msg` exige igual a la del índice en `Ref: I<n>`, `hito`, `F2`,
+  `F4` y `F5`; e **integridad** (árbol completo), que el principal toma antes y después de
+  cada revisor para detectar si escribió algo. `huella.sh commit <sha>` da la vigencia de un
+  commit del historial (así se comprueba que el recibo de un hito es real).
 - **`scripts/check_docs.sh`** — integridad del rastro documental (viene con la
   plantilla). El `pre-commit` lo corre sobre la exportación del índice; el `commit-msg`
   corre el modo `cierre` cuando el trailer es `Ref: F4|F5`; y el agente lo corre **a mano
@@ -252,7 +255,9 @@ revertir) vive en docs/despliegue.md. -->
   enlazados; una rama solo si la persona la pide (experimento, cambio grande), no por
   defecto. Con **remoto compartido**, `scripts/check.sh` se cablea además en un **CI
   mínimo** (se decide en el diseño): los hooks locales se pueden esquivar
-  (`--no-verify`); el CI no.
+  (`--no-verify`); el CI no. El CI corre también `sh scripts/check_docs.sh` y
+  `sh scripts/pruebas/regresion.sh` (la regresión de los propios hooks, sin red ni
+  credenciales), para que un `--no-verify` deje rastro en el remoto.
 - **Commit al cierre de CADA fase, no solo en los incrementos de código.** El error
   típico es no commitear nada hasta el primer incremento de la Fase 3 y dejar las
   Fases 1–2 sin guardar. Concretamente, hay al menos un commit:
@@ -269,10 +274,16 @@ revertir) vive en docs/despliegue.md. -->
   **archivo**, no contexto de trabajo: la operación diaria no lo relee.
 - **Enlaza** cada commit a lo que resuelve, en el footer: `Ref: F#` (cierre de fase:
   `F1` encuadre, `F2` plan, `F4` validación, `F5` cierre), `Ref: I3` (incremento de la
-  Fase 3), `Cierra: R-I3.1` (hallazgo del juez), `Cierra: R-S3.1` (seguridad),
+  Fase 3), `Ref: hito:I1-I3` (registros de un hito: recibo del juez de conjunto y síntesis),
+  `Cierra: R-I3.1` (hallazgo del juez), `Cierra: R-S3.1` (seguridad),
   `Cierra: R-F4.1` (juez de conjunto) o `Cierra: R-E.1` (vacío del revisor funcional,
   si su resolución amerita commit propio). Es la trazabilidad en el
-  historial (ver `docs/trazabilidad.md`).
+  historial (ver `docs/trazabilidad.md`). **Qué entra sin `Ref: I<n>`:** solo el rastro
+  (`docs/`, `contexto/`, `mejoras/`), la plantilla (`.claude/`, `.codex/`, `.githooks/`,
+  `scripts/check_docs.sh|huella.sh|recibos.sh|consumo.py|check.sh`, `scripts/pruebas/`) y la
+  configuración del repo (`README.md`, `AGENTS.md`, `.gitignore`…). Todo lo demás es código
+  del producto: `Ref: I<n>` y recibo del juez, siempre; un `Cierra:` solo o un `Ref: F#` con
+  código se rechaza. Ampliar esa lista (`SIN_REVISION` en el hook) es un ADR.
 
 ## Pruebas
 - **Herméticas:** sin dependencia de `.env` real ni de servicios externos; inyectar

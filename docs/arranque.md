@@ -317,8 +317,10 @@ incremento cuesta más que el experimento.
   oro y tratado como **contrato** (cambiarlo después = ADR). Deja de ser opcional
   cuando aplica.
 - [ ] `docs/trazabilidad.md` **sembrada**: una fila por criterio `C#` (con su alias) y
-  su(s) incremento(s), en estado `pendiente` (la revisión funcional siguiente la exige).
-  Cada `I#` del plan lleva su alias.
+  su(s) incremento(s), en estado `pendiente` (la revisión funcional siguiente la exige), y
+  **sin las filas de ejemplo** de la plantilla (`C1 … I_`, `R-E._`, `R-I_._`, el histórico
+  de ejemplo): desde F2 el doctor las rechaza. Cada `I#` del plan lleva su alias. Los
+  criterios van en `docs/encuadre.md` exactamente como `- C<n>: enunciado`.
 - [ ] **Plan de pruebas** en `docs/plan.md`: por incremento, el flujo end-to-end que cubre
   cada criterio, los unitarios justificados, qué pares del set de oro se automatizan como
   regresión y cuáles quedan como verificación manual explícita. Las necesarias, no más

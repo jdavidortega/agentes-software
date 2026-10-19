@@ -132,6 +132,9 @@ INVALID_PATTERNS = (
     "cannot find module", "Cannot find module", "command not found", "No such file or directory",
     "compilation failed", "error[E", "error TS", "SyntaxError:", "Unexpected token",
     "could not compile", "undefined: ", "panic: ", "NameError:",
+    # Shells (sh/dash/bash): a mutant that is not even parseable never ran the behavior.
+    "Syntax error:", "syntax error:", "syntax error near unexpected token", "unexpected end of file",
+    "unexpected EOF", "Unterminated quoted string",
 )
 
 
@@ -160,14 +163,39 @@ def looks_invalid(run: Run) -> str | None:
     return None
 
 
+# Syntax checkers by extension: a mutant that does not parse is INVALID before the suite
+# runs, whatever the suite then prints (a shell `if` without `fi` used to read as DIES).
+CHECKERS = {
+    ".sh": ["sh", "-n"], ".bash": ["bash", "-n"],
+    ".js": ["node", "--check"], ".mjs": ["node", "--check"], ".cjs": ["node", "--check"],
+    ".rb": ["ruby", "-c"],
+}
+
+
 def compiles(path: Path) -> str | None:
-    """For Python files, the compile error of the mutated file, or None if it compiles."""
-    if path.suffix != ".py":
+    """The parse error of the mutated file, or None if it parses (or no checker applies)."""
+    if path.suffix == ".py":
+        try:
+            compile(path.read_text(encoding="utf-8"), str(path), "exec")
+        except SyntaxError as exc:
+            return f"SyntaxError line {exc.lineno}: {exc.msg}"
         return None
-    try:
-        compile(path.read_text(encoding="utf-8"), str(path), "exec")
-    except SyntaxError as exc:
-        return f"SyntaxError line {exc.lineno}: {exc.msg}"
+    checker = CHECKERS.get(path.suffix)
+    # Shell scripts: the shebang decides the dialect (`bash -n` accepts what `sh -n` rejects).
+    if path.suffix in (".sh", ".bash", "") and path.read_bytes()[:2] == b"#!":
+        first = path.read_text(encoding="utf-8", errors="replace").splitlines()[0]
+        if "bash" in first:
+            checker = ["bash", "-n"]
+        elif "sh" in first:
+            checker = ["sh", "-n"]
+    if checker is None:
+        return None
+    if shutil.which(checker[0]) is None:
+        return None  # no checker on this machine: the suite's own output still gets screened
+    done = subprocess.run([*checker, str(path)], capture_output=True, text=True)
+    if done.returncode != 0:
+        msg = (done.stderr or done.stdout).strip().splitlines()
+        return f"{checker[0]} -n: {msg[-1][:120] if msg else 'parse error'}"
     return None
 
 
@@ -242,10 +270,10 @@ def main() -> int:
             print(f"malformed mutation (needs label/file/before/after): {m}", file=sys.stderr)
             return 2
     command = arguments.suite.split()
-    # The suite runs from inside the copy, so a relative interpreter has to be resolved here.
-    # Only a path, though: `--suite "bash scripts/x.sh"` names a program on PATH.
-    if "/" in command[0] and not Path(command[0]).is_absolute():
-        command[0] = str(root / command[0])
+    # A relative PATH in the command (`./gate.sh`, `scripts/run`) is resolved AFTER the copy
+    # exists (below): inside the copy when the file is part of the project, so a mutation of
+    # the suite script itself is the one that runs; against the root only when the copy does
+    # not contain it (an excluded tool such as `.venv/bin/pytest`). A bare name names PATH.
 
     if not arguments.commit:
         size, files = measure(root)
@@ -261,6 +289,10 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as temporary:
         tree = Path(temporary) / "tree"
         pruned = plant(tree, root, arguments.commit)
+        if "/" in command[0] and not Path(command[0]).is_absolute():
+            if not (tree / command[0]).is_file():
+                command[0] = str(root / command[0])
+                print(f"suite command {arguments.suite.split()[0]} is not in the copy: using the original tree's")
         if arguments.commit:
             size, files = measure(tree)
             mb = size / 1_000_000

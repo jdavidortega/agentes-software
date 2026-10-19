@@ -155,7 +155,8 @@ toda reentrada que lo haga. Las pruebas en local no sustituyen lo que ahí dice.
 El **cierre (Fase 5) dispara la reentrada**: cuando llega trabajo nuevo —en ese momento o
 en una sesión futura— **no se re-ejecuta el arranque ni se abre un flujo aparte**; se
 reentra en este mismo ciclo y se abre **solo la rebanada que el cambio necesita**. (Lo
-pedido **con el plan aún vivo** no es reentrada: va por el bucle de la Fase 3.) Antes de
+pedido **con el plan aún vivo** no es reentrada: va por el bucle de la Fase 3 si no cambia
+un `C#`; si lo cambia, el pivote de abajo aplica igual, sin esperar a F5.) Antes de
 tocar nada, clasifica el pedido con **una sola pregunta** —el mismo pivote que ya usa la
 Fase 4—: **¿cambia la verdad acordada, es decir un `C#` o el set de oro de
 `docs/encuadre.md`?**
@@ -289,6 +290,8 @@ solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo u
   otro documento, y las afirmaciones cruzadas se mecanizan o se vuelven prosa); y
   `Ref: F4|F5` **dispara el modo cierre** de `check_docs` (nada `abierto`, nada `resuelto`
   sin `verificado`, todo `C#` verificado con incremento, sin ADR `propuesta` ni ADR-000).
+  **El código del producto entra solo con `Ref: I<n>`** (y su recibo): un commit que toca
+  algo fuera del rastro y la plantilla con solo `Cierra:` o `Ref: F#` se rechaza.
 - **`pre-commit`** bloquea versionar un `.env`/secreto; **rechaza si hay cambios sin
   stagear en archivos rastreados** (lo que se verifica tiene que ser lo que se versiona);
   corre **`scripts/check_docs.sh`** sobre una exportación del **índice** (contrato por fase:
@@ -334,7 +337,9 @@ Cuatro roles, rúbrica en su skill (`.claude/skills/revision-*/`), rol en
   `huella`, ejecutor y, en hitos, `cubre`/`excluye`/`componentes`. El `commit-msg` exige el
   **último** recibo válido del alcance en PASA con la huella del índice para `Ref: I<n>`,
   `F2` (o `reentrada:C<n>`), `F4` y `F5` (F5 exige lo mismo que F4, seguridad incluida),
-  y cuenta los incrementos desde la última pasada de conjunto: al cuarto sin hito, rechaza.
+  y `hito:I<a>-I<b>`; rechaza `Ref: I<n>` con hallazgos `R-I<n>.*`/`R-S<n>.*` abiertos, y
+  cuenta los incrementos desde el hito vigente (un PASA efectivo, con seguridad, cuya huella
+  es la de un commit real): al cuarto sin hito, rechaza.
   **Todo lo revisable se escribe antes del PASA**; después, solo registros. La aprobación
   humana es otra cosa: la da la persona en el gate.
 - **Reporte breve y exacto:** veredicto, bloqueantes con fila lista, ≤5 sugerencias,

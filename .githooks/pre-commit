@@ -37,8 +37,11 @@ fi
 #     de lo que se commitea. Añadir líneas vale (incluida una rectificación nueva); borrar o
 #     editar recibos, no. Reparar un registro corrupto es una excepción con --no-verify y su
 #     lección en MEMORIA.md, no un camino normal.
-if git rev-parse --verify HEAD >/dev/null 2>&1 && git cat-file -e HEAD:docs/revisiones.log 2>/dev/null \
-   && git ls-files --error-unmatch docs/revisiones.log >/dev/null 2>&1; then
+if git rev-parse --verify HEAD >/dev/null 2>&1 && git cat-file -e HEAD:docs/revisiones.log 2>/dev/null; then
+  if ! git ls-files --error-unmatch docs/revisiones.log >/dev/null 2>&1; then
+    echo "✗ pre-commit: docs/revisiones.log está en HEAD y el commit lo elimina. Los recibos no se borran en ninguna fase (append-only)." >&2
+    exit 1
+  fi
   prev=$(git show HEAD:docs/revisiones.log | wc -c | tr -d ' ')
   tmpa=$(mktemp 2>/dev/null || mktemp -t rl); tmpb=$(mktemp 2>/dev/null || mktemp -t rl)
   git show HEAD:docs/revisiones.log > "$tmpa"; git show :docs/revisiones.log | head -c "$prev" > "$tmpb"
@@ -71,14 +74,18 @@ fi
 tmp=$(mktemp -d 2>/dev/null || mktemp -d -t precommit)
 trap 'rm -rf "$tmp"' EXIT INT TERM
 git checkout-index -a --prefix="$tmp/" || { echo "✗ pre-commit: no pude exportar el índice." >&2; exit 1; }
-( cd "$tmp" && sh scripts/check_docs.sh commit ) \
+#    La fase que HEAD ya declaraba viaja con la exportación (sin .git no se puede leer):
+#    un proyecto iniciado no vuelve a "modo plantilla" por perder o estropear la línea.
+fase_prev=$(git show HEAD:docs/estado.md 2>/dev/null | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' | grep -oE 'F[1-5]' | head -1)
+( cd "$tmp" && FASE_PREVIA="$fase_prev" sh scripts/check_docs.sh commit ) \
   || { echo "✗ pre-commit: scripts/check_docs.sh falló sobre el índice (rastro documental)." >&2; exit 1; }
 
 # 4) Lint + formato + tests del stack (scripts/check.sh, salida obligatoria del diseño;
 #    debe tolerar la suite de tests aún vacía). Corre sobre el árbol de trabajo, que por
 #    (2) coincide con el índice en todo archivo rastreado. Con el proyecto INICIADO
-#    (docs/estado.md en F2..F5) su ausencia bloquea; antes, avisa.
-fase=$(grep -oE 'Fase actual:\*?\*?[[:space:]]*F[0-9]' "$tmp/docs/estado.md" 2>/dev/null | grep -oE 'F[0-9]' | head -1)
+#    (docs/estado.md en F2..F5, o HEAD ya lo estaba) su ausencia bloquea; antes, avisa.
+fase=$(grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' "$tmp/docs/estado.md" 2>/dev/null | grep -oE 'F[1-5]' | head -1)
+case "$fase_prev" in F2|F3|F4|F5) fase="$fase_prev" ;; esac
 if [ -f scripts/check.sh ]; then
   sh scripts/check.sh || { echo "✗ pre-commit: scripts/check.sh falló (lint/formato/tests)." >&2; exit 1; }
   # 5) Lo probado tiene que ser lo guardado TAMBIÉN después de la suite: un formatter

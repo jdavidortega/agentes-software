@@ -14,6 +14,9 @@
 #   sh scripts/huella.sh integridad   → INTEGRIDAD: árbol COMPLETO, registros incluidos. El
 #                                       principal la toma antes y después de cada revisor: si
 #                                       cambia, el revisor escribió algo (en lo que sea).
+#   sh scripts/huella.sh commit <sha> → VIGENCIA del árbol de ese commit (el commit-msg la usa
+#                                       para comprobar que el recibo de un hito corresponde a
+#                                       un commit real del historial, no a una huella inventada).
 # Son dos preguntas distintas: "¿sigue valiendo el recibo?" (vigencia) y "¿tocó algo el
 # revisor?" (integridad). Ninguna observa la red ni los archivos ignorados por git.
 #
@@ -21,6 +24,7 @@
 # ambas huellas son iguales: el recibo de la revisión (línea de docs/revisiones.log con `huella=…`)
 # solo es válido para el commit que guarda exactamente ese contenido.
 MODE="${1:-arbol}"
+case "$MODE" in arbol|indice|integridad|commit) ;; *) echo "huella: modo desconocido '$MODE' (arbol | indice | integridad | commit <sha>)" >&2; exit 2 ;; esac
 EXCL='	docs/(revisiones\.log|trazabilidad\.md|estado\.md|MEMORIA\.md)$'
 [ "$MODE" = "integridad" ] && EXCL='^$'
 git rev-parse --git-dir >/dev/null 2>&1 || { echo "huella: no es un repositorio git" >&2; exit 2; }
@@ -30,6 +34,8 @@ flags=$(git ls-files -v | grep -E '^[a-z]|^S' || true)
 [ -z "$flags" ] || { echo "huella: archivos con assume-unchanged/skip-worktree; quítalos (git update-index --no-assume-unchanged/--no-skip-worktree):" >&2; printf '%s\n' "$flags" >&2; exit 2; }
 if [ "$MODE" = "indice" ]; then
   tree=$(git write-tree) || exit 2
+elif [ "$MODE" = "commit" ]; then
+  tree=$(git rev-parse --verify "${2:?huella: falta el commit}^{tree}" 2>/dev/null) || { echo "huella: commit desconocido $2" >&2; exit 2; }
 else
   tmp=$(mktemp 2>/dev/null || mktemp -t huella); trap 'rm -f "$tmp"' EXIT INT TERM
   real=$(git rev-parse --git-path index)

@@ -1,30 +1,42 @@
 #!/bin/sh
 # Hook de la plantilla. El mensaje ENLAZA lo que resuelve (docs/trazabilidad.md §IDs y
 # docs/convenciones.md §Git) con trailers de UNA gramática cerrada:
-#   Ref: F1|F2|F4|F5     cierre de fase          Ref: I<n>          incremento (existe en plan.md)
+#   Ref: F1|F2|F4|F5       cierre de fase        Ref: I<n>              incremento (existe en plan.md)
+#   Ref: hito:I<a>-I<b>    hito (registros del juez de conjunto sobre lo ensamblado)
 #   Cierra: R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n> | R-SF4.<n>   (fila en trazabilidad, Estado resuelto|verificado)
 # Se validan TODOS los trailers presentes; los IDs se resuelven contra el ÍNDICE (lo que
 # va al commit). Cada transición exige su RECIBO en docs/revisiones.log (registro
 # estructurado, append-only, leído con scripts/recibos.sh; AGENTS.md §9): la ÚLTIMA línea
-# válida del mismo rol+tipo+alcance
-# debe ser PASA con `huella` igual a la del índice (scripts/huella.sh indice), de modo que la
-# revisión corresponde al contenido que se guarda:
+# válida del mismo rol+tipo+alcance debe ser PASA con `huella` igual a la del índice
+# (scripts/huella.sh indice), de modo que la revisión corresponde al contenido que se guarda:
 #   Ref: I<n> → juez-codigo incremento I<n> (+ juez-seguridad si el recibo dice seguridad=requerida);
-#               y no más de 3 incrementos PASA desde la última pasada del juez de conjunto (hito)
+#               ningún R-I<n>.* ni R-S<n>.* en Estado abierto; y no más de 3 incrementos con PASA
+#               efectivo desde el hito vigente (cuya huella debe ser la de un commit real)
+#   Ref: hito:I<a>-I<b> → juez-conjunto hito hito:I<a>-I<b> (+ seguridad si requerida)
 #   Ref: F2   → revisor-funcional encuadre F2 (o reentrada:C<n>), y ningún vacío R-E.* abierto
 #   Ref: F4   → juez-conjunto conjunto F4 (no sirve un recibo de hito) (+ seguridad si requerida)
 #   Ref: F5   → exactamente lo de F4 (conjunto + seguridad), vigente sobre lo que se commitea
-# Ref: F4|F5 dispara además check_docs en modo cierre. Emergencia: git commit --no-verify.
+# Ref: F4|F5 dispara además check_docs en modo cierre.
+# QUÉ PUEDE CAMBIAR SIN `Ref: I<n>`: solo el rastro y la plantilla (SIN_REVISION, abajo). Todo
+# lo demás es código del producto y entra únicamente con `Ref: I<n>` y su recibo: un `Cierra:`
+# o un `Ref: F#` no acreditan revisión del código. Emergencia: git commit --no-verify.
 msg_file="$1"
 FAIL=0
 fail() { echo "✗ commit-msg: $1" >&2; FAIL=1; }
 idx() { git show ":$1" 2>/dev/null || cat "$1" 2>/dev/null; }
 
 trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
-[ -n "$trailers" ] || fail "falta el trailer de enlace. Usa 'Ref: F1|F2|F4|F5', 'Ref: I3', o 'Cierra: R-I3.1' / 'R-S3.1' / 'R-F4.1' / 'R-SF4.1' / 'R-E.1' (docs/convenciones.md §Git)."
+[ -n "$trailers" ] || fail "falta el trailer de enlace. Usa 'Ref: F1|F2|F4|F5', 'Ref: I3', 'Ref: hito:I1-I3', o 'Cierra: R-I3.1' / 'R-S3.1' / 'R-F4.1' / 'R-SF4.1' / 'R-E.1' (docs/convenciones.md §Git)."
 
 HUELLA=$(sh scripts/huella.sh indice 2>/dev/null)
 [ -n "$HUELLA" ] || fail "no pude calcular la huella del índice (scripts/huella.sh indice)."
+
+# Rutas que un commit puede tocar SIN `Ref: I<n>`: el rastro documental, las entradas, las
+# notas locales, la instrumentación del método (hooks, scripts de la plantilla, agentes y
+# skills) y la configuración del repositorio. Ampliarla es una decisión (ADR), no un atajo.
+SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents|\.githooks|scripts/pruebas)/|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check_docs\.sh|scripts/huella\.sh|scripts/recibos\.sh|scripts/consumo\.py|scripts/check\.sh)$'
+against=$(git rev-parse --verify HEAD 2>/dev/null || git hash-object -t tree /dev/null)
+codigo=$(git diff --cached --name-only "$against" | grep -vE "$SIN_REVISION" || true)
 
 # Recibos: docs/revisiones.log del índice, leído por el parser ÚNICO (scripts/recibos.sh),
 # el mismo que usa check_docs: comentarios ignorados, claves únicas, tipos y relaciones
@@ -56,8 +68,44 @@ exige_conjunto() {  # F4 y F5 exigen lo MISMO: conjunto PASA vigente + seguridad
   rec=$(ultimo_recibo juez-conjunto conjunto F4)
   exige_recibo juez-conjunto conjunto F4 "$1" && exige_seguridad_si_aplica "$rec" conjunto F4
 }
+# Estado (primera palabra de la columna Estado) de una fila de trazabilidad del índice.
+estado_fila() {
+  idx docs/trazabilidad.md | awk -F'|' -v id="$1" '
+    function trim(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    /^\|/ { n=0; for(i=2;i<NF;i++){ n++; f[n]=trim($i) }
+            if (f[1]=="Criterio"||f[1]=="Vacío"||f[1]=="Hallazgo") { ce=0; for(k=1;k<=n;k++) if(f[k]=="Estado") ce=k; next }
+            if (f[1]==id && ce>0) { e=f[ce]; sub(/ .*$/,"",e); print e; exit } }'
+}
+# IDs de hallazgos/vacíos cuyo Estado es "abierto" y cuyo ID casa con $1 (regex awk).
+abiertos() {
+  idx docs/trazabilidad.md | awk -F'|' -v re="$1" '
+    function trim(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    /^\|/ { n=0; for(i=2;i<NF;i++){ n++; f[n]=trim($i) }
+            if (f[1]=="Criterio"||f[1]=="Vacío"||f[1]=="Hallazgo") { ce=0; for(k=1;k<=n;k++) if(f[k]=="Estado") ce=k; next }
+            if (ce>0 && f[1] ~ re) { e=f[ce]; sub(/ .*$/,"",e); if (e=="abierto") print f[1] } }' | tr '\n' ' '
+}
+# ¿La huella $1 es la de lo que se commitea o la vigencia de algún commit del historial?
+huella_en_historia() {
+  [ "$1" = "$HUELLA" ] && return 0
+  for c in $(git rev-list -n 300 HEAD 2>/dev/null); do
+    [ "$(sh scripts/huella.sh commit "$c" 2>/dev/null)" = "$1" ] && return 0
+  done
+  return 1
+}
+# Contador del hito (AGENTS.md §2): tres incrementos con PASA efectivo desde el hito vigente
+# obligan a un hito antes de cerrar el cuarto. El hito vigente tiene que ser una revisión
+# real: su huella es la de lo que se commitea o la de un commit del historial.
+exige_contador_hito() {
+  hito=$(sh scripts/recibos.sh hito-vigente "$LOGTMP" 2>/dev/null)
+  if [ -n "$hito" ]; then
+    h=$(campo "$hito" huella); a=$(campo "$hito" alcance)
+    huella_en_historia "$h" || { fail "$1: el recibo del juez de conjunto ($a) que reiniciaría el contador del hito tiene huella $h, que no es la de ningún commit del historial ni la de lo que se commitea: no es una revisión de este proyecto."; return 1; }
+  fi
+  n=$(sh scripts/recibos.sh incrementos-sin-hito "$LOGTMP" 2>/dev/null || echo 0)
+  [ "${n:-0}" -le 3 ] || { fail "$1: hay $n incrementos con PASA efectivo del juez de código desde el hito vigente; el hito (recibo tipo=hito del juez de conjunto, con seguridad si la requiere, y commit 'Ref: hito:I<a>-I<b>') es obligatorio antes de cerrar este."; return 1; }
+}
 
-cierre=0
+cierre=0; con_incremento=0
 IFS='
 '
 for line in $trailers; do
@@ -66,41 +114,49 @@ for line in $trailers; do
     case "$f" in
       F2)
         exige_recibo revisor-funcional encuadre F2 "'$line'" || :
-        n=$(idx docs/trazabilidad.md | awk -F'|' '$2 ~ /^ *R-E\.[0-9]+ *$/ { e=$5; gsub(/ /,"",e); if (e=="abierto") c++ } END { print c+0 }')
-        [ "$n" -eq 0 ] || fail "'$line' con $n vacío(s) R-E.* en Estado abierto en docs/trazabilidad.md: el gate de diseño no se cruza con vacíos abiertos." ;;
+        ab=$(abiertos '^R-E[.][0-9]+$')
+        [ -z "$ab" ] || fail "'$line' con vacío(s) en Estado abierto en docs/trazabilidad.md ($ab): el gate de diseño no se cruza con vacíos abiertos." ;;
       F4) cierre=1; exige_conjunto "'$line'" || : ;;
       F5) cierre=1; exige_conjunto "'$line' (el cierre exige que la validación del conjunto, con su seguridad, siga vigente)" || : ;;
     esac
+  elif printf '%s' "$line" | grep -qE '^Ref:[[:space:]]*hito:I[0-9]+-I[0-9]+[[:space:]]*$'; then
+    a=$(printf '%s' "$line" | grep -oE 'hito:I[0-9]+-I[0-9]+')
+    rec=$(ultimo_recibo juez-conjunto hito "$a")
+    exige_recibo juez-conjunto hito "$a" "'$line'" && exige_seguridad_si_aplica "$rec" hito "$a"
   elif printf '%s' "$line" | grep -qE '^Ref:[[:space:]]*I[0-9]+[[:space:]]*$'; then
+    con_incremento=1
     id=$(printf '%s' "$line" | grep -oE 'I[0-9]+')
     idx docs/plan.md | grep -qE "^- \[[ xX]\] $id " \
       || fail "'$line' pero $id no existe como incremento en docs/plan.md (formato: '- [ ] $id «alias» — …')."
     rec=$(ultimo_recibo juez-codigo incremento "$id")
     exige_recibo juez-codigo incremento "$id" "'$line'" && exige_seguridad_si_aplica "$rec" incremento "$id"
-    # Contador del hito (AGENTS.md §2): tres incrementos cerrados desde la última pasada
-    # de conjunto obligan a un hito antes de cerrar el cuarto.
-    n=$(sh scripts/recibos.sh incrementos-sin-hito "$LOGTMP" 2>/dev/null || echo 0)
-    [ "${n:-0}" -le 3 ] || fail "'$line': hay $n incrementos con PASA del juez de código desde la última pasada del juez de conjunto; el hito (tipo=hito, cada tres incrementos) es obligatorio antes de cerrar este."
+    # Un incremento no se cierra con sus propios bloqueantes abiertos (código o seguridad).
+    ab=$(abiertos "^R-(I|S)${id#I}[.][0-9]+$")
+    [ -z "$ab" ] || fail "'$line' con hallazgo(s) de $id en Estado abierto en docs/trazabilidad.md ($ab): resuélvelos (fila en resuelto, con su evidencia) antes de cerrar el incremento."
+    exige_contador_hito "'$line'" || :
   elif printf '%s' "$line" | grep -qE '^Cierra:[[:space:]]*R-(E\.[0-9]+|I[0-9]+\.[0-9]+|S[0-9]+\.[0-9]+|F4\.[0-9]+|SF4\.[0-9]+)[[:space:]]*$'; then
     id=$(printf '%s' "$line" | grep -oE 'R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+')
-    est=$(idx docs/trazabilidad.md | awk -F'|' -v id="$id" '
-      function trim(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-      /^\|/ { n=0; for(i=2;i<NF;i++){ n++; f[n]=trim($i) }
-              if (f[1]=="Criterio"||f[1]=="Vacío"||f[1]=="Hallazgo") { ce=0; for(k=1;k<=n;k++) if(f[k]=="Estado") ce=k; next }
-              if (f[1]==id && ce>0) { e=f[ce]; sub(/ .*$/,"",e); print e; exit } }')
+    est=$(estado_fila "$id")
     [ -n "$est" ] || fail "'$line' pero $id no tiene fila en docs/trazabilidad.md. Un Cierra: afirma sobre otro documento: primero la fila, después el commit."
     case "$est" in ""|resuelto|verificado) ;; *) fail "'$line' pero la fila de $id sigue en Estado '$est': un Cierra: exige resuelto (con su mutación escrita) o verificado." ;; esac
   else
-    fail "trailer malformado o familia desconocida: '$line'. Gramática: Ref: F1|F2|F4|F5 · Ref: I<n> · Cierra: R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n> | R-SF4.<n>."
+    fail "trailer malformado o familia desconocida: '$line'. Gramática: Ref: F1|F2|F4|F5 · Ref: I<n> · Ref: hito:I<a>-I<b> · Cierra: R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n> | R-SF4.<n>."
   fi
 done
 unset IFS
 
+# Código sin revisión: cambios fuera del rastro/plantilla exigen `Ref: I<n>` (y, con él, el
+# recibo del juez sobre esta huella). Un `Cierra:` solo o un `Ref: F#` no bastan.
+if [ -n "$codigo" ] && [ "$con_incremento" -eq 0 ]; then
+  fail "el commit cambia código fuera del rastro ($(printf '%s\n' "$codigo" | head -3 | tr '\n' ' ')…) sin 'Ref: I<n>': el código entra solo como incremento con recibo del juez. Un 'Cierra:' o un 'Ref: F#' no acreditan revisión del código."
+fi
+
 if [ "$cierre" -eq 1 ] && [ "$FAIL" -eq 0 ]; then
   tmp=$(mktemp -d 2>/dev/null || mktemp -d -t commitmsg)
-  trap 'rm -rf "$tmp"' EXIT INT TERM
+  trap 'rm -rf "$tmp" "$LOGTMP"' EXIT INT TERM
+  prev=$(git show HEAD:docs/estado.md 2>/dev/null | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' | grep -oE 'F[1-5]' | head -1)
   git checkout-index -a --prefix="$tmp/" \
-    && ( cd "$tmp" && sh scripts/check_docs.sh cierre ) \
+    && ( cd "$tmp" && FASE_PREVIA="$prev" sh scripts/check_docs.sh cierre ) \
     || fail "el trailer declara cierre de fase (Ref: F4|F5) pero check_docs.sh cierre no da PASA sobre lo que se commitea."
 fi
 [ "$FAIL" -eq 1 ] && exit 1

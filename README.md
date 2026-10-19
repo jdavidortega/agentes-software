@@ -290,22 +290,37 @@ git config core.hooksPath .githooks
   lo creas en el diseño), **obligatorio desde la Fase 2**. Los scripts se invocan con
   intérprete explícito: su ausencia es fallo, no aviso.
 - **`commit-msg`** — valida **todos** los trailers contra una gramática cerrada
-  (`Ref: F1|F2|F4|F5`, `Ref: I<n>` que existe en `plan.md`, `Cierra: R-E.n | R-I#.n |
-  R-S#.n | R-F4.n | R-SF4.n` con fila en Estado `resuelto|verificado`), rechaza familias
-  desconocidas, exige por transición un **recibo de revisión vigente** en
-  `docs/revisiones.log` (el último del rol y alcance, en PASA, con `huella` igual a la
-  del índice; `Ref: I<n>` → juez de código más seguridad si la declaró requerida; `F2` →
-  revisor funcional y ningún vacío abierto; `F4` → juez de conjunto, no un hito; `F5` →
-  el de F4 sigue vigente), y un `Ref: F4|F5` dispara `scripts/check_docs.sh cierre` (condiciones de salida del ciclo:
-  nada `abierto` ni `resuelto` sin `verificado`, todo `C#` verificado con incremento, sin
-  ADR en `propuesta` ni ADR-000). Escape puntual: `git commit --no-verify`.
+  (`Ref: F1|F2|F4|F5`, `Ref: I<n>` que existe en `plan.md`, `Ref: hito:I<a>-I<b>`,
+  `Cierra: R-E.n | R-I#.n | R-S#.n | R-F4.n | R-SF4.n` con fila en Estado
+  `resuelto|verificado`), rechaza familias desconocidas, exige por transición un **recibo
+  de revisión vigente** en `docs/revisiones.log` (el último del rol y alcance, en PASA, con
+  `huella` igual a la del índice; `Ref: I<n>` → juez de código más seguridad si la declaró
+  requerida, sin hallazgos `R-I<n>.*`/`R-S<n>.*` abiertos y con hito vigente cada tres
+  incrementos —un hito cuenta solo si su último veredicto es PASA, su seguridad está y su
+  huella es la de un commit real—; `F2` → revisor funcional y ningún vacío abierto; `F4` →
+  juez de conjunto, no un hito; `F5` → el de F4 sigue vigente), **solo deja entrar código
+  del producto con `Ref: I<n>`** (un `Cierra:` o un `Ref: F#` no acreditan revisión), y un
+  `Ref: F4|F5` dispara `scripts/check_docs.sh cierre` (condiciones de salida del ciclo:
+  nada `abierto` ni `resuelto` sin `verificado`, al menos un `C#` y todos verificados con
+  incremento, sin ADR en `propuesta` ni ADR-000). Escape puntual: `git commit --no-verify`.
 - **`scripts/check_docs.sh`** a mano, al **inicio de cada sesión**: además de lo anterior
   verifica `core.hooksPath` y el bit ejecutable de los hooks (git ignora en silencio un
   hook no ejecutable).
 - **`.editorconfig`** — estilo base (charset, espacios) que aplican los editores.
 
 Los hooks son locales y esquivables (`git commit --no-verify`): con remoto compartido,
-el mismo `scripts/check.sh` se cablea también en CI (ver `docs/convenciones.md` §Git).
+`scripts/check.sh`, `scripts/check_docs.sh` y `scripts/pruebas/regresion.sh` se cablean
+también en CI (ver `docs/convenciones.md` §Git). **`scripts/pruebas/regresion.sh`** es la
+regresión de los propios hooks: crea repositorios temporales, sin red ni credenciales, y
+comprueba cada regla con su caso negativo y su caso positivo (fase ilegible, código sin
+recibo, recibo caducado, hito inválido, cierre vacío, rol ausente, YAML ilegal…). Corre en
+segundos; es lo que se ejecuta antes de tocar un hook o un script de la plantilla.
+
+**Límites declarados** (lo que ningún hook local prueba): quién ejecutó una revisión
+(`ejecutor=` es dato declarado; el recibo ata el veredicto al contenido, no a una sesión),
+que el revisor no usó red (las huellas no la ven), y la aprobación humana (vive en el
+chat, no en un archivo). Lo primero se cubre con CI y hooks del cliente (`SessionStart`,
+`PreToolUse`) en cada proyecto; lo último es deliberado.
 
 Que el juez y el revisor funcional corrieron se exige por su rastro: cada revisión deja
 su **recibo** en `docs/revisiones.log` (rol, alcance, veredicto, huella; también con PASA
@@ -431,7 +446,9 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 │   ├── huella.sh            huellas: vigencia (lo revisable: todo salvo revisiones.log,
 │   │                        trazabilidad, estado y MEMORIA) e integridad (todo el árbol)
 │   ├── recibos.sh           parser único de revisiones.log (hook y doctor); contador de hitos
-│   └── consumo.py           consumo de tokens por modelo desde los transcripts locales
+│   ├── consumo.py           consumo de tokens por modelo desde los transcripts locales
+│   └── pruebas/
+│       └── regresion.sh     regresión de los hooks y scripts (repos temporales; sin red)
 ├── .githooks/           hooks versionados (commit-msg enlazado; pre-commit: secretos + checks)
 ├── .editorconfig        estilo base agnóstico del lenguaje
 └── .gitignore

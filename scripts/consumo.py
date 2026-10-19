@@ -11,9 +11,11 @@ sidechains, and subagent transcripts, which live in nested directories such as
 <session>/subagents/), deduplicates messages, and sums usage per model. The report states
 how many files were read at the top level and how many in nested directories, so a run
 that saw no subagent files says so instead of looking complete.
-Record ONE line in the bitacora of docs/plan.md at each increment/phase close (see
-docs/convenciones.md, "Contexto por sesion y compactacion"); the delta against the
-previous line is that slice's consumption.
+Record ONE line in docs/MEMORIA.md, section "Consumo", at each increment/phase close
+(see docs/convenciones.md, "Contexto por sesion y compactacion"; MEMORIA.md is outside
+the review fingerprint, plan.md is not); the delta against the previous line is that
+slice's consumption. This reads Claude Code transcripts only; with Codex, use its own
+usage report and record the line by hand.
 
 CAVEAT (why this script is deliberately loud): the transcript entry format is internal
 to Claude Code and can change between versions. If nothing parses, this exits non-zero

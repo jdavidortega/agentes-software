@@ -2,11 +2,14 @@
 # Integridad del rastro documental (viene con la plantilla; ver AGENTS.md §8).
 #
 # Modo "commit" (por defecto): lo corre el pre-commit sobre una exportación del ÍNDICE
-# (lo que de verdad se versiona), y el agente lo corre a mano al inicio de sesión. Sobre
-# la plantilla recién copiada (sin fase real en estado.md) aplica lo estructural y la
-# INSTALACIÓN (hooks activos y ejecutables: un clon nuevo FALLA hasta el Bootstrap, a
-# propósito); con el proyecto iniciado (estado.md en F2..F5) aplica además el CONTRATO
-# POR FASE: archivos obligatorios, IDs únicos y existentes, estados leídos por columna.
+# (lo que de verdad se versiona), y el agente lo corre a mano al inicio de sesión. Siempre
+# aplica lo estructural (archivos de la plantilla, roles, skills, frontmatter, recibos) y,
+# dentro de un repo, la INSTALACIÓN (hooks activos y ejecutables: un clon nuevo FALLA hasta
+# el Bootstrap, a propósito). "Plantilla sin iniciar" es SOLO: estado.md sin fase legible Y
+# ningún commit anterior con fase (FASE_PREVIA, que el pre-commit toma de HEAD, o HEAD aquí
+# mismo). Una vez iniciado, una fase ausente o ilegible (F_, vacía) es FALLA, no plantilla.
+# Con el proyecto iniciado (F2..F5) aplica además el CONTRATO POR FASE: scripts/check.sh,
+# sin placeholders ni filas de ejemplo, IDs únicos y existentes, estados leídos por columna.
 # Modo "cierre": lo dispara el commit-msg cuando el trailer es Ref: F4 o Ref: F5, y se
 # puede correr a mano. Añade las condiciones de salida del ciclo.
 #
@@ -19,28 +22,50 @@ err() { echo "  ✗ check_docs: $1" >&2; FAIL=1; }
 has() { [ -f "$1" ]; }
 
 # --- Fase vigente -------------------------------------------------------------
-FASE=""
+FASE=""; FASE_LINEA=""
 if has docs/estado.md; then
-  FASE=$(grep -oE 'Fase actual:\*?\*?[[:space:]]*F[0-9]+' docs/estado.md | grep -oE 'F[0-9]+' | head -1)
+  FASE_LINEA=$(grep -m1 'Fase actual:' docs/estado.md || true)
+  FASE=$(printf '%s' "$FASE_LINEA" | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[0-9]+' | grep -oE 'F[0-9]+' | head -1)
+fi
+# Fase previa estable: la pasa el pre-commit (FASE_PREVIA, de HEAD) o se lee aquí de HEAD.
+PREVIA="${FASE_PREVIA:-}"
+if [ -z "$PREVIA" ] && git rev-parse --verify HEAD >/dev/null 2>&1; then
+  PREVIA=$(git show HEAD:docs/estado.md 2>/dev/null | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' | grep -oE 'F[1-5]' | head -1)
 fi
 INICIADO=0
 case "$FASE" in
-  "" ) ;;
   F1) ;;
   F2|F3|F4|F5) INICIADO=1 ;;
+  "") if [ -n "$PREVIA" ]; then
+        err "docs/estado.md no declara una fase legible (línea: '${FASE_LINEA:-sin «Fase actual:»}') y el proyecto ya estaba iniciado (HEAD: $PREVIA). Una fase ausente o F_ no es 'modo plantilla': escribe 'Fase actual: F1..F5'."
+        FASE="$PREVIA"; case "$FASE" in F2|F3|F4|F5) INICIADO=1 ;; esac
+      fi ;;
   *) err "docs/estado.md declara una fase inválida ($FASE): solo F1..F5. Una fase desconocida no es 'modo plantilla'."; INICIADO=1 ;;
 esac
 [ "$MODE" = "cierre" ] && INICIADO=1
 
-# --- 0) Contrato por fase: archivos obligatorios y hooks instalados --------------
-if [ "$INICIADO" -eq 1 ]; then
-  for f in AGENTS.md README.md contexto/README.md docs/estado.md docs/encuadre.md \
-           docs/plan.md docs/trazabilidad.md docs/decisiones.md docs/convenciones.md \
-           docs/definicion-de-hecho.md docs/despliegue.md docs/MEMORIA.md docs/revisiones.log \
-           scripts/check_docs.sh scripts/huella.sh scripts/recibos.sh; do
-    has "$f" || err "falta $f (obligatorio con el proyecto iniciado)"
+# --- 0) Archivos de la plantilla: obligatorios SIEMPRE (vienen con ella; en F1 también).
+#     Los registros (revisiones.log, recibos.sh, huella.sh) no desaparecen en ninguna fase.
+for f in AGENTS.md README.md contexto/README.md docs/estado.md docs/encuadre.md \
+         docs/plan.md docs/trazabilidad.md docs/decisiones.md docs/convenciones.md \
+         docs/definicion-de-hecho.md docs/despliegue.md docs/MEMORIA.md docs/revisiones.log \
+         scripts/check_docs.sh scripts/huella.sh scripts/recibos.sh \
+         .githooks/pre-commit .githooks/commit-msg \
+         .claude/skills/dirigiendo-revisiones/SKILL.md .claude/skills/revision-funcional/SKILL.md \
+         .claude/skills/revision-critica/SKILL.md .claude/skills/revision-seguridad/SKILL.md \
+         .claude/skills/verificando-por-sabotaje/SKILL.md \
+         .claude/agents/revisor-funcional.md .claude/agents/juez-codigo.md \
+         .claude/agents/juez-conjunto.md .claude/agents/juez-seguridad.md; do
+  has "$f" || err "falta $f (viene con la plantilla y el método lo necesita: los cuatro roles, sus rúbricas, el procedimiento del principal, los registros y los hooks)"
+done
+# Adaptador Codex (si se usa): los mismos cuatro roles.
+if [ -d .codex/agents ]; then
+  for r in revisor-funcional juez-codigo juez-conjunto juez-seguridad; do
+    has ".codex/agents/$r.toml" || err "falta .codex/agents/$r.toml (el adaptador Codex declara los cuatro roles)"
   done
-  # scripts/check.sh es salida del diseño: existe desde el cierre de F2.
+fi
+# --- 0a) Contrato por fase: scripts/check.sh es salida del diseño, existe desde el cierre de F2.
+if [ "$INICIADO" -eq 1 ]; then
   has scripts/check.sh || err "falta scripts/check.sh (lint+formato+tests; salida obligatoria del diseño, F2)"
 fi
 
@@ -77,8 +102,11 @@ filas_trazabilidad() {
         next
       }
       if (tipo=="") next
-      if (ce==0) { id=f[1]; if (id ~ /_/) next; print "NOEST", id, "-", "-"; next }   # fila bajo un encabezado sin columna Estado
-      id=f[1]; if (id ~ /_/) next                          # filas de ejemplo de la plantilla
+      id=f[1]
+      # Filas de ejemplo de la plantilla: SOLO estas formas exactas (y C1 con incremento I_).
+      ej = (id=="C_" || id=="R-E._" || id=="R-I_._" || (tipo=="C" && ci>0 && f[ci]=="I_"))
+      if (ej) { print "EJ", id, "-", "-"; next }
+      if (ce==0) { print "NOEST", id, "-", "-"; next }   # fila bajo un encabezado sin columna Estado
       if (id !~ /^(C[0-9]+|R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+)$/) { print "X", id, "-", "-"; next }
       # Fila en la tabla equivocada: un C# fuera de Cobertura, un R-E fuera de Vacíos, etc.
       if ((tipo=="C" && id !~ /^C/) || (tipo=="E" && id !~ /^R-E\./) || (tipo=="R" && (id ~ /^C/ || id ~ /^R-E\./))) { print "T", id, "-", "-"; next }
@@ -87,7 +115,8 @@ filas_trazabilidad() {
       print tipo, id, incr, est
     }
     /^## Histórico/ { hist=1 }
-    hist && /^- / { if (match($0, /R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+/)) { id=substr($0, RSTART, RLENGTH); if ($0 ~ /_/) next
+    hist && /^- / { if ($0 ~ /_\(ejemplo\)_/) { print "EJ", "historico", "-", "-"; next }
+                     if (match($0, /R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+/)) { id=substr($0, RSTART, RLENGTH)
                      est = ($0 ~ /· *verificado/) ? "verificado" : "desconocido"; print "H", id, "-", est } }
     ' docs/trazabilidad.md
 }
@@ -114,8 +143,14 @@ if has docs/trazabilidad.md; then
   done
 fi
 for bad in $(printf '%s\n' "$FILAS" | awk '$1=="X"{print $2}'); do
-  err "trazabilidad.md: ID '$bad' fuera de la gramática (C<n> | R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n> | R-SF4.<n>)"
+  err "trazabilidad.md: ID '$bad' fuera de la gramática (C<n> | R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n> | R-SF4.<n>); una fila que no se lee es un hallazgo invisible"
 done
+# Filas de ejemplo de la plantilla: toleradas solo hasta F1; con el proyecto iniciado se borran.
+if [ "$INICIADO" -eq 1 ]; then
+  for ej in $(printf '%s\n' "$FILAS" | awk '$1=="EJ"{print $2}'); do
+    err "trazabilidad.md conserva la fila de ejemplo de la plantilla '$ej' con el proyecto iniciado: bórrala (el contrato de la fase lee solo filas reales)"
+  done
+fi
 for bad in $(printf '%s\n' "$FILAS" | awk '$1=="T"{print $2}'); do
   err "trazabilidad.md: $bad está en la tabla equivocada (C# en Cobertura; R-E en Vacíos; R-I/R-S/R-F4/R-SF4 en el Registro del juez)"
 done
@@ -134,18 +169,34 @@ printf '%s\n' "$FILAS" | awk '
   ($1=="R" && $4 !~ /^(abierto|resuelto|verificado)$/) { bad=1 } END { exit bad ? 1 : 0 }' || FAIL=1
 
 # Unicidad: un C# o un hallazgo con dos filas es un registro ambiguo (V04/V10).
-for dup in $(printf '%s\n' "$FILAS" | awk 'NF && $1!="X" && $1!="T" && $1!="HDR" && $1!="NOEST" {print $2}' | sort | uniq -d); do
+for dup in $(printf '%s\n' "$FILAS" | awk 'NF && $1!="X" && $1!="T" && $1!="HDR" && $1!="NOEST" && $1!="EJ" {print $2}' | sort | uniq -d); do
   err "trazabilidad.md tiene más de una fila para $dup (tablas o Histórico): un ID se registra una sola vez; una pasada nueva continúa la numeración desde el último, incluido el Histórico"
 done
 
 # --- 1) Criterios C#: únicos en encuadre.md y con fila en trazabilidad.md -------------
+# Gramática publicada de un criterio: la línea EXACTA `- C<n>: enunciado`. Cualquier otra
+# forma que parezca un criterio (negrita, otro marcador, sin dos puntos) es error explícito,
+# nunca un criterio que se vuelve invisible.
+CRIT=""
 if has docs/encuadre.md; then
+  CRIT=$(grep -oE '^- C[0-9]+:' docs/encuadre.md | grep -oE 'C[0-9]+' | sort -u)
+  mal=$(awk '/^[[:space:]]*[-*+][[:space:]]+/ { t=$2; gsub(/[*_`]/,"",t); if (t ~ /^C[0-9]+:?$/ && $0 !~ /^- C[0-9]+:/) print }' docs/encuadre.md | head -2)
+  [ -z "$mal" ] || err "encuadre.md: criterio escrito fuera de la gramática '- C<n>: enunciado' (no se inventaría): $(printf '%s' "$mal" | tr '\n' '|' | cut -c1-80)"
   dups=$(grep -oE '^- C[0-9]+:' docs/encuadre.md | grep -oE 'C[0-9]+' | sort | uniq -d)
   for c in $dups; do err "$c está definido más de una vez en encuadre.md"; done
-  if has docs/trazabilidad.md; then
-    for c in $(grep -oE '^- C[0-9]+:' docs/encuadre.md | grep -oE 'C[0-9]+' | sort -u); do
-      grep -qE "^\| *$c *\|" docs/trazabilidad.md \
-        || err "$c está en encuadre.md pero no tiene fila en trazabilidad.md"
+  if [ "$INICIADO" -eq 1 ]; then
+    vac=$(grep -E '^- C[0-9]+:[[:space:]]*$' docs/encuadre.md | grep -oE 'C[0-9]+' | tr '\n' ' ')
+    [ -z "$vac" ] || err "encuadre.md: criterio(s) sin enunciado con el proyecto iniciado: $vac"
+  fi
+  # La cobertura se siembra con el plan (F2): desde ahí los dos conjuntos coinciden.
+  if has docs/trazabilidad.md && [ "$INICIADO" -eq 1 ]; then
+    for c in $CRIT; do
+      printf '%s\n' "$FILAS" | awk -v c="$c" '$1=="C" && $2==c {f=1} END {exit f?0:1}' \
+        || err "$c está en encuadre.md pero no tiene fila (legible) en la tabla de cobertura de trazabilidad.md"
+    done
+    # Y al revés: una fila de cobertura cuyo criterio no existe en el encuadre es huérfana.
+    for c in $(printf '%s\n' "$FILAS" | awk '$1=="C"{print $2}'); do
+      printf '%s\n' "$CRIT" | grep -qx "$c" || err "trazabilidad.md cubre $c, que no está definido en encuadre.md (criterio huérfano)"
     done
   fi
 fi
@@ -222,11 +273,12 @@ check_frontmatter() {  # $1 archivo, $2 claves permitidas (regex alternativa). D
   # Dentro de "…" toda comilla doble interior va escapada (\"); dentro de '…' la simple se
   # dobla (''). Una comilla interior suelta es YAML inválido aunque abra y cierre bien.
   badq=$(printf '%s\n' "$FM" | sed -n -E 's/^[a-z-]+:[[:space:]]+(["'"'"'].*)$/\1/p' | sed -E 's/[[:space:]]*#[^"'"'"']*$//' \
-        | awk '{ q=substr($0,1,1); n=length($0); if (n<2 || substr($0,n,1)!=q) next
+        | awk -v ok='0abtnvfre"/\\N_LPxuU ' '{ q=substr($0,1,1); n=length($0); if (n<2 || substr($0,n,1)!=q) next
                  inner=substr($0,2,n-2)
-                 if (q=="\"") { s=inner; gsub(/\\./,"",s); if (index(s,"\"")) print }
+                 if (q=="\"") { s=inner; while (match(s, /\\./)) { if (index(ok, substr(s,RSTART+1,1))==0) { print; break }; s=substr(s,RSTART+2) }
+                                 gsub(/\\./,"",s); if (index(s,"\"")) print }
                  else { s=inner; gsub(/'"'"''"'"'/,"",s); if (index(s,"'"'"'")) print } }')
-  [ -z "$badq" ] || err "$f: comilla interior sin escapar en un valor del frontmatter (YAML inválido): $(printf '%s' "$badq" | head -1 | cut -c1-60)…"
+  [ -z "$badq" ] || err "$f: comilla interior sin escapar o escape inválido (\\q, \\s…) en un valor del frontmatter (YAML inválido): $(printf '%s' "$badq" | head -1 | cut -c1-60)…"
   return 0
 }
 
@@ -300,8 +352,10 @@ if [ "$MODE" = "cierre" ]; then
     [ "$n_abiertos" -gt 0 ] && err "hay $n_abiertos hallazgo(s)/vacío(s) con Estado 'abierto' al cierre"
     n_resueltos=$(printf '%s\n' "$FILAS" | awk '$1=="R" && $4=="resuelto"' | grep -c .)
     [ "$n_resueltos" -gt 0 ] && err "hay $n_resueltos hallazgo(s) con Estado 'resuelto' que nunca pasaron a 'verificado' (condición de salida de las Fases 3 y 4)"
+    # Un conjunto vacío de criterios no se "cumple": al cierre hay al menos uno, real.
+    [ -n "$CRIT" ] || err "encuadre.md no define ningún criterio '- C<n>: …': no hay nada que validar ni cerrar"
     # Todo C# con incremento (columna Incremento) y Estado 'verificado' (columna Estado).
-    for c in $(grep -oE '^- C[0-9]+:' docs/encuadre.md 2>/dev/null | grep -oE 'C[0-9]+' | sort -u); do
+    for c in $CRIT; do
       row=$(printf '%s\n' "$FILAS" | awk -v c="$c" '$1=="C" && $2==c' | head -1)
       [ -n "$row" ] || { err "$c no tiene fila en trazabilidad.md al cierre"; continue; }
       printf '%s' "$row" | awk '{exit ($3 ~ /I[0-9]+/) ? 0 : 1}' \

@@ -25,7 +25,7 @@ caracteres) y **debe coincidir con el campo `name`**.
 ---
 name: nombre-corto            # igual al nombre de la carpeta
 description: "Qué hace la skill y cuándo debe usarse."   # ≤1.024 caracteres
-allowed-tools: Read, Grep, Glob, Bash, Edit              # opcional: acota herramientas
+allowed-tools: Read, Grep, Glob, Bash, Edit              # opcional: concede permisos (no restringe)
 ---
 ```
 

@@ -71,7 +71,14 @@ allowed-tools: Read, Grep, Glob, Bash
 - **No edites nunca `docs/revisiones.log` salvo para añadir una línea.** El `pre-commit`
   lo exige (lo guardado en HEAD debe ser prefijo exacto de lo nuevo): un FALLA no se
   borra, se añade la revisión nueva debajo. Y cada tres incrementos con PASA el hook
-  exige un recibo de hito antes de cerrar el cuarto: planéalo, no te sorprenda.
+  exige un hito antes de cerrar el cuarto: planéalo, no te sorprenda. El hito se registra
+  en su propio commit (`Ref: hito:I<a>-I<b>`: recibo del juez de conjunto —y de seguridad
+  si la requiere— vigente sobre lo ensamblado, más la síntesis de `MEMORIA.md`); el hook
+  solo cuenta un hito cuyo último veredicto es PASA y cuya huella es la de un commit real.
+- **Un incremento no cierra con sus hallazgos abiertos:** `Ref: I<n>` se rechaza mientras
+  algún `R-I<n>.*` o `R-S<n>.*` siga `abierto`; `resuelto` (con su mutación escrita) basta
+  para el commit, `verificado` es condición de salida de la fase. Y el código solo entra
+  con `Ref: I<n>`: un `Cierra:` solo no lo acredita.
 - **El gate humano es aparte:** el recibo prueba que la revisión ocurrió sobre este
   contenido; la aprobación la da la persona en el chat con el resumen ejecutivo
   (`AGENTS.md` §2). No se finge ni se registra en nombre de nadie.

@@ -109,8 +109,10 @@ precargada) y su rúbrica en `.claude/skills/`; ver `.claude/skills/README.md` �
 
 ## Diagrama de la metodología
 
-El orden en que ocurre todo y dónde interviene cada control —la persona en los gates,
-una revisión independiente en tres momentos—. Primero el mapa, en siete nodos:
+El orden en que ocurre todo y dónde interviene cada control: la persona en los dos
+gates, una revisión independiente en tres momentos, y el arco de reentrada que decide
+con una sola pregunta —¿cambia un `C#` o el set de oro?— si el trabajo nuevo vuelve al
+encuadre o va directo a la ejecución.
 
 ```mermaid
 flowchart LR
@@ -125,76 +127,9 @@ flowchart LR
 ```
 
 El juez aparece tres veces porque son tres momentos; en el diagrama de componentes
-aparece una vez porque es una pieza. Abajo, el mismo flujo con todos los gates y
-condiciones de salida.
-
-El flujo completo: el **arranque** (antes de programar, con `contexto/` como
-precondición y un gate por actividad) y el **ciclo de vida** (la Fase 3 es un bucle que se
-cierra con el juez y la Definición de Hecho). Las dos revisiones independientes —el
-**revisor funcional** sobre el encuadre y el **juez** sobre el código— son los puntos
-donde otro contexto verifica el trabajo. Y un **arco de reentrada**: el trabajo nuevo
-que llega tras la Fase 5 se clasifica con una sola pregunta —¿cambia `encuadre.md` (un
-`C#` o el set de oro)?— y vuelve al **Encuadre** si la respuesta es sí, o salta directo a
-la **Fase 3** si es no.
-
-```mermaid
-flowchart TD
-    Start(["El agente abre AGENTS.md y ejecuta docs/arranque.md"]) --> Boot
-
-    subgraph ARR["ARRANQUE · antes de la primera linea de codigo"]
-      direction TB
-      Boot["Paso 0 · Bootstrap del repositorio<br/>hooks activos, .env ignorado,<br/>remoto con push inicial o PoC declarada"]
-      Boot --> Pre{"¿contexto/ tiene 1+ archivo real?<br/>precondicion dura"}
-      Pre -->|No| StopMat["Detente y pide entradas<br/>documento o brief breve"]
-      StopMat -.-> Pre
-      Pre -->|Si| P1["Fase 1 · Ingesta<br/>inventariar y tipificar contexto/<br/>rutear, sembrar docs vivos<br/>entradas y salidas del sistema: muestreo<br/>1-3 ejemplos reales de cada una<br/>(pide conexion a servicios/BD si aplica)"]
-      P1 --> G1{"Gate: ¿set de entrada completo<br/>y ruteo aprobado?"}
-      G1 -->|No| P1
-      G1 -->|Si| P2["Fase 1 · Encuadre<br/>revisar y completar el borrador de encuadre.md<br/>marcar origen: de contexto/ / inferido / FALTA<br/>set de oro con ejemplo entrada a salida<br/>despliegue: destino local/remoto y empaquetado<br/>alcance del rastro decidido"]
-      P2 --> G2{"Gate: ¿encuadre confirmado, sin FALTA,<br/>inferido ni ADR propuesta pendiente?"}
-      G2 -->|No| P2
-      G2 -->|Si| P3["Fase 2 · Diseño<br/>plan minimo e incrementos en plan.md<br/>modelo de datos de salida si aplica (contrato)<br/>diagrama gerencial en README, validado con la persona<br/>fuera de alcance explicito"]
-      P3 --> P4["Fase 2 · Revision funcional independiente (rol analista)<br/>revisor funcional · revision-funcional<br/>encuadre y plan vs contexto/ · reporta, no escribe<br/>los vacios que halla se llaman R-E.n"]
-      P4 --> RF{"¿Veredicto PASA y<br/>sin vacios R-E.n abiertos?"}
-      RF -->|"Falla: vacio"| Fill["La persona llena el hueco:<br/>escribe en el .md o agrega documento"]
-      Fill --> P4
-      RF -->|Pasa| P5["Fase 2 · Registro<br/>decisiones como ADR en decisiones.md<br/>estado.md sembrado"]
-      P5 --> GD{"Gate de diseño:<br/>¿la persona aprueba el plan?"}
-      GD -->|No| P3
-    end
-
-    GD -->|Si| EXEC
-
-    subgraph CICLO["CICLO DE VIDA · Fase 3 en adelante"]
-      direction TB
-      EXEC["Fase 3 · Ejecucion iterativa<br/>un incremento pequeño y revisable"]
-      EXEC --> Vreal["Verificacion sobre datos reales<br/>no solo fixtures sinteticos"]
-      Vreal --> Judge["Juez de codigo · revision-critica<br/>revision critica independiente<br/>hallazgos R-I#.n"]
-      Judge --> JV{"¿PASA?"}
-      JV -->|Bloqueantes| FixB["Resolver subtareas<br/>commit Cierra: R-I#.n"]
-      FixB --> Judge
-      JV -->|Si| DoD{"¿Cumple la Definicion de Hecho?<br/>incluye README al dia y compactacion:<br/>estado.md regenerado, bitacora podada"}
-      DoD -->|No| EXEC
-      DoD -->|Si| Commit["Commit enlazado Ref: / Cierra:<br/>plan y trazabilidad al dia"]
-      Commit --> More{"¿Quedan criterios C#<br/>sin verificar?"}
-      More -->|Si| EXEC
-      More -->|No| F4{"Fase 4 · Validacion del conjunto<br/>¿cumple los C# y el set de oro a la vez,<br/>integrado y sobre datos reales?<br/>pasada del juez + mutation testing informativo"}
-      F4 -->|"No: defecto o regresion"| EXEC
-      F4 -->|"Si"| F5["Fase 5 · Cierre y aprendizaje<br/>lecciones a docs/MEMORIA.md, luego skills<br/>handoff: el agente avisa que lo planeado se cumplio"]
-    end
-
-    EXEC -.->|"si el trabajo impacta produccion"| OPS["Rebanada Operacion/Despliegue<br/>desplegando-a-produccion<br/>entorno de prueba, runbook verificado,<br/>respaldo de datos, autorizacion explicita"]
-    OPS -.-> EXEC
-
-    F4 -->|"No: encuadre erroneo o requisito nuevo<br/>ajustar contexto + ADR"| P2
-
-    F5 --> End(["Cierre del ciclo"])
-
-    End -.->|"llega trabajo nuevo<br/>no re-ejecuta arranque,<br/>solo la rebanada necesaria"| TR{"Reentrada - triage<br/>¿cambia encuadre.md?<br/>un C# o el set de oro"}
-    TR -.->|"No: defecto, regresion<br/>o ajuste interno: a Fase 3"| EXEC
-    TR -.->|"Si: ajuste edita un C# o<br/>requisito nuevo agrega uno: a Encuadre"| P2
-    TR -.->|"pregunta o mejora opcional:<br/>no abre ciclo"| Soporte["Responder o backlog"]
-```
+aparece una vez porque es una pieza. El detalle de cada actividad —precondiciones,
+validadores PASA/FALLA y gates— está en `docs/arranque.md` (Fases 1–2) y en
+`AGENTS.md` §2 (Fases 3–5 y reentrada); no se duplica aquí.
 
 ## Definiciones
 
@@ -273,6 +208,10 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
   (`.claude/skills/revision-funcional/SKILL.md`).
 - **Juez (rol juez)** — revisión **independiente** del *código* (el diff de cada
   incremento) antes del commit. **Reporta, no edita** (`.claude/skills/revision-critica/SKILL.md`).
+- **Juez de conjunto (rol juez)** — la misma rúbrica del juez, aplicada en la **Fase 4**
+  al **conjunto ensamblado**: busca los defectos de composición que ninguna revisión por
+  incremento puede ver. Sus bloqueantes son `R-F4.n`. **Reporta, no edita**
+  (`.claude/agents/juez-conjunto.md`).
 - **Juez de seguridad (rol juez)** — auditoría **independiente** de lo *explotable*
   (inyección, control de acceso, secretos, dependencias, IaC, prompt injection), solo
   cuando el incremento toca superficie de riesgo, y una vez sobre el conjunto. Severidad
@@ -295,10 +234,12 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
 - **`R-E.n`** — IDs de los **vacíos** que detecta el *revisor funcional* en el arranque
   (p. ej. `R-E.1`); se cierran antes del gate de diseño.
 - **`R-I#.n`** — IDs de los **hallazgos bloqueantes** del *juez* en un incremento
-  (p. ej. `R-I3.1`).
+  (p. ej. `R-I3.1`); `R-S#.n` los del *juez de seguridad* y `R-F4.n` los del *juez de
+  conjunto* (Fase 4). Misma tabla y mismo ciclo en `docs/trazabilidad.md`.
 - **Commit enlazado** — commit cuyo mensaje referencia lo que resuelve: `Ref: F#`
   (cierre de fase — `F1`, `F2`, `F4`, `F5`), `Ref: I3` (incremento de la Fase 3),
-  `Cierra: R-I3.1` (hallazgo del juez) o `Cierra: R-E.1` (vacío del revisor funcional).
+  `Cierra: R-I3.1` / `R-S3.1` / `R-F4.1` (hallazgo de un juez) o `Cierra: R-E.1` (vacío
+  del revisor funcional).
 
 ## Los mecanismos que la sostienen
 
@@ -347,8 +288,9 @@ hallazgo mecanizable que se repita.
 
 La plantilla **asume que el agente es Claude Code**: las skills viven en
 `.claude/skills/` (su ubicación nativa, donde las autodescubre sin symlinks ni copias
-que sincronizar) y los tres roles de revisión están declarados en `.claude/agents/`
-con su skill precargada. `AGENTS.md` sigue siendo la **fuente de verdad** de las
+que sincronizar) y los cuatro roles de revisión (revisor funcional, juez de código, juez
+de conjunto y juez de seguridad) están declarados en `.claude/agents/` con su skill
+precargada. `AGENTS.md` sigue siendo la **fuente de verdad** de las
 instrucciones —es el estándar que varias herramientas leen de forma nativa—;
 `CLAUDE.md` solo lo importa (`@AGENTS.md`) más notas propias de Claude Code.
 

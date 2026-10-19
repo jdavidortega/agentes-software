@@ -81,8 +81,9 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
    `.claude/skills/revision-seguridad/SKILL.md`)—, ADR si hubo decisión, commit **enlazado**
    (`Ref:`/`Cierra:`), y trazabilidad al día (`docs/plan.md` + `docs/trazabilidad.md`).
    **Salida de la fase (cuándo termina el bucle):** cuando **todos los criterios `C#`
-   están en estado `verificado`** en `docs/trazabilidad.md` y todo hallazgo `R-I#.n` y
-   `R-S#.n` cerró su ciclo completo (ninguno `abierto`). **Cómo se pasa a `verificado`**
+   están en estado `verificado`** en `docs/trazabilidad.md` y todo hallazgo `R-I#.n`,
+   `R-S#.n` (y `R-F4.n`, si la Fase 4 devolvió trabajo) cerró su ciclo completo (ninguno
+   `abierto`). **Cómo se pasa a `verificado`**
    depende de qué sea la remediación, y la regla es escalonada:
 
    - **Remediación mecanizable** (código, SQL, un chequeo): quien la resuelve **deja escrita
@@ -103,9 +104,11 @@ gate debe ser accionable: "revisa X, que contiene Y", no "ya terminé, ¿seguimo
 4. **Validación** — la DoD por incremento revisa **cada pieza al construirla**; esta
    fase valida **el conjunto ensamblado**: que todos los `C#` y el set de oro se
    cumplen **a la vez**, integrados, sobre datos reales (end-to-end), sin regresiones.
-   Incluye una **pasada del juez sobre el conjunto** (la misma revisión independiente
-   de la Fase 3, enfocada al ensamblado, no a cada diff ya juzgado; ver
-   `.claude/skills/revision-critica/SKILL.md`) y, si el sistema tiene superficie de riesgo, una
+   Incluye una **pasada del juez de conjunto** (rol juez, agente propio: la rúbrica de
+   `.claude/skills/revision-critica/SKILL.md` enfocada al ensamblado —qué invariante deja de
+   valer cuando dos piezas corren juntas—, no a cada diff ya juzgado; sus bloqueantes son
+   `R-F4.n`, misma tabla y ciclo que los `R-I#.n`, y se corrigen en la Fase 3) y, si el
+   sistema tiene superficie de riesgo, una
    **pasada de seguridad sobre el conjunto** —los defectos de composición no aparecen
    incremento a incremento (`.claude/skills/revision-seguridad/SKILL.md`)—.
    Ver `docs/definicion-de-hecho.md`.

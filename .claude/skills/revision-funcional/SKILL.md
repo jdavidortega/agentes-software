@@ -10,7 +10,7 @@ allowed-tools: Read, Grep, Glob, Bash
 > gate de diseño**, contrastándolos con su fuente (`contexto/`). **No
 > escribe en el repo: reporta qué falta**, con las filas `R-E.n` **listas** para que
 > el principal las registre en `docs/trazabilidad.md`. Es el equivalente del juez de código
-> (`revision-critica.md`), pero para los artefactos del arranque, no para el diff.
+> (`revision-critica`), pero para los artefactos del arranque, no para el diff.
 >
 > Idealmente se ejecuta como agente con **contexto propio** (un subagente en Claude
 > Code; una pasada de revisión aparte en otra herramienta), para no heredar las

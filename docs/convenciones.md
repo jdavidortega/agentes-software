@@ -188,8 +188,9 @@ El elegido se cablea en `scripts/check.sh` y el `pre-commit`.
   **archivo**, no contexto de trabajo: la operación diaria no lo relee.
 - **Enlaza** cada commit a lo que resuelve, en el footer: `Ref: F#` (cierre de fase:
   `F1` encuadre, `F2` plan, `F4` validación, `F5` cierre), `Ref: I3` (incremento de la
-  Fase 3), `Cierra: R-I3.1` (hallazgo del juez) o `Cierra: R-E.1` (vacío del revisor
-  funcional, si su resolución amerita commit propio). Es la trazabilidad en el
+  Fase 3), `Cierra: R-I3.1` (hallazgo del juez), `Cierra: R-S3.1` (seguridad),
+  `Cierra: R-F4.1` (juez de conjunto) o `Cierra: R-E.1` (vacío del revisor funcional,
+  si su resolución amerita commit propio). Es la trazabilidad en el
   historial (ver `docs/trazabilidad.md`).
 
 ## Pruebas

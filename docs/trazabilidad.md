@@ -20,17 +20,21 @@
 - **Hallazgos del juez (ejecución):** `R-I<incremento>.<n>` (p. ej. `R-I3.1`).
 - **Hallazgos del juez de seguridad:** `R-S<incremento>.<n>` (p. ej. `R-S3.1`). Mismo
   ciclo y misma tabla que los del juez; el prefijo los distingue de un vistazo en el gate.
+- **Hallazgos del juez de conjunto (Fase 4):** `R-F4.<n>` (p. ej. `R-F4.1`): defectos de
+  composición que ninguna revisión por incremento podía ver. Misma tabla y mismo ciclo;
+  en la columna Incr. va `F4`, y se cierran con un incremento de corrección de la Fase 3.
 - **Commits** enlazan en el footer: `Ref: F#` (cierre de fase — `F1`, `F2`, `F4`, `F5`),
   `Ref: I3` (incremento de la Fase 3), `Cierra: R-I3.1` (hallazgo del juez),
-  `Cierra: R-S3.1` (hallazgo de seguridad) o `Cierra: R-E.1` (vacío del revisor
-  funcional).
+  `Cierra: R-S3.1` (hallazgo de seguridad), `Cierra: R-F4.1` (hallazgo del juez de
+  conjunto) o `Cierra: R-E.1` (vacío del revisor funcional).
 
 ## Cobertura de criterios
 
 <!-- Forward: qué incremento satisface cada criterio y si está verificado.
 Backward: de un criterio se llega a su incremento. Una fila por criterio.
 `verificado` se marca pieza a pieza en la Fase 3; la Fase 4 (conjunto) no cambia
-estados aquí: su resultado queda en la bitácora de plan.md y el commit `Ref: F4`. -->
+estados en ESTA tabla: su veredicto queda en la bitácora de plan.md y el commit
+`Ref: F4`, y sus bloqueantes `R-F4.n` en el registro del juez, abajo. -->
 
 | Criterio | Alias | Incremento(s) | Estado | Nota |
 |----------|-------|---------------|--------|------|
@@ -54,8 +58,9 @@ MUTACIÓN EXACTA QUE AHORA MUERE (archivo + antes → después) y `verificado` l
 revisor independiente que la re-ejecuta en una copia y añade una no nombrada; si es
 decisión/proceso/ausencia, lo cierra quien lo levantó o la persona en el gate.
 `verificado` NUNCA se marca a mano (AGENTS.md §2, .claude/skills/verificando-por-sabotaje/).
-Incluye los de seguridad (`R-S#.n`): misma tabla, mismo ciclo. En
-esos, la columna Criterio lleva el `C#` que protege o la categoría OWASP/CWE. Las
+Incluye los de seguridad (`R-S#.n`) y los del juez de conjunto (`R-F4.n`, columna
+Incr. = `F4`): misma tabla, mismo ciclo. En los de seguridad, la columna Criterio
+lleva el `C#` que protege o la categoría OWASP/CWE. Las
 sugerencias no se rastrean aquí: van como aviso al gate (las acogidas → backlog de
 plan.md). -->
 

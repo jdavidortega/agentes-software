@@ -108,8 +108,8 @@ if [ "$MODE" = "cierre" ]; then
   if [ -f docs/trazabilidad.md ]; then
     n_abiertos=$(grep -E '^\| *R-' docs/trazabilidad.md | grep -cE '\| *abierto *\|')
     [ "$n_abiertos" -gt 0 ] && err "hay $n_abiertos hallazgo(s)/vacío(s) en estado 'abierto' al cierre"
-    n_resueltos=$(grep -E '^\| *R-[IS]' docs/trazabilidad.md | grep -cE '\| *resuelto\b')
-    [ "$n_resueltos" -gt 0 ] && err "hay $n_resueltos hallazgo(s) en 'resuelto' que nunca pasaron a 'verificado' (condición de salida de la Fase 3)"
+    n_resueltos=$(grep -E '^\| *R-(I|S|F4)' docs/trazabilidad.md | grep -cE '\| *resuelto\b')
+    [ "$n_resueltos" -gt 0 ] && err "hay $n_resueltos hallazgo(s) en 'resuelto' que nunca pasaron a 'verificado' (condición de salida de las Fases 3 y 4)"
   fi
   if [ -f docs/decisiones.md ] && grep -q '^## ADR-000' docs/decisiones.md; then
     err "la plantilla ADR-000 sigue en decisiones.md al cierre (bórrala)"

@@ -1,21 +1,22 @@
 #!/bin/sh
 # Hook de la plantilla. Exige que el mensaje ENLACE lo que resuelve (ver
 # docs/convenciones.md §Git y docs/trazabilidad.md): un trailer "Ref:" (cierre de
-# fase/incremento) o "Cierra:" (hallazgo del juez/revisor/seguridad). Es el rastro
+# fase/incremento) o "Cierra:" (hallazgo del juez, del juez de conjunto, del revisor
+# funcional o de seguridad). Es el rastro
 # mínimo que hace auditable el historial; ningún commit sin él.
 # Además, un "Cierra:" es una afirmación sobre docs/trazabilidad.md: el hallazgo que
 # nombra tiene que existir como fila (se citaron hallazgos sin crear sus filas y
 # ningún mecanismo lo cazó; las afirmaciones cruzadas se mecanizan o son prosa).
 # Salida de emergencia (úsala solo si sabes por qué): git commit --no-verify
 msg_file="$1"
-if ! grep -Eq '^(Ref|Cierra):[[:space:]]*(F[1245]|I[0-9]+|R-[EIS][0-9.]+)' "$msg_file"; then
+if ! grep -Eq '^(Ref|Cierra):[[:space:]]*(F[1245]|I[0-9]+|R-(E|I|S|F4)[0-9.]+)' "$msg_file"; then
   echo "✗ commit-msg: falta el trailer de enlace." >&2
-  echo "  Usa  'Ref: F1|F2|F4|F5'  o  'Ref: I3'  o  'Cierra: R-I3.1' / 'Cierra: R-S3.1' / 'Cierra: R-E.1'." >&2
+  echo "  Usa  'Ref: F1|F2|F4|F5'  o  'Ref: I3'  o  'Cierra: R-I3.1' / 'Cierra: R-S3.1' / 'Cierra: R-F4.1' / 'Cierra: R-E.1'." >&2
   echo "  Ver docs/convenciones.md §Git. (Emergencia: git commit --no-verify)" >&2
   exit 1
 fi
 FAIL=0
-for id in $(grep -E '^Cierra:' "$msg_file" | grep -oE 'R-[EIS][0-9.]+' | sed 's/\.$//'); do
+for id in $(grep -E '^Cierra:' "$msg_file" | grep -oE 'R-(E|I|S|F4)[0-9.]+' | sed 's/\.$//'); do
   esc=$(printf '%s' "$id" | sed 's/\./\\./g')
   grep -qE "^\| *$esc *\|" docs/trazabilidad.md 2>/dev/null || {
     echo "✗ commit-msg: 'Cierra: $id' pero $id no tiene fila en docs/trazabilidad.md." >&2

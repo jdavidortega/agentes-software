@@ -77,8 +77,8 @@ skill nueva es crear su carpeta con `SKILL.md`; nada más.
 
 ## Roles como agentes declarados (`.claude/agents/`)
 
-Los tres roles de revisión (revisor funcional, juez de código, juez de seguridad) están
-además **declarados como agentes** en `.claude/agents/<rol>.md`: la skill sigue siendo la
+Los cuatro roles de revisión (revisor funcional, juez de código, juez de conjunto y juez de
+seguridad) están además **declarados como agentes** en `.claude/agents/<rol>.md`: la skill sigue siendo la
 fuente de verdad (la rúbrica), y el agente declarado es la capa que la precarga y fija el
 rol. Lo que la declaración aporta sobre el prompt de invocación:
 

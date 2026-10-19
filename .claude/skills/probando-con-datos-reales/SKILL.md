@@ -23,8 +23,8 @@ description: "Estrategia de pruebas del proyecto: el camino principal siempre en
    servicio externo (LLM, API de terceros, BD remota), se cubre con
    **fixtures/grabación** de respuestas reales — nunca llamando al servicio vivo
    (lento, frágil, costoso), pero **nunca sustituyéndolo por el camino degradado**.
-   La lección: 163 tests verdes validando el camino que casi nunca se ejecuta,
-   mientras el principal se validaba a mano.
+   Origen: una suite entera en verde validando el camino degradado mientras el
+   principal se validaba a mano.
 2. **≥1 test de flujo end-to-end por criterio `C#`**, con datos de **forma real**
    (estructura, nombres, volúmenes y casos límite tomados del muestreo de insumos;
    los fixtures se refrescan si el insumo real cambia).
@@ -39,7 +39,7 @@ description: "Estrategia de pruebas del proyecto: el camino principal siempre en
    servicios externos; lo externo se inyecta o se graba.
 6. **Binarios y descargas se verifican de verdad:** un archivo generado/servido se
    valida con su herramienta (`unzip -t` para Excel/zip, `%%EOF` para PDF, abrir la
-   imagen) — la lección `R-I9.1`: el proxy corrompía binarios y todos los tests
+   imagen). Origen: un proxy corrompía los binarios servidos y todos los tests
    unitarios estaban verdes.
 7. **Mutation testing en la Fase 4 (informativo).** Sobre el código del camino
    crítico, con la herramienta del stack —verifica la vigente en la doc oficial;

@@ -21,7 +21,7 @@ has() { [ -f "$1" ]; }
 # --- Fase vigente -------------------------------------------------------------
 FASE=""
 if has docs/estado.md; then
-  FASE=$(grep -oE 'Fase actual:\*?\*?[[:space:]]*F[0-9]' docs/estado.md | grep -oE 'F[0-9]' | head -1)
+  FASE=$(grep -oE 'Fase actual:\*?\*?[[:space:]]*F[0-9]+' docs/estado.md | grep -oE 'F[0-9]+' | head -1)
 fi
 INICIADO=0
 case "$FASE" in
@@ -36,7 +36,8 @@ esac
 if [ "$INICIADO" -eq 1 ]; then
   for f in AGENTS.md README.md contexto/README.md docs/estado.md docs/encuadre.md \
            docs/plan.md docs/trazabilidad.md docs/decisiones.md docs/convenciones.md \
-           docs/definicion-de-hecho.md docs/despliegue.md docs/MEMORIA.md scripts/check_docs.sh; do
+           docs/definicion-de-hecho.md docs/despliegue.md docs/MEMORIA.md docs/revisiones.log \
+           scripts/check_docs.sh scripts/huella.sh; do
     has "$f" || err "falta $f (obligatorio con el proyecto iniciado)"
   done
   # scripts/check.sh es salida del diseño: existe desde el cierre de F2.
@@ -72,18 +73,42 @@ filas_trazabilidad() {
         next
       }
       if (tipo=="" || ce==0) next
-      id=f[1]; if (id !~ /^(C[0-9]+|R-)/) next           # filas de ejemplo (C1 «…» cuenta; R-E._ no)
-      if (id ~ /_/) next
+      id=f[1]; if (id ~ /_/) next                          # filas de ejemplo de la plantilla
+      if (id !~ /^(C[0-9]+|R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+)$/) { print "X", id, "-", "-"; next }
+      # Fila en la tabla equivocada: un C# fuera de Cobertura, un R-E fuera de Vacíos, etc.
+      if ((tipo=="C" && id !~ /^C/) || (tipo=="E" && id !~ /^R-E\./) || (tipo=="R" && (id ~ /^C/ || id ~ /^R-E\./))) { print "T", id, "-", "-"; next }
       incr = (ci>0) ? f[ci] : "-"; gsub(/ /,"",incr); if(incr=="") incr="-"
       est=f[ce]; sub(/ .*$/,"",est)                       # primera palabra: "pendiente / cubierto" → pendiente
       print tipo, id, incr, est
-    }' docs/trazabilidad.md
+    }
+    /^## Histórico/ { hist=1 }
+    hist && /^- / { if (match($0, /R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+/)) print "H", substr($0, RSTART, RLENGTH), "-", "verificado" }
+    ' docs/trazabilidad.md
 }
 FILAS=$(filas_trazabilidad)
+for bad in $(printf '%s\n' "$FILAS" | awk '$1=="X"{print $2}'); do
+  err "trazabilidad.md: ID '$bad' fuera de la gramática (C<n> | R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n> | R-SF4.<n>)"
+done
+for bad in $(printf '%s\n' "$FILAS" | awk '$1=="T"{print $2}'); do
+  err "trazabilidad.md: $bad está en la tabla equivocada (C# en Cobertura; R-E en Vacíos; R-I/R-S/R-F4/R-SF4 en el Registro del juez)"
+done
+# Estado fuera del enum de su tabla (un estado desconocido no es ni abierto ni resuelto).
+printf '%s\n' "$FILAS" | awk '
+  $1=="C" && $4 !~ /^(pendiente|cubierto|verificado)$/ { print $2, $4 }
+  $1=="E" && $4 !~ /^(abierto|resuelto)$/ { print $2, $4 }
+  $1=="R" && $4 !~ /^(abierto|resuelto|verificado)$/ { print $2, $4 }' | while read -r id est; do
+  err "trazabilidad.md: $id tiene Estado '$est', fuera del enum de su tabla"
+  FAIL=1
+done
+# (el while corre en subshell: repetir la detección en el shell principal)
+printf '%s\n' "$FILAS" | awk '
+  ($1=="C" && $4 !~ /^(pendiente|cubierto|verificado)$/) ||
+  ($1=="E" && $4 !~ /^(abierto|resuelto)$/) ||
+  ($1=="R" && $4 !~ /^(abierto|resuelto|verificado)$/) { bad=1 } END { exit bad ? 1 : 0 }' || FAIL=1
 
 # Unicidad: un C# o un hallazgo con dos filas es un registro ambiguo (V04/V10).
-for dup in $(printf '%s\n' "$FILAS" | awk 'NF{print $2}' | sort | uniq -d); do
-  err "trazabilidad.md tiene más de una fila para $dup: un ID se registra una sola vez (en cualquier tabla); una pasada nueva continúa la numeración, no la repite"
+for dup in $(printf '%s\n' "$FILAS" | awk 'NF && $1!="X" && $1!="T" {print $2}' | sort | uniq -d); do
+  err "trazabilidad.md tiene más de una fila para $dup (tablas o Histórico): un ID se registra una sola vez; una pasada nueva continúa la numeración desde el último, incluido el Histórico"
 done
 
 # --- 1) Criterios C#: únicos en encuadre.md y con fila en trazabilidad.md -------------
@@ -131,6 +156,13 @@ if has docs/decisiones.md; then
   for id in $ids; do err "$id está en 'propuesta' sin 'Se resuelve en:' diligenciado"; done
 fi
 
+# --- 3b) Presupuesto del canon: AGENTS.md ≤ 24 KB (lo lee cada sesión; Codex limita las
+#     instrucciones combinadas a 32 KiB). Lo que crece va a una skill, no aquí.
+if has AGENTS.md; then
+  bytes=$(wc -c < AGENTS.md | tr -d ' ')
+  [ "$bytes" -le 24576 ] || err "AGENTS.md pesa $bytes bytes (> 24576): mueve procedimiento a skills; el canon guarda invariantes (docs/convenciones.md §Contexto)"
+fi
+
 # --- 4) Placeholders de plantilla con el proyecto iniciado --------------------------------
 if [ "$INICIADO" -eq 1 ] && has AGENTS.md; then
   grep -qE '_\[[^]]+\]_' AGENTS.md \
@@ -150,6 +182,12 @@ check_frontmatter() {  # $1 archivo, $2 claves permitidas (regex alternativa). D
   printf '%s\n' "$FM" | grep -q "$(printf '\t')" && err "$f: tabuladores en el frontmatter (YAML inválido)"
   bad=$(printf '%s\n' "$FM" | grep -vE "^($keys):([[:space:]].*)?$|^[[:space:]]+-[[:space:]]+[^[:space:]]|^[[:space:]]*$|^[[:space:]]*#")
   [ -z "$bad" ] || err "$f: líneas de frontmatter no válidas o claves desconocidas: $(printf '%s' "$bad" | head -2 | tr '\n' '|')"
+  # Clave repetida: YAML no define cuál gana; aquí es error.
+  dupk=$(printf '%s\n' "$FM" | grep -oE '^[a-z-]+:' | sort | uniq -d)
+  [ -z "$dupk" ] || err "$f: clave repetida en el frontmatter: $(printf '%s' "$dupk" | tr '\n' ' ')"
+  # Un escalar SIN comillas no puede contener ': ' (YAML lo lee como mapeo anidado → error).
+  colon=$(printf '%s\n' "$FM" | grep -E '^[a-z-]+:[[:space:]]+[^"'"'"'\[[:space:]]' | sed -E 's/^[a-z-]+:[[:space:]]+//; s/[[:space:]]+#.*$//' | grep -E ': ')
+  [ -z "$colon" ] || err "$f: valor sin comillas con ': ' dentro (YAML inválido; entrecomíllalo): $(printf '%s' "$colon" | head -1 | cut -c1-50)"
   # Un valor que abre comillas tiene que cerrarlas en la misma línea (YAML inválido si no).
   unq=$(printf '%s\n' "$FM" | sed -n -E 's/^[a-z-]+:[[:space:]]+(["'"'"'].*)$/\1/p' | sed -E 's/[[:space:]]*#[^"'"'"']*$//' \
         | awk '{ q=substr($0,1,1); if (substr($0,length($0),1)!=q || length($0)<2) print }')
@@ -191,19 +229,42 @@ if [ -d .claude/agents ]; then
     [ "$afm_name" = "$aname" ] || err "$f: name '$afm_name' no coincide con el archivo '$aname'"
     printf '%s\n' "$afm" | grep -qE '^description:[[:space:]]*[^[:space:]]' \
       || err "$f: falta description (con ella Claude Code decide cuándo delegar)"
-    askills=$(printf '%s\n' "$afm" \
-      | awk '/^skills:/ {insk=1; next} insk && /^[^ ]/ {insk=0} insk {print}' \
-      | sed -n 's/^[[:space:]]*-[[:space:]]*//p')
+    askills=$( { printf '%s\n' "$afm" \
+      | awk '/^skills:[[:space:]]*$/ {insk=1; next} insk && /^[^ ]/ {insk=0} insk {print}' \
+      | sed -n 's/^[[:space:]]*-[[:space:]]*//p' ; \
+      printf '%s\n' "$afm" | sed -n -E 's/^skills:[[:space:]]*\[(.*)\][[:space:]]*$/\1/p' | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' ; } | grep -v '^$')
+    printf '%s\n' "$afm" | grep -qE '^skills:[[:space:]]*[^[[:space:]]' \
+      && err "$f: 'skills:' con un valor escalar; usa lista (bloque '- x' o inline '[x, y]')"
     for s in $askills; do
       has ".claude/skills/$s/SKILL.md" || err "$f precarga la skill '$s' pero .claude/skills/$s/SKILL.md no existe"
     done
   done
 fi
 
+# --- 7) Recibos de revisión (docs/revisiones.log): cada línea con sus campos válidos ---------
+if has docs/revisiones.log; then
+  grep -vE '^[[:space:]]*(#|$)' docs/revisiones.log | while IFS= read -r rec; do
+    ok=1
+    for k in fecha rol tipo alcance veredicto bloqueantes huella ejecutor; do
+      printf '%s' "$rec" | grep -qE "(^| )$k=[^ ]+" || { echo "  ✗ check_docs: revisiones.log: falta '$k=' en: $(printf '%s' "$rec" | cut -c1-70)" >&2; ok=0; }
+    done
+    printf '%s' "$rec" | grep -qE '(^| )rol=(revisor-funcional|juez-codigo|juez-conjunto|juez-seguridad)( |$)' || { echo "  ✗ check_docs: revisiones.log: rol desconocido en: $(printf '%s' "$rec" | cut -c1-70)" >&2; ok=0; }
+    printf '%s' "$rec" | grep -qE '(^| )tipo=(encuadre|incremento|hito|conjunto)( |$)' || { echo "  ✗ check_docs: revisiones.log: tipo desconocido en: $(printf '%s' "$rec" | cut -c1-70)" >&2; ok=0; }
+    printf '%s' "$rec" | grep -qE '(^| )veredicto=(PASA|FALLA)( |$)' || { echo "  ✗ check_docs: revisiones.log: veredicto debe ser PASA|FALLA en: $(printf '%s' "$rec" | cut -c1-70)" >&2; ok=0; }
+    printf '%s' "$rec" | grep -qE '(^| )huella=[0-9a-f]{12}( |$)' || { echo "  ✗ check_docs: revisiones.log: huella debe ser 12 hex en: $(printf '%s' "$rec" | cut -c1-70)" >&2; ok=0; }
+    printf '%s' "$rec" | grep -qE '(^| )alcance=(F2|F4|I[0-9]+|hito:I[0-9]+-I[0-9]+|reentrada:C[0-9]+)( |$)' || { echo "  ✗ check_docs: revisiones.log: alcance fuera de gramática (F2 | F4 | I<n> | hito:I<a>-I<b> | reentrada:C<n>) en: $(printf '%s' "$rec" | cut -c1-70)" >&2; ok=0; }
+    if printf '%s' "$rec" | grep -qE '(^| )rol=(juez-codigo|juez-conjunto)( |$)'; then
+      printf '%s' "$rec" | grep -qE '(^| )seguridad=(requerida|no-aplica)( |$)' || { echo "  ✗ check_docs: revisiones.log: juez-codigo/juez-conjunto deben declarar seguridad=requerida|no-aplica en: $(printf '%s' "$rec" | cut -c1-70)" >&2; ok=0; }
+    fi
+    [ "$ok" -eq 1 ] || exit 3
+  done
+  [ $? -eq 3 ] && FAIL=1
+fi
+
 # --- Modo cierre (F4/F5): condiciones de salida del ciclo ----------------------------------
 if [ "$MODE" = "cierre" ]; then
   if has docs/trazabilidad.md; then
-    n_abiertos=$(printf '%s\n' "$FILAS" | awk '$1!="C" && $4=="abierto"' | grep -c .)
+    n_abiertos=$(printf '%s\n' "$FILAS" | awk '($1=="E"||$1=="R") && $4=="abierto"' | grep -c .)
     [ "$n_abiertos" -gt 0 ] && err "hay $n_abiertos hallazgo(s)/vacío(s) con Estado 'abierto' al cierre"
     n_resueltos=$(printf '%s\n' "$FILAS" | awk '$1=="R" && $4=="resuelto"' | grep -c .)
     [ "$n_resueltos" -gt 0 ] && err "hay $n_resueltos hallazgo(s) con Estado 'resuelto' que nunca pasaron a 'verificado' (condición de salida de las Fases 3 y 4)"

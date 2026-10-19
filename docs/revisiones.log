@@ -1,0 +1,10 @@
+# Registro de recibos de revisión independiente (AGENTS.md §9). Append-only: NUNCA se
+# compacta ni se reescribe; es lo que el commit-msg lee para aceptar Ref: I<n>, F2, F4 y F5.
+# Una línea por pasada, campos clave=valor separados por espacio, sin espacios en los valores:
+#   fecha=AAAA-MM-DDTHH:MMZ rol=<rol> tipo=<tipo> alcance=<alcance> veredicto=PASA|FALLA
+#   bloqueantes=<n> seguridad=requerida|no-aplica huella=<12 hex> ejecutor=<quién>
+# rol ∈ revisor-funcional | juez-codigo | juez-conjunto | juez-seguridad
+# tipo ∈ encuadre (F2, reentrada:C3) | incremento (I<n>) | hito (hito:I1-I3) | conjunto (F4)
+# `seguridad` lo declaran juez-codigo y juez-conjunto; `huella` es `sh scripts/huella.sh`
+# sobre lo revisado; `ejecutor` identifica quién corrió la pasada (p. ej.
+# claude-code:subagente:juez-codigo). Las líneas que empiezan por # se ignoran.

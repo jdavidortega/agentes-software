@@ -11,5 +11,12 @@
 > **mecanismo** que dejó a cambio (una regla, un chequeo, una skill). Una lección sin
 > mecanismo se olvida en la siguiente sesión (`AGENTS.md` §7).
 
+## Operativa
+
+<!-- Obstáculos que trajeron las revisiones (comandos, flags, workarounds, modelo
+resuelto por rol en otro cliente). Se promueven a docs/convenciones.md en el siguiente
+incremento; aquí no invalidan recibos. -->
+-
+
 ## Lecciones
 -

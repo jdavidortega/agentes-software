@@ -1,65 +1,96 @@
 #!/bin/sh
 # Hook de la plantilla. El mensaje ENLAZA lo que resuelve (docs/trazabilidad.md §IDs y
 # docs/convenciones.md §Git) con trailers de UNA gramática cerrada:
-#   Ref: F1|F2|F4|F5        cierre de fase        Ref: I<n>        incremento (existe en plan.md)
-#   Cierra: R-E.<n>         vacío del revisor     Cierra: R-I<i>.<n> | R-S<i>.<n> | R-F4.<n>
-# Se validan TODOS los trailers presentes (uno malformado junto a uno válido también
-# rechaza), los IDs se resuelven contra el ÍNDICE (lo que va al commit), Ref: F4|F5
-# dispara el modo cierre de check_docs, y Ref: I<n> | F2 | F4 exigen un RECIBO DE REVISIÓN
-# vigente: una línea de bitácora en docs/plan.md con PASA y `huella <h>` igual a la huella
-# del índice (scripts/huella.sh indice). Así la revisión corresponde al contenido que se
-# guarda, no a una versión anterior. Salida de emergencia: git commit --no-verify.
+#   Ref: F1|F2|F4|F5     cierre de fase          Ref: I<n>          incremento (existe en plan.md)
+#   Cierra: R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n> | R-SF4.<n>   (fila en trazabilidad, Estado resuelto|verificado)
+# Se validan TODOS los trailers presentes; los IDs se resuelven contra el ÍNDICE (lo que
+# va al commit). Cada transición exige su RECIBO en docs/revisiones.log (registro
+# estructurado, append-only; ver AGENTS.md §9): la ÚLTIMA línea del mismo rol+tipo+alcance
+# debe ser PASA con `huella` igual a la del índice (scripts/huella.sh indice), de modo que la
+# revisión corresponde al contenido que se guarda:
+#   Ref: I<n> → juez-codigo incremento I<n> (+ juez-seguridad si el recibo dice seguridad=requerida)
+#   Ref: F2   → revisor-funcional encuadre F2, y ningún vacío R-E.* con Estado abierto
+#   Ref: F4   → juez-conjunto conjunto F4 (no sirve un recibo de hito) (+ seguridad si requerida)
+#   Ref: F5   → el recibo de F4 anterior sigue vigente (el cierre no cambió contenido revisable)
+# Ref: F4|F5 dispara además check_docs en modo cierre. Emergencia: git commit --no-verify.
 msg_file="$1"
 FAIL=0
 fail() { echo "✗ commit-msg: $1" >&2; FAIL=1; }
-
-# Lectura desde el índice (lo que se commitea), con el árbol como respaldo.
 idx() { git show ":$1" 2>/dev/null || cat "$1" 2>/dev/null; }
 
 trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
-if [ -z "$trailers" ]; then
-  fail "falta el trailer de enlace. Usa 'Ref: F1|F2|F4|F5', 'Ref: I3', o 'Cierra: R-I3.1' / 'R-S3.1' / 'R-F4.1' / 'R-E.1' (docs/convenciones.md §Git)."
-fi
+[ -n "$trailers" ] || fail "falta el trailer de enlace. Usa 'Ref: F1|F2|F4|F5', 'Ref: I3', o 'Cierra: R-I3.1' / 'R-S3.1' / 'R-F4.1' / 'R-SF4.1' / 'R-E.1' (docs/convenciones.md §Git)."
+
+HUELLA=$(sh scripts/huella.sh indice 2>/dev/null)
+[ -n "$HUELLA" ] || fail "no pude calcular la huella del índice (scripts/huella.sh indice)."
+
+# Recibos: lee docs/revisiones.log del índice; cada línea son campos clave=valor.
+LOG=$(idx docs/revisiones.log)
+campo() { printf '%s' "$1" | tr ' ' '\n' | sed -n "s/^$2=//p" | head -1; }
+ultimo_recibo() {  # $1 rol  $2 tipo  $3 alcance → imprime la última línea que coincide
+  printf '%s\n' "$LOG" | awk -v r="rol=$1" -v t="tipo=$2" -v a="alcance=$3" '
+    { ok=0; for(i=1;i<=NF;i++){ if($i==r) ok++; if($i==t) ok++; if($i==a) ok++ } if(ok==3) last=$0 }
+    END { if (last!="") print last }'
+}
+exige_recibo() {  # $1 rol $2 tipo $3 alcance $4 descripción para el error → 0 si vigente
+  rec=$(ultimo_recibo "$1" "$2" "$3")
+  if [ -z "$rec" ]; then
+    fail "$4: no hay recibo de $1 ($2 $3) en docs/revisiones.log. Formato: fecha=… rol=$1 tipo=$2 alcance=$3 veredicto=PASA bloqueantes=0 seguridad=requerida|no-aplica huella=$HUELLA ejecutor=…"; return 1
+  fi
+  v=$(campo "$rec" veredicto); h=$(campo "$rec" huella)
+  [ "$v" = "PASA" ] || { fail "$4: la última revisión de $1 ($2 $3) fue $v, no PASA."; return 1; }
+  [ "$h" = "$HUELLA" ] || { fail "$4: el recibo de $1 ($2 $3) tiene huella $h y lo que se commitea tiene $HUELLA: el contenido cambió después de la revisión; repítela."; return 1; }
+  return 0
+}
+exige_seguridad_si_aplica() {  # $1 recibo del juez  $2 tipo  $3 alcance
+  s=$(campo "$1" seguridad)
+  case "$s" in
+    no-aplica) return 0 ;;
+    requerida) exige_recibo juez-seguridad "$2" "$3" "el recibo del juez marca seguridad=requerida" ;;
+    *) fail "el recibo del juez ($2 $3) no declara seguridad=requerida|no-aplica."; return 1 ;;
+  esac
+}
 
 cierre=0
-# Recibo de revisión: línea de bitácora en plan.md (índice) con PASA y la huella actual.
-recibo() {  # $1 patrón del alcance (ERE); 0 si la ÚLTIMA revisión de ese alcance es PASA con la huella actual
-  h=$(sh scripts/huella.sh indice 2>/dev/null) || return 1
-  last=$(idx docs/plan.md | grep -iE '^- .*revisi[oó]n' | grep -E "$1" | tail -1)
-  [ -n "$last" ] || return 1
-  printf '%s' "$last" | grep -qE '(^|[^A-Za-z])PASA([^A-Za-z]|$)' || return 1
-  printf '%s' "$last" | grep -qE "huella[: ]+$h([^0-9a-f]|$)"
-}
 IFS='
 '
 for line in $trailers; do
   if printf '%s' "$line" | grep -qE '^Ref:[[:space:]]*F[1245][[:space:]]*$'; then
-    printf '%s' "$line" | grep -qE 'F[45]' && cierre=1
-    if printf '%s' "$line" | grep -qE 'F2'; then
-      recibo 'funcional' || fail "'$line' sin recibo vigente: la bitácora de docs/plan.md necesita una línea 'Revisión funcional … PASA … huella $(sh scripts/huella.sh indice 2>/dev/null)' (la huella de lo que se commitea). Si el encuadre cambió tras la revisión, hay que repetirla."
-    fi
-    if printf '%s' "$line" | grep -qE 'F4'; then
-      recibo '(conjunto|F4)' || fail "'$line' sin recibo vigente del juez de conjunto: línea 'Revisión … conjunto … PASA … huella $(sh scripts/huella.sh indice 2>/dev/null)' en docs/plan.md."
-    fi
+    f=$(printf '%s' "$line" | grep -oE 'F[1245]')
+    case "$f" in
+      F2)
+        exige_recibo revisor-funcional encuadre F2 "'$line'" || :
+        n=$(idx docs/trazabilidad.md | awk -F'|' '$2 ~ /^ *R-E\./ { e=$5; gsub(/ /,"",e); if (e=="abierto") c++ } END { print c+0 }')
+        [ "$n" -eq 0 ] || fail "'$line' con $n vacío(s) R-E.* en Estado abierto en docs/trazabilidad.md: el gate de diseño no se cruza con vacíos abiertos." ;;
+      F4)
+        cierre=1
+        rec=$(ultimo_recibo juez-conjunto conjunto F4)
+        exige_recibo juez-conjunto conjunto F4 "'$line'" && exige_seguridad_si_aplica "$rec" conjunto F4 ;;
+      F5)
+        cierre=1
+        exige_recibo juez-conjunto conjunto F4 "'$line' (el cierre exige que la validación del conjunto siga vigente)" || : ;;
+    esac
   elif printf '%s' "$line" | grep -qE '^Ref:[[:space:]]*I[0-9]+[[:space:]]*$'; then
     id=$(printf '%s' "$line" | grep -oE 'I[0-9]+')
     idx docs/plan.md | grep -qE "^- \[[ xX]\] $id " \
       || fail "'$line' pero $id no existe como incremento en docs/plan.md (formato: '- [ ] $id «alias» — …')."
-    recibo "(^|[^A-Za-z0-9])$id([^0-9]|$)" \
-      || fail "'$line' sin recibo vigente del juez: la bitácora de docs/plan.md necesita 'Revisión … $id … PASA … huella $(sh scripts/huella.sh indice 2>/dev/null)' (la huella del índice ahora). Si el código cambió después de la revisión, la revisión no vale: repítela."
-  elif printf '%s' "$line" | grep -qE '^Cierra:[[:space:]]*R-(E\.[0-9]+|I[0-9]+\.[0-9]+|S[0-9]+\.[0-9]+|F4\.[0-9]+)[[:space:]]*$'; then
-    id=$(printf '%s' "$line" | grep -oE 'R-(E|I[0-9]+|S[0-9]+|F4)\.[0-9]+')
-    esc=$(printf '%s' "$id" | sed 's/\./\\./g')
-    idx docs/trazabilidad.md | grep -qE "^\| *$esc *\|" \
-      || fail "'$line' pero $id no tiene fila en docs/trazabilidad.md. Un Cierra: afirma sobre otro documento: primero la fila, después el commit."
+    rec=$(ultimo_recibo juez-codigo incremento "$id")
+    exige_recibo juez-codigo incremento "$id" "'$line'" && exige_seguridad_si_aplica "$rec" incremento "$id"
+  elif printf '%s' "$line" | grep -qE '^Cierra:[[:space:]]*R-(E\.[0-9]+|I[0-9]+\.[0-9]+|S[0-9]+\.[0-9]+|F4\.[0-9]+|SF4\.[0-9]+)[[:space:]]*$'; then
+    id=$(printf '%s' "$line" | grep -oE 'R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+')
+    est=$(idx docs/trazabilidad.md | awk -F'|' -v id="$id" '
+      function trim(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+      /^\|/ { n=0; for(i=2;i<NF;i++){ n++; f[n]=trim($i) }
+              if (f[1]=="Criterio"||f[1]=="Vacío"||f[1]=="Hallazgo") { ce=0; for(k=1;k<=n;k++) if(f[k]=="Estado") ce=k; next }
+              if (f[1]==id && ce>0) { e=f[ce]; sub(/ .*$/,"",e); print e; exit } }')
+    [ -n "$est" ] || fail "'$line' pero $id no tiene fila en docs/trazabilidad.md. Un Cierra: afirma sobre otro documento: primero la fila, después el commit."
+    case "$est" in ""|resuelto|verificado) ;; *) fail "'$line' pero la fila de $id sigue en Estado '$est': un Cierra: exige resuelto (con su mutación escrita) o verificado." ;; esac
   else
-    fail "trailer malformado o familia desconocida: '$line'. Gramática: Ref: F1|F2|F4|F5 · Ref: I<n> · Cierra: R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n>."
+    fail "trailer malformado o familia desconocida: '$line'. Gramática: Ref: F1|F2|F4|F5 · Ref: I<n> · Cierra: R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n> | R-SF4.<n>."
   fi
 done
 unset IFS
 
-# Ref: F4|F5 es una afirmación de cierre: se comprueba con check_docs en modo cierre,
-# sobre la exportación del índice.
 if [ "$cierre" -eq 1 ] && [ "$FAIL" -eq 0 ]; then
   tmp=$(mktemp -d 2>/dev/null || mktemp -d -t commitmsg)
   trap 'rm -rf "$tmp"' EXIT INT TERM
@@ -67,6 +98,5 @@ if [ "$cierre" -eq 1 ] && [ "$FAIL" -eq 0 ]; then
     && ( cd "$tmp" && sh scripts/check_docs.sh cierre ) \
     || fail "el trailer declara cierre de fase (Ref: F4|F5) pero check_docs.sh cierre no da PASA sobre lo que se commitea."
 fi
-
 [ "$FAIL" -eq 1 ] && exit 1
 exit 0

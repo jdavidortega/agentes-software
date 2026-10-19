@@ -57,6 +57,12 @@ activa, sin relleno ni adornos; una sigla se define la primera vez que aparece; 
 documentos de cara a terceros (README, ADRs, `encuadre.md`) se escriben para un lector
 **externo al proyecto**. Concreto > elegante.
 
+**El gate es un resumen ejecutivo** (≤15 líneas, `AGENTS.md` §2). Forma: «**Decidido:**
+C3 «exportar-excel»: el reporte mensual se exporta a Excel con las columnas de la vista;
+C4 …. **Cambio:** cinco líneas o el diagrama si cambió. **Se pide aprobar:** el plan de
+I3–I5; tras el OK empieza I3. **Detalle:** `docs/plan.md` §Incrementos, ADR «Exportar
+con openpyxl».» Nada de "ya terminé, ¿seguimos?".
+
 **Concreto también en los IDs.** `C3 «exportar-excel»`, `I5 «motor-indicadores»` o
 `R-I3.1` sirven para **referenciar entre documentos** y compactar contexto; **no** son
 una forma de hablar con la persona ni de redactar una decisión. Cuando un ID aparece
@@ -97,6 +103,22 @@ de un requerimiento tiene que poder hacerse leyendo, no descifrando.
   la línea anterior. La retro de F5 arma la tabla por fase y la **evalúa**: es el dato
   que detecta sobredimensionamiento del método, no ceremonia. Si el script falla
   (formato interno cambió), regístralo con `/usage` y anota el hallazgo.
+- **Presupuesto de escritura (la ventana de contexto es finita y la calidad cae antes
+  de llenarla):** todo lo que el agente escribe lo volverá a leer él mismo, muchas veces,
+  en sesiones futuras. Topes que se respetan salvo razón escrita: reporte de revisión
+  ≤40 líneas (sin narrativa; bloqueantes aparte); recibo = 1 línea; bitácora del
+  incremento = 1 línea; resumen ejecutivo del gate ≤15 líneas; ADR ≤20 líneas; `estado.md`
+  ≤1 página; `MEMORIA.md` §Lo crítico ≤10 ítems; `AGENTS.md` ≤24 KB (`check_docs` lo
+  vigila: Codex limita las instrucciones combinadas a 32 KiB). Un documento que crece se
+  compacta en el siguiente cierre; si una regla necesita más espacio, va a una skill que
+  se carga solo cuando aplica, no al canon que se lee siempre.
+- **Lo que no decide no se escribe:** ni justificaciones largas, ni historia repetida, ni
+  listas de lo que no se hizo. El porqué va en el ADR (una vez); el detalle, en git.
+- **Recibos aparte y para siempre:** `docs/revisiones.log` es append-only y no entra en
+  ninguna compactación; es lo que el `commit-msg` lee.
+- **Obstáculos de una revisión → `docs/MEMORIA.md` §Operativa**, no a este archivo en
+  ese momento: `convenciones.md` es contenido revisado y cambiarlo tras el PASA
+  invalidaría el recibo; su promoción aquí va en el siguiente incremento.
 - **Lecturas masivas y barridos → subagente de búsqueda:** inventarios, lecturas de
   archivos grandes o barridos exploratorios se delegan a un subagente con contexto
   propio (p. ej. el agente Explore integrado) y el principal consume **solo las

@@ -94,7 +94,7 @@ rol. Lo que la declaración aporta sobre el prompt de invocación:
   revisión y con la huella del reporte (`AGENTS.md` §9): si cambió, la revisión se
   invalida. `git status` no sirve para esto: no distingue dos versiones de un archivo ya
   modificado. Detecta, no previene: red y archivos ignorados quedan fuera. Su reporte trae
-  las filas y la línea de bitácora **listas** y el principal las registra tal cual.
+  las filas y el **recibo** listos y el principal los registra tal cual (`docs/revisiones.log`).
 - **`description`** habilita la delegación automática, y **`model`** fija el modelo del
   rol. El esquema elegido: **`sonnet`** para las revisiones acotadas por rúbrica
   (revisor funcional, juez de código por incremento — distinto al modelo que construye:
@@ -137,6 +137,10 @@ archivo, `description`, skills precargadas existentes).
 - **`probando-con-datos-reales/`** — camino principal en la suite, tests que
   aportan, set de oro como regresión, mutation testing en Fase 4. Se dispara en el
   diseño de la estrategia de pruebas y en cada incremento.
+- **`dirigiendo-revisiones/`** — procedimiento del **principal** para pedir, recibir y
+  registrar una revisión independiente: bitácora antes, huella antes/después, invocación
+  en serie con contexto fresco, formato y presupuesto del reporte, recibo en
+  `docs/revisiones.log`. Se dispara al cerrar F2, un incremento, un hito o F4.
 - **`verificando-por-sabotaje/`** — demostrar que una garantía existe deshaciéndola a
   propósito en una copia y viendo la suite en rojo; incluye el arnés y el protocolo del
   aserto falsable. Se dispara al cerrar cada incremento (garantías nuevas), al pasar un

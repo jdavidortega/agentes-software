@@ -47,20 +47,12 @@ ejecuta, entradas/salidas) y corregido en ese mismo commit si estaba desfasado �
 agente lo hace por defecto, sin que la persona lo pida; ningún gate se solicita con
 el README desactualizado (formato: `.claude/skills/escribiendo-readme/SKILL.md`)—.
 
-**El gate es un resumen ejecutivo en el chat, no un índice de archivos.** Cuando el
-proyecto crece hay muchos documentos y nadie los relee para aprobar; lo que aumenta la
-probabilidad de que se lea —y de que la aprobación sea real— es un resumen con lo
-relevante **y** la referencia al documento original. El mensaje del gate trae, en este
-orden: (1) **qué se decidió**, en texto completo y lenguaje concreto —cada criterio,
-incremento o decisión **escrito**, no citado por sigla: "C3 «exportar-excel»: el
-reporte mensual se exporta a Excel con las mismas columnas de la vista" y no solo "C3"—;
-(2) la **arquitectura o el cambio** en cinco líneas (o el diagrama gerencial si cambió);
-(3) **qué se pide aprobar** exactamente y qué pasa después; (4) **dónde está el detalle**
-(`docs/encuadre.md` §…, `docs/plan.md` §…, ADR por título). Antes de enviarlo, el
-agente verifica que el documento original dice lo mismo que el resumen: el resumen no
-sustituye el documento, lo representa. Nada de "ya terminé, ¿seguimos?" ni de "revisa
-X" sin decir qué contiene X. La misma regla aplica a cualquier decisión que se le pida
-a la persona fuera de un gate.
+**El gate es un resumen ejecutivo en el chat** (≤15 líneas), no un índice de archivos:
+(1) qué se decidió, **en texto completo**, no por siglas; (2) el cambio o la arquitectura
+en cinco líneas; (3) qué se pide aprobar y qué pasa después; (4) dónde está el detalle.
+El resumen representa al documento, no lo sustituye: antes de enviarlo se verifica que
+dicen lo mismo. Igual para cualquier decisión que se pida fuera de un gate. Formato y
+ejemplo en `docs/convenciones.md` §Redacción.
 
 1. **Encuadre** — contexto, objetivos, criterios de éxito, *no-objetivos*, **set de
    oro** (ejemplos de salida esperada), **stack y arquitectura** y **modelo de
@@ -97,24 +89,12 @@ a la persona fuera de un gate.
    **Salida de la fase (cuándo termina el bucle):** cuando **todos los criterios `C#`
    están en estado `verificado`** en `docs/trazabilidad.md` y todo hallazgo `R-I#.n`,
    `R-S#.n` (y `R-F4.n`, si la Fase 4 devolvió trabajo) cerró su ciclo completo (ninguno
-   `abierto`). **Cómo se pasa a `verificado`**
-   depende de qué sea la remediación, y la regla es escalonada:
-
-   - **Remediación mecanizable** (código, SQL, un chequeo): quien la resuelve **deja escrita
-     en su fila la mutación exacta que ahora muere**, y el hallazgo pasa a `verificado`
-     cuando un **revisor independiente** —no necesariamente quien lo levantó— la deshace en
-     una **copia** del árbol, la suite se pone en rojo, y **añade al menos una mutación que
-     el autor del arreglo no nombró**. Esa última cláusula es la que hace que la regla
-     funcione: sin ella es marcarse la tarea con el examen que uno eligió. El procedimiento y
-     sus trampas están en `.claude/skills/verificando-por-sabotaje/SKILL.md`.
-   - **Remediación que es una decisión, un proceso o una ausencia** (un ADR, que una pasada
-     ocurrió, un dato medido): no se finge una mutación. La fila declara qué la sostiene, y
-     el ciclo lo cierra **quien lo levantó**; si ya no está, lo cierra **la persona en el
-     gate**, nunca un juez nuevo — desde fuera no se distingue una pasada real de un trámite,
-     ni si un ADR resuelve la tensión que el otro juez vio o solo una adyacente.
-
-   **Nunca a mano.** Marcar `verificado` sin una de esas dos vías es la forma más barata de
-   perder el rastro. Recién entonces se pasa a la Fase 4.
+   `abierto`). **`verificado` nunca se marca a mano.** Regla escalonada: si la remediación
+   es **mecanizable**, la fila lleva la mutación exacta que ahora muere y un revisor
+   independiente la re-ejecuta en una copia **añadiendo una que el autor no nombró**
+   (`.claude/skills/verificando-por-sabotaje/SKILL.md`); si es una **decisión, un proceso o
+   una ausencia**, la fila declara qué la sostiene y cierra quien la levantó o la persona
+   en el gate, nunca un juez nuevo. Recién entonces se pasa a la Fase 4.
 4. **Validación** — la DoD por incremento revisa **cada pieza al construirla**; esta
    fase valida **el conjunto ensamblado**: que todos los `C#` y el set de oro se
    cumplen **a la vez**, integrados, sobre datos reales (end-to-end), sin regresiones.
@@ -126,18 +106,10 @@ a la persona fuera de un gate.
    **pasada de seguridad sobre el conjunto** —los defectos de composición no aparecen
    incremento a incremento (`.claude/skills/revision-seguridad/SKILL.md`)—.
    Ver `docs/definicion-de-hecho.md`.
-   **No espera al final: también por hito.** La Fase 3 puede durar meses y el conjunto
-   no puede validarse solo al cierre: la misma pasada del juez de conjunto (y de
-   seguridad si aplica) corre **sobre lo ensamblado hasta ahí** cada vez que se cumple
-   un hito —**tres incrementos cerrados** desde la última, o **antes de cualquier
-   despliegue**—, con el mismo rastro (línea de bitácora, `R-F4.n`). **El alcance de un
-   hito no es el del cierre:** la pasada cubre los criterios ya cubiertos o verificados y
-   los componentes construidos hasta ahí, **más sus interacciones**, y **excluye por
-   nombre** los criterios planificados para incrementos futuros (el recibo lo dice:
-   `hito I1–I3: C1–C3 y componentes X, Y; excluye C4 (I5)`); un criterio futuro no se
-   aprueba ni se reprueba en un hito. La Fase 4 formal cubre **todos** y queda como la
-   última pasada, más corta porque el conjunto ya fue validado por partes. Lo que un hito
-   encuentra vuelve a la Fase 3 como corrección.
+   **También por hito** (tres incrementos cerrados o antes de un despliegue): la misma
+   pasada sobre **lo ensamblado hasta ahí y sus interacciones**, excluyendo por nombre los
+   criterios de incrementos futuros; lo que encuentra vuelve a la Fase 3. La Fase 4 cubre
+   todos (`docs/convenciones.md` §Hito).
    - Si **el conjunto NO cumple lo acordado**, no se sigue: se vuelve atrás según la
      causa. **Defecto / regresión / cobertura faltante** (los requisitos están bien) →
      **Fase 3**, incremento de corrección. **El encuadre estaba mal o falta un
@@ -246,6 +218,14 @@ presenta opciones con tu **recomendación** en una sola pasada. Reserva las preg
 para lo de alto impacto; lo de bajo impacto y reversible, decídelo con un **default
 sensato**, dilo, y sigue.
 
+**Límite de iteraciones.** Tres intentos sobre el mismo problema sin avance
+**verificable** (un test que pasa, un dato nuevo, un hallazgo cerrado) → párate, resume
+en cinco líneas qué probaste y qué falta, y **pregunta**. Antes de iterar, clasifica:
+**relevante** es lo que toca un criterio `C#`, un gate, producción o seguridad;
+**irrelevante** es lo cosmético o reversible, que se decide con un default y se anota.
+Si no sabes en cuál cae, esa es la pregunta. Iterar mucho sobre lo irrelevante gasta
+contexto y degrada lo relevante (`docs/convenciones.md` §Contexto).
+
 ## 4. Guardas anti-sobredimensionamiento
 
 Antes de añadir algo, pregúntate:
@@ -324,66 +304,33 @@ repite, no se corrige a mano otra vez: la regla se añade al linter/hook **en es
 incremento** y el juez verifica que quedó cableada.
 
 Lo que **no** es mecanizable —que la revisión independiente ocurrió— se vuelve
-obligatorio por su **artefacto** (línea de bitácora y filas de trazabilidad, que el
-revisor trae listas y el principal registra) y por el control de que el revisor no tocó
+obligatorio por su **artefacto** (recibo en `docs/revisiones.log` y filas de trazabilidad,
+que el revisor trae listos y el principal registra) y por el control de que el revisor no tocó
 el árbol. El detalle es el **protocolo de revisión independiente** (§9). No se cierra un
 incremento sin ese rastro ni con hallazgos `abierto`. El gate humano lo verifica.
 
-## 9. Protocolo de revisión independiente
+## 9. Revisión independiente: invariantes
 
-Aplica igual a los cuatro roles —**revisor funcional** (encuadre y plan; vacíos `R-E.n`),
-**juez de código** (cada incremento; `R-I#.n`), **juez de conjunto** (Fase 4 y cada hito;
-`R-F4.n`) y **juez de seguridad** (incrementos con superficie de riesgo y el conjunto;
-`R-S#.n`)—. La **rúbrica** de cada uno vive en su skill (`.claude/skills/revision-*/`); el
-**rol** (herramientas, modelo, skill precargada) en `.claude/agents/`. Lo común es esto, y
-se escribe una sola vez aquí:
+Cuatro roles, rúbrica en su skill (`.claude/skills/revision-*/`), rol en
+`.claude/agents/`, procedimiento del principal en
+`.claude/skills/dirigiendo-revisiones/SKILL.md`. Lo que no cambia:
 
-1. **Quién lo dispara.** El agente principal, al cerrar la actividad, **en serie** (§3): un
-   revisor a la vez, nunca con una suite o un sabotaje corriendo.
-2. **Contexto fresco.** El revisor arranca sin la memoria del principal; el principal le
-   pasa **qué revisar** (archivos, rango del diff) y nada más: no le resume su solución ni
-   le adelanta conclusiones —su valor es que no hereda ese framing—. La continuidad entre
-   pasadas viene de los **archivos**: el revisor reconstruye el estado leyendo
-   `docs/trazabilidad.md` y `docs/decisiones.md`, y verifica que los hallazgos `abierto`
-   previos estén `resuelto` antes de dar PASA.
-3. **Qué puede hacer y qué no.** Lee, busca y ejecuta (`Read, Grep, Glob, Bash`: `git diff`,
-   `scripts/check.sh`, escáneres de solo lectura). **No edita ningún archivo, no aprueba el
-   commit, no usa la red, no ataca sistemas vivos.** Honestidad sobre la frontera: no tiene
-   herramientas de edición, pero `Bash` podría escribir o salir a internet y la plantilla
-   no lo impide por sí sola. Por eso el principal **captura la huella del contenido**
-   (`sh scripts/huella.sh`: hash de todo el proyecto salvo los documentos de rastro) **antes
-   de invocarlo, exige que el reporte traiga la que el revisor calculó, y la compara con la
-   de después**; si alguna difiere, la revisión **se invalida** y se repite tras entender
-   qué pasó. (`git status` no sirve: no distingue dos versiones de un archivo ya
-   modificado.) Es **detección, no prevención**: no ve uso de red ni archivos ignorados; si
-   el cliente ofrece aislamiento real de red o archivos, úsalo además. Si el revisor
-   necesita un dato externo (un CVE, la doc de una versión), lo pide y el principal se lo
-   pasa.
-4. **Verifica, no cree.** Ejecuta él mismo `scripts/check.sh`; para lo no mecanizable exige
-   la **evidencia** (el comando y su salida, o el par `entrada → salida` observado) o la
-   reproduce. Una afirmación sin evidencia no cuenta para PASA.
-5. **Formato del reporte, exacto:** **Veredicto** (PASA/FALLA) · **Bloqueantes** (o
-   **Vacíos** en el revisor funcional), cada uno con su ID de la familia del rol y su **fila
-   lista** para `docs/trazabilidad.md` · **Sugerencias** (no se rastrean; las que la persona
-   acoja van al backlog de `docs/plan.md`) · **Preguntas** (lo que no pudo verificar) ·
-   **Cobertura y limitaciones** (seguridad: dominios auditados, escáneres corridos, qué
-   quedó sin verificar) · **Obstáculos** (setup, flags, workarounds; «ninguno» si no hubo) ·
-   **Línea de bitácora** lista para `docs/plan.md`, **también con PASA limpio**, con este
-   contenido fijo: fecha · `Revisión <rol>` · **alcance** (`I3`; `F2 encuadre y plan`; `hito
-   I1–I3: C1–C3 y componentes X, Y; excluye C4 (I5)`; `conjunto F4`) · veredicto · conteo de
-   hallazgos · `huella <sh scripts/huella.sh>`. Esa línea es el **recibo** de la revisión:
-   la huella ata el veredicto al contenido exacto que se juzgó, y el `commit-msg` exige un
-   recibo con PASA y huella igual a la del índice para `Ref: I<n>`, `Ref: F2` y `Ref: F4`.
-   Si el contenido cambia después de la revisión, el recibo deja de valer y la revisión
-   se repite. Lo que el recibo **no** prueba es la aprobación humana: esa la da la persona
-   en el gate y queda en su respuesta, no en un archivo que escribe el principal.
-   Binario donde se pueda; lo subjetivo va como sugerencia o pregunta, nunca como FALLA
-   silenciosa; una sugerencia que no sirve a un criterio acordado es sobredimensionar.
-6. **Registro.** El principal registra filas y línea **tal cual, sin editarlas**, antes de la
-   siguiente pasada, y rutea los obstáculos (comando/flag → `docs/convenciones.md`; lección
-   → `docs/MEMORIA.md`). Luego resuelve los bloqueantes como subtareas (`resuelto` + commit
-   `Cierra:`), y el paso a `verificado` sigue la regla escalonada de §2.
-7. **Modelo y fallback.** El modelo lo fija el rol en `.claude/agents/` (`sonnet` en las
-   revisiones acotadas, `opus` en conjunto y seguridad). En una herramienta sin subagentes
-   declarables, el «Prompt de invocación» de cada skill lanza la pasada con contexto
-   fresco y este mismo protocolo.
+- **Quién:** revisor funcional (encuadre y plan; `R-E.n`), juez de código (incremento;
+  `R-I#.n`), juez de conjunto (hitos y Fase 4; `R-F4.n`), juez de seguridad (superficie de
+  riesgo por incremento, `R-S#.n`; y el conjunto, `R-SF4.n`). Los dispara el principal,
+  **uno a la vez**.
+- **Contexto fresco:** el revisor no hereda la memoria del principal; recibe qué revisar
+  y nada más; reconstruye el estado desde `docs/trazabilidad.md` y `docs/decisiones.md`.
+- **Sin edición, sin red, sin ataques a sistemas vivos; verifica, no cree:** ejecuta
+  `scripts/check.sh` él mismo y exige evidencia. La herramienta no lo garantiza; lo
+  **detecta** la huella del contenido (`scripts/huella.sh`) igual antes, en el reporte y
+  después.
+- **El recibo ata el veredicto al contenido:** una línea estructurada en
+  `docs/revisiones.log` (append-only, nunca se compacta) con rol, tipo, alcance,
+  veredicto, bloqueantes, `seguridad=requerida|no-aplica` (jueces de código y conjunto),
+  `huella` y ejecutor. El `commit-msg` exige el **último** recibo del alcance en PASA con
+  la huella del índice para `Ref: I<n>`, `F2`, `F4` y `F5` (y el de seguridad si fue
+  requerida). La aprobación humana es otra cosa: la da la persona en el gate.
+- **Reporte breve y exacto:** veredicto, bloqueantes con fila lista, ≤5 sugerencias,
+  preguntas, obstáculos, recibo. Sin narrativa. Lo subjetivo es sugerencia, nunca FALLA
+  silenciosa; lo que no sirve a un criterio acordado es sobredimensionar.

@@ -31,7 +31,8 @@ el incremento y el rango del diff:
 > Sigue el protocolo de `AGENTS.md` §9: ejecuta `scripts/check.sh` tú mismo, exige
 > evidencia de la verificación con datos reales, y entrega el reporte con su formato
 > exacto (Veredicto · Bloqueantes `R-I#.n` —`R-F4.n` si revisas el conjunto— con filas
-> listas · Sugerencias · Preguntas · Obstáculos · Línea de bitácora). No escribas en
+> listas · Sugerencias · Preguntas · Obstáculos · Recibo para `docs/revisiones.log` con
+> `seguridad=requerida|no-aplica` y tu `sh scripts/huella.sh`). No escribas en
 > ningún archivo ni uses la red: todo va en el reporte.
 
 ## Insumos (el contexto en que se apoya)

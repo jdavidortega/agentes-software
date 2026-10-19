@@ -33,12 +33,13 @@ No corre en todo incremento —eso la volvería trámite—. Corre cuando el inc
 - **Superficie de IA/LLM:** prompts, definiciones de tools, servidores MCP, RAG, o
   cualquier ejecución alimentada por la salida del modelo.
 
-Además, **una pasada sobre el conjunto ensamblado en la Fase 4**: los defectos de
-composición (dos piezas seguras que juntas exponen algo) no aparecen incremento a
-incremento.
+Además, **una pasada sobre el conjunto ensamblado** en cada **hito** y en la Fase 4: los
+defectos de composición (dos piezas seguras que juntas exponen algo) no aparecen
+incremento a incremento. Sus hallazgos llevan la familia **`R-SF4.<n>`** (no `R-S<i>`,
+que nombra un incremento) y el alcance del hito va en el recibo.
 
 Si **ningún** disparador aplica, no corre y no genera rastro propio: el juez de
-`revision-critica` lo hace constar en su línea de bitácora ("sin superficie de
+`revision-critica` lo hace constar en su recibo (`seguridad=no-aplica`; "sin superficie de
 riesgo"). Eso es todo el trámite que hay.
 
 ## Prompt de invocación (para el agente principal)
@@ -54,7 +55,8 @@ que está bien protegido—, rellenando el incremento y el rango del diff:
 > escáneres de solo lectura disponibles. Sigue el protocolo de `AGENTS.md` §9 y entrega
 > el reporte con su formato exacto (Veredicto · Bloqueantes `R-S#.n` con severidad,
 > confianza y remediación y filas listas · Sugerencias · Cobertura y limitaciones ·
-> Obstáculos · Línea de bitácora). No escribas en ningún archivo, no uses la red ni
+> Obstáculos · Recibo para `docs/revisiones.log` con tu `sh scripts/huella.sh`). No escribas
+> en ningún archivo, no uses la red ni
 > ataques ningún sistema vivo: todo va en el reporte.
 
 ## Insumos
@@ -98,11 +100,11 @@ que está bien protegido—, rellenando el incremento y el rango del diff:
    - ¿Es **explotable en el modelo de despliegue real** (`docs/encuadre.md`)?
    Cada hallazgo sale con **severidad** y **confianza** (Alta/Media/Baja).
 5. **Entrega el reporte** en el **formato del protocolo** (`AGENTS.md` §9). Lo propio de
-   seguridad: cada bloqueante lleva ID `R-S<incr>.<n>`, **severidad**, **confianza**,
+   seguridad: cada bloqueante lleva ID `R-S<incr>.<n>` (incremento) o `R-SF4.<n>` (hito / conjunto), **severidad**, **confianza**,
    **ubicación `archivo:línea`** con el fragmento, categoría **OWASP/CWE**, qué permite a
    un atacante y **remediación concreta** (el patrón correcto, no "sanitiza mejor"); y la
    sección **Cobertura y limitaciones** (dominios auditados, escáneres corridos, qué no
-   pudiste verificar) es obligatoria. La línea de bitácora nombra los dominios auditados.
+   pudiste verificar) es obligatoria. El reporte nombra los dominios auditados.
 
 ## Rúbrica de severidad
 
@@ -126,7 +128,7 @@ verificar**, no como hecho consumado.
 - **FALLA:** ≥1 hallazgo Crítico o Alto sin mitigación. También si un **riesgo
   aceptado** que lo mitigaba ya no aplica.
 - **PASA:** solo Medios aislados, Bajos o Info. Los Medios que quedan se declaran como
-  **deuda de seguridad** en la línea de bitácora; si la persona decide asumirlos, eso
+  **deuda de seguridad** en el reporte; si la persona decide asumirlos, eso
   es un **ADR** (riesgo aceptado, con su porqué), no un olvido.
 - **Cobertura incompleta:** si un dominio aplicable no se pudo auditar (falta acceso o
   herramienta), **no des un PASA silencioso**: el veredicto declara la limitación de

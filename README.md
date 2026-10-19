@@ -230,6 +230,10 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
 - **Plan de pruebas** — qué pruebas son necesarias por incremento (`docs/plan.md`): un
   flujo end-to-end por criterio, unitarios solo donde el flujo no llega, set de oro
   automatizado o manual explícito. La DoD exige exactamente esas; el exceso es hallazgo.
+- **Recibo de revisión** — línea estructurada en `docs/revisiones.log` (rol, tipo, alcance,
+  veredicto, bloqueantes, seguridad, `huella`, ejecutor) que ata una revisión al contenido
+  exacto que juzgó; el `commit-msg` lo exige por transición. No prueba la aprobación
+  humana: esa la da la persona en el gate.
 - **Resumen ejecutivo (gate)** — la forma de pedir aprobación: qué se decidió escrito en
   texto completo (no por siglas), el cambio en cinco líneas, qué se aprueba y dónde está
   el detalle (`AGENTS.md` §2).
@@ -287,10 +291,12 @@ git config core.hooksPath .githooks
   intérprete explícito: su ausencia es fallo, no aviso.
 - **`commit-msg`** — valida **todos** los trailers contra una gramática cerrada
   (`Ref: F1|F2|F4|F5`, `Ref: I<n>` que existe en `plan.md`, `Cierra: R-E.n | R-I#.n |
-  R-S#.n | R-F4.n` con fila en `trazabilidad.md`), rechaza familias desconocidas, exige
-  para `Ref: I<n>`, `F2` y `F4` un **recibo de revisión vigente** (línea de bitácora con
-  PASA y `huella` igual a la del índice: `scripts/huella.sh`), y un
-  `Ref: F4|F5` dispara `scripts/check_docs.sh cierre` (condiciones de salida del ciclo:
+  R-S#.n | R-F4.n | R-SF4.n` con fila en Estado `resuelto|verificado`), rechaza familias
+  desconocidas, exige por transición un **recibo de revisión vigente** en
+  `docs/revisiones.log` (el último del rol y alcance, en PASA, con `huella` igual a la
+  del índice; `Ref: I<n>` → juez de código más seguridad si la declaró requerida; `F2` →
+  revisor funcional y ningún vacío abierto; `F4` → juez de conjunto, no un hito; `F5` →
+  el de F4 sigue vigente), y un `Ref: F4|F5` dispara `scripts/check_docs.sh cierre` (condiciones de salida del ciclo:
   nada `abierto` ni `resuelto` sin `verificado`, todo `C#` verificado con incremento, sin
   ADR en `propuesta` ni ADR-000). Escape puntual: `git commit --no-verify`.
 - **`scripts/check_docs.sh`** a mano, al **inicio de cada sesión**: además de lo anterior
@@ -376,6 +382,11 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
   status` del principal; (b) no existe `tools:` por rol; lo más cercano es
   `features.shell_tool = false`, que **no** sirve a los revisores porque necesitan
   ejecutar `scripts/check.sh`.
+- **Modelos:** `sonnet` y `opus` en `.claude/agents/` son alias de Claude Code, no
+  equivalencias universales. Elige el modelo del proveedor que cumpla la misma función
+  (acotado y barato para las revisiones por rúbrica; el más fuerte para conjunto y
+  seguridad), **registra el modelo realmente resuelto** por rol en `docs/MEMORIA.md`
+  §Operativa y, si hubo opciones, como ADR.
 - **Un revisor a la vez (RAM):** en `~/.codex/config.toml`,
   `agents.max_concurrent_threads_per_session = 1`. Es la regla de `AGENTS.md` §3 hecha
   configuración.
@@ -402,6 +413,7 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 │   ├── convenciones.md      cómo hacemos las cosas aquí
 │   ├── definicion-de-hecho.md
 │   ├── despliegue.md        runbook vivo: dónde está cada cosa, cómo se despliega, verifica y revierte
+│   ├── revisiones.log       recibos de revisión (una línea estructurada por pasada; append-only)
 │   ├── plantilla-requerimiento.md   cómo escribir un requerimiento (inicial y de reentrada)
 │   └── MEMORIA.md           lecciones del proyecto
 ├── contexto/            única carpeta de entrada (obligatoria): documentos, datos y
@@ -415,6 +427,7 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 ├── scripts/
 │   ├── check_docs.sh        integridad del rastro documental (pre-commit, commit-msg y a mano)
 │   ├── huella.sh            huella del contenido revisable: ata cada revisión a lo que juzgó
+│   │                        (todo salvo revisiones.log, trazabilidad, estado y MEMORIA)
 │   └── consumo.py           consumo de tokens por modelo desde los transcripts locales
 ├── .githooks/           hooks versionados (commit-msg enlazado; pre-commit: secretos + checks)
 ├── .editorconfig        estilo base agnóstico del lenguaje

@@ -14,8 +14,9 @@ The spec is a JSON list, one object per mutation:
        "after":  "if True:"}
     ]
 
-Each mutation is applied alone to a copy of the tree, the suite runs, and the mutation is
-reverted before the next one. `DIES` means the suite went red, which is the answer you want:
+Each mutation is applied alone to a FRESH copy of the green base tree (never to a copy
+another mutation already ran on: a failing test can leave state behind), the suite runs,
+and the copy is discarded. `DIES` means the suite went red, which is the answer you want:
 the guarantee is real. `SURVIVES` means the guarantee is a comment.
 
 A mutation that could NOT be applied (`ANCHOR LOST`: the `before` text is not in the file;
@@ -282,13 +283,20 @@ def main() -> int:
         print(f"base green over {origin}")
 
         died, survived, invalid = [], [], []
-        for mutation in mutations:
+        base = tree
+        for index, mutation in enumerate(mutations):
             label = mutation["label"]
+            # Each mutation runs on a FRESH copy of the green base: a test that fails can leave
+            # fixtures, caches or state behind, and that residue must never become the reason the
+            # next mutant "dies" (measured: an equivalent mutant read as DIES after another one).
+            tree = Path(temporary) / f"mut{index}"
+            shutil.copytree(base, tree, symlinks=True)
             path = contained(tree, mutation["file"])
             if path is None:
                 kind = "ESCAPES " if (tree / mutation["file"]).is_symlink() else "MISSING "
                 print(f"  {kind} {label}: {mutation['file']} (not a regular file inside the copy)")
                 invalid.append(label)
+                shutil.rmtree(tree, ignore_errors=True)
                 continue
             original = path.read_text(encoding="utf-8")
             if mutation["before"] not in original:
@@ -296,13 +304,14 @@ def main() -> int:
                 # and it is never a kill.
                 print(f"  ANCHOR LOST {label}: {mutation['file']}")
                 invalid.append(label)
+                shutil.rmtree(tree, ignore_errors=True)
                 continue
             path.write_text(original.replace(mutation["before"], mutation["after"], 1), encoding="utf-8")
             try:
                 error = compiles(path)
                 run = None if error else suite(tree, command, arguments.timeout)
             finally:
-                path.write_text(original, encoding="utf-8")
+                shutil.rmtree(tree, ignore_errors=True)  # the copy is disposable; the base stays clean
             if error:
                 # The mutant never ran: a red suite here would say nothing about behavior.
                 print(f"  INVALID  {label}: mutant does not compile ({error})")

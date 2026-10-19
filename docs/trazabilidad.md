@@ -18,20 +18,22 @@
 - **Vacíos del revisor funcional (arranque):** `R-E.<n>` (p. ej. `R-E.1`); se registran
   al cerrar el arranque y se cierran (la persona llena el hueco) antes del gate de diseño.
 - **Hallazgos del juez (ejecución):** `R-I<incremento>.<n>` (p. ej. `R-I3.1`).
-- **Hallazgos del juez de seguridad:** `R-S<incremento>.<n>` (p. ej. `R-S3.1`). Mismo
-  ciclo y misma tabla que los del juez; el prefijo los distingue de un vistazo en el gate.
+- **Hallazgos del juez de seguridad:** `R-S<incremento>.<n>` (p. ej. `R-S3.1`) por
+  incremento, y **`R-SF4.<n>`** sobre el conjunto (hito o Fase 4), para que `R-S4.1` nunca
+  se confunda con el incremento 4. Mismo ciclo y misma tabla que los del juez.
 - **Hallazgos del juez de conjunto (hitos y Fase 4):** `R-F4.<n>` (p. ej. `R-F4.1`):
   defectos de composición que ninguna revisión por incremento podía ver. Misma tabla y
   mismo ciclo; en la columna Incr. va `F4`, y se cierran con un incremento de corrección
-  de la Fase 3. El alcance de la pasada (qué hito, qué criterios) está en su recibo de la
-  bitácora de `docs/plan.md`, no en el ID.
+  de la Fase 3. El alcance de la pasada (qué hito, qué criterios) está en su recibo de
+  `docs/revisiones.log`, no en el ID.
 - **Numeración:** dentro de cada familia e incremento, `<n>` es consecutivo y **nunca se
   reutiliza**: una pasada nueva **continúa** desde el último `<n>` registrado (incluido el
   Histórico). Un ID con dos filas es un registro inválido (`check_docs` lo rechaza).
 - **Commits** enlazan en el footer: `Ref: F#` (cierre de fase — `F1`, `F2`, `F4`, `F5`),
   `Ref: I3` (incremento de la Fase 3), `Cierra: R-I3.1` (hallazgo del juez),
-  `Cierra: R-S3.1` (hallazgo de seguridad), `Cierra: R-F4.1` (hallazgo del juez de
-  conjunto) o `Cierra: R-E.1` (vacío del revisor funcional).
+  `Cierra: R-S3.1` / `R-SF4.1` (seguridad), `Cierra: R-F4.1` (juez de conjunto) o
+  `Cierra: R-E.1` (vacío del revisor funcional). Un `Cierra:` exige la fila en Estado
+  `resuelto` o `verificado`.
 
 ## Cobertura de criterios
 

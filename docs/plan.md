@@ -47,14 +47,14 @@ exige exactamente estas; una prueba fuera del plan que no proteja un criterio es
 
 <!-- Una línea por avance o ajuste. Lo que cambió respecto al plan y por qué.
 Las decisiones con alternativas van a docs/decisiones.md; aquí queda el rastro.
-Registra una línea de cierre de CADA revisión independiente, TAMBIÉN cuando es PASA sin
-hallazgos: es el RECIBO de la revisión y el commit-msg lo exige. Formato fijo:
-  - [AAAA-MM-DD] Revisión <rol> · <alcance> · PASA|FALLA · <n> bloqueantes · huella <h> · ver trazabilidad
-donde <alcance> es `I3`, `F2 encuadre y plan`, `hito I1–I3: C1–C3 y componentes …; excluye C4 (I5)`
-o `conjunto F4`, y <h> es la salida de `sh scripts/huella.sh` sobre lo revisado (AGENTS.md §9). El detalle de
+La línea del incremento se escribe ANTES de pedir la revisión: este archivo forma parte
+del contenido que el revisor juzga (arquitectura, contratos, plan de pruebas, bitácora).
+Los RECIBOS de las revisiones NO van aquí: van a docs/revisiones.log (una línea
+estructurada por pasada, append-only; AGENTS.md §9), que el commit-msg lee y que la
+compactación nunca toca. Aquí, como mucho, una referencia ("revisión I3: ver recibo"). El detalle de
 hallazgos y su estado vive en docs/trazabilidad.md.
 COMPACTACIÓN: al cerrar un incremento, sus líneas se colapsan a UNA (resumen del
-incremento); el detalle queda en git. Al cierre va también la línea de consumo
+incremento); el detalle queda en git y los recibos siguen intactos en revisiones.log. Al cierre va también la línea de consumo
 (scripts/consumo.py; formato en docs/convenciones.md §Contexto). -->
 - [AAAA-MM-DD] _…_
 

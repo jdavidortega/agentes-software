@@ -77,8 +77,9 @@
 
 ## B. Cierre del incremento (lo hace el principal tras el PASA del juez)
 
-- [ ] **Rastro de la revisión registrado** tal cual lo trajo el juez: línea de bitácora en
-  `docs/plan.md` (también con PASA limpio) y filas en `docs/trazabilidad.md`; los
+- [ ] **Rastro de la revisión registrado** tal cual lo trajo el juez: recibo al final de
+  `docs/revisiones.log` (append-only, también con PASA limpio) y filas en
+  `docs/trazabilidad.md`; los
   bloqueantes resueltos están en `resuelto` con su mutación escrita (pasan a `verificado`
   por un revisor independiente antes de la salida de la Fase 3; `AGENTS.md` §2).
 - [ ] **Compactación del cierre:** `docs/estado.md` regenerado (fase, `C#` con alias y

@@ -91,8 +91,15 @@ de un requerimiento tiene que poder hacerse leyendo, no descifrando.
   huella de ese commit; el rango existe en el plan y cada incremento del rango ya tiene su
   commit `Ref: I`). El `commit-msg` cuenta los commits `Ref: I<k>` distintos desde el último
   commit de hito y rechaza el cuarto: un recibo de hito suelto en el log no cuenta.
-  `cubre=` y `excluye=` son conjuntos de criterios existentes (`C1,C2`), disjuntos y sin
-  repeticiones; `excluye=ninguno` vale. En cada
+  El rango incluye **todo** incremento cerrado desde el hito anterior (un hito parcial o
+  sin incrementos nuevos no reinicia el contador). `cubre=` y `excluye=` son conjuntos de
+  criterios existentes con forma cerrada (`cubre=C1,C2`; `excluye=` es `ninguno` **o** una
+  lista, sin vacíos ni mezclas), disjuntos y sin repeticiones, que **parten** el encuadre:
+  `cubre=` no es vacío ni `ninguno`; un criterio construido (cada incremento de su fila de
+  Cobertura tiene commit) va en `cubre=`; `excluye=` es solo lo futuro (`ninguno` si no hay).
+  El plan tiene una sola gramática de incremento, `- [ ] I<n> «alias» — …` (o `- [x]`): una
+  casilla con `I<n>` en otra forma es error, y al cierre ningún `- [ ]` queda fuera del
+  backlog. Lo que no se renderiza (comentarios `<!-- -->`, bloques cercados) no es plan. En cada
   hito: pasada del juez de conjunto sobre lo ensamblado, síntesis de `docs/MEMORIA.md` §Lo
   crítico, mutation testing informativo si hay camino crítico.
 - **Momentos de compactación (fijos, no a criterio):** al cierre de **cada incremento**

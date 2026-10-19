@@ -323,6 +323,40 @@ espera falla "fila con menos celdas que el encabezado se rechaza" "celdas" -- co
 
 Ref: F1"
 
+copia f3 pc1; printf '<!--\n- [ ] I99 «oculto» — no se ve en el plan renderizado\n-->\n' >> "$D/docs/plan.md"
+printf 'w = 99\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I99 PASA 0 seguridad=no-aplica
+espera falla "Ref: I99 cuyo incremento solo existe dentro de un comentario HTML se rechaza" "I99 no existe como incremento" -- commitea "$D" "I99
+
+Ref: I99"
+
+n=0
+for cerco in '~~~text|```|~~~' '````|```|````'; do
+  n=$((n+1)); a=${cerco%%|*}; r=${cerco#*|}; m=${r%%|*}; c=${r#*|}
+  copia f3 pc$((n+1)); printf '\n%s\n%s\n- [ ] I99 «ejemplo» — dentro del cerco\n%s\n' "$a" "$m" "$c" >> "$D/docs/plan.md"
+  printf 'w = 99\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I99 PASA 0 seguridad=no-aplica
+  espera falla "Ref: I99 solo dentro de un cerco $a con un $m interior (no lo cierra) se rechaza" "I99 no existe como incremento" -- commitea "$D" "I99
+
+Ref: I99"
+done
+copia f3 pc4; printf '\n````\n```\n- [ ] I98 «ejemplo» — dentro\n````\n- [ ] I99 «real» — después del cerco\n' >> "$D/docs/plan.md"
+printf 'w = 99\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I99 PASA 0 seguridad=no-aplica
+espera pasa "un incremento activo después de un cerco bien cerrado sigue visible (Ref: I99 se acepta)" "" -- commitea "$D" "I99
+
+Ref: I99"
+
+echo "== Fase perdida no es plantilla (R9-A01)"
+espera falla "plantilla nunca iniciada: 'check_docs.sh iniciado' dice que no (la CI la omite)" "" -- en "$B" sh scripts/check_docs.sh iniciado
+copia f3 a1; fase "$D" F_
+sin_hooks "$D" "pierde la fase
+
+Ref: F1" || die "no pude colar la fase perdida"
+espera pasa "proyecto que perdió la fase sigue 'iniciado' (la CI valida su contrato)" "" -- en "$D" sh scripts/check_docs.sh iniciado
+espera falla "validar_historial rechaza el commit que borró la fase" "última fase legible del historial: F3" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+echo "- nota" >> "$D/docs/MEMORIA.md"
+espera falla "con la fase ya perdida en HEAD, el siguiente commit tampoco pasa como plantilla" "última fase legible del historial: F3" -- commitea "$D" "memoria
+
+Ref: F1"
+
 echo "== Hito: contador por commits, rango, cobertura, seguridad"
 copia f3-tres h1; printf 'z = 4\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I4 PASA 0 seguridad=no-aplica
 espera falla "cuarto incremento sin commit de hito se rechaza" "hito" -- commitea "$D" "I4
@@ -385,15 +419,16 @@ recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1 ex
 espera falla "hito con C1 a la vez en cubre= y excluye= se rechaza" "a la vez en cubre" -- commitea "$D" "hito
 
 Ref: hito:I1-I3"
-tres_criterios() {  # tres_criterios <dir>: encuadre con C1..C3 y su cobertura (I1, I2, I3)
-  printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: suma devuelve a+b.\n- C2: resta devuelve a-b.\n- C3: multiplica devuelve a*b.\n' > "$1/docs/encuadre.md"
+tres_criterios() {  # tres_criterios <dir>: C1..C3 construidos (I1, I2, I3) y C4 futuro (I4, sin commit)
+  printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: suma devuelve a+b.\n- C2: resta devuelve a-b.\n- C3: multiplica devuelve a*b.\n- C4: divide devuelve a/b.\n' > "$1/docs/encuadre.md"
   trazabilidad "$1" "$C1_PEND
 | C2 | «resta» | I2 | pendiente | |
-| C3 | «multiplica» | I3 | pendiente | |" "" ""
+| C3 | «multiplica» | I3 | pendiente | |
+| C4 | «divide» | I4 | pendiente | |" "" ""
 }
 copia f3-tres h12; tres_criterios "$D"
-recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1,C2 excluye=C3 componentes=app
-espera pasa "hito con listas válidas (cubre=C1,C2 excluye=C3) se acepta" "" -- commitea "$D" "hito
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1,C2,C3 excluye=C4 componentes=app
+espera pasa "hito parcial legítimo (cubre=C1,C2,C3 excluye=C4, futuro) se acepta" "" -- commitea "$D" "hito
 
 Ref: hito:I1-I3"
 copia f3-tres h13; tres_criterios "$D"
@@ -422,6 +457,62 @@ recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1,C9
 espera falla "hito con una lista que incluye C999 se rechaza por C999" "C999, que no está definido" -- commitea "$D" "hito
 
 Ref: hito:I1-I3"
+
+echo "== Hito: cobertura completa (R9-A04)"
+copia f3-tres h18; tres_criterios "$D"
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=ninguno excluye=C1,C2,C3,C4 componentes=app
+espera falla "hito con cubre=ninguno se rechaza" "cubre= del recibo del hito no nombra ningún criterio" -- commitea "$D" "hito
+
+Ref: hito:I1-I3"
+copia f3-tres h19; tres_criterios "$D"
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1,C2 excluye=C3,C4 componentes=app
+espera falla "hito que excluye un criterio ya construido (C3, I3 con commit) se rechaza" "C3 está en excluye= pero ya está construido" -- commitea "$D" "hito
+
+Ref: hito:I1-I3"
+copia f3-tres h20; tres_criterios "$D"
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1,C2,C3 excluye=ninguno componentes=app
+espera falla "hito que no nombra un criterio del encuadre (C4) se rechaza" "C4 no está ni en cubre= ni en excluye=" -- commitea "$D" "hito
+
+Ref: hito:I1-I3"
+copia f3-tres h21
+recibo "$D" juez-conjunto hito hito:I1-I1 PASA 0 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
+espera falla "hito parcial (I1-I1) con I2 e I3 cerrados se rechaza: no reinicia el contador" "I2 se cerró después del último hito y queda fuera del rango" -- commitea "$D" "hito
+
+Ref: hito:I1-I1"
+copia f3-tres h22
+recibo "$D" juez-conjunto hito hito:I1-I1 PASA 0 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
+sin_hooks "$D" "hito colado
+
+Ref: hito:I1-I1" || die "no pude colar el hito parcial"
+espera falla "validar_historial rechaza un hito parcial colado con --no-verify" "queda fuera del rango" -- en "$D" sh scripts/pruebas/validar_historial.sh "HEAD~1..HEAD"
+copia f3-tres h23
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
+commitea "$D" "hito
+
+Ref: hito:I1-I3" || die "no pude preparar el primer hito"
+echo "- nota" >> "$D/docs/MEMORIA.md"; recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
+espera falla "hito vacío (sin incrementos nuevos desde el anterior) se rechaza" "no hay incrementos cerrados desde el último" -- commitea "$D" "hito otra vez
+
+Ref: hito:I1-I3"
+printf 'z = 4\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I4 PASA 0 seguridad=no-aplica
+commitea "$D" "I4
+
+Ref: I4" || die "no pude cerrar I4 tras el hito"
+recibo "$D" juez-conjunto hito hito:I4-I4 PASA 0 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
+espera pasa "segundo hito (I4-I4) sobre lo cerrado desde el anterior se acepta" "" -- commitea "$D" "hito I4
+
+Ref: hito:I4-I4"
+
+echo "== Hito: forma cerrada de cubre=/excluye= (verificación R9-P02)"
+n=0
+for par in "cubre=ninguno,C1,C2,C3 excluye=C4|cubre=" "cubre=C1,C2,C3, excluye=C4|cubre=" "cubre=C1,,C2,C3 excluye=C4|cubre=" "cubre=C1,C2,C3 excluye=ninguno,C4|excluye=" "cubre=C1,C2,C3 excluye=C4,|excluye="; do
+  n=$((n+1)); campos=${par%|*}; pat=${par#*|}
+  copia f3-tres hl$n; tres_criterios "$D"
+  recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica $campos componentes=app
+  espera falla "hito con lista mal formada ($campos) se rechaza por su forma" "$pat'[^']*' del recibo del hito no" -- commitea "$D" "hito
+
+Ref: hito:I1-I3"
+done
 
 echo "== Familias de conjunto e Histórico"
 copia f3 f1; trazabilidad "$D" "$C1_PEND" "" '| R-SF4.1 | «composicion» | F4 | C1 | fuga entre módulos | abierto | — |
@@ -459,6 +550,31 @@ Ref: F5"
 copia cierre z10; printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — (satisface: C1)\n- [ ] I2 «resta» — (satisface: C1)\n\n## Fuera de alcance / backlog\n\n- nada\n' > "$D/docs/plan.md"
 recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
 espera falla "cierre con un incremento del plan sin marcar (- [ ] I2) se rechaza" "sigue como" -- commitea "$D" "cierre
+
+Ref: F5"
+copia cierre z11; printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — (satisface: C1)\n\n## Pendientes\n\n- [ ] I2 «resta» — (satisface: C1)\n\n## Fuera de alcance / backlog\n\n- nada\n' > "$D/docs/plan.md"
+recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+espera falla "cierre con un incremento pendiente bajo otro encabezado (## Pendientes) se rechaza" "I2 sigue como" -- commitea "$D" "cierre
+
+Ref: F5"
+copia cierre z12; printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — (satisface: C1)\n* [ ] I2 «resta» — (satisface: C1)\n\n## Fuera de alcance / backlog\n\n- nada\n' > "$D/docs/plan.md"
+recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+espera falla "cierre con un incremento en formato no canónico (* [ ] I2) se rechaza con diagnóstico" "parece un incremento pero no tiene la forma" -- commitea "$D" "cierre
+
+Ref: F5"
+copia cierre z13; printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — (satisface: C1)\n\n## Fuera de alcance / backlog\n\n- [ ] I9 «potencia» — siguiente ciclo (ADR-001)\n' > "$D/docs/plan.md"
+recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+espera pasa "cierre con un incremento futuro en el backlog (- [ ] I9) se acepta" "" -- commitea "$D" "cierre
+
+Ref: F5"
+copia cierre z14; printf '# Plan\n\n## Incrementos\n\n<!-- ejemplo de formato:\n- [ ] I99 «ejemplo» — no es plan\n-->\n- [x] I1 «suma» — (satisface: C1) <!-- nota -->\n<!-- - [ ] I98 «otro» — tampoco -->\n\n```\n- [ ] I97 «cercado» — ejemplo\n```\n\n## Fuera de alcance / backlog\n\n- nada\n' > "$D/docs/plan.md"
+recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+espera pasa "cierre con incrementos de ejemplo en comentarios (una y varias líneas) y en un bloque cercado se acepta" "" -- commitea "$D" "cierre
+
+Ref: F5"
+copia cierre z15; printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — (satisface: C1)\n<!-- --> - [ ] I2 «resta» — (satisface: C1)\n\n## Fuera de alcance / backlog\n\n- nada\n' > "$D/docs/plan.md"
+recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+espera falla "un incremento activo tras un comentario vacío no se esconde: forma no canónica" "parece un incremento" -- commitea "$D" "cierre
 
 Ref: F5"
 copia cierre z2; trazabilidad "$D" "$C1_VERIF
@@ -554,6 +670,41 @@ copia f3 y11; yaml_desc "$D" '"null"'
 espera pasa "description: \"null\" entre comillas es texto y se acepta" "" -- commitea "$D" "docs
 
 Ref: F1"
+skill_desc() {  # skill_desc <dir> <valor literal>: description de una skill (mismo contrato que agentes)
+  python3 - "$1/.claude/skills/revision-critica/SKILL.md" "$2" <<'EOF'
+import re,sys
+p,v=sys.argv[1:]; s=open(p).read()
+s=re.sub(r'^description: .*$', lambda m: 'description: '+v, s, count=1, flags=re.M); open(p,'w').write(s)
+EOF
+}
+copia f3 y12; skill_desc "$D" '# solo un comentario'
+espera falla "description de skill que es solo un comentario (nulo en YAML) se rechaza" "revision-critica/SKILL.md: description vacía, en blanco, solo comentario" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y13; skill_desc "$D" '"   "'
+espera falla "description de skill en blanco (comillas con espacios) se rechaza" "revision-critica/SKILL.md: description vacía, en blanco" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y14; yaml_desc "$D" "'   '"
+espera falla "description de agente en blanco se rechaza (mismo contrato que skills)" "juez-codigo.md: description vacía, en blanco" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y15; skill_desc "$D" '"Rúbrica del juez; el # dentro de comillas es texto" # y esto, comentario'
+espera pasa "description de skill con # entre comillas y comentario al final se acepta" "" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y16; skill_desc "$D" '"\u0020"'
+espera falla "description de skill cuyo escape decodifica a un espacio (u0020) se rechaza" "revision-critica/SKILL.md: description vacía, en blanco" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y17; yaml_desc "$D" '"\t"'
+espera falla "description de agente cuyo escape decodifica a un tabulador se rechaza" "juez-codigo.md: description vacía, en blanco" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y18; skill_desc "$D" '"Revisa \"todo\" con \u00e9nfasis\tantes del commit"'
+espera pasa "description con palabras y escapes válidos se acepta" "" -- commitea "$D" "docs
+
+Ref: F1"
 copia f3 y5; yaml_desc "$D" '"Dice \"hola\", \u00e9 y \x41 \\ y sigue"'
 espera pasa "comillas y escapes válidos se aceptan" "" -- commitea "$D" "docs
 
@@ -580,6 +731,35 @@ printf 'SELECT 1;\n' > "$S/query.sql"
 printf '#!/bin/sh\npython3 -c "import sqlite3;sqlite3.connect(\\":memory:\\").executescript(open(\\"query.sql\\").read())" || exit 1\nexit 0\n' > "$S/scripts/check.sh"
 printf '[{"label":"selec","file":"query.sql","before":"SELECT","after":"SELEC"}]\n' > "$S/sql.json"
 espera falla "mutante SQL inválido (SELEC) no cuenta como garantía: INVALID/UNVERIFIED, exit 2" "INVALID|UNVERIFIED" -- en "$S" python3 -I "$SAB" sql.json
+# R9-A02: el traceback CITA `assert helper()`, pero la causa terminal es el RuntimeError del helper.
+printf 'import cfg\ndef helper():\n    if cfg.VALUE != 1:\n        raise RuntimeError("helper roto")\n    return True\nassert helper()\n' > "$S/app.py"
+printf '#!/bin/sh\npython3 app.py || exit 1\nexit 0\n' > "$S/scripts/check.sh"
+espera falla "helper que explota dentro de 'assert helper()' no acredita: UNVERIFIED, exit 2" "UNVERIFIED" -- en "$S" python3 -I "$SAB" helper.json
+# Verificación R9-P01: AssertionError INTERMEDIO (envuelto con raise … from) no es la causa terminal.
+printf 'import cfg\ndef helper():\n    try:\n        assert cfg.VALUE == 1\n    except AssertionError as exc:\n        raise RuntimeError("fixture setup unavailable") from exc\nhelper()\n' > "$S/app.py"
+espera falla "AssertionError envuelto en RuntimeError (raise from) no acredita: la causa terminal manda, UNVERIFIED" "UNVERIFIED" -- en "$S" python3 -I "$SAB" helper.json
+# Segunda pasada: la línea de la excepción se reconoce por POSICIÓN, no por sufijo del nombre.
+for exc in Exception Indisponible; do
+  printf 'import cfg\nclass Indisponible(Exception):\n    pass\ndef helper():\n    try:\n        assert cfg.VALUE == 1\n    except AssertionError as exc:\n        raise %s("fixture setup unavailable") from exc\nhelper()\n' "$exc" > "$S/app.py"
+  espera falla "AssertionError envuelto en $exc (raise from) no acredita: UNVERIFIED" "UNVERIFIED" -- en "$S" python3 -I "$SAB" helper.json
+done
+printf 'import cfg\ntry:\n    if cfg.VALUE != 1:\n        raise RuntimeError("x")\nexcept RuntimeError:\n    assert False, "la aserción es la causa terminal"\n' > "$S/app.py"
+espera pasa "AssertionError como causa TERMINAL (tras manejar un RuntimeError) sí acredita: DIES" "DIES" -- en "$S" python3 -I "$SAB" helper.json
+# Piloto R9: el bytecode de la corrida base (python3 -I ignora PYTHONDONTWRITEBYTECODE) viajaba
+# a la copia del mutante; una mutación del mismo tamaño escrita en el mismo segundo leía el .pyc
+# viejo y «sobrevivía» sin correr. Se fuerza la condición: mtime al inicio de un segundo nuevo.
+printf 'import sys; sys.path.insert(0, ".")\nimport cfg\nassert cfg.VALUE == 1, "VALUE cambió"\n' > "$S/app.py"; rm -rf "$S/__pycache__"
+printf '#!/bin/sh\npython3 -I app.py || exit 1\nexit 0\n' > "$S/scripts/check.sh"
+python3 -c 'import time; t=time.time(); time.sleep(1.02-(t%1))'; touch "$S/cfg.py" "$S/app.py"
+espera pasa "mutación del mismo tamaño en el mismo segundo que la corrida base (suite con python3 -I, que escribe .pyc) no sobrevive por bytecode viejo: DIES" "DIES" -- en "$S" python3 -I "$SAB" helper.json
+printf '#!/bin/sh\npython3 app.py || exit 1\nexit 0\n' > "$S/scripts/check.sh"
+# R9-A03: --commit es un dato, nunca shell.
+printf 'import cfg\nassert cfg.VALUE == 1, "VALUE cambió"\n' > "$S/app.py"
+en "$S" git add -A >/dev/null && en "$S" git -c core.hooksPath=/dev/null commit -q -m base || die "no pude commitear el arnés"
+espera falla "--commit con ';' se rechaza antes de ejecutar nada" "does not name a valid commit" -- en "$S" python3 -I "$SAB" helper.json --commit "HEAD; touch audit_marker.txt"
+espera falla "... y no deja el marcador (nada se ejecutó)" "" -- test -e "$S/audit_marker.txt"
+espera falla "--commit que empieza por '-' (opción de git) se rechaza" "does not name a valid commit" -- en "$S" python3 -I "$SAB" helper.json "--commit=--output=x"
+espera pasa "--commit HEAD sigue funcionando: copia del commit y el aserto real muere (DIES)" "copy from commit HEAD" -- en "$S" python3 -I "$SAB" helper.json --commit HEAD
 
 echo "== Recorrido F1→F5 y validación del historial"
 R="$W/recorrido"; cp -R "$Z" "$R"
@@ -606,6 +786,23 @@ Ref: I4" || die "no pude preparar el commit con llave"
 espera falla "validar_historial rechaza una llave privada colada con --no-verify" "llave privada" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
 copia f3-tres v4; printf 'SECRETO=x\n' > "$D/.env"; en "$D" git add -f .env; echo "- nota" >> "$D/docs/MEMORIA.md"
 espera falla "el pre-commit rechaza el mismo .env (misma guarda)" "\.env" -- commitea "$D" "memoria
+
+Ref: F1"
+copia f3-tres v6; printf 'SECRETO=x\n' > "$D/.env"; en "$D" git add -f .env
+sin_hooks "$D" "cuela un .env
+
+Ref: F1" || die "no pude preparar el .env versionado"
+rm "$D/.env"
+espera pasa "quitar un .env ya versionado se acepta (es la corrección)" "" -- commitea "$D" "quita el .env
+
+Ref: F1"
+espera pasa "validar_historial acepta el commit que quita el .env" "commits cumplen" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia f3-tres v7; printf 'SECRETO=x\n' > "$D/.env"; en "$D" git add -f .env
+sin_hooks "$D" "cuela un .env
+
+Ref: F1" || die "no pude preparar el .env versionado"
+printf 'SECRETO=y\n' > "$D/.env"; echo "- nota" >> "$D/docs/MEMORIA.md"
+espera falla "cambiar un .env ya versionado sigue rechazado" "guardas: .*\.env" -- commitea "$D" "memoria
 
 Ref: F1"
 # Ramas: "rama" trae el hito y el I4 revisados; la principal avanza con un commit de rastro.

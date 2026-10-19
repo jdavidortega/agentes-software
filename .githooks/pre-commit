@@ -47,7 +47,8 @@ git checkout-index -a --prefix="$tmp/" || { echo "✗ pre-commit: no pude export
 #    La fase que HEAD ya declaraba viaja con la exportación (sin .git no se puede leer):
 #    un proyecto iniciado no vuelve a "modo plantilla" por perder o estropear la línea.
 fase_prev=$(git show HEAD:docs/estado.md 2>/dev/null | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' | grep -oE 'F[1-5]' | head -1)
-( cd "$tmp" && FASE_PREVIA="$fase_prev" sh scripts/check_docs.sh commit ) \
+fase_hist=$(sh scripts/check_docs.sh fase-historica HEAD 2>/dev/null)
+( cd "$tmp" && FASE_PREVIA="$fase_prev" FASE_HISTORICA="$fase_hist" sh scripts/check_docs.sh commit ) \
   || { echo "✗ pre-commit: scripts/check_docs.sh falló sobre el índice (rastro documental)." >&2; exit 1; }
 
 # 4) Lint + formato + tests del stack (scripts/check.sh, salida obligatoria del diseño;
@@ -55,7 +56,7 @@ fase_prev=$(git show HEAD:docs/estado.md 2>/dev/null | grep -oE 'Fase actual:\*?
 #    (2) coincide con el índice en todo archivo rastreado. Con el proyecto INICIADO
 #    (docs/estado.md en F2..F5, o HEAD ya lo estaba) su ausencia bloquea; antes, avisa.
 fase=$(grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' "$tmp/docs/estado.md" 2>/dev/null | grep -oE 'F[1-5]' | head -1)
-case "$fase_prev" in F2|F3|F4|F5) fase="$fase_prev" ;; esac
+case "${fase_prev:-$fase_hist}" in F2|F3|F4|F5) fase="${fase_prev:-$fase_hist}" ;; esac
 if [ -f scripts/check.sh ]; then
   sh scripts/check.sh || { echo "✗ pre-commit: scripts/check.sh falló (lint/formato/tests)." >&2; exit 1; }
   # 5) Lo probado tiene que ser lo guardado TAMBIÉN después de la suite: un formatter

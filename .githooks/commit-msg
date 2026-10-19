@@ -108,7 +108,12 @@ trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
 # notas locales, la instrumentación del método (hooks, scripts de la plantilla, agentes y
 # skills) y la configuración del repositorio. Ampliarla es una decisión (ADR), no un atajo.
 SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents|\.githooks|\.github|scripts/pruebas)/|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check_docs\.sh|scripts/huella\.sh|scripts/recibos\.sh|scripts/trazabilidad\.sh|scripts/guardas\.sh|scripts/consumo\.py|scripts/check\.sh)$'
-codigo=$(printf '%s\n' "$cambios" | grep -vE "$SIN_REVISION" | grep . || true)
+# Quitar un .env versionado es la corrección de un secreto, no código: no exige `Ref: I<n>`.
+en_candidato() { if [ -n "${cand:-}" ]; then git cat-file -e "$cand:$1" 2>/dev/null; else git ls-files --error-unmatch -- "$1" >/dev/null 2>&1; fi; }
+codigo=$(printf '%s\n' "$cambios" | grep -vE "$SIN_REVISION" | grep . | while IFS= read -r f; do
+  printf '%s' "$f" | grep -qE '(^|/)\.env($|\.)' && ! en_candidato "$f" && continue
+  printf '%s\n' "$f"
+done)
 
 # Recibos: docs/revisiones.log del índice, leído por el parser ÚNICO (scripts/recibos.sh),
 # el mismo que usa check_docs: comentarios ignorados, claves únicas, tipos y relaciones
@@ -142,6 +147,8 @@ exige_conjunto() {  # F4 y F5 exigen lo MISMO: conjunto PASA vigente + seguridad
 }
 # Lectura de docs/trazabilidad.md con el lector ÚNICO (scripts/trazabilidad.sh, el mismo del
 # doctor): filas C/E/R por encabezado y columna, Histórico como Estado verificado|desconocido.
+# Incrementos del plan con el lector ÚNICO (`check_docs.sh plan`, la misma gramática del doctor).
+en_plan() { idx docs/plan.md | sh scripts/check_docs.sh plan - | awk -v i="$1" '$1=="I" && $2==i {f=1} END {exit f ? 0 : 1}'; }
 filas() { idx docs/trazabilidad.md | sh scripts/trazabilidad.sh - | awk '$1 ~ /^(C|E|R|H)$/ {print $2, $4}'; }
 estado_fila() { filas | awk -v id="$1" '$1==id {print $2; exit}'; }
 abiertos() { filas | awk -v re="$1" '$1 ~ re && $2=="abierto" {print $1}' | tr '\n' ' '; }
@@ -185,9 +192,17 @@ for line in $trailers; do
     [ "$ia" -le "$ib" ] || fail "'$line': rango invertido."
     k=$ia
     while [ "$k" -le "$ib" ]; do
-      idx docs/plan.md | grep -qE "^- \[[ xX]\] I$k " || fail "'$line': I$k no existe como incremento en docs/plan.md; el hito cubre incrementos reales."
+      en_plan "I$k" || fail "'$line': I$k no existe como incremento en docs/plan.md; el hito cubre incrementos reales."
       commit_con_trailer "^Ref:[[:space:]]*I$k[[:space:]]*\$" || fail "'$line': I$k no tiene commit 'Ref: I$k' en el historial; el hito revisa lo ensamblado hasta aquí, no lo que falta por cerrar."
       k=$((k+1))
+    done
+    # El hito revisa TODO lo cerrado desde el anterior: un rango que deja fuera un incremento
+    # cerrado (o un hito sin incrementos nuevos) reiniciaría el contador sin revisarlo.
+    nuevos=$(cerrados_desde_hito)
+    [ -n "$nuevos" ] || fail "'$line': no hay incrementos cerrados desde el último commit 'Ref: hito:…'; un hito sin incrementos nuevos no revisa nada."
+    for k in $nuevos; do
+      n=${k#I}
+      { [ "$n" -ge "$ia" ] && [ "$n" -le "$ib" ]; } || fail "'$line': $k se cerró después del último hito y queda fuera del rango; el hito cubre todo lo cerrado desde el anterior (usa hito:I<a>-I<b> que lo incluya)."
     done
     rec=$(ultimo_recibo juez-conjunto hito "$a")
     if exige_recibo juez-conjunto hito "$a" "'$line'" && exige_seguridad_si_aplica "$rec" hito "$a"; then
@@ -195,6 +210,12 @@ for line in $trailers; do
       # Una lista C1,C2 se parte en LÍNEAS: dentro de este bucle IFS es el salto de línea
       # (los trailers se recorren por línea), así que separarla con espacios dejaría 'C1 C2'
       # como un solo identificador.
+      # Forma cerrada ANTES de partir: cubre=C<n>(,C<n>)*; excluye= es exactamente 'ninguno'
+      # o esa misma lista (sin vacíos, sin mezclar el centinela con criterios).
+      printf '%s' "$(campo "$rec" cubre)" | grep -qxE 'C[0-9]+(,C[0-9]+)*' \
+        || fail "'$line': cubre='$(campo "$rec" cubre)' del recibo del hito no tiene la forma C<n>[,C<n>…] (sin vacíos ni 'ninguno')."
+      printf '%s' "$(campo "$rec" excluye)" | grep -qxE 'ninguno|C[0-9]+(,C[0-9]+)*' \
+        || fail "'$line': excluye='$(campo "$rec" excluye)' del recibo del hito no es 'ninguno' ni una lista C<n>[,C<n>…] (sin vacíos ni mezclas)."
       cu=$(campo "$rec" cubre | tr ',' '\n' | grep .); ex=$(campo "$rec" excluye | tr ',' '\n' | grep .)
       for c in $cu $ex; do
         [ "$c" = "ninguno" ] && continue
@@ -208,11 +229,28 @@ for line in $trailers; do
         rep=$(campo "$rec" "$lst" | tr ',' '\n' | grep . | sort | uniq -d | tr '\n' ' ')
         [ -z "$rep" ] || fail "'$line': $lst= del recibo del hito repite $rep; cada criterio va una sola vez (¿se quiso nombrar otro?)."
       done
+      # cubre= y excluye= PARTEN los criterios del encuadre: cubre= no está vacío ni es
+      # 'ninguno'; todo criterio va en una de las dos; uno ya construido (todos los
+      # incrementos de su fila de Cobertura tienen commit) va en cubre=; excluye= es solo
+      # para lo futuro.
+      printf '%s\n' "$cu" | grep -qxE 'C[0-9]+' || fail "'$line': cubre= del recibo del hito no nombra ningún criterio; un hito revisa al menos un criterio construido ('ninguno' solo vale en excluye=)."
+      cov=$(idx docs/trazabilidad.md | sh scripts/trazabilidad.sh - | awk '$1=="C" {print $2, $3}')
+      for c in $(idx docs/encuadre.md | grep -oE '^- C[0-9]+:' | grep -oE 'C[0-9]+' | sort -u); do
+        en_cu=0; en_ex=0
+        printf '%s\n' "$cu" | grep -qx "$c" && en_cu=1
+        printf '%s\n' "$ex" | grep -qx "$c" && en_ex=1
+        [ $en_cu -eq 1 ] || [ $en_ex -eq 1 ] || { fail "'$line': $c no está ni en cubre= ni en excluye= del recibo del hito; cada criterio del encuadre se nombra en una de las dos."; continue; }
+        incs=$(printf '%s\n' "$cov" | awk -v c="$c" '$1==c {print $2}' | grep -oE 'I[0-9]+' | sort -u)
+        [ -n "$incs" ] || continue
+        hecho=1
+        for k in $incs; do commit_con_trailer "^Ref:[[:space:]]*$k[[:space:]]*\$" || hecho=0; done
+        [ $hecho -eq 1 ] && [ $en_ex -eq 1 ] && fail "'$line': $c está en excluye= pero ya está construido ($(printf '%s' "$incs" | tr '\n' ' ')con commit); excluye= es solo para criterios de incrementos futuros: va en cubre=."
+      done
     fi
   elif printf '%s' "$line" | grep -qE '^Ref:[[:space:]]*I[0-9]+[[:space:]]*$'; then
     con_incremento=1
     id=$(printf '%s' "$line" | grep -oE 'I[0-9]+')
-    idx docs/plan.md | grep -qE "^- \[[ xX]\] $id " \
+    en_plan "$id" \
       || fail "'$line' pero $id no existe como incremento en docs/plan.md (formato: '- [ ] $id «alias» — …')."
     rec=$(ultimo_recibo juez-codigo incremento "$id")
     exige_recibo juez-codigo incremento "$id" "'$line'" && exige_seguridad_si_aplica "$rec" incremento "$id"

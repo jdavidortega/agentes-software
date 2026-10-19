@@ -38,7 +38,8 @@ description: "Estrategia de pruebas del proyecto: el camino principal siempre en
 5. **Herméticos** (regla base de convenciones): nada depende de `.env` real ni llama
    servicios externos; lo externo se inyecta o se graba.
 6. **Binarios y descargas se verifican de verdad:** un archivo generado/servido se
-   valida con su herramienta (`unzip -t` para Excel/zip, `%%EOF` para PDF, abrir la
+   valida con su herramienta (`unzip -t` para Excel/zip; para PDF, que un lector lo abra
+   —`qpdf --check`, `pdfinfo`—: un `%%EOF` al final no prueba que sea válido; abrir la
    imagen). Origen: un proxy corrompía los binarios servidos y todos los tests
    unitarios estaban verdes.
 7. **Las necesarias, no más.** El exceso de pruebas también cuesta (tiempo de suite,

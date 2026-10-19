@@ -34,7 +34,8 @@ for c in $commits; do
   tmp=$(mktemp -d 2>/dev/null || mktemp -d -t vh)
   git archive "$c" | tar -x -C "$tmp"
   prev=""; [ -n "$base" ] && prev=$(git show "$base:docs/estado.md" 2>/dev/null | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' | grep -oE 'F[1-5]' | head -1)
-  ( cd "$tmp" && FASE_PREVIA="$prev" sh "$OLDPWD/scripts/check_docs.sh" commit ) 2>"$tmp/.err" || fallo "check_docs: $(tr '\n' ' ' < "$tmp/.err" | cut -c1-200)"
+  hist=""; [ -n "$base" ] && hist=$(sh scripts/check_docs.sh fase-historica "$base" 2>/dev/null)
+  ( cd "$tmp" && FASE_PREVIA="$prev" FASE_HISTORICA="$hist" sh "$OLDPWD/scripts/check_docs.sh" commit ) 2>"$tmp/.err" || fallo "check_docs: $(tr '\n' ' ' < "$tmp/.err" | cut -c1-400)"
   rm -rf "$tmp"
   # c) El contrato del commit-msg sobre ese commit (mensaje, árbol e historial anteriores).
   #    Para un merge, el propio commit-msg decide: limpio (árbol = fusión automática de los

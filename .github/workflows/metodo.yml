@@ -10,9 +10,10 @@
 #   pull_request  los commits REALES de la rama (base..head); el merge sintético que GitHub
 #                 hace en el checkout no es un commit del método: a él solo se le pasa el
 #                 doctor y la regresión sobre el árbol integrado.
-# Un proyecto "iniciado" es el que declara una fase (lectura idéntica a la del doctor:
-# `Fase actual:` seguido de F1..F5, con o sin negritas). La plantilla vacía no tiene
-# contrato de commits que validar.
+# Un proyecto "iniciado" es el que declara una fase AHORA o la declaró en CUALQUIER commit del
+# historial: lo decide el propio validador documental (`check_docs.sh iniciado`), así un
+# commit que borra la fase no puede desactivar el replay que lo rechazaría. Solo la plantilla
+# que nunca se inició queda exenta.
 name: metodo
 on:
   push:
@@ -37,8 +38,8 @@ jobs:
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          if ! grep -qE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' docs/estado.md; then
-            echo "plantilla sin iniciar: no hay contrato de commits que validar"; exit 0
+          if ! sh scripts/check_docs.sh iniciado; then
+            echo "plantilla nunca iniciada (ningún commit declaró fase): no hay contrato de commits que validar"; exit 0
           fi
           case "$EVENTO" in
             pull_request)

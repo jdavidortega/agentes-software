@@ -70,6 +70,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 ENVIRONMENT = {
@@ -152,13 +153,106 @@ INVALID_PATTERNS = (
 # Only ASSERTION signatures: a generic traceback, a "failed" verb or a helper's RuntimeError
 # say that something broke, not that a test asserted on the behavior (measured: a fixture
 # helper raising RuntimeError used to read as DIES). What is not an assertion is UNVERIFIED.
+# Generic signatures for runners that are NOT Python (Python is decided by the terminal
+# exception, below). Matched against the output WITHOUT quoted source lines, so a traceback
+# that merely quotes `assert helper()` is not evidence (measured: R9-13).
 KILL_PATTERN = (
-    r"AssertionError|assert |assertion failed|^\s*assert\b|"            # python, c, rust, shell asserts
-    r"\bFAILED\b.*(test|::|\.py|\.js|\.ts|\.rb|\.go)|FAIL:|^--- FAIL|test result: FAILED|"  # pytest/unittest/go/cargo
-    r"✗ |✕ |● .* › |Expected: |Received: |expect\(|toEqual|toBe\(|"      # jest/mocha/vitest
-    r"^not ok \d|Failures:|Failure/Error:|\d+ failures?, |\d+ failing\b|"  # tap/rspec/minitest/mocha
-    r"Assertion.*failed|assertEquals|assertThat|expected .* but (was|got)"  # junit & friends
+    r"AssertionError|assertion failed|assertion `.*` failed|Assertion.*failed|"   # node, rust, C
+    r"FAIL:|^--- FAIL|"                                                          # shell gates, go test
+    r"✗ |✕ |● .* › |Expected: |Received: |expect\(|toEqual|toBe\(|"              # jest/mocha/vitest
+    r"^not ok \d|Failures:|Failure/Error:|\d+ failures?, |\d+ failing\b|"          # tap/rspec/minitest/mocha
+    r"assertEquals|assertThat|expected .* but (was|got)"                          # junit & friends
 )
+
+
+
+def strip_quoted_source(output: str) -> list[str]:
+    """Output lines without the source code a Python traceback quotes: after each
+    `  File "...", line N` header, the indented lines that follow are the program's own text
+    (and the ^~~~ markers), not what happened."""
+    lines, in_frame = [], False
+    for line in output.splitlines():
+        if re.match(r'^\s+File "', line):
+            in_frame = True
+            continue
+        if in_frame and line.startswith("    "):
+            continue
+        in_frame = False
+        lines.append(line)
+    return lines
+
+
+CHAINED = ("The above exception was the direct cause", "During handling of the above exception")
+
+
+def python_terminals(lines: list[str]) -> list[str]:
+    """The TERMINAL exception of each Python traceback chain. A chain (`raise X from exc`, or
+    an exception raised while handling another) prints several tracebacks joined by one of
+    CHAINED; only the last one is what ended the run. An AssertionError that a helper caught
+    and re-raised (as RuntimeError, as a bare Exception, as anything) is an intermediate
+    step, not the cause. The exception line is recognized by POSITION (the first unindented
+    line after the frames), not by a name suffix; one that cannot be parsed counts as "?",
+    never as an assertion."""
+    terminals, current, in_tb, chained = [], None, False, False
+    for line in lines:
+        if line.startswith("Traceback (most recent call last)"):
+            in_tb = True
+            continue
+        if any(line.startswith(c) for c in CHAINED):
+            chained = True
+            continue
+        if in_tb and line.strip() and not line[0].isspace():
+            m = re.match(r"^([A-Za-z_][\w.]*)(?::|$)", line)
+            if current is not None and not chained:
+                terminals.append(current)
+            current, in_tb, chained = (m.group(1) if m else "?"), False, False
+    if current is not None:
+        terminals.append(current)
+    return terminals
+
+
+def pytest_terminal_assertion(lines: list[str]) -> bool:
+    """pytest: the short summary (`FAILED x::t - <terminal exception>`) names the terminal
+    cause; without a summary, each test section counts only after its last chaining line."""
+    summary = [l for l in lines if re.match(r"^FAILED \S+::\S+ - ", l)]
+    if summary:
+        return any(re.match(r"^FAILED \S+::\S+ - (assert\b|AssertionError)", l) for l in summary)
+    sections, part = [], []
+    for line in lines:
+        if re.match(r"^_{3,} .* _{3,}$", line) and part:
+            sections.append(part)
+            part = []
+        part.append(line)
+    sections.append(part)
+    for section in sections:
+        cut = max((i for i, l in enumerate(section) if any(c in l for c in CHAINED)), default=-1)
+        if any(re.match(r"^E\s+(assert\b|AssertionError)", l) for l in section[cut + 1:]):
+            return True
+    return False
+
+
+def assertion_evidence(output: str, pattern: str) -> bool:
+    """True only when the red run carries a FAILED ASSERTION as its TERMINAL cause.
+
+    * Python tracebacks: the last exception of each chain decides. One that ends in
+      something other than AssertionError (RuntimeError of a helper, a fixture that fails to
+      load, an AssertionError re-raised as another exception) is an execution error,
+      whatever line of source it quotes.
+    * pytest: the summary `FAILED x::t - assert ...` / `- AssertionError` (pytest names the
+      terminal exception there); `FAILED x::t - RuntimeError` is an error inside a test.
+    * Anything else: `pattern` (the runner's assertion signature), matched without quoted
+      source lines; a Go/Rust `panic:` that is not an assertion is not evidence.
+    """
+    lines = strip_quoted_source(output)
+    text = "\n".join(lines)
+    pytest_like = any(re.match(r"^(FAILED|ERROR) \S+::", l) or re.match(r"^E\s{2,}\S", l) for l in lines)
+    if pytest_like:
+        return pytest_terminal_assertion(lines)
+    if "Traceback (most recent call last)" in output:
+        return any(t.split(".")[-1] == "AssertionError" for t in python_terminals(lines))
+    if re.search(r"^panic: ", text, re.MULTILINE) and not re.search(r"assertion", text):
+        return False
+    return re.search(pattern, text, re.MULTILINE) is not None
 
 
 def suite(tree: Path, command: list[str], timeout: int) -> Run:
@@ -245,13 +339,31 @@ def plant(tree: Path, root: Path, commit: str | None) -> list[str]:
     """Fill `tree` with the code to mutate: a commit, or the working tree as it stands.
     Both paths honor the same exclusions; returns what had to be pruned (commit mode)."""
     if commit:
+        # `commit` is already a resolved SHA (resolve_commit); no shell ever sees it.
         tree.mkdir()
-        subprocess.run(f"git archive {commit} | tar -x -C {tree}", shell=True, cwd=root, check=True)
+        archive = subprocess.Popen(["git", "archive", "--format=tar", commit], cwd=root, stdout=subprocess.PIPE)
+        extract = subprocess.run(["tar", "-x", "-C", str(tree)], stdin=archive.stdout)
+        archive.stdout.close()
+        if archive.wait() != 0 or extract.returncode != 0:
+            raise RuntimeError(f"could not extract commit {commit} into the copy")
         return prune(tree)
     # `symlinks=True`: links are copied as links, never dereferenced -- and `contained()`
     # below refuses to mutate through any of them.
     shutil.copytree(root, tree, ignore=ignore, symlinks=True)
     return []
+
+
+def resolve_commit(root: Path, commit: str) -> str | None:
+    """The full SHA that `commit` names, or None. Validated with git BEFORE anything runs:
+    the value is data, never shell (a `--commit` with `;` used to execute in the source repo)."""
+    if not commit or commit.startswith("-") or any(c.isspace() or ord(c) < 32 for c in commit):
+        return None
+    done = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", "--end-of-options", f"{commit}^{{commit}}"],
+        cwd=root, capture_output=True, text=True,
+    )
+    sha = done.stdout.strip()
+    return sha if done.returncode == 0 and re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", sha) else None
 
 
 def contained(tree: Path, relative: str) -> Path | None:
@@ -309,7 +421,14 @@ def main() -> int:
     # the suite script itself is the one that runs; against the root only when the copy does
     # not contain it (an excluded tool such as `.venv/bin/pytest`). A bare name names PATH.
 
-    if not arguments.commit:
+    sha = None
+    if arguments.commit:
+        # Resolved before anything runs: the value names a commit or the run stops here.
+        sha = resolve_commit(root, arguments.commit)
+        if sha is None:
+            print(f"--commit does not name a valid commit: {arguments.commit!r}", file=sys.stderr)
+            return 2
+    else:
         size, files = measure(root)
         mb = size / 1_000_000
         print(f"copy: {files} files, {mb:.0f} MB (dependencies, builds and .env* excluded)")
@@ -322,7 +441,7 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory() as temporary:
         tree = Path(temporary) / "tree"
-        pruned = plant(tree, root, arguments.commit)
+        pruned = plant(tree, root, sha)
         if "/" in command[0] and not Path(command[0]).is_absolute():
             if not (tree / command[0]).is_file():
                 command[0] = str(root / command[0])
@@ -355,8 +474,12 @@ def main() -> int:
             # Each mutation runs on a FRESH copy of the green base: a test that fails can leave
             # fixtures, caches or state behind, and that residue must never become the reason the
             # next mutant "dies" (measured: an equivalent mutant read as DIES after another one).
+            # The green run leaves bytecode and build caches in the base (`python3 -I` ignores
+            # PYTHONDONTWRITEBYTECODE); they never travel into a mutant: a cache keyed on
+            # size+mtime would serve the ORIGINAL code for a same-size mutation written within
+            # the same second, and the mutant would "survive" without ever running (measured).
             tree = Path(temporary) / f"mut{index}"
-            shutil.copytree(base, tree, symlinks=True)
+            shutil.copytree(base, tree, symlinks=True, ignore=shutil.ignore_patterns(*IGNORED))
             path = contained(tree, mutation["file"])
             if path is None:
                 kind = "ESCAPES " if (tree / mutation["file"]).is_symlink() else "MISSING "
@@ -373,6 +496,10 @@ def main() -> int:
                 shutil.rmtree(tree, ignore_errors=True)
                 continue
             path.write_text(original.replace(mutation["before"], mutation["after"], 1), encoding="utf-8")
+            # And the mutant's mtime moves forward by 2 s, so any incremental tool that keys on
+            # mtime sees a changed file even on a filesystem with 1 s resolution.
+            stamp = max(path.stat().st_mtime, time.time()) + 2
+            os.utime(path, (stamp, stamp))
             try:
                 error = compiles(path)
                 run = None if error else suite(tree, command, arguments.timeout)
@@ -396,7 +523,7 @@ def main() -> int:
                 print(f"  INVALID  {label}: red for the wrong reason ({reason}) -- {run.tail(2)}")
                 invalid.append(label)
                 continue
-            if not arguments.trust_exit_code and not re.search(arguments.kill_pattern, run.output, re.MULTILINE):
+            if not arguments.trust_exit_code and not assertion_evidence(run.output, arguments.kill_pattern):
                 # Red, but nothing says a test asserted anything: the behavior may never have run.
                 print(f"  UNVERIFIED {label}: red without a failed-assertion signature; not a kill "
                       f"(pass --kill-pattern for this stack, or --trust-exit-code deliberately) -- {run.tail(2)}")

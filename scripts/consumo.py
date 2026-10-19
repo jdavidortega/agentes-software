@@ -137,7 +137,7 @@ def main() -> int:
             row += f"{value:>12,}"
         print(row)
     print(f"{'TOTAL':<28}" + "".join(f"{totals[field]:>12,}" for field, _ in USAGE_FIELDS))
-    print("nota: compara sobre entrada+salida; la cache se factura aparte (escritura ~1.25x, lectura ~0.1x de entrada).")
+    print("nota: compara sobre entrada+salida; la cache se factura aparte, con multiplicadores que dependen del modelo y del plan (consulta la tarifa vigente).")
     return 0
 
 

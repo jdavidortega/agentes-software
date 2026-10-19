@@ -6,8 +6,7 @@
 # aplica lo estructural (archivos de la plantilla, roles, skills, frontmatter, recibos) y,
 # dentro de un repo, la INSTALACIÓN (hooks activos y ejecutables: un clon nuevo FALLA hasta
 # el Bootstrap, a propósito). "Plantilla sin iniciar" es SOLO: estado.md sin fase legible Y
-# ningún commit anterior con fase (FASE_PREVIA, que el pre-commit toma de HEAD, o HEAD aquí
-# mismo). Una vez iniciado, una fase ausente o ilegible (F_, vacía) es FALLA, no plantilla.
+# ningún commit del historial con fase (no solo HEAD: ver fase_historica). Una vez iniciado, una fase ausente o ilegible (F_, vacía) es FALLA, no plantilla.
 # Con el proyecto iniciado (F2..F5) aplica además el CONTRATO POR FASE: scripts/check.sh,
 # sin placeholders ni filas de ejemplo, IDs únicos y existentes, estados leídos por columna.
 # Modo "cierre": lo dispara el commit-msg cuando el trailer es Ref: F4 o Ref: F5, y se
@@ -21,24 +20,92 @@ FAIL=0
 err() { echo "  ✗ check_docs: $1" >&2; FAIL=1; }
 has() { [ -f "$1" ]; }
 
+# --- Última fase legible del HISTORIAL --------------------------------------------------------
+# Un commit que borra o estropea la fase no puede devolver el proyecto a «plantilla»: lo que
+# decide si el proyecto está iniciado es si ALGÚN commit declaró una fase, no solo el último.
+# `sh scripts/check_docs.sh fase-historica [rev]` imprime esa fase (F1..F5) o nada. El
+# pre-commit y el replay, que corren el validador sin .git, la pasan en FASE_HISTORICA.
+RE_FASE='Fase actual:\*?\*?[[:space:]]*F[1-5]'
+fase_historica() {  # $1 = revisión desde la que mirar hacia atrás (por defecto HEAD)
+  git rev-parse --verify -q "${1:-HEAD}^{commit}" >/dev/null 2>&1 || return 0
+  for c in $(git log --format=%H -E -G"$RE_FASE" "${1:-HEAD}" -- docs/estado.md 2>/dev/null); do
+    for x in "$c" "$c^"; do   # el commit que la quitó no la tiene; su padre sí
+      f=$(git show "$x:docs/estado.md" 2>/dev/null | grep -oE "$RE_FASE" | grep -oE 'F[1-5]' | head -1)
+      [ -n "$f" ] && { echo "$f"; return 0; }
+    done
+  done
+}
+if [ "$MODE" = "fase-historica" ]; then fase_historica "${2:-HEAD}"; exit 0; fi
+
+# --- Lector ÚNICO del plan -------------------------------------------------------------------
+# Una sola gramática de incremento para el doctor y el commit-msg: `- [ ] I<n> «alias» — …`
+# (o `- [x]`), al inicio de línea. `sh scripts/check_docs.sh plan [archivo | -]` imprime
+#   I <id> pendiente|hecho <sección>   línea canónica (sección: inc | backlog | otra)
+#   MAL <nlínea> <sección>             parece un incremento (casilla con I<n>, o ítem I<n> bajo
+#                                      ## Incrementos) pero no tiene la forma canónica
+# Así un incremento no se vuelve invisible por su formato ni por el encabezado bajo el que esté.
+# Lo que NO se renderiza como plan no es plan: comentarios HTML (`<!-- … -->`, de una o varias
+# líneas) y bloques de código cercados (``` o ~~~, ejemplos) se excluyen del inventario.
+leer_plan() {
+  awk '
+    function quita_comentarios(t,   a, b, o) { o=""
+      while (1) {
+        if (encom) { b=index(t, "-->"); if (!b) return o; t=substr(t, b+3); encom=0 }
+        a=index(t, "<!--"); if (!a) return o t
+        o=o substr(t, 1, a-1); t=substr(t, a+4); encom=1
+      } }
+    # Cerco de CommonMark (§4.5): hasta 3 espacios, ≥3 ` o ~; cierra solo el MISMO carácter
+    # con longitud ≥ la de apertura y nada más en la línea. Una línea interior que «parece»
+    # otro delimitador no lo cierra.
+    function cerca(t,   ind, c, n, resto) {
+      ind=0; while (substr(t,1,1)==" " && ind<4) { t=substr(t,2); ind++ }
+      if (ind>=4) return 0
+      c=substr(t,1,1); if (c!="`" && c!="~") return 0
+      n=0; while (substr(t,n+1,1)==c) n++
+      if (n<3) return 0
+      resto=substr(t,n+1)
+      if (!cerco) { if (c=="`" && index(resto, "`")) return 0; fc=c; fl=n; return 1 }
+      return (c==fc && n>=fl && resto ~ /^[ \t]*$/)
+    }
+    !encom && cerca($0) { cerco = !cerco; next }
+    cerco { next }
+    { linea = quita_comentarios($0); if (linea ~ /^[ \t]*$/) next }
+    linea ~ /^## / { l=tolower(linea); sec = (l ~ /^## incrementos/) ? "inc" : (l ~ /backlog|fuera de alcance/) ? "backlog" : "otra"; next }
+    linea ~ /^- \[[ xX]\] I[0-9]+ / { st = (linea ~ /^- \[ \]/) ? "pendiente" : "hecho"; id = substr(linea, 7); sub(/ .*$/, "", id); print "I", id, st, (sec==""?"otra":sec); next }
+    linea ~ /^[ \t]*[-*+]?[ \t]*\[[^]]*\][ \t]*[*_`]*I[0-9]+/ { print "MAL", NR, (sec==""?"otra":sec); next }
+    sec=="inc" && linea ~ /^[ \t]*[-*+][ \t]+[*_`]*I[0-9]+/ { print "MAL", NR, sec }
+  ' "$1"
+}
+if [ "$MODE" = "plan" ]; then
+  F="${2:-docs/plan.md}"; if [ "$F" = "-" ]; then F=/dev/stdin; else [ -f "$F" ] || exit 0; fi
+  leer_plan "$F"; exit 0
+fi
+
 # --- Fase vigente -------------------------------------------------------------
 FASE=""; FASE_LINEA=""
 if has docs/estado.md; then
   FASE_LINEA=$(grep -m1 'Fase actual:' docs/estado.md || true)
   FASE=$(printf '%s' "$FASE_LINEA" | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[0-9]+' | grep -oE 'F[0-9]+' | head -1)
 fi
-# Fase previa estable: la pasa el pre-commit (FASE_PREVIA, de HEAD) o se lee aquí de HEAD.
+# Fase previa estable: la del commit anterior (FASE_PREVIA, que pasa el pre-commit) y, si esa
+# también falta, la última legible de TODO el historial (FASE_HISTORICA, o calculada aquí).
 PREVIA="${FASE_PREVIA:-}"
 if [ -z "$PREVIA" ] && git rev-parse --verify HEAD >/dev/null 2>&1; then
-  PREVIA=$(git show HEAD:docs/estado.md 2>/dev/null | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' | grep -oE 'F[1-5]' | head -1)
+  PREVIA=$(git show HEAD:docs/estado.md 2>/dev/null | grep -oE "$RE_FASE" | grep -oE 'F[1-5]' | head -1)
+fi
+HISTORICA="${FASE_HISTORICA:-}"
+[ -z "$HISTORICA" ] && [ -z "$PREVIA" ] && HISTORICA=$(fase_historica HEAD)
+ANTES="${PREVIA:-$HISTORICA}"
+if [ "$MODE" = "iniciado" ]; then   # ¿proyecto iniciado (ahora o alguna vez)? Lo usa la CI.
+  [ -n "$FASE" ] || [ -n "$ANTES" ]; exit $?
 fi
 INICIADO=0
 case "$FASE" in
   F1) ;;
   F2|F3|F4|F5) INICIADO=1 ;;
-  "") if [ -n "$PREVIA" ]; then
-        err "docs/estado.md no declara una fase legible (línea: '${FASE_LINEA:-sin «Fase actual:»}') y el proyecto ya estaba iniciado (HEAD: $PREVIA). Una fase ausente o F_ no es 'modo plantilla': escribe 'Fase actual: F1..F5'."
-        FASE="$PREVIA"; case "$FASE" in F2|F3|F4|F5) INICIADO=1 ;; esac
+  "") if [ -n "$ANTES" ]; then
+        err "docs/estado.md no declara una fase legible (línea: '${FASE_LINEA:-sin «Fase actual:»}') y el proyecto ya estaba iniciado (última fase legible del historial: $ANTES). Una fase ausente o F_ no es 'modo plantilla': escribe 'Fase actual: F1..F5'."
+        FASE="$ANTES"; case "$FASE" in F2|F3|F4|F5) INICIADO=1 ;; esac
       fi ;;
   *) err "docs/estado.md declara una fase inválida ($FASE): solo F1..F5. Una fase desconocida no es 'modo plantilla'."; INICIADO=1 ;;
 esac
@@ -194,7 +261,13 @@ fi
 
 # --- 2) Incrementos I#: únicos en plan.md; todo I# citado en el rastro existe allí --------
 if has docs/plan.md; then
-  plan_ids=$(grep -oE '^- \[[ xX]\] I[0-9]+' docs/plan.md | grep -oE 'I[0-9]+')
+  PLAN=$(leer_plan docs/plan.md)
+  plan_ids=$(printf '%s\n' "$PLAN" | awk '$1=="I" {print $2}')
+  if [ "$INICIADO" -eq 1 ]; then
+    for n in $(printf '%s\n' "$PLAN" | awk '$1=="MAL" {print $2}'); do
+      err "plan.md línea $n parece un incremento pero no tiene la forma '- [ ] I<n> «alias» — …' (o '- [x]'): «$(sed -n "${n}p" docs/plan.md | cut -c1-60)». Ni el doctor ni el commit-msg lo leerían."
+    done
+  fi
   for i in $(printf '%s\n' "$plan_ids" | sort | uniq -d); do
     err "$i está definido más de una vez en plan.md"
   done
@@ -241,6 +314,38 @@ fi
 # --- Frontmatter: gramática estricta (sin parser YAML; cada línea debe ser válida) ---------
 # Acepta: `clave: valor` (con comentario # opcional), `clave:` seguida de ítems `  - valor`,
 # y líneas en blanco. Rechaza tabuladores, claves desconocidas y cualquier otra forma.
+# Valor de un escalar del frontmatter como lo lee YAML (un solo contrato para skills y
+# agentes): entre comillas, su contenido; sin comillas, sin el comentario ` #…`, y un valor que
+# EMPIEZA por # es un comentario (nulo). En "…" los escapes se DECODIFICAN antes de juzgar:
+# los que dan un blanco o un control (\t, \n, \u0020, \x20, \_ …) cuentan como blanco, así
+# que "\u0020" está en blanco como "   ". Siempre recortado, también de blancos Unicode
+# (NBSP, espacios tipográficos, ideográfico): lo que queda tiene que ser texto.
+valor_yaml() {  # $1 bloque frontmatter, $2 clave → texto (vacío si nulo, ausente o en blanco)
+  # LC_ALL=C: los blancos Unicode se reconocen por sus BYTES UTF-8, igual con mawk o con gawk
+  # en cualquier locale (un rango de bytes en un locale UTF-8 es «collation» inválida en gawk).
+  printf '%s\n' "$1" | sed -n "s/^$2:[[:space:]]*//p" | head -1 | LC_ALL=C awk -v sq="'" '
+    function hexval(h,   i, n, c) { n=0; h=toupper(h)
+      for (i=1; i<=length(h); i++) { c=index("0123456789ABCDEF", substr(h,i,1)); if (!c) return -1; n=n*16+c-1 }
+      return n }
+    function blanco(n) { return n<=32 || n==127 || (n>=128 && n<=160) || n==5760 || (n>=8192 && n<=8207) || n==8232 || n==8233 || n==8239 || n==8287 || n==12288 || n==65279 }
+    function decodifica(v,   o, i, c, e, L, n) { o=""; i=1
+      while (i<=length(v)) { c=substr(v,i,1)
+        if (c!="\\") { o=o c; i++; continue }
+        e=substr(v,i+1,1); L=(e=="x")?2:(e=="u")?4:(e=="U")?8:0
+        if (L) { n=hexval(substr(v,i+2,L)); o=o ((n>=0 && blanco(n)) ? " " : "x"); i+=2+L; continue }
+        if (index("0abtnvfre _NLP", e)) o=o " "; else o=o e
+        i+=2 }
+      return o }
+    { v=$0; q=substr(v,1,1)
+      if (q=="\"" || q==sq) {
+        for (i=length(v); i>1; i--) if (substr(v,i,1)==q) break
+        v = (i>1) ? substr(v,2,i-2) : ""
+        if (q==sq) gsub(sq sq, sq, v); else v=decodifica(v)
+      } else if (q=="#") v=""
+      else sub(/[ \t]+#.*$/, "", v)
+      gsub(/\302\240|\342\200\200|\342\200\201|\342\200\202|\342\200\203|\342\200\204|\342\200\205|\342\200\206|\342\200\207|\342\200\210|\342\200\211|\342\200\212|\342\200\257|\342\201\237|\343\200\200|\357\273\277/, " ", v)
+      gsub(/^[ \t]+|[ \t]+$/, "", v); print v }'
+}
 check_frontmatter() {  # $1 archivo, $2 claves permitidas (regex alternativa). Deja el bloque en $FM.
   # Se invoca SIN sustitución de comando: así `err` fija FAIL en este shell, no en un subshell.
   f="$1"; keys="$2"; FM=""
@@ -315,12 +420,11 @@ if [ -d .claude/skills ]; then
       || err ".claude/skills/$name: el nombre debe ser minúsculas, números y guiones (≤64 chars)"
     check_frontmatter "$f" 'name|description|allowed-tools' || continue
     fm="$FM"
-    fm_name=$(printf '%s\n' "$fm" | sed -n 's/^name:[[:space:]]*//p' | head -1)
+    fm_name=$(valor_yaml "$fm" name)
     [ "$fm_name" = "$name" ] || err "$f: name '$fm_name' no coincide con la carpeta '$name'"
-    desc=$(printf '%s\n' "$fm" | sed -n 's/^description:[[:space:]]*//p' | head -1 \
-           | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/")
+    desc=$(valor_yaml "$fm" description)
     if [ -z "$desc" ]; then
-      err "$f: falta description (es el campo con que el agente decide si la abre)"
+      err "$f: description vacía, en blanco, solo comentario o ausente (es el campo con que el agente decide si la abre)"
     else
       n=$(printf '%s' "$desc" | wc -m | tr -d ' ')
       [ "$n" -le 1024 ] || err "$f: description de $n caracteres (máximo 1024)"
@@ -335,10 +439,10 @@ if [ -d .claude/agents ]; then
     aname=$(basename "$f" .md)
     check_frontmatter "$f" 'name|description|tools|model|skills' || continue
     afm="$FM"
-    afm_name=$(printf '%s\n' "$afm" | sed -n 's/^name:[[:space:]]*//p' | head -1)
+    afm_name=$(valor_yaml "$afm" name)
     [ "$afm_name" = "$aname" ] || err "$f: name '$afm_name' no coincide con el archivo '$aname'"
-    adesc=$(printf '%s\n' "$afm" | sed -n 's/^description:[[:space:]]*//p' | head -1 | sed -e 's/[[:space:]]*#.*$//' -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/")
-    [ -n "$adesc" ] || err "$f: description vacía o ausente (con ella Claude Code decide cuándo delegar; \"\" es YAML válido pero no dice nada)"
+    adesc=$(valor_yaml "$afm" description)
+    [ -n "$adesc" ] || err "$f: description vacía, en blanco, solo comentario o ausente (con ella Claude Code decide cuándo delegar; \"\" es YAML válido pero no dice nada)"
     askills=$( { printf '%s\n' "$afm" \
       | awk '/^skills:[[:space:]]*$/ {insk=1; next} insk && /^[^ ]/ {insk=0} insk {print}' \
       | sed -n 's/^[[:space:]]*-[[:space:]]*//p' ; \
@@ -389,7 +493,8 @@ if [ "$MODE" = "cierre" ]; then
   fi
   # El plan y la cobertura no se contradicen al cierre: ningún incremento queda sin marcar.
   if has docs/plan.md; then
-    for i in $(awk '/^## Incrementos/{s=1;next} /^## /{s=0} s && /^- \[ \] I[0-9]+ /{print $3}' docs/plan.md); do
+    # Bajo CUALQUIER encabezado salvo el backlog («Fuera de alcance / backlog»).
+    for i in $(leer_plan docs/plan.md | awk '$1=="I" && $3=="pendiente" && $4!="backlog" {print $2}'); do
       err "plan.md: $i sigue como '- [ ]' al cierre; márcalo [x] si se cerró o sácalo del plan (backlog/exclusión) con ADR"
     done
   fi

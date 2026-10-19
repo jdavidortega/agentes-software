@@ -320,9 +320,11 @@ secretos, append-only, registros y suite que no desaparecen) y `check_docs` sobr
 del commit. Un merge **limpio** (su árbol es exactamente la fusión automática de sus padres)
 pasa sin trailer; uno que **añade contenido al fusionar** (resolución de conflictos, archivo
 nuevo) se valida como cualquier commit, local y remotamente. Es lo que hace que un
-`--no-verify` local falle en el remoto. Doctor, hook y replay leen `docs/trazabilidad.md`
-con un solo lector (`scripts/trazabilidad.sh`) y los recibos con un solo parser
-(`scripts/recibos.sh`): una fila o un recibo significan lo mismo en los tres.
+`--no-verify` local falle en el remoto. («Doctor» es `scripts/check_docs.sh`, el validador
+documental del método; no el `/doctor` de Claude Code.) Doctor, hook y replay leen `docs/trazabilidad.md`
+con un solo lector (`scripts/trazabilidad.sh`), el plan con una sola gramática de
+incremento (`check_docs.sh plan`) y los recibos con un solo parser (`scripts/recibos.sh`):
+una fila, un incremento o un recibo significan lo mismo en los tres.
 **`regresion.sh`** es la regresión de los propios hooks: autocontenida (toma de este
 repositorio solo la instrumentación y genera un proyecto sintético), crea repositorios
 temporales sin red ni credenciales y comprueba cada regla con su caso negativo y su caso
@@ -335,7 +337,8 @@ ejecuta antes de tocar un hook o un script de la plantilla.
 (`ejecutor=` es dato declarado; el recibo ata el veredicto al contenido, no a una sesión),
 que el revisor no usó red (las huellas no la ven), y la aprobación humana (vive en el
 chat, no en un archivo). Lo primero se cubre con CI y hooks del cliente (`SessionStart`,
-`PreToolUse`) en cada proyecto; lo último es deliberado.
+`PreToolUse`) que **cada proyecto integra**: la plantilla trae el workflow de ejemplo, no
+los instala ni los activa en el remoto; lo último es deliberado.
 
 Que el juez y el revisor funcional corrieron se exige por su rastro: cada revisión deja
 su **recibo** en `docs/revisiones.log` (rol, alcance, veredicto, huella; también con PASA

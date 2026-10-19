@@ -53,7 +53,10 @@ allowed-tools: Read, Grep, Glob, Bash
    roja pero su salida **no trae la firma de un aserto fallido** —`AssertionError`, `FAILED
    test…`, `not ok`, `Expected:`…—: un `exit 1` mudo, un parser que rechaza el mutante o
    un traceback genérico (`RuntimeError` de un helper, un error de preparación) no
-   acreditan nada, porque no dicen que una prueba comprobó el comportamiento) son
+   acreditan nada, porque no dicen que una prueba comprobó el comportamiento; cuenta la
+   **causa terminal**, no el código fuente que el traceback cita: `assert helper()` en una
+   línea citada no es un aserto fallido si lo que explotó fue el helper, y en una cadena
+   (`raise … from`) cuenta la última excepción, no un `AssertionError` intermedio) son
    mutaciones **inválidas**. Todas se cuentan aparte, nunca como muertas, y el arnés sale
    con código **2**. `DIES` exige esa evidencia positiva: si tu runner imprime otra firma,
    pásala con `--kill-pattern`; `--trust-exit-code` acepta cualquier rojo y lo deja dicho
@@ -104,9 +107,17 @@ allowed-tools: Read, Grep, Glob, Bash
 - **Verificar contra un commit exige que lo verificado esté en el commit.** Pedir
   "verifícalo contra `git archive HEAD`" con la remediación sin commitear produce falsos
   negativos con aspecto de rigor. El arnés usa el árbol de trabajo por defecto;
-  `--commit` cuando de verdad quieres el commit. En ese modo aplica las **mismas
+  `--commit` cuando de verdad quieres el commit (el valor se resuelve con `git rev-parse`
+  antes de ejecutar nada; si no nombra un commit, el arnés sale con 2). En ese modo aplica las **mismas
   exclusiones y el mismo tope** que en el árbol (poda tras extraer) y **avisa si el commit
   versiona un `.env`**: eso es un hallazgo de seguridad, no un detalle del arnés.
+- **Las cachés de bytecode y de compilación mienten sobre un mutante.** Una mutación del mismo
+  tamaño escrita en el mismo segundo que la corrida base deja intacta la clave `tamaño+mtime`
+  de un `.pyc` (o de un build incremental): el runner ejecuta el código ORIGINAL y el mutante
+  «sobrevive» sin haber corrido (medido en el piloto: `python3 -I` ignora
+  `PYTHONDONTWRITEBYTECODE`). El arnés no copia cachés a la copia del mutante y adelanta el
+  mtime del archivo mutado; si usas otro arnés, borra `__pycache__`/`build/` antes de cada
+  corrida.
 - **Un guarda con falso negativo es peor que uno ausente**, porque da permiso. Cuando un
   chequeo afirma algo sobre texto ("no hay `DELETE`"), sabotéalo con la forma que el
   lenguaje admite y tu regex no: palabra al final de la cláusula, otra indentación,

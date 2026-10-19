@@ -9,7 +9,8 @@
 #     candidato  commit (sha) o la palabra INDICE (lo que está staged ahora mismo)
 #
 # Rechaza (salida 1, motivos en stderr):
-#   1) versionar un .env o variante (.env.example SÍ se permite: es la plantilla sin valores)
+#   1) añadir o cambiar un .env o variante (.env.example SÍ se permite: es la plantilla sin
+#      valores; ELIMINAR uno ya versionado se permite: es la corrección)
 #   2) añadir una llave privada (PEM/OpenSSH/PKCS8) en cualquier archivo salvo .githooks/
 #   3) eliminar docs/revisiones.log o scripts/check.sh si el base los tiene (registros y suite
 #      son obligaciones adquiridas, en cualquier fase)
@@ -20,12 +21,12 @@ B="$1"; C="$2"
 FAIL=0
 fail() { echo "✗ guardas: $1" >&2; FAIL=1; }
 if [ "$C" = "INDICE" ]; then
-  nombres() { git diff --cached --name-only "$B"; }
+  nombres() { git diff --cached --name-only --diff-filter=d "$B"; }   # quitar un .env es la corrección, no la falta
   diff_mas() { git diff --cached "$B" -- . ':(exclude).githooks'; }
   tiene_c() { git ls-files --error-unmatch "$1" >/dev/null 2>&1; }
   blob_c() { git show ":$1" 2>/dev/null; }
 else
-  nombres() { git diff --name-only "$B" "$C"; }
+  nombres() { git diff --name-only --diff-filter=d "$B" "$C"; }
   diff_mas() { git diff "$B" "$C" -- . ':(exclude).githooks'; }
   tiene_c() { git cat-file -e "$C:$1" 2>/dev/null; }
   blob_c() { git show "$C:$1" 2>/dev/null; }

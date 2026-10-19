@@ -90,12 +90,15 @@ filas_trazabilidad() {
   [ -f docs/trazabilidad.md ] || return 0
   awk -F'|' '
     function trim(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-    /^\|/ {
+    /^[ \t]*\|/ {
+      # Una fila con sangría la lee el hook igual que esta función, pero se avisa: con cuatro
+      # espacios Markdown la muestra como código y la persona no vería la tabla completa.
+      if ($0 ~ /^[ \t]+\|/) { s=$0; sub(/\|.*$/,"",s); print "SANGRIA", NR, "-", "-" }
       n=0; for(i=2;i<NF;i++){ n++; f[n]=trim($i) }
       if (f[1] ~ /^-+$/) next                         # separador
       if (f[1]=="Criterio"||f[1]=="Vacío"||f[1]=="Hallazgo") {  # encabezado: ubicar columnas
         tipo = (f[1]=="Criterio") ? "C" : (f[1]=="Vacío") ? "E" : "R"
-        ce=0; ci=0
+        ncol=n; ce=0; ci=0
         for(k=1;k<=n;k++){ if(f[k]=="Estado") ce=k; if(f[k] ~ /^Incr/) ci=k }
         hdr=""; for(k=1;k<=n;k++) { c=f[k]; gsub(/ /,"_",c); hdr = hdr (k>1?",":"") c }
         print "HDR", tipo, hdr, "-"
@@ -107,10 +110,14 @@ filas_trazabilidad() {
       ej = (id=="C_" || id=="R-E._" || id=="R-I_._" || (tipo=="C" && ci>0 && f[ci]=="I_"))
       if (ej) { print "EJ", id, "-", "-"; next }
       if (ce==0) { print "NOEST", id, "-", "-"; next }   # fila bajo un encabezado sin columna Estado
+      if (n!=ncol) { print "ARIDAD", id, n, ncol; next }   # celdas ≠ columnas del encabezado: fila incompleta
       if (id !~ /^(C[0-9]+|R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+)$/) { print "X", id, "-", "-"; next }
       # Fila en la tabla equivocada: un C# fuera de Cobertura, un R-E fuera de Vacíos, etc.
       if ((tipo=="C" && id !~ /^C/) || (tipo=="E" && id !~ /^R-E\./) || (tipo=="R" && (id ~ /^C/ || id ~ /^R-E\./))) { print "T", id, "-", "-"; next }
       incr = (ci>0) ? f[ci] : "-"; gsub(/ /,"",incr); if(incr=="") incr="-"
+      # El ID y la columna Incr. nombran el MISMO incremento: R-I3.n / R-S3.n ⇒ I3; R-F4.n / R-SF4.n ⇒ F4.
+      if (tipo=="R") { want=id; sub(/^R-(I|S)/,"I",want); sub(/^R-S?F4/,"F4",want); sub(/\.[0-9]+$/,"",want)
+                       if (incr!=want) { print "INCR", id, incr, want; next } }
       est=f[ce]; sub(/ .*$/,"",est)                       # primera palabra: "pendiente / cubierto" → pendiente
       print tipo, id, incr, est
     }
@@ -154,6 +161,17 @@ fi
 for bad in $(printf '%s\n' "$FILAS" | awk '$1=="T"{print $2}'); do
   err "trazabilidad.md: $bad está en la tabla equivocada (C# en Cobertura; R-E en Vacíos; R-I/R-S/R-F4/R-SF4 en el Registro del juez)"
 done
+for ln in $(printf '%s\n' "$FILAS" | awk '$1=="SANGRIA"{print $2}'); do
+  err "trazabilidad.md línea $ln: fila de tabla con sangría; las filas empiezan en la columna 1 (con sangría Markdown puede mostrarla como código y esconderla)"
+done
+printf '%s\n' "$FILAS" | awk '$1=="ARIDAD"' | while read -r _ id n ncol; do
+  echo "  ✗ check_docs: trazabilidad.md: la fila $id tiene $n celdas y su encabezado $ncol: fila incompleta o desbordada (una celda que falta deja un estado sin leer)" >&2
+done
+printf '%s\n' "$FILAS" | awk '$1=="ARIDAD"{bad=1} END{exit bad?1:0}' || FAIL=1
+printf '%s\n' "$FILAS" | awk '$1=="INCR"' | while read -r _ id incr want; do
+  echo "  ✗ check_docs: trazabilidad.md: $id lleva Incr. '$incr' pero su ID dice $want: dos identidades para un hallazgo; corrige una de las dos" >&2
+done
+printf '%s\n' "$FILAS" | awk '$1=="INCR"{bad=1} END{exit bad?1:0}' || FAIL=1
 # Estado fuera del enum de su tabla (un estado desconocido no es ni abierto ni resuelto).
 printf '%s\n' "$FILAS" | awk '
   $1=="C" && $4 !~ /^(pendiente|cubierto|verificado)$/ { print $2, $4 }
@@ -169,7 +187,7 @@ printf '%s\n' "$FILAS" | awk '
   ($1=="R" && $4 !~ /^(abierto|resuelto|verificado)$/) { bad=1 } END { exit bad ? 1 : 0 }' || FAIL=1
 
 # Unicidad: un C# o un hallazgo con dos filas es un registro ambiguo (V04/V10).
-for dup in $(printf '%s\n' "$FILAS" | awk 'NF && $1!="X" && $1!="T" && $1!="HDR" && $1!="NOEST" && $1!="EJ" {print $2}' | sort | uniq -d); do
+for dup in $(printf '%s\n' "$FILAS" | awk 'NF && $1!="X" && $1!="T" && $1!="HDR" && $1!="NOEST" && $1!="EJ" && $1!="SANGRIA" && $1!="ARIDAD" && $1!="INCR" {print $2}' | sort | uniq -d); do
   err "trazabilidad.md tiene más de una fila para $dup (tablas o Histórico): un ID se registra una sola vez; una pasada nueva continúa la numeración desde el último, incluido el Histórico"
 done
 
@@ -197,6 +215,11 @@ if has docs/encuadre.md; then
     # Y al revés: una fila de cobertura cuyo criterio no existe en el encuadre es huérfana.
     for c in $(printf '%s\n' "$FILAS" | awk '$1=="C"{print $2}'); do
       printf '%s\n' "$CRIT" | grep -qx "$c" || err "trazabilidad.md cubre $c, que no está definido en encuadre.md (criterio huérfano)"
+    done
+    # Desde el plan aprobado (F2) todo criterio tiene incremento asignado: un C# sin I# es un
+    # plan incompleto, no una decisión diferida (si se excluye, se saca del encuadre con ADR).
+    for c in $(printf '%s\n' "$FILAS" | awk '$1=="C" && $3 !~ /I[0-9]+/ {print $2}'); do
+      err "trazabilidad.md: $c no tiene incremento asignado (columna Incremento) con el plan aprobado; cada criterio se cubre con un I<n> o sale del encuadre por ADR"
     done
   fi
 fi
@@ -275,8 +298,13 @@ check_frontmatter() {  # $1 archivo, $2 claves permitidas (regex alternativa). D
   badq=$(printf '%s\n' "$FM" | sed -n -E 's/^[a-z-]+:[[:space:]]+(["'"'"'].*)$/\1/p' | sed -E 's/[[:space:]]*#[^"'"'"']*$//' \
         | awk -v ok='0abtnvfre"/\\N_LPxuU ' '{ q=substr($0,1,1); n=length($0); if (n<2 || substr($0,n,1)!=q) next
                  inner=substr($0,2,n-2)
-                 if (q=="\"") { s=inner; while (match(s, /\\./)) { if (index(ok, substr(s,RSTART+1,1))==0) { print; break }; s=substr(s,RSTART+2) }
-                                 gsub(/\\./,"",s); if (index(s,"\"")) print }
+                 if (q=="\"") { s=inner
+                                 while (match(s, /\\./)) { c=substr(s,RSTART+1,1); if (index(ok, c)==0) { print; break }
+                                   # \xHH \uHHHH \UHHHHHHHH: exactamente esos dígitos hexadecimales
+                                   L=(c=="x")?2:(c=="u")?4:(c=="U")?8:0; h=substr(s,RSTART+2,L)
+                                   if (L && (length(h)<L || h ~ /[^0-9a-fA-F]/)) { print; break }
+                                   s=substr(s,RSTART+2+L) }
+                                 gsub(/\\(x..|u....|U........|.)/,"",s); if (index(s,"\"")) print }
                  else { s=inner; gsub(/'"'"''"'"'/,"",s); if (index(s,"'"'"'")) print } }')
   [ -z "$badq" ] || err "$f: comilla interior sin escapar o escape inválido (\\q, \\s…) en un valor del frontmatter (YAML inválido): $(printf '%s' "$badq" | head -1 | cut -c1-60)…"
   return 0
@@ -314,8 +342,8 @@ if [ -d .claude/agents ]; then
     afm="$FM"
     afm_name=$(printf '%s\n' "$afm" | sed -n 's/^name:[[:space:]]*//p' | head -1)
     [ "$afm_name" = "$aname" ] || err "$f: name '$afm_name' no coincide con el archivo '$aname'"
-    printf '%s\n' "$afm" | grep -qE '^description:[[:space:]]*[^[:space:]]' \
-      || err "$f: falta description (con ella Claude Code decide cuándo delegar)"
+    adesc=$(printf '%s\n' "$afm" | sed -n 's/^description:[[:space:]]*//p' | head -1 | sed -e 's/[[:space:]]*#.*$//' -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/")
+    [ -n "$adesc" ] || err "$f: description vacía o ausente (con ella Claude Code decide cuándo delegar; \"\" es YAML válido pero no dice nada)"
     askills=$( { printf '%s\n' "$afm" \
       | awk '/^skills:[[:space:]]*$/ {insk=1; next} insk && /^[^ ]/ {insk=0} insk {print}' \
       | sed -n 's/^[[:space:]]*-[[:space:]]*//p' ; \
@@ -362,6 +390,12 @@ if [ "$MODE" = "cierre" ]; then
         || err "$c no tiene incremento asignado (columna Incremento) en trazabilidad.md al cierre"
       printf '%s' "$row" | awk '{exit ($4=="verificado") ? 0 : 1}' \
         || err "$c no está en Estado 'verificado' al cierre (la columna Estado manda, no la Nota)"
+    done
+  fi
+  # El plan y la cobertura no se contradicen al cierre: ningún incremento queda sin marcar.
+  if has docs/plan.md; then
+    for i in $(awk '/^## Incrementos/{s=1;next} /^## /{s=0} s && /^- \[ \] I[0-9]+ /{print $3}' docs/plan.md); do
+      err "plan.md: $i sigue como '- [ ]' al cierre; márcalo [x] si se cerró o sácalo del plan (backlog/exclusión) con ADR"
     done
   fi
   if has docs/decisiones.md; then

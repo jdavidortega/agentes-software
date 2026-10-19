@@ -1,15 +1,19 @@
 #!/bin/sh
 # Regresión de los HOOKS y SCRIPTS de la plantilla (viene con ella; README §Enforcement).
-# Crea repositorios temporales a partir de los archivos versionados de esta plantilla y
-# comprueba cada regla con su caso NEGATIVO (el hook rechaza) y su caso POSITIVO (acepta).
-# Sin red, sin credenciales, sin clientes de IA: solo git, sh, awk y python3. Corre en
-# segundos. Se ejecuta antes de tocar un hook o un script de la plantilla, y en CI.
+# Crea repositorios temporales y comprueba cada regla con su caso NEGATIVO (el hook
+# rechaza) y su caso POSITIVO (acepta). Sin red, sin credenciales, sin clientes de IA:
+# solo git, sh, awk y python3. Corre en segundos. Se ejecuta antes de tocar un hook o un
+# script de la plantilla, y en CI de cada proyecto.
 #
 #   sh scripts/pruebas/regresion.sh        → 0 si todos los casos pasan; 1 y la lista si no
 #   sh scripts/pruebas/regresion.sh -v     → además imprime la salida de cada caso
 #
-# Cada caso vive en una copia fresca de una ETAPA (plantilla recién copiada; proyecto en
-# F3 con I1 cerrado; proyecto listo para cerrar), así ningún caso contamina a otro.
+# AUTOCONTENIDA: del repositorio donde corre toma SOLO la instrumentación del método
+# (.githooks/, scripts/, .claude/, .codex/ si existe); los documentos del proyecto de prueba
+# (docs/, encuadre, plan, trazabilidad, suite, código) los genera aquí. Así da el mismo
+# resultado en la plantilla vacía y dentro de un proyecto con código, plan y hallazgos reales.
+# Cada caso vive en una copia fresca de una ETAPA (plantilla; F2; F3 con I1; tres cerrados;
+# cierre), así ningún caso contamina a otro.
 VERBOSE=0; [ "${1:-}" = "-v" ] && VERBOSE=1
 RAIZ=$(cd "$(dirname "$0")/../.." && pwd)
 W=$(mktemp -d 2>/dev/null || mktemp -d -t regresion); trap 'rm -rf "$W"' EXIT INT TERM
@@ -17,7 +21,7 @@ export GIT_AUTHOR_NAME=regresion GIT_AUTHOR_EMAIL=regresion@local
 export GIT_COMMITTER_NAME=regresion GIT_COMMITTER_EMAIL=regresion@local
 export GIT_CONFIG_GLOBAL="$W/gitconfig" GIT_CONFIG_SYSTEM=/dev/null   # sin config del usuario
 : > "$W/gitconfig"; git config --file "$W/gitconfig" --add safe.directory "*"
-unset FASE_PREVIA
+unset FASE_PREVIA REV
 TOTAL=0; MAL=0; FALLIDOS=""
 SAB="$RAIZ/.claude/skills/verificando-por-sabotaje/scripts/sabotear.py"
 
@@ -34,54 +38,39 @@ espera() {
   [ "$VERBOSE" = 1 ] || [ "$ok" = 0 ] && printf '%s\n' "$out" | sed 's/^/        | /' | head -12
   return 0
 }
-# copia <etapa> <nombre> → crea $W/<nombre> desde $W/etapas/<etapa> y lo deja en $D
-copia() { D="$W/$2"; rm -rf "$D"; cp -R "$W/etapas/$1" "$D"; }
-# en <dir> cmd... : ejecuta en ese directorio
-en() { d=$1; shift; ( cd "$d" && "$@" ); }
-commitea() {  # commitea <dir> <mensaje con trailer>
-  en "$1" git add -A && en "$1" git -c core.hooksPath=.githooks commit -q -m "$2"
-}
+copia() { D="$W/$2"; rm -rf "$D"; cp -R "$W/etapas/$1" "$D"; }   # copia <etapa> <nombre> → $D
+en() { d=$1; shift; ( cd "$d" && "$@" ); }                          # en <dir> cmd...
+commitea() { en "$1" git add -A && en "$1" git -c core.hooksPath=.githooks commit -q -m "$2"; }
+sin_hooks() { en "$1" git add -A && en "$1" git -c core.hooksPath=/dev/null commit -q --no-verify -m "$2"; }
 huella_idx() { en "$1" git add -A >/dev/null 2>&1; en "$1" sh scripts/huella.sh indice; }
-# recibo <dir> rol tipo alcance veredicto bloqueantes [campos extra...] → añade al log con la huella del índice
+# recibo <dir> rol tipo alcance veredicto bloqueantes [campos extra...] → al log, con la huella del índice
 recibo() {
   d=$1; rol=$2; tipo=$3; alc=$4; ver=$5; blo=$6; shift 6
   h=$(huella_idx "$d")
   printf 'fecha=2026-10-19T10:00Z rol=%s tipo=%s alcance=%s veredicto=%s bloqueantes=%s huella=%s ejecutor=regresion %s\n' \
     "$rol" "$tipo" "$alc" "$ver" "$blo" "$h" "$*" >> "$d/docs/revisiones.log"
 }
-# recibo_fijo <dir> ... igual pero con la huella dada (último argumento)
-fase() { sed -i.bak -E "s/^- \*\*Fase actual:\*\*.*/- **Fase actual:** $2 · incremento activo: ${3:-I_ «alias»}/" "$1/docs/estado.md" && rm -f "$1/docs/estado.md.bak"; }
-# trazabilidad <dir> "<filas C>" "<filas E>" "<filas R>" "<histórico>": escribe el archivo entero
+# recibo_bruto <dir> <línea completa> → al log tal cual (huellas inventadas, etc.)
+recibo_bruto() { printf '%s\n' "$2" >> "$1/docs/revisiones.log"; }
+fase() {  # fase <dir> <F?> [incremento activo]
+  python3 - "$1/docs/estado.md" "$2" "${3:-I_ «alias»}" <<'EOF'
+import re,sys
+p,f,i=sys.argv[1:]; s=open(p).read()
+s=re.sub(r'^- \*\*Fase actual:\*\*.*$', f'- **Fase actual:** {f} · incremento activo: {i}', s, count=1, flags=re.M)
+open(p,'w').write(s)
+EOF
+}
+# trazabilidad <dir> "<filas C>" "<filas E>" "<filas R>" ["<histórico>"]: escribe el archivo entero
 trazabilidad() {
   {
-    cat <<'EOF'
-# Trazabilidad
-
-## IDs y cómo se enlazan
-
-- Ver docs/convenciones.md.
-
-## Cobertura de criterios
-
-| Criterio | Alias | Incremento(s) | Estado | Nota |
-|----------|-------|---------------|--------|------|
-EOF
+    printf '# Trazabilidad\n\n## IDs y cómo se enlazan\n\n- Ver docs/convenciones.md.\n\n## Cobertura de criterios\n\n'
+    printf '| Criterio | Alias | Incremento(s) | Estado | Nota |\n|----------|-------|---------------|--------|------|\n'
     [ -n "$2" ] && printf '%s\n' "$2"
-    cat <<'EOF'
-
-## Registro de vacíos del revisor funcional (arranque)
-
-| Vacío | Alias | Punto incumplido | Estado | Resuelto (cómo · AAAA-MM-DD HH:MM UTC) |
-|-------|-------|------------------|--------|----------------------------------------|
-EOF
+    printf '\n## Registro de vacíos del revisor funcional (arranque)\n\n'
+    printf '| Vacío | Alias | Punto incumplido | Estado | Resuelto (cómo · AAAA-MM-DD HH:MM UTC) |\n|-------|-------|------------------|--------|----------------------------------------|\n'
     [ -n "$3" ] && printf '%s\n' "$3"
-    cat <<'EOF'
-
-## Registro de revisiones del juez
-
-| Hallazgo | Alias | Incr. | Criterio | Descripción | Estado | Resuelto (AAAA-MM-DD HH:MM UTC · commit) |
-|----------|-------|-------|----------|-------------|--------|------------------------------------------|
-EOF
+    printf '\n## Registro de revisiones del juez\n\n'
+    printf '| Hallazgo | Alias | Incr. | Criterio | Descripción | Estado | Resuelto (AAAA-MM-DD HH:MM UTC · commit) |\n|----------|-------|-------|----------|-------------|--------|------------------------------------------|\n'
     [ -n "$4" ] && printf '%s\n' "$4"
     printf '\n## Histórico (compactado)\n\n'
     [ -n "${5:-}" ] && printf '%s\n' "$5"
@@ -89,42 +78,61 @@ EOF
 }
 C1_PEND='| C1 | «suma» | I1 | pendiente | |'
 C1_VERIF='| C1 | «suma» | I1 | verificado | |'
+SUITE='#!/bin/sh
+# suite del proyecto demo: lo que diga app.py decide (un assert en rojo = commit rechazado)
+if [ -f app.py ]; then python3 -I app.py || exit 1; fi
+exit 0
+'
 
 # --- etapas ----------------------------------------------------------------------------
 mkdir -p "$W/etapas"
-# E0: plantilla recién copiada, hooks activos, primer commit (Ref: F1) hecho.
 B="$W/etapas/plantilla"; mkdir -p "$B"
-if git -C "$RAIZ" rev-parse --git-dir >/dev/null 2>&1; then
-  git -C "$RAIZ" ls-files -z -co --exclude-standard | ( cd "$RAIZ" && xargs -0 -I{} sh -c 'mkdir -p "$0/$(dirname "{}")" && cp "{}" "$0/{}"' "$B" )
+# Instrumentación: SIEMPRE la de este repositorio (es lo que se prueba).
+for d in .githooks scripts .claude .codex; do
+  [ -d "$RAIZ/$d" ] && { mkdir -p "$B/$d" && cp -R "$RAIZ/$d/." "$B/$d/"; }
+done
+rm -rf "$B/scripts/__pycache__" "$B/scripts/check.sh"
+# Documentos: los de la plantilla si este repositorio ES la plantilla sin iniciar (estado.md
+# con F_), para probar también lo que viaja con ella; si no, un proyecto sintético mínimo.
+PRISTINA=0; grep -q 'Fase actual:\*\* F_' "$RAIZ/docs/estado.md" 2>/dev/null && PRISTINA=1
+if [ "$PRISTINA" -eq 1 ]; then
+  for f in AGENTS.md CLAUDE.md README.md .gitignore .editorconfig; do [ -f "$RAIZ/$f" ] && cp "$RAIZ/$f" "$B/$f"; done
+  mkdir -p "$B/docs" "$B/contexto"; cp -R "$RAIZ/docs/." "$B/docs/"; cp -R "$RAIZ/contexto/." "$B/contexto/"
 else
-  ( cd "$RAIZ" && find . -path ./.git -prune -o -path ./mejoras -prune -o -type f -print | while read -r f; do mkdir -p "$B/$(dirname "$f")"; cp "$f" "$B/$f"; done )
+  mkdir -p "$B/docs" "$B/contexto"
+  printf '# AGENTS.md\n\nProyecto sintético de la regresión. Ver docs/.\n' > "$B/AGENTS.md"
+  printf '# CLAUDE.md\n\n@AGENTS.md\n' > "$B/CLAUDE.md"
+  printf '# Demo\n\nProyecto sintético de la regresión de la plantilla.\n' > "$B/README.md"
+  printf '.env\n.env.*\n!.env.example\n__pycache__/\nmejoras/\n' > "$B/.gitignore"
+  printf 'root = true\n' > "$B/.editorconfig"
+  printf '# Contexto\n\nEntradas del proyecto (sintético).\n' > "$B/contexto/README.md"
+  printf '# Estado del proyecto\n\n- **Fase actual:** F_ · incremento activo: I_ «alias»\n- **Próximo paso:** _…_\n' > "$B/docs/estado.md"
+  printf '# Encuadre\n\n## Criterios de éxito\n\n- C1:\n' > "$B/docs/encuadre.md"
+  printf '# Plan\n\n- [ ] I1 «…» — _…_ (satisface: C_)\n' > "$B/docs/plan.md"
+  trazabilidad "$B" '| C1 | «…» | I_ | pendiente / cubierto / verificado | |' '| R-E._ | «…» | _…_ | abierto | — |' '| R-I_._ | «…» | I_ | C_ | _…_ | abierto | — |' '- _(ejemplo)_ `R-I_._ «alias» · verificado AAAA-MM-DD · commit abc1234`'
+  for f in decisiones convenciones definicion-de-hecho despliegue MEMORIA; do printf '# %s\n\n(sintético)\n' "$f" > "$B/docs/$f.md"; done
+  printf '# Registro de recibos (sintético). Las líneas que empiezan por # se ignoran.\n' > "$B/docs/revisiones.log"
 fi
 rm -rf "$B/mejoras"
 en "$B" git init -q && en "$B" git config core.hooksPath .githooks
-chmod +x "$B"/.githooks/* "$B"/scripts/*.sh "$B"/scripts/pruebas/*.sh
+chmod +x "$B"/.githooks/* "$B"/scripts/*.sh "$B"/scripts/pruebas/*.sh 2>/dev/null
 en "$B" git add -A >/dev/null
-for x in .githooks/pre-commit .githooks/commit-msg scripts/check_docs.sh scripts/huella.sh scripts/recibos.sh scripts/pruebas/regresion.sh; do
+for x in .githooks/pre-commit .githooks/commit-msg scripts/check_docs.sh scripts/huella.sh scripts/recibos.sh; do
   en "$B" git update-index --chmod=+x "$x"
 done
-echo "== etapa: plantilla recién copiada"
+echo "== etapa: plantilla recién copiada ($([ "$PRISTINA" -eq 1 ] && echo 'documentos de la plantilla' || echo 'documentos sintéticos'))"
 espera pasa "arranque nuevo: primer commit Ref: F1 sobre la plantilla" "" -- commitea "$B" "Encuadre inicial
 
 Ref: F1"
 
-# E1: proyecto en F2 cerrado (encuadre + plan + trazabilidad sembrada + check.sh), listo para I1.
+# E1: F2 cerrado (encuadre + plan + trazabilidad sembrada + suite), listo para I1.
 P="$W/etapas/f2"; cp -R "$B" "$P"
-sed -i.bak -e 's/_\[nombre\]_/Demo/' -e 's/_\[qué problema resuelve, en una frase\]_/sumar dos números/' "$P/AGENTS.md"; rm -f "$P/AGENTS.md.bak"
-grep -q '_\[' "$P/AGENTS.md" && sed -i.bak -E 's/_\[[^]]+\]_/x/g' "$P/AGENTS.md"; rm -f "$P/AGENTS.md.bak"
-sed -i.bak 's/^- C1:.*/- C1: la función suma devuelve a+b para enteros./' "$P/docs/encuadre.md"; rm -f "$P/docs/encuadre.md.bak"
-python3 - "$P/docs/plan.md" <<'EOF'
-import sys,re
-p=sys.argv[1]; s=open(p).read()
-s=re.sub(r'^- \[ \] I1 .*$', '- [ ] I1 «suma» — función suma (satisface: C1)', s, flags=re.M)
-s=re.sub(r'^- \[ \] I2 .*$', '- [ ] I2 «resta» — función resta (satisface: C1)\n- [ ] I3 «multiplica» — (satisface: C1)\n- [ ] I4 «divide» — (satisface: C1)\n- [ ] I5 «potencia» — (satisface: C1)', s, flags=re.M)
-open(p,'w').write(s)
-EOF
+printf '# AGENTS.md\n\nProyecto Demo: sumar dos números. Ver docs/.\n' > "$P/AGENTS.md"
+printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\n' > "$P/docs/encuadre.md"
+printf '# Plan\n\n- [ ] I1 «suma» — función suma (satisface: C1)\n- [ ] I2 «resta» — (satisface: C1)\n- [ ] I3 «multiplica» — (satisface: C1)\n- [ ] I4 «divide» — (satisface: C1)\n- [ ] I5 «potencia» — (satisface: C1)\n' > "$P/docs/plan.md"
+printf '# Decisiones\n\n(ninguna todavía)\n' > "$P/docs/decisiones.md"
 trazabilidad "$P" "$C1_PEND" "" ""
-printf '#!/bin/sh\n# suite del proyecto demo\n[ -f app.py ] && python3 -I app.py\nexit 0\n' > "$P/scripts/check.sh"
+printf '%s' "$SUITE" > "$P/scripts/check.sh"
 fase "$P" F2 "I1 «suma»"
 recibo "$P" revisor-funcional encuadre F2 PASA 0
 echo "== etapa: plan aprobado (F2)"
@@ -132,7 +140,7 @@ espera pasa "cierre del plan: Ref: F2 con recibo del revisor funcional vigente" 
 
 Ref: F2"
 
-# E2: I1 cerrado en F3 (app.py revisado por el juez), listo para más incrementos.
+# E2: I1 cerrado en F3 (app.py revisado por el juez).
 Q="$W/etapas/f3"; cp -R "$P" "$Q"
 fase "$Q" F3 "I1 «suma»"
 printf 'def suma(a, b):\n    return a + b\n\nassert suma(1, 2) == 3\n' > "$Q/app.py"
@@ -142,13 +150,42 @@ espera pasa "I1: Ref: I1 con recibo del juez PASA sobre esta huella" "" -- commi
 
 Ref: I1"
 
+# E3: I1, I2, I3 cerrados (tres commits Ref: I), sin hito.
+H="$W/etapas/f3-tres"; cp -R "$Q" "$H"
+for i in 2 3; do
+  printf 'y%s = %s\n' "$i" "$i" >> "$H/app.py"; recibo "$H" juez-codigo incremento I$i PASA 0 seguridad=no-aplica
+  commitea "$H" "I$i
+
+Ref: I$i" || die "no pude preparar la etapa de tres incrementos"
+done
+
+# E4: listo para cerrar: C1 verificado, hallazgo verificado, F4 con conjunto PASA.
+Z="$W/etapas/cierre"; cp -R "$Q" "$Z"
+printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — función suma (satisface: C1)\n\n## Fuera de alcance / backlog\n\n- resta, multiplica: fuera de este ciclo (ADR-001)\n' > "$Z/docs/plan.md"
+printf '# Decisiones\n\n## ADR-001 — Alcance del primer ciclo\n\n- **Estado:** aceptada\n' > "$Z/docs/decisiones.md"
+trazabilidad "$Z" "$C1_VERIF" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | verificado | 2026-10-19 10:00 · abc1234 |'
+fase "$Z" F4 "— «ninguno»"
+recibo "$Z" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+echo "== etapa: cierre"
+espera pasa "cierre válido: Ref: F4 con todo verificado y conjunto PASA" "" -- commitea "$Z" "validación
+
+Ref: F4"
+
 # ======================================================================================
-echo "== A01 · fase ilegible / registros en F1"
+echo "== Suite del producto"
+copia f3 s1; printf 'assert suma(2, 2) == 5\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "suite en rojo (assert falla) bloquea el commit aunque el recibo esté vigente" "check.sh falló" -- commitea "$D" "I2
+
+Ref: I2"
+
+echo "== Fase ilegible / registros / suite adquirida"
 copia f3 a01; fase "$D" "F_"
 espera falla "fase F_ con proyecto iniciado se rechaza" "no declara una fase legible" -- commitea "$D" "docs
 
 Ref: I1"
-copia f3 a01b; sed -i.bak '/Fase actual/d' "$D/docs/estado.md"; rm -f "$D/docs/estado.md.bak"
+copia f3 a01b; python3 - "$D/docs/estado.md" <<'EOF'
+import sys; p=sys.argv[1]; open(p,'w').write(''.join(l for l in open(p) if 'Fase actual' not in l))
+EOF
 espera falla "fase ausente con proyecto iniciado se rechaza" "no declara una fase legible" -- commitea "$D" "docs
 
 Ref: I1"
@@ -164,31 +201,38 @@ copia plantilla a01e; fase "$D" "F1"
 espera falla "F1: borrar scripts/recibos.sh se rechaza" "falta scripts/recibos.sh" -- sh -c 'cd "$1" && git add -A && git rm -q scripts/recibos.sh && git -c core.hooksPath=.githooks commit -q -m "x
 
 Ref: F1"' sh "$D"
+copia f3 a02; fase "$D" "F1"; echo "- reencuadre" >> "$D/docs/MEMORIA.md"
+espera pasa "reencuadre: F3→F1 con la suite intacta se acepta" "" -- commitea "$D" "reencuadre
 
-echo "== A02 · código sin Ref: I<n>"
-copia f3 a02; printf 'def resta(a, b):\n    return a - b\n' >> "$D/app.py"
+Ref: F1"
+espera falla "tras el reencuadre, eliminar scripts/check.sh se rechaza (obligación adquirida)" "obligación adquirida" -- sh -c 'cd "$1" && git rm -q scripts/check.sh && git -c core.hooksPath=.githooks commit -q -m "sin suite
+
+Ref: F1"' sh "$D"
+
+echo "== Código sin Ref: I<n>"
+copia f3 b1; printf 'def resta(a, b):\n    return a - b\n' >> "$D/app.py"
 trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | resuelto | 2026-10-19 10:00 · abc1234 |'
 espera falla "Cierra: solo con código se rechaza" "sin 'Ref: I<n>'" -- commitea "$D" "corrige
 
 Cierra: R-I1.1"
-copia f3 a02b; printf 'def resta(a, b):\n    return a - b\n' >> "$D/app.py"
+copia f3 b2; printf 'def resta(a, b):\n    return a - b\n' >> "$D/app.py"
 espera falla "Ref: F1 con código se rechaza" "sin 'Ref: I<n>'" -- commitea "$D" "encuadre
 
 Ref: F1"
-copia f3 a02c; printf 'def resta(a, b):\n    return a - b\n' >> "$D/app.py"
+copia f3 b3; printf 'def resta(a, b):\n    return a - b\n' >> "$D/app.py"
 trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | resuelto | 2026-10-19 10:00 · abc1234 |'
 recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
 espera pasa "Ref: I2 + Cierra: con recibo vigente se acepta" "" -- commitea "$D" "I2 «resta»
 
 Ref: I2
 Cierra: R-I1.1"
-copia f3 a02d; echo "- nota" >> "$D/docs/MEMORIA.md"
+copia f3 b4; echo "- nota" >> "$D/docs/MEMORIA.md"
 espera pasa "solo rastro (docs/) con Ref: F1 se acepta" "" -- commitea "$D" "memoria
 
 Ref: F1"
 
-echo "== Recibos · caducado, FALLA, seguridad"
-copia f3 r1; printf 'def resta(a, b):\n    return a - b\n' >> "$D/app.py"
+echo "== Recibos: caducado, FALLA, seguridad, log"
+copia f3 r1; printf 'x = 1\n' >> "$D/app.py"
 recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
 printf '\n# cambio después del PASA\n' >> "$D/app.py"
 espera falla "recibo caducado (huella distinta) se rechaza" "el contenido cambió después" -- commitea "$D" "I2
@@ -211,7 +255,10 @@ recibo "$D" juez-seguridad incremento I2 PASA 0
 espera pasa "seguridad=requerida con recibo de seguridad se acepta" "" -- commitea "$D" "I2
 
 Ref: I2"
-copia f3 r4; sed -i.bak '/rol=juez-codigo/d' "$D/docs/revisiones.log"; rm -f "$D/docs/revisiones.log.bak"; echo "- nota" >> "$D/docs/MEMORIA.md"
+copia f3 r4; python3 - "$D/docs/revisiones.log" <<'EOF'
+import sys; p=sys.argv[1]; open(p,'w').write(''.join(l for l in open(p) if 'rol=juez-codigo' not in l))
+EOF
+echo "- nota" >> "$D/docs/MEMORIA.md"
 espera falla "log reescrito (recibo borrado) se rechaza" "append-only" -- commitea "$D" "memoria
 
 Ref: F1"
@@ -219,102 +266,125 @@ copia f3 r5
 espera falla "log eliminado en F3 se rechaza" "elimina|falta docs/revisiones.log" -- sh -c 'cd "$1" && git rm -q docs/revisiones.log && git -c core.hooksPath=.githooks commit -q -m "x
 
 Ref: F1"' sh "$D"
-echo "== P09/P10 · fecha y bloqueantes"
-copia f3 p9; printf 'fecha=ayer rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=%s ejecutor=x\n' "$(huella_idx "$D")" >> "$D/docs/revisiones.log"
+copia f3 p9; recibo_bruto "$D" "fecha=ayer rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x"
 espera falla "fecha=ayer es inválida" "fecha debe ser ISO" -- en "$D" sh scripts/recibos.sh validar docs/revisiones.log
-copia f3 p9b; printf 'fecha=2026-02-30 rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=%s ejecutor=x\n' "$(huella_idx "$D")" >> "$D/docs/revisiones.log"
+copia f3 p9b; recibo_bruto "$D" "fecha=2026-02-30 rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x"
 espera falla "fecha=2026-02-30 es inválida" "fecha debe ser ISO" -- en "$D" sh scripts/recibos.sh validar docs/revisiones.log
-copia f3 p10; printf 'fecha=2026-10-19 rol=juez-codigo tipo=incremento alcance=I2 veredicto=FALLA bloqueantes=00 seguridad=no-aplica huella=%s ejecutor=x\n' "$(huella_idx "$D")" >> "$D/docs/revisiones.log"
+copia f3 p10; recibo_bruto "$D" "fecha=2026-10-19 rol=juez-codigo tipo=incremento alcance=I2 veredicto=FALLA bloqueantes=00 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x"
 espera falla "bloqueantes=00 es inválido" "bloqueantes debe ser" -- en "$D" sh scripts/recibos.sh validar docs/revisiones.log
-copia f3 p10b; printf 'fecha=2026-10-19T23:59:59Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=FALLA bloqueantes=12 seguridad=no-aplica huella=%s ejecutor=x\n' "$(huella_idx "$D")" >> "$D/docs/revisiones.log"
+copia f3 p10b; recibo_bruto "$D" "fecha=2026-10-19T23:59:59Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=FALLA bloqueantes=12 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x"
 espera pasa "fecha ISO completa y bloqueantes=12 son válidos" "" -- en "$D" sh scripts/recibos.sh validar docs/revisiones.log
 
-echo "== A04 · hallazgos abiertos del incremento"
-copia f3 a04; printf 'x = 1\n' >> "$D/app.py"
+echo "== Hallazgos del incremento y Cierra:"
+copia f3 c1; printf 'x = 1\n' >> "$D/app.py"
 trazabilidad "$D" "$C1_PEND" "" '| R-I2.1 | «sin-prueba» | I2 | C1 | falta prueba | abierto | — |'
 recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
 espera falla "Ref: I2 con R-I2.1 abierto se rechaza" "R-I2.1" -- commitea "$D" "I2
 
 Ref: I2"
-copia f3 a04b; printf 'x = 1\n' >> "$D/app.py"
+copia f3 c2; printf 'x = 1\n' >> "$D/app.py"
 trazabilidad "$D" "$C1_PEND" "" '| R-S2.1 | «inyeccion» | I2 | C1 | entrada sin validar | abierto | — |'
 recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
 espera falla "Ref: I2 con R-S2.1 abierto se rechaza" "R-S2.1" -- commitea "$D" "I2
 
 Ref: I2"
-copia f3 a04c; printf 'x = 1\n' >> "$D/app.py"
+copia f3 c3; printf 'x = 1\n' >> "$D/app.py"
 trazabilidad "$D" "$C1_PEND" "" '| R-I2.1 | «sin-prueba» | I2 | C1 | falta prueba | resuelto | 2026-10-19 10:00 · abc1234 |
 | R-I3.1 | «otro» | I3 | C1 | de otro incremento | abierto | — |'
 recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
 espera pasa "Ref: I2 con R-I2.1 resuelto y R-I3.1 (ajeno) abierto se acepta" "" -- commitea "$D" "I2
 
 Ref: I2"
+copia f3 c4; printf 'x = 1\n' >> "$D/app.py"
+trazabilidad "$D" "$C1_PEND" "" "" '- `R-I2.1 «sin-prueba» · verificado 2026-10-19 · commit abc1234`'
+recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera pasa "Cierra: sobre un hallazgo ya compactado al Histórico (verificado) se acepta" "" -- commitea "$D" "I2
 
-echo "== A03 · contador de hitos"
-# Cierra I2 e I3 de verdad (commits), luego intenta I4 en distintas condiciones.
-H="$W/etapas/f3-tres"; cp -R "$Q" "$H"
-for i in 2 3; do
-  printf 'y%s = %s\n' "$i" "$i" >> "$H/app.py"; recibo "$H" juez-codigo incremento I$i PASA 0 seguridad=no-aplica
-  commitea "$H" "I$i
+Ref: I2
+Cierra: R-I2.1"
+copia f3 c5; echo "- nota" >> "$D/docs/MEMORIA.md"
+espera falla "Cierra: sobre un ID sin fila ni Histórico se rechaza" "no tiene fila" -- commitea "$D" "x
 
-Ref: I$i" || die "no pude preparar la etapa de tres incrementos"
-done
+Cierra: R-I9.9"
+copia f3 c6; printf 'x = 1\n' >> "$D/app.py"
+trazabilidad "$D" "$C1_PEND" "" '  | R-I2.1 | «sin-prueba» | I2 | C1 | falta prueba | abierto | — |'
+recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "fila con sangría no se vuelve invisible: Ref: I2 con R-I2.1 abierto (sangrado) se rechaza" "sangría|R-I2.1" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 c7
+trazabilidad "$D" "$C1_PEND" "" '| R-I99.1 | «cruzado» | I2 | C1 | ID e Incr. discordantes | abierto | — |'
+espera falla "ID R-I99.1 con Incr. I2 (dos identidades) se rechaza" "dos identidades" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 c8
+trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «corta» | I1 | C1 | fila sin la última celda | verificado |'
+espera falla "fila con menos celdas que el encabezado se rechaza" "celdas" -- commitea "$D" "docs
+
+Ref: F1"
+
+echo "== Hito: contador por commits, rango, cobertura, seguridad"
 copia f3-tres h1; printf 'z = 4\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I4 PASA 0 seguridad=no-aplica
-espera falla "cuarto incremento sin hito se rechaza" "hito" -- commitea "$D" "I4
+espera falla "cuarto incremento sin commit de hito se rechaza" "hito" -- commitea "$D" "I4
 
 Ref: I4"
 copia f3-tres h2
 recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
-espera pasa "commit del hito: Ref: hito:I1-I3 con recibo vigente" "" -- commitea "$D" "hito I1-I3
+espera pasa "commit del hito: Ref: hito:I1-I3 con recibo vigente y los tres cierres en el historial" "" -- commitea "$D" "hito I1-I3
 
 Ref: hito:I1-I3"
 printf 'z = 4\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I4 PASA 0 seguridad=no-aplica
-espera pasa "cuarto incremento tras hito válido (huella de un commit real) se acepta" "" -- commitea "$D" "I4
+espera pasa "cuarto incremento tras el commit del hito se acepta" "" -- commitea "$D" "I4
 
 Ref: I4"
 copia f3-tres h3
-printf 'fecha=2026-10-19 rol=juez-conjunto tipo=hito alcance=hito:I1-I3 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=000000000000 ejecutor=x cubre=C1 excluye=ninguno componentes=app\n' >> "$D/docs/revisiones.log"
+recibo_bruto "$D" "fecha=2026-10-19 rol=juez-conjunto tipo=hito alcance=hito:I1-I3 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=000000000000 ejecutor=x cubre=C1 excluye=ninguno componentes=app"
 printf 'z = 4\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I4 PASA 0 seguridad=no-aplica
-espera falla "hito con huella inventada no reinicia el contador" "no es la de ningún commit" -- commitea "$D" "I4
+espera falla "un recibo de hito suelto (sin su commit Ref: hito) no cuenta como hito" "hito" -- commitea "$D" "I4
 
 Ref: I4"
 copia f3-tres h4
 recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=requerida cubre=C1 excluye=ninguno componentes=app
-printf 'z = 4\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I4 PASA 0 seguridad=no-aplica
-espera falla "hito con seguridad=requerida sin recibo de seguridad no cuenta" "hito" -- commitea "$D" "I4
+recibo_bruto "$D" "fecha=2026-10-19 rol=juez-seguridad tipo=hito alcance=hito:I1-I3 veredicto=PASA bloqueantes=0 huella=000000000000 ejecutor=x"
+espera falla "hito con seguridad=requerida cuyo recibo de seguridad tiene otra huella se rechaza" "juez-seguridad" -- commitea "$D" "hito
 
-Ref: I4"
+Ref: hito:I1-I3"
 copia f3-tres h5
 recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
 recibo "$D" juez-conjunto hito hito:I1-I3 FALLA 2 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
-printf 'z = 4\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I4 PASA 0 seguridad=no-aplica
-espera falla "hito PASA seguido de FALLA no cuenta" "hito" -- commitea "$D" "I4
+espera falla "hito PASA seguido de FALLA se rechaza" "fue FALLA" -- commitea "$D" "hito
 
-Ref: I4"
+Ref: hito:I1-I3"
 copia f3-tres h6; echo "- nota" >> "$D/docs/MEMORIA.md"
 espera falla "Ref: hito sin recibo de hito se rechaza" "no hay recibo válido de juez-conjunto" -- commitea "$D" "hito
 
 Ref: hito:I1-I3"
+copia f3-tres h7
+recibo "$D" juez-conjunto hito hito:I99-I99 PASA 0 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
+espera falla "hito sobre un rango inexistente (I99) se rechaza" "no existe" -- commitea "$D" "hito
 
-echo "== A05 · cierre: criterios, IDs"
-# Etapa de cierre válida: C1 verificado, hallazgo verificado, ADR-000 fuera, F4 con conjunto.
-Z="$W/etapas/cierre"; cp -R "$Q" "$Z"
-trazabilidad "$Z" "$C1_VERIF" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | verificado | 2026-10-19 10:00 · abc1234 |'
-python3 - "$Z/docs/decisiones.md" <<'EOF'
-import sys,re
-p=sys.argv[1]; s=open(p).read()
-s=re.sub(r'\n## ADR-000.*', '\n', s, flags=re.S); open(p,'w').write(s)
-EOF
-fase "$Z" F4 "— «ninguno»"
-recibo "$Z" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
-echo "== etapa: cierre"
-espera pasa "cierre válido: Ref: F4 con todo verificado y conjunto PASA" "" -- commitea "$Z" "validación
+Ref: hito:I99-I99"
+copia f3 h8
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
+espera falla "hito I1-I3 cuando solo I1 está cerrado se rechaza (revisa lo construido, no lo prometido)" "no tiene commit" -- commitea "$D" "hito
 
-Ref: F4"
-copia cierre z1; sed -i.bak 's/^- C1:.*/- Objetivo: sumar/' "$D/docs/encuadre.md"; rm -f "$D/docs/encuadre.md.bak"
+Ref: hito:I1-I3"
+copia f2 h9; fase "$D" F3 "I1 «suma»"; printf 'def suma(a, b):\n    return a + b\n' > "$D/app.py"
+for i in 1 2 3 4; do recibo "$D" juez-codigo incremento I$i PASA 0 seguridad=no-aplica; done
+espera pasa "recibos preparados para I1..I4 no bloquean el cierre de I1: el contador son commits cerrados" "" -- commitea "$D" "I1
+
+Ref: I1"
+
+echo "== Cierre: criterios, IDs, alcance funcional"
+copia cierre z1; printf '# Encuadre\n\n- Objetivo: sumar\n' > "$D/docs/encuadre.md"
 trazabilidad "$D" "" "" ""
 recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
 espera falla "cierre sin ningún criterio se rechaza" "ningún criterio" -- commitea "$D" "cierre
+
+Ref: F5"
+copia cierre z10; printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — (satisface: C1)\n- [ ] I2 «resta» — (satisface: C1)\n\n## Fuera de alcance / backlog\n\n- nada\n' > "$D/docs/plan.md"
+recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+espera falla "cierre con un incremento del plan sin marcar (- [ ] I2) se rechaza" "sigue como" -- commitea "$D" "cierre
 
 Ref: F5"
 copia cierre z2; trazabilidad "$D" "$C1_VERIF
@@ -322,7 +392,7 @@ copia cierre z2; trazabilidad "$D" "$C1_VERIF
 espera falla "criterio huérfano C999 en trazabilidad se rechaza" "huérfano" -- commitea "$D" "docs
 
 Ref: F1"
-copia cierre z3; sed -i.bak 's/^- C1:/- **C1**:/' "$D/docs/encuadre.md"; rm -f "$D/docs/encuadre.md.bak"
+copia cierre z3; printf '# Encuadre\n\n- **C1**: la función suma devuelve a+b.\n' > "$D/docs/encuadre.md"
 espera falla "criterio en negrita (**C1**) se rechaza como formato no admitido" "fuera de la gramática" -- commitea "$D" "docs
 
 Ref: F1"
@@ -335,12 +405,26 @@ copia f2 z5
 espera falla "fila de ejemplo de la plantilla con proyecto iniciado se rechaza" "fila de ejemplo" -- sh -c 'cd "$1" && printf "| R-I_._ | «…» | I_ | C_ | _…_ | abierto | — |\n" >> docs/trazabilidad.md && git add -A && git -c core.hooksPath=.githooks commit -q -m "x
 
 Ref: F1"' sh "$D"
-copia cierre z6; sed -i.bak 's/^- C1:.*/- C1:/' "$D/docs/encuadre.md"; rm -f "$D/docs/encuadre.md.bak"
+copia cierre z6; printf '# Encuadre\n\n- C1:\n' > "$D/docs/encuadre.md"
 espera falla "criterio sin enunciado con proyecto iniciado se rechaza" "sin enunciado" -- commitea "$D" "docs
 
 Ref: F1"
+copia f2 z7; trazabilidad "$D" '| C1 | «suma» | - | pendiente | |' "" ""
+espera falla "F2 con un criterio sin incremento asignado se rechaza" "no tiene incremento asignado" -- commitea "$D" "plan
 
-echo "== A06 · roles y procedimiento obligatorios"
+Ref: F1"
+copia plantilla z8; cp -R "$W/etapas/f2/docs" "$D/"; cp "$W/etapas/f2/AGENTS.md" "$D/AGENTS.md"; cp "$W/etapas/f2/scripts/check.sh" "$D/scripts/check.sh"
+recibo "$D" revisor-funcional encuadre reentrada:C999 PASA 0
+espera falla "F2 con recibo de reentrada:C999 (criterio inexistente) se rechaza" "C999 no está definido" -- commitea "$D" "reentrada
+
+Ref: F2"
+copia plantilla z9; cp -R "$W/etapas/f2/docs" "$D/"; cp "$W/etapas/f2/AGENTS.md" "$D/AGENTS.md"; cp "$W/etapas/f2/scripts/check.sh" "$D/scripts/check.sh"
+recibo "$D" revisor-funcional encuadre reentrada:C1 PASA 0
+espera pasa "F2 con recibo de reentrada:C1 (criterio existente) se acepta" "" -- commitea "$D" "reentrada
+
+Ref: F2"
+
+echo "== Roles, YAML"
 copia f3 a06; rm "$D/.claude/agents/juez-seguridad.md"
 espera falla "quitar juez-seguridad.md se rechaza" "falta .claude/agents/juez-seguridad.md" -- commitea "$D" "docs
 
@@ -349,27 +433,51 @@ copia f3 a06b; rm -r "$D/.claude/skills/dirigiendo-revisiones"
 espera falla "quitar dirigiendo-revisiones/ se rechaza" "falta .claude/skills/dirigiendo-revisiones" -- commitea "$D" "docs
 
 Ref: F1"
-
-echo "== A07 · YAML"
-copia f3 a07; sed -i.bak 's/^description: .*/description: "Texto \\q raro"/' "$D/.claude/agents/juez-codigo.md"; rm -f "$D/.claude/agents/juez-codigo.md.bak"
+yaml_desc() {  # yaml_desc <dir> <valor literal de description>
+  python3 - "$1/.claude/agents/juez-codigo.md" "$2" <<'EOF'
+import re,sys
+p,v=sys.argv[1:]; s=open(p).read()
+s=re.sub(r'^description: .*$', 'description: '+v.replace('\\','\\\\'), s, count=1, flags=re.M); open(p,'w').write(s)
+EOF
+}
+copia f3 y1; yaml_desc "$D" '"Texto \q raro"'
 espera falla "escape \\q en el frontmatter se rechaza" "escape inválido" -- commitea "$D" "docs
 
 Ref: F1"
-copia f3 a07b; sed -i.bak 's/^description: .*/description: "Dice \\"hola\\" y sigue"/' "$D/.claude/agents/juez-codigo.md"; rm -f "$D/.claude/agents/juez-codigo.md.bak"
-espera pasa "comillas escapadas válidas se aceptan" "" -- commitea "$D" "docs
+copia f3 y2; yaml_desc "$D" '"Texto \u12 corto"'
+espera falla "escape \\u12 (unicode incompleto) se rechaza" "escape inválido" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y3; yaml_desc "$D" '"Texto \xGG"'
+espera falla "escape \\xGG (hexadecimal ilegal) se rechaza" "escape inválido" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y4; yaml_desc "$D" '""'
+espera falla "description vacía (\"\") se rechaza" "description vacía" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y5; yaml_desc "$D" '"Dice \"hola\", \u00e9 y \x41 \\ y sigue"'
+espera pasa "comillas y escapes válidos se aceptan" "" -- commitea "$D" "docs
 
 Ref: F1"
 
-echo "== A08 · arnés de sabotaje"
+echo "== Arnés de sabotaje"
 S="$W/sab"; mkdir -p "$S/scripts"; en "$S" git init -q
-printf '#!/bin/sh\nif [ -f gate.sh ]; then\n  exit 0\nfi\nexit 1\n' > "$S/gate.sh"; chmod +x "$S/gate.sh"
+printf '#!/bin/sh\nif [ -f gate.sh ]; then\n  exit 0\nfi\necho "FAIL: gate"\nexit 1\n' > "$S/gate.sh"; chmod +x "$S/gate.sh"
 printf '#!/bin/sh\nsh ./gate.sh\n' > "$S/scripts/check.sh"
 printf '[{"label":"sin-fi","file":"gate.sh","before":"fi\\n","after":"\\n"}]\n' > "$S/sin_fi.json"
-printf '[{"label":"exit1","file":"gate.sh","before":"exit 0","after":"exit 1"}]\n' > "$S/exit1.json"
+printf '[{"label":"gate-roto","file":"gate.sh","before":"-f gate.sh","after":"-f nope"}]\n' > "$S/gate.json"
+printf '[{"label":"silencio","file":"gate.sh","before":"exit 0","after":"exit 1"}]\n' > "$S/silencio.json"
 espera falla "mutante shell sin fi es INVALID (exit 2), no DIES" "INVALID" -- en "$S" python3 -I "$SAB" sin_fi.json
-espera pasa "--suite ./gate.sh corre la copia mutada: DIES" "DIES" -- en "$S" python3 -I "$SAB" exit1.json --suite ./gate.sh
+espera pasa "--suite ./gate.sh corre la copia mutada y el aserto (FAIL) acredita: DIES" "DIES" -- en "$S" python3 -I "$SAB" gate.json --suite ./gate.sh
+espera falla "rojo sin firma de aserto (exit 1 mudo) es UNVERIFIED, no DIES" "UNVERIFIED" -- en "$S" python3 -I "$SAB" silencio.json --suite ./gate.sh
+espera pasa "--trust-exit-code acepta el rojo mudo y lo declara en el resumen" "DIES.*|trust-exit-code" -- en "$S" python3 -I "$SAB" silencio.json --suite ./gate.sh --trust-exit-code
+printf 'SELECT 1;\n' > "$S/query.sql"
+printf '#!/bin/sh\npython3 -c "import sqlite3;sqlite3.connect(\\":memory:\\").executescript(open(\\"query.sql\\").read())" || exit 1\nexit 0\n' > "$S/scripts/check.sh"
+printf '[{"label":"selec","file":"query.sql","before":"SELECT","after":"SELEC"}]\n' > "$S/sql.json"
+espera falla "mutante SQL inválido (SELEC) no cuenta como garantía: INVALID/UNVERIFIED, exit 2" "INVALID|UNVERIFIED" -- en "$S" python3 -I "$SAB" sql.json
 
-echo "== Recorrido F1→F5"
+echo "== Recorrido F1→F5 y validación del historial"
 R="$W/recorrido"; cp -R "$Z" "$R"
 fase "$R" F5 "— «ninguno»"
 espera pasa "F5: Ref: F5 con el conjunto de F4 vigente" "" -- commitea "$R" "cierre
@@ -377,6 +485,11 @@ espera pasa "F5: Ref: F5 con el conjunto de F4 vigente" "" -- commitea "$R" "cie
 Ref: F5"
 espera pasa "doctor en verde sobre el proyecto cerrado" "" -- en "$R" sh scripts/check_docs.sh
 espera pasa "doctor en modo cierre sobre el proyecto cerrado" "" -- en "$R" sh scripts/check_docs.sh cierre
+espera pasa "validar_historial: todo el historial del recorrido cumple el contrato" "commits cumplen" -- en "$R" sh scripts/pruebas/validar_historial.sh HEAD
+copia f3-tres v1; printf 'w = 1\n' >> "$D/app.py"
+sin_hooks "$D" "colado sin trailer ni recibo" || die "no pude preparar el commit colado"
+espera falla "validar_historial detecta el commit colado con --no-verify (sin trailer, código sin recibo)" "FALLO.*colado|falta el trailer" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD
+espera pasa "validar_historial sobre el historial previo al colado sigue en verde" "commits cumplen" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1
 
 echo
 echo "regresion: $((TOTAL-MAL))/$TOTAL casos en verde"

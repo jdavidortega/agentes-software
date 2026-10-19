@@ -25,6 +25,13 @@ symlink) is reported apart and NEVER counted as a kill. Neither is a red suite t
 for the WRONG reason: a mutant that does not compile or import (`INVALID`), or a run that
 timed out (`TIMEOUT`), proves nothing about the behavior the test allegedly protects -- it
 is reported apart with the lines of output that explain it, and the spec must be fixed.
+A kill needs POSITIVE evidence: `DIES` is reported only when the red output carries the
+signature of a failed assertion (`--kill-pattern`, a regex; the default covers pytest,
+unittest, jest, go test, cargo, rspec, TAP and plain `assert`). A red run with no such
+signature (a SQL parse error, a crashed helper, a silent `exit 1`) is `UNVERIFIED`: not a
+kill and exit 2, because the suite never reached the behavior it claims to protect. For a
+stack whose runner prints something else, pass `--kill-pattern`; `--trust-exit-code` makes
+any red count as a kill and says so in the report (a declared choice, not a default).
 Every `DIES` keeps the tail of the suite output as evidence of *why* it went red.
 Exit codes: 0 = every mutation was applied, valid and died; 1 = at least one survived;
 2 = at least one could not be applied or was invalid (fix the spec; never read 2 as a pass).
@@ -58,6 +65,7 @@ import argparse
 import fnmatch
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -135,6 +143,16 @@ INVALID_PATTERNS = (
     # Shells (sh/dash/bash): a mutant that is not even parseable never ran the behavior.
     "Syntax error:", "syntax error:", "syntax error near unexpected token", "unexpected end of file",
     "unexpected EOF", "Unterminated quoted string",
+    # Interpreted inputs (SQL, templates, configs): a parser rejecting the mutant is not a test.
+    "syntax error", "OperationalError", "ParseError", "parse error", "JSONDecodeError",
+)
+
+# What a FAILED ASSERTION looks like in the common runners. Only output matching this (and
+# none of INVALID_PATTERNS) accredits a kill. Override with --kill-pattern for another stack.
+KILL_PATTERN = (
+    r"AssertionError|assert |FAILED|FAIL:|FAIL\b|failed\b|✗|✕|not ok|Expected|expected|"
+    r"Traceback \(most recent call last\)|panic: |--- FAIL|test result: FAILED|Failures:|"
+    r"\d+ failing|\d+ failed|Error: .*expect"
 )
 
 
@@ -256,6 +274,17 @@ def main() -> int:
         "project's scripts/check.sh; pass your stack's test command if it differs)",
     )
     parser.add_argument("--timeout", type=int, default=300)
+    parser.add_argument(
+        "--kill-pattern",
+        default=KILL_PATTERN,
+        help="regex that a red run must match to count as DIES (failed-assertion signature of "
+        "your runner); anything else red is UNVERIFIED (default covers the common runners)",
+    )
+    parser.add_argument(
+        "--trust-exit-code",
+        action="store_true",
+        help="count any red run as DIES without the assertion signature (declared, not default)",
+    )
     parser.add_argument("--max-mb", type=int, default=500, help="refuse to copy a tree above this size")
     parser.add_argument("--force", action="store_true", help="copy even above --max-mb")
     arguments = parser.parse_args()
@@ -362,11 +391,18 @@ def main() -> int:
                 print(f"  INVALID  {label}: red for the wrong reason ({reason}) -- {run.tail(2)}")
                 invalid.append(label)
                 continue
+            if not arguments.trust_exit_code and not re.search(arguments.kill_pattern, run.output):
+                # Red, but nothing says a test asserted anything: the behavior may never have run.
+                print(f"  UNVERIFIED {label}: red without a failed-assertion signature; not a kill "
+                      f"(pass --kill-pattern for this stack, or --trust-exit-code deliberately) -- {run.tail(2)}")
+                invalid.append(label)
+                continue
             print(f"  DIES     {label} -- {run.tail(2)}")
             died.append(label)
 
     print(f"\napplied {len(died) + len(survived)}/{len(mutations)}: {len(died)} die, {len(survived)} survive; "
-          f"{len(invalid)} not applied or invalid")
+          f"{len(invalid)} not applied, invalid or unverified"
+          + (" [kills accepted on exit code alone: --trust-exit-code]" if arguments.trust_exit_code else ""))
     if survived:
         print("guarantees no test protects: " + ", ".join(survived))
     if invalid:

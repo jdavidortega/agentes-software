@@ -8,7 +8,8 @@
 > - **A — inicial:** primer ciclo, aún no hay encuadre.
 > - **B — reentrada:** el proyecto ya cerró (Fase 5) y llega trabajo nuevo. En
 >   reentrada se ingiere **solo este insumo** (rebanada), no se re-corre la Fase 1.
->   Lo pedido con el plan aún vivo no es reentrada (va al bucle de la Fase 3), pero
+>   Lo pedido con el plan aún vivo no es reentrada (va al bucle de la Fase 3 si no cambia
+>   un `C#`; si lo cambia, se trata como ajuste del encuadre igual que en B), pero
 >   reportarlo con «Qué pasa hoy / Qué debería pasar» de la B sirve igual.
 >
 > No es obligatoria: `contexto/` acepta cualquier documento. Úsala cuando no tengas

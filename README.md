@@ -295,9 +295,11 @@ git config core.hooksPath .githooks
   `resuelto|verificado`), rechaza familias desconocidas, exige por transición un **recibo
   de revisión vigente** en `docs/revisiones.log` (el último del rol y alcance, en PASA, con
   `huella` igual a la del índice; `Ref: I<n>` → juez de código más seguridad si la declaró
-  requerida, sin hallazgos `R-I<n>.*`/`R-S<n>.*` abiertos y con hito vigente cada tres
-  incrementos —un hito cuenta solo si su último veredicto es PASA, su seguridad está y su
-  huella es la de un commit real—; `F2` → revisor funcional y ningún vacío abierto; `F4` →
+  requerida, sin hallazgos `R-I<n>.*`/`R-S<n>.*` abiertos y como máximo tres incrementos
+  cerrados —commits `Ref: I<k>`— desde el último commit `Ref: hito:…`; `hito:I<a>-I<b>` →
+  juez de conjunto (más seguridad, misma huella) sobre un rango que existe en el plan y
+  cuyos incrementos ya tienen su commit; `F2` → revisor funcional (una `reentrada:C<n>`
+  nombra un criterio existente) y ningún vacío abierto; `F4` →
   juez de conjunto, no un hito; `F5` → el de F4 sigue vigente), **solo deja entrar código
   del producto con `Ref: I<n>`** (un `Cierra:` o un `Ref: F#` no acreditan revisión), y un
   `Ref: F4|F5` dispara `scripts/check_docs.sh cierre` (condiciones de salida del ciclo:
@@ -309,12 +311,19 @@ git config core.hooksPath .githooks
 - **`.editorconfig`** — estilo base (charset, espacios) que aplican los editores.
 
 Los hooks son locales y esquivables (`git commit --no-verify`): con remoto compartido,
-`scripts/check.sh`, `scripts/check_docs.sh` y `scripts/pruebas/regresion.sh` se cablean
-también en CI (ver `docs/convenciones.md` §Git). **`scripts/pruebas/regresion.sh`** es la
-regresión de los propios hooks: crea repositorios temporales, sin red ni credenciales, y
-comprueba cada regla con su caso negativo y su caso positivo (fase ilegible, código sin
-recibo, recibo caducado, hito inválido, cierre vacío, rol ausente, YAML ilegal…). Corre en
-segundos; es lo que se ejecuta antes de tocar un hook o un script de la plantilla.
+`scripts/check.sh`, `scripts/check_docs.sh`, `scripts/pruebas/validar_historial.sh` y
+`scripts/pruebas/regresion.sh` se cablean también en CI (ver `docs/convenciones.md` §Git).
+**`validar_historial.sh`** reejecuta el contrato de los hooks sobre cada commit de un rango
+(`origin/main..HEAD` por defecto): trailers, recibos vigentes por huella, hito, código solo
+con `Ref: I<n>`, append-only, registros y suite que no desaparecen, `check_docs` sobre el
+árbol del commit. Es lo que hace que un `--no-verify` local falle en el remoto.
+**`regresion.sh`** es la regresión de los propios hooks: autocontenida (toma de este
+repositorio solo la instrumentación y genera un proyecto sintético), crea repositorios
+temporales sin red ni credenciales y comprueba cada regla con su caso negativo y su caso
+positivo (fase ilegible, código sin recibo, suite en rojo, recibo caducado, hito sin
+cobertura, fila invisible, cierre vacío, rol ausente, YAML ilegal, mutante no acreditado…).
+Da el mismo resultado en la plantilla vacía y dentro de un proyecto con código; es lo que se
+ejecuta antes de tocar un hook o un script de la plantilla.
 
 **Límites declarados** (lo que ningún hook local prueba): quién ejecutó una revisión
 (`ejecutor=` es dato declarado; el recibo ata el veredicto al contenido, no a una sesión),
@@ -445,11 +454,13 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 │   ├── check_docs.sh        integridad del rastro documental (pre-commit, commit-msg y a mano)
 │   ├── huella.sh            huellas: vigencia (lo revisable: todo salvo revisiones.log,
 │   │                        trazabilidad, estado y MEMORIA) e integridad (todo el árbol)
-│   ├── recibos.sh           parser único de revisiones.log (hook y doctor); contador de hitos
+│   ├── recibos.sh           parser único de revisiones.log (hook y doctor)
 │   ├── consumo.py           consumo de tokens por modelo desde los transcripts locales
 │   └── pruebas/
-│       └── regresion.sh     regresión de los hooks y scripts (repos temporales; sin red)
+│       ├── regresion.sh     regresión de los hooks y scripts (repos temporales; sin red)
+│       └── validar_historial.sh  el contrato de los hooks sobre cada commit de un rango (CI)
 ├── .githooks/           hooks versionados (commit-msg enlazado; pre-commit: secretos + checks)
+├── .github/workflows/   metodo.yml: la CI mínima (doctor, contrato por commit, regresión, suite)
 ├── .editorconfig        estilo base agnóstico del lenguaje
 └── .gitignore
 ```

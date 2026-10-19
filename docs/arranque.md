@@ -23,7 +23,9 @@
 La reentrada **no re-ejecuta el arranque**: el guion completo se corre **una vez**, en el
 primer ciclo. Lo dispara el **cierre** (Fase 5) —en ese momento o en una sesión futura— y
 se reutiliza **solo la rebanada que el cambio necesita**. (Lo pedido **con el plan aún
-vivo** no es reentrada: va por el bucle de la Fase 3.) Clasifica con una sola pregunta:
+vivo** no es reentrada: va por el bucle de la Fase 3 **si no cambia un `C#` ni el set de
+oro**; si los cambia, la pregunta de abajo aplica igual, sin esperar a F5.) Clasifica con
+una sola pregunta:
 
 > **¿El pedido cambia la verdad acordada —un `C#` o el set de oro de `docs/encuadre.md`?**
 

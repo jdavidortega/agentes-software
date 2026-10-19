@@ -49,10 +49,14 @@ allowed-tools: Read, Grep, Glob, Bash
    (el texto `before` ya no está), `MISSING` (el archivo no existe) y `ESCAPES` (la ruta sale
    de la copia, p. ej. un enlace simbólico) son mutaciones **no aplicadas**; `INVALID` (el
    mutante no compila o no importa: la suite se puso roja **por la razón equivocada**, no
-   porque un test detectara el comportamiento) y `TIMEOUT` son mutaciones **inválidas**.
-   Todas se cuentan aparte, nunca como muertas, y el arnés sale con código **2**. Cada
-   `DIES` trae las últimas líneas de la salida de la suite: la evidencia de **por qué** se
-   puso roja (que sea por el assert del comportamiento, no por un error de entorno). Solo
+   porque un test detectara el comportamiento), `TIMEOUT` y `UNVERIFIED` (la suite se puso
+   roja pero su salida **no trae la firma de un aserto fallido** —`AssertionError`, `FAILED`,
+   `not ok`…—: un `exit 1` mudo o un parser que rechaza el mutante no acreditan nada) son
+   mutaciones **inválidas**. Todas se cuentan aparte, nunca como muertas, y el arnés sale
+   con código **2**. `DIES` exige esa evidencia positiva: si tu runner imprime otra firma,
+   pásala con `--kill-pattern`; `--trust-exit-code` acepta cualquier rojo y lo deja dicho
+   en el resumen (es una decisión declarada, no un default). Cada `DIES` trae las últimas
+   líneas de la salida de la suite: la evidencia de **por qué** se puso roja. Solo
    el código **0** (todas aplicadas, válidas y muertas) acredita; **1** = hay
    supervivientes; **2** = spec rancio, inseguro o inválido, arréglalo —no es un permiso
    para dar la garantía por buena—.

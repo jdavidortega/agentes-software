@@ -1,0 +1,28 @@
+# CI mínima del método (viene con la plantilla; README §Enforcement, convenciones §Git).
+# Reejecuta en el remoto lo que los hooks locales exigen, para que un `--no-verify` no pase:
+# el rastro documental, el contrato de cada commit nuevo, la regresión de los propios hooks
+# y la suite del producto. Sin red salvo el checkout; sin credenciales.
+name: metodo
+on:
+  push:
+  pull_request:
+jobs:
+  contrato:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # validar_historial necesita el historial completo
+      - name: Hooks activos (el doctor lo exige dentro de un repo)
+        run: git config core.hooksPath .githooks
+      - name: Rastro documental
+        run: sh scripts/check_docs.sh
+      - name: Contrato de cada commit nuevo (solo con el proyecto iniciado; la plantilla vacía no tiene commits enlazados)
+        run: |
+          grep -qE 'Fase actual:\*\* F[1-5]' docs/estado.md || { echo "plantilla sin iniciar: no hay contrato de commits que validar"; exit 0; }
+          base=$(git rev-parse --verify -q origin/main 2>/dev/null || git rev-parse --verify -q origin/master 2>/dev/null || true)
+          if [ -n "$base" ] && [ "$base" != "$(git rev-parse HEAD)" ]; then sh scripts/pruebas/validar_historial.sh "$base..HEAD"; else sh scripts/pruebas/validar_historial.sh HEAD; fi
+      - name: Regresión de los hooks
+        run: sh scripts/pruebas/regresion.sh
+      - name: Suite del producto (desde F2)
+        run: if [ -f scripts/check.sh ]; then sh scripts/check.sh; else echo "sin scripts/check.sh todavía (llega con el diseño)"; fi

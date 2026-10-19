@@ -337,9 +337,9 @@ Cuatro roles, rúbrica en su skill (`.claude/skills/revision-*/`), rol en
   `huella`, ejecutor y, en hitos, `cubre`/`excluye`/`componentes`. El `commit-msg` exige el
   **último** recibo válido del alcance en PASA con la huella del índice para `Ref: I<n>`,
   `F2` (o `reentrada:C<n>`), `F4` y `F5` (F5 exige lo mismo que F4, seguridad incluida),
-  y `hito:I<a>-I<b>`; rechaza `Ref: I<n>` con hallazgos `R-I<n>.*`/`R-S<n>.*` abiertos, y
-  cuenta los incrementos desde el hito vigente (un PASA efectivo, con seguridad, cuya huella
-  es la de un commit real): al cuarto sin hito, rechaza.
+  y `hito:I<a>-I<b>` (rango del plan cuyos incrementos ya están commiteados); rechaza
+  `Ref: I<n>` con hallazgos `R-I<n>.*`/`R-S<n>.*` abiertos, y cuenta los commits `Ref: I<k>`
+  desde el último commit `Ref: hito:…`: al cuarto sin hito, rechaza.
   **Todo lo revisable se escribe antes del PASA**; después, solo registros. La aprobación
   humana es otra cosa: la da la persona en el gate.
 - **Reporte breve y exacto:** veredicto, bloqueantes con fila lista, ≤5 sugerencias,

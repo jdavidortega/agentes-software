@@ -54,6 +54,14 @@ if git rev-parse --verify HEAD >/dev/null 2>&1 && git cat-file -e HEAD:docs/revi
   rm -f "$tmpa" "$tmpb"
 fi
 
+# 1d) La suite es una obligación ADQUIRIDA: desde que scripts/check.sh existe en HEAD (salida del
+#     diseño), ningún commit la elimina, en ninguna fase (reencuadre incluido). Cambiarla sí.
+if git rev-parse --verify HEAD >/dev/null 2>&1 && git cat-file -e HEAD:scripts/check.sh 2>/dev/null \
+   && ! git ls-files --error-unmatch scripts/check.sh >/dev/null 2>&1; then
+  echo "✗ pre-commit: scripts/check.sh está en HEAD y el commit lo elimina. La suite es obligación adquirida desde el diseño; volver a F1 no la retira." >&2
+  exit 1
+fi
+
 # 2) Lo verificado debe ser lo versionado. Un `git add -p` parcial deja el árbol de
 #    trabajo distinto del índice: la suite pasaría sobre código que no se commitea.
 #    Regla: ningún archivo rastreado con cambios sin stagear en el momento del commit.

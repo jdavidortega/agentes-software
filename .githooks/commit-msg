@@ -2,41 +2,61 @@
 # Hook de la plantilla. El mensaje ENLAZA lo que resuelve (docs/trazabilidad.md §IDs y
 # docs/convenciones.md §Git) con trailers de UNA gramática cerrada:
 #   Ref: F1|F2|F4|F5       cierre de fase        Ref: I<n>              incremento (existe en plan.md)
-#   Ref: hito:I<a>-I<b>    hito (registros del juez de conjunto sobre lo ensamblado)
-#   Cierra: R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n> | R-SF4.<n>   (fila en trazabilidad, Estado resuelto|verificado)
+#   Ref: hito:I<a>-I<b>    hito: el commit que registra la revisión del conjunto ensamblado
+#   Cierra: R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n> | R-SF4.<n>   (fila en trazabilidad o
+#                                                                        Histórico; Estado resuelto|verificado)
 # Se validan TODOS los trailers presentes; los IDs se resuelven contra el ÍNDICE (lo que
 # va al commit). Cada transición exige su RECIBO en docs/revisiones.log (registro
 # estructurado, append-only, leído con scripts/recibos.sh; AGENTS.md §9): la ÚLTIMA línea
 # válida del mismo rol+tipo+alcance debe ser PASA con `huella` igual a la del índice
 # (scripts/huella.sh indice), de modo que la revisión corresponde al contenido que se guarda:
 #   Ref: I<n> → juez-codigo incremento I<n> (+ juez-seguridad si el recibo dice seguridad=requerida);
-#               ningún R-I<n>.* ni R-S<n>.* en Estado abierto; y no más de 3 incrementos con PASA
-#               efectivo desde el hito vigente (cuya huella debe ser la de un commit real)
-#   Ref: hito:I<a>-I<b> → juez-conjunto hito hito:I<a>-I<b> (+ seguridad si requerida)
-#   Ref: F2   → revisor-funcional encuadre F2 (o reentrada:C<n>), y ningún vacío R-E.* abierto
+#               ningún R-I<n>.* ni R-S<n>.* en Estado abierto; y como máximo TRES incrementos
+#               cerrados (commits `Ref: I<k>` distintos) desde el último commit `Ref: hito:…`,
+#               contando este: al cuarto, el hito es obligatorio primero.
+#   Ref: hito:I<a>-I<b> → juez-conjunto hito hito:I<a>-I<b> (+ seguridad si requerida, misma
+#               huella); el rango existe en plan.md y cada I<a>..I<b> ya tiene su commit `Ref: I`
+#               en el historial (el hito revisa lo construido, no lo prometido).
+#   Ref: F2   → revisor-funcional encuadre F2 (o reentrada:C<n>, con C<n> definido en encuadre.md),
+#               y ningún vacío R-E.* abierto
 #   Ref: F4   → juez-conjunto conjunto F4 (no sirve un recibo de hito) (+ seguridad si requerida)
 #   Ref: F5   → exactamente lo de F4 (conjunto + seguridad), vigente sobre lo que se commitea
 # Ref: F4|F5 dispara además check_docs en modo cierre.
 # QUÉ PUEDE CAMBIAR SIN `Ref: I<n>`: solo el rastro y la plantilla (SIN_REVISION, abajo). Todo
 # lo demás es código del producto y entra únicamente con `Ref: I<n>` y su recibo: un `Cierra:`
 # o un `Ref: F#` no acreditan revisión del código. Emergencia: git commit --no-verify.
+#
+# REPLAY (CI): con REV=<sha> valida ESE commit ya hecho en lugar del índice (mensaje, árbol
+# e historial anteriores a él); así scripts/pruebas/validar_historial.sh detecta en el remoto
+# lo que un --no-verify local se saltó. El argumento $1 se ignora en ese modo.
 msg_file="$1"
 FAIL=0
 fail() { echo "✗ commit-msg: $1" >&2; FAIL=1; }
-idx() { git show ":$1" 2>/dev/null || cat "$1" 2>/dev/null; }
+if [ -n "${REV:-}" ]; then
+  REV=$(git rev-parse --verify "$REV^{commit}" 2>/dev/null) || { fail "REV=$REV no es un commit"; exit 1; }
+  msg_file=$(mktemp 2>/dev/null || mktemp -t msg); git log -1 --format=%B "$REV" > "$msg_file"
+  BASE=$(git rev-parse --verify -q "$REV^" 2>/dev/null || git hash-object -t tree /dev/null)
+  idx() { git show "$REV:$1" 2>/dev/null; }
+  HUELLA=$(sh scripts/huella.sh commit "$REV" 2>/dev/null)
+  cambios=$(git diff --name-only "$BASE" "$REV")
+else
+  BASE=$(git rev-parse --verify -q HEAD 2>/dev/null || git hash-object -t tree /dev/null)
+  idx() { git show ":$1" 2>/dev/null || cat "$1" 2>/dev/null; }
+  HUELLA=$(sh scripts/huella.sh indice 2>/dev/null)
+  cambios=$(git diff --cached --name-only "$BASE")
+fi
+# ¿BASE es un commit (hay historial) o el árbol vacío?
+HAY_HISTORIAL=0; git rev-parse --verify -q "$BASE^{commit}" >/dev/null 2>&1 && HAY_HISTORIAL=1
 
 trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
 [ -n "$trailers" ] || fail "falta el trailer de enlace. Usa 'Ref: F1|F2|F4|F5', 'Ref: I3', 'Ref: hito:I1-I3', o 'Cierra: R-I3.1' / 'R-S3.1' / 'R-F4.1' / 'R-SF4.1' / 'R-E.1' (docs/convenciones.md §Git)."
-
-HUELLA=$(sh scripts/huella.sh indice 2>/dev/null)
-[ -n "$HUELLA" ] || fail "no pude calcular la huella del índice (scripts/huella.sh indice)."
+[ -n "$HUELLA" ] || fail "no pude calcular la huella (scripts/huella.sh)."
 
 # Rutas que un commit puede tocar SIN `Ref: I<n>`: el rastro documental, las entradas, las
 # notas locales, la instrumentación del método (hooks, scripts de la plantilla, agentes y
 # skills) y la configuración del repositorio. Ampliarla es una decisión (ADR), no un atajo.
-SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents|\.githooks|scripts/pruebas)/|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check_docs\.sh|scripts/huella\.sh|scripts/recibos\.sh|scripts/consumo\.py|scripts/check\.sh)$'
-against=$(git rev-parse --verify HEAD 2>/dev/null || git hash-object -t tree /dev/null)
-codigo=$(git diff --cached --name-only "$against" | grep -vE "$SIN_REVISION" || true)
+SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents|\.githooks|\.github|scripts/pruebas)/|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check_docs\.sh|scripts/huella\.sh|scripts/recibos\.sh|scripts/consumo\.py|scripts/check\.sh)$'
+codigo=$(printf '%s\n' "$cambios" | grep -vE "$SIN_REVISION" | grep . || true)
 
 # Recibos: docs/revisiones.log del índice, leído por el parser ÚNICO (scripts/recibos.sh),
 # el mismo que usa check_docs: comentarios ignorados, claves únicas, tipos y relaciones
@@ -68,41 +88,32 @@ exige_conjunto() {  # F4 y F5 exigen lo MISMO: conjunto PASA vigente + seguridad
   rec=$(ultimo_recibo juez-conjunto conjunto F4)
   exige_recibo juez-conjunto conjunto F4 "$1" && exige_seguridad_si_aplica "$rec" conjunto F4
 }
-# Estado (primera palabra de la columna Estado) de una fila de trazabilidad del índice.
-estado_fila() {
-  idx docs/trazabilidad.md | awk -F'|' -v id="$1" '
+# Lectura canónica de docs/trazabilidad.md (la misma forma que check_docs): filas de tabla
+# `| … |` con sangría tolerada, columnas por encabezado, primera palabra de Estado; y el
+# Histórico (`- … R-X.n … · verificado`) como Estado verificado.
+filas() {
+  idx docs/trazabilidad.md | awk -F'|' '
     function trim(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-    /^\|/ { n=0; for(i=2;i<NF;i++){ n++; f[n]=trim($i) }
+    /^[ \t]*\|/ { n=0; for(i=2;i<NF;i++){ n++; f[n]=trim($i) }
             if (f[1]=="Criterio"||f[1]=="Vacío"||f[1]=="Hallazgo") { ce=0; for(k=1;k<=n;k++) if(f[k]=="Estado") ce=k; next }
-            if (f[1]==id && ce>0) { e=f[ce]; sub(/ .*$/,"",e); print e; exit } }'
+            if (f[1] ~ /^-+$/ || ce==0) next
+            e=f[ce]; sub(/ .*$/,"",e); print f[1], e; next }
+    /^## Histórico/ { hist=1 }
+    hist && /^[ \t]*- / && !/_\(ejemplo\)_/ { if (match($0, /R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+/)) print substr($0, RSTART, RLENGTH), (($0 ~ /· *verificado/) ? "verificado" : "desconocido") }'
 }
-# IDs de hallazgos/vacíos cuyo Estado es "abierto" y cuyo ID casa con $1 (regex awk).
-abiertos() {
-  idx docs/trazabilidad.md | awk -F'|' -v re="$1" '
-    function trim(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-    /^\|/ { n=0; for(i=2;i<NF;i++){ n++; f[n]=trim($i) }
-            if (f[1]=="Criterio"||f[1]=="Vacío"||f[1]=="Hallazgo") { ce=0; for(k=1;k<=n;k++) if(f[k]=="Estado") ce=k; next }
-            if (ce>0 && f[1] ~ re) { e=f[ce]; sub(/ .*$/,"",e); if (e=="abierto") print f[1] } }' | tr '\n' ' '
+estado_fila() { filas | awk -v id="$1" '$1==id {print $2; exit}'; }
+abiertos() { filas | awk -v re="$1" '$1 ~ re && $2=="abierto" {print $1}' | tr '\n' ' '; }
+# ¿Hay en el historial (antes de este commit) un commit cuyo trailer sea exactamente $1?
+commit_con_trailer() {  # $1 regex ERE del trailer completo, p. ej. '^Ref: *I3 *$'
+  [ "$HAY_HISTORIAL" -eq 1 ] || return 1
+  git log -1 --format=%H -E --grep="$1" "$BASE" 2>/dev/null | grep -q .
 }
-# ¿La huella $1 es la de lo que se commitea o la vigencia de algún commit del historial?
-huella_en_historia() {
-  [ "$1" = "$HUELLA" ] && return 0
-  for c in $(git rev-list -n 300 HEAD 2>/dev/null); do
-    [ "$(sh scripts/huella.sh commit "$c" 2>/dev/null)" = "$1" ] && return 0
-  done
-  return 1
-}
-# Contador del hito (AGENTS.md §2): tres incrementos con PASA efectivo desde el hito vigente
-# obligan a un hito antes de cerrar el cuarto. El hito vigente tiene que ser una revisión
-# real: su huella es la de lo que se commitea o la de un commit del historial.
-exige_contador_hito() {
-  hito=$(sh scripts/recibos.sh hito-vigente "$LOGTMP" 2>/dev/null)
-  if [ -n "$hito" ]; then
-    h=$(campo "$hito" huella); a=$(campo "$hito" alcance)
-    huella_en_historia "$h" || { fail "$1: el recibo del juez de conjunto ($a) que reiniciaría el contador del hito tiene huella $h, que no es la de ningún commit del historial ni la de lo que se commitea: no es una revisión de este proyecto."; return 1; }
-  fi
-  n=$(sh scripts/recibos.sh incrementos-sin-hito "$LOGTMP" 2>/dev/null || echo 0)
-  [ "${n:-0}" -le 3 ] || { fail "$1: hay $n incrementos con PASA efectivo del juez de código desde el hito vigente; el hito (recibo tipo=hito del juez de conjunto, con seguridad si la requiere, y commit 'Ref: hito:I<a>-I<b>') es obligatorio antes de cerrar este."; return 1; }
+# Incrementos cerrados desde el último hito: commits `Ref: I<k>` distintos después del último
+# commit `Ref: hito:…` (o desde el inicio si no hay hito). Más este, si es un `Ref: I`.
+cerrados_desde_hito() {
+  [ "$HAY_HISTORIAL" -eq 1 ] || return 0
+  hc=$(git log -1 --format=%H -E --grep='^Ref:[[:space:]]*hito:I[0-9]+-I[0-9]+[[:space:]]*$' "$BASE" 2>/dev/null)
+  git log --format=%B ${hc:+"$hc.."}"$BASE" 2>/dev/null | grep -oE '^Ref:[[:space:]]*I[0-9]+[[:space:]]*$' | grep -oE 'I[0-9]+' | sort -u
 }
 
 cierre=0; con_incremento=0
@@ -113,7 +124,14 @@ for line in $trailers; do
     f=$(printf '%s' "$line" | grep -oE 'F[1245]')
     case "$f" in
       F2)
-        exige_recibo revisor-funcional encuadre F2 "'$line'" || :
+        if exige_recibo revisor-funcional encuadre F2 "'$line'"; then
+          # Una reentrada se acredita sobre un criterio que EXISTE en el encuadre.
+          a=$(campo "$(ultimo_recibo revisor-funcional encuadre F2)" alcance)
+          case "$a" in reentrada:C*)
+            c=${a#reentrada:}
+            idx docs/encuadre.md | grep -qE "^- $c:" || fail "'$line': el recibo del revisor funcional es de alcance $a, pero $c no está definido en docs/encuadre.md ('- $c: …')." ;;
+          esac
+        fi
         ab=$(abiertos '^R-E[.][0-9]+$')
         [ -z "$ab" ] || fail "'$line' con vacío(s) en Estado abierto en docs/trazabilidad.md ($ab): el gate de diseño no se cruza con vacíos abiertos." ;;
       F4) cierre=1; exige_conjunto "'$line'" || : ;;
@@ -121,6 +139,14 @@ for line in $trailers; do
     esac
   elif printf '%s' "$line" | grep -qE '^Ref:[[:space:]]*hito:I[0-9]+-I[0-9]+[[:space:]]*$'; then
     a=$(printf '%s' "$line" | grep -oE 'hito:I[0-9]+-I[0-9]+')
+    ia=$(printf '%s' "$a" | sed -E 's/hito:I([0-9]+)-I([0-9]+)/\1/'); ib=$(printf '%s' "$a" | sed -E 's/hito:I([0-9]+)-I([0-9]+)/\2/')
+    [ "$ia" -le "$ib" ] || fail "'$line': rango invertido."
+    k=$ia
+    while [ "$k" -le "$ib" ]; do
+      idx docs/plan.md | grep -qE "^- \[[ xX]\] I$k " || fail "'$line': I$k no existe como incremento en docs/plan.md; el hito cubre incrementos reales."
+      commit_con_trailer "^Ref:[[:space:]]*I$k[[:space:]]*\$" || fail "'$line': I$k no tiene commit 'Ref: I$k' en el historial; el hito revisa lo ensamblado hasta aquí, no lo que falta por cerrar."
+      k=$((k+1))
+    done
     rec=$(ultimo_recibo juez-conjunto hito "$a")
     exige_recibo juez-conjunto hito "$a" "'$line'" && exige_seguridad_si_aplica "$rec" hito "$a"
   elif printf '%s' "$line" | grep -qE '^Ref:[[:space:]]*I[0-9]+[[:space:]]*$'; then
@@ -133,12 +159,14 @@ for line in $trailers; do
     # Un incremento no se cierra con sus propios bloqueantes abiertos (código o seguridad).
     ab=$(abiertos "^R-(I|S)${id#I}[.][0-9]+$")
     [ -z "$ab" ] || fail "'$line' con hallazgo(s) de $id en Estado abierto en docs/trazabilidad.md ($ab): resuélvelos (fila en resuelto, con su evidencia) antes de cerrar el incremento."
-    exige_contador_hito "'$line'" || :
+    # Contador del hito (AGENTS.md §2): tres incrementos cerrados desde el último hito, más este.
+    n=$( { cerrados_desde_hito; echo "$id"; } | sort -u | grep -c .)
+    [ "$n" -le 3 ] || fail "'$line': con este serían $n incrementos cerrados desde el último commit 'Ref: hito:…' ($( { cerrados_desde_hito; echo "$id"; } | sort -u | tr '\n' ' ')); el hito (pasada del juez de conjunto sobre lo ensamblado y commit 'Ref: hito:I<a>-I<b>') es obligatorio antes de cerrar el cuarto."
   elif printf '%s' "$line" | grep -qE '^Cierra:[[:space:]]*R-(E\.[0-9]+|I[0-9]+\.[0-9]+|S[0-9]+\.[0-9]+|F4\.[0-9]+|SF4\.[0-9]+)[[:space:]]*$'; then
     id=$(printf '%s' "$line" | grep -oE 'R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+')
     est=$(estado_fila "$id")
-    [ -n "$est" ] || fail "'$line' pero $id no tiene fila en docs/trazabilidad.md. Un Cierra: afirma sobre otro documento: primero la fila, después el commit."
-    case "$est" in ""|resuelto|verificado) ;; *) fail "'$line' pero la fila de $id sigue en Estado '$est': un Cierra: exige resuelto (con su mutación escrita) o verificado." ;; esac
+    [ -n "$est" ] || fail "'$line' pero $id no tiene fila en docs/trazabilidad.md (tablas o Histórico). Un Cierra: afirma sobre otro documento: primero la fila, después el commit."
+    case "$est" in ""|resuelto|verificado) ;; *) fail "'$line' pero $id sigue en Estado '$est': un Cierra: exige resuelto (con su mutación escrita) o verificado." ;; esac
   else
     fail "trailer malformado o familia desconocida: '$line'. Gramática: Ref: F1|F2|F4|F5 · Ref: I<n> · Ref: hito:I<a>-I<b> · Cierra: R-E.<n> | R-I<i>.<n> | R-S<i>.<n> | R-F4.<n> | R-SF4.<n>."
   fi
@@ -154,8 +182,8 @@ fi
 if [ "$cierre" -eq 1 ] && [ "$FAIL" -eq 0 ]; then
   tmp=$(mktemp -d 2>/dev/null || mktemp -d -t commitmsg)
   trap 'rm -rf "$tmp" "$LOGTMP"' EXIT INT TERM
-  prev=$(git show HEAD:docs/estado.md 2>/dev/null | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' | grep -oE 'F[1-5]' | head -1)
-  git checkout-index -a --prefix="$tmp/" \
+  prev=$(git show "$BASE:docs/estado.md" 2>/dev/null | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' | grep -oE 'F[1-5]' | head -1)
+  if [ -n "${REV:-}" ]; then git archive "$REV" | tar -x -C "$tmp"; else git checkout-index -a --prefix="$tmp/"; fi \
     && ( cd "$tmp" && FASE_PREVIA="$prev" sh scripts/check_docs.sh cierre ) \
     || fail "el trailer declara cierre de fase (Ref: F4|F5) pero check_docs.sh cierre no da PASA sobre lo que se commitea."
 fi

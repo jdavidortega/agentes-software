@@ -86,9 +86,13 @@ de un requerimiento tiene que poder hacerse leyendo, no descifrando.
   sesión, al dejar un gate pendiente o al quedar bloqueado, con la sección «Pendiente»
   en frases completas. Es lo único que se escribe fuera de los momentos fijos.
 - **Hito:** tres incrementos cerrados desde el último hito, o el momento previo a un
-  despliegue. **Mecanizado:** el `commit-msg` cuenta los incrementos con PASA del juez de
-  código desde la última pasada PASA del juez de conjunto y rechaza el cuarto sin hito. En cada hito: pasada del juez de conjunto sobre lo ensamblado, síntesis
-  de `docs/MEMORIA.md` §Lo crítico, mutation testing informativo si hay camino crítico.
+  despliegue. **Mecanizado, con un solo significado:** un hito ES un commit
+  `Ref: hito:I<a>-I<b>` (recibo del juez de conjunto —y de seguridad si la requiere— con la
+  huella de ese commit; el rango existe en el plan y cada incremento del rango ya tiene su
+  commit `Ref: I`). El `commit-msg` cuenta los commits `Ref: I<k>` distintos desde el último
+  commit de hito y rechaza el cuarto: un recibo de hito suelto en el log no cuenta. En cada
+  hito: pasada del juez de conjunto sobre lo ensamblado, síntesis de `docs/MEMORIA.md` §Lo
+  crítico, mutation testing informativo si hay camino crítico.
 - **Momentos de compactación (fijos, no a criterio):** al cierre de **cada incremento**
   (la bitácora del incremento se colapsa a una línea **antes** de pedir la revisión final,
   porque `plan.md` entra en la huella; tras el PASA solo se tocan registros: `estado.md`
@@ -255,9 +259,12 @@ revertir) vive en docs/despliegue.md. -->
   enlazados; una rama solo si la persona la pide (experimento, cambio grande), no por
   defecto. Con **remoto compartido**, `scripts/check.sh` se cablea además en un **CI
   mínimo** (se decide en el diseño): los hooks locales se pueden esquivar
-  (`--no-verify`); el CI no. El CI corre también `sh scripts/check_docs.sh` y
+  (`--no-verify`); el CI no. El CI corre también `sh scripts/check_docs.sh`,
+  `sh scripts/pruebas/validar_historial.sh origin/main..HEAD` (el contrato de los hooks
+  reejecutado sobre cada commit nuevo: así un `--no-verify` local falla en el remoto) y
   `sh scripts/pruebas/regresion.sh` (la regresión de los propios hooks, sin red ni
-  credenciales), para que un `--no-verify` deje rastro en el remoto.
+  credenciales). `.github/workflows/metodo.yml` trae exactamente eso para GitHub Actions;
+  en otro CI se copian los cuatro comandos.
 - **Commit al cierre de CADA fase, no solo en los incrementos de código.** El error
   típico es no commitear nada hasta el primer incremento de la Fase 3 y dejar las
   Fases 1–2 sin guardar. Concretamente, hay al menos un commit:
@@ -279,7 +286,7 @@ revertir) vive en docs/despliegue.md. -->
   `Cierra: R-F4.1` (juez de conjunto) o `Cierra: R-E.1` (vacío del revisor funcional,
   si su resolución amerita commit propio). Es la trazabilidad en el
   historial (ver `docs/trazabilidad.md`). **Qué entra sin `Ref: I<n>`:** solo el rastro
-  (`docs/`, `contexto/`, `mejoras/`), la plantilla (`.claude/`, `.codex/`, `.githooks/`,
+  (`docs/`, `contexto/`, `mejoras/`), la plantilla (`.claude/`, `.codex/`, `.githooks/`, `.github/`,
   `scripts/check_docs.sh|huella.sh|recibos.sh|consumo.py|check.sh`, `scripts/pruebas/`) y la
   configuración del repo (`README.md`, `AGENTS.md`, `.gitignore`…). Todo lo demás es código
   del producto: `Ref: I<n>` y recibo del juez, siempre; un `Cierra:` solo o un `Ref: F#` con

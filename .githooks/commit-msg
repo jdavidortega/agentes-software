@@ -11,7 +11,8 @@
 # válida del mismo rol+tipo+alcance debe ser PASA con `huella` igual a la del índice
 # (scripts/huella.sh indice), de modo que la revisión corresponde al contenido que se guarda:
 #   Ref: I<n> → juez-codigo incremento I<n> (+ juez-seguridad si el recibo dice seguridad=requerida);
-#               ningún R-I<n>.* ni R-S<n>.* en Estado abierto; y como máximo TRES incrementos
+#               ningún R-I<n>.* ni R-S<n>.* en Estado abierto; `- [x] I<n>` en plan.md y
+#               docs/estado.md dentro del commit (el avance a la vista); y como máximo TRES incrementos
 #               cerrados (commits `Ref: I<k>` distintos) desde el último commit `Ref: hito:…`,
 #               contando este: al cuarto, el hito es obligatorio primero.
 #   Ref: hito:I<a>-I<b> → juez-conjunto hito hito:I<a>-I<b> (+ seguridad si requerida, misma
@@ -257,6 +258,11 @@ for line in $trailers; do
     # Un incremento no se cierra con sus propios bloqueantes abiertos (código o seguridad).
     ab=$(abiertos "^R-(I|S)${id#I}[.][0-9]+$")
     [ -z "$ab" ] || fail "'$line' con hallazgo(s) de $id en Estado abierto en docs/trazabilidad.md ($ab): resuélvelos (fila en resuelto, con su evidencia) antes de cerrar el incremento."
+    # El avance queda a la vista en el mismo commit: la casilla del plan y el resumen vivo.
+    idx docs/plan.md | sh scripts/check_docs.sh plan - | awk -v i="$id" '$1=="I" && $2==i && $3=="hecho" {f=1} END {exit f ? 0 : 1}' \
+      || fail "'$line' pero $id sigue como '- [ ]' en docs/plan.md: márcalo '- [x] $id' antes de pedir la revisión final (plan.md entra en la huella: marcarlo después caduca el recibo)."
+    printf '%s\n' "$cambios" | grep -qx 'docs/estado.md' \
+      || fail "'$line' sin regenerar docs/estado.md: el cierre de cada incremento lo regenera (fase, próximo paso y pendiente) en este mismo commit."
     # Contador del hito (AGENTS.md §2): tres incrementos cerrados desde el último hito, más este.
     n=$( { cerrados_desde_hito; echo "$id"; } | sort -u | grep -c .)
     [ "$n" -le 3 ] || fail "'$line': con este serían $n incrementos cerrados desde el último commit 'Ref: hito:…' ($( { cerrados_desde_hito; echo "$id"; } | sort -u | tr '\n' ' ')); el hito (pasada del juez de conjunto sobre lo ensamblado y commit 'Ref: hito:I<a>-I<b>') es obligatorio antes de cerrar el cuarto."

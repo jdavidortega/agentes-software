@@ -44,11 +44,19 @@ commitea() { en "$1" git add -A && en "$1" git -c core.hooksPath=.githooks commi
 sin_hooks() { en "$1" git add -A && en "$1" git -c core.hooksPath=/dev/null commit -q --no-verify -m "$2"; }
 huella_idx() { en "$1" git add -A >/dev/null 2>&1; en "$1" sh scripts/huella.sh indice; }
 # recibo <dir> rol tipo alcance veredicto bloqueantes [campos extra...] → al log, con la huella del índice
+# El recibo del juez de código sobre I<n> es el cierre del incremento: como haría el agente, deja
+# la casilla en [x] y regenera estado.md ANTES de la huella (commit-msg los exige en Ref: I<n>).
 recibo() {
   d=$1; rol=$2; tipo=$3; alc=$4; ver=$5; blo=$6; shift 6
+  [ "$rol $tipo" = "juez-codigo incremento" ] && cierra_inc "$d" "$alc"
   h=$(huella_idx "$d")
   printf 'fecha=2026-10-19T10:00Z rol=%s tipo=%s alcance=%s veredicto=%s bloqueantes=%s huella=%s ejecutor=regresion %s\n' \
     "$rol" "$tipo" "$alc" "$ver" "$blo" "$h" "$*" >> "$d/docs/revisiones.log"
+}
+cierra_inc() {  # cierra_inc <dir> I<n> → casilla [x] y una línea en estado.md; idempotente
+  grep -q "^- \[ \] $2 " "$1/docs/plan.md" 2>/dev/null || return 0
+  sed -i.bak "s/^- \[ \] $2 /- [x] $2 /" "$1/docs/plan.md" && rm -f "$1/docs/plan.md.bak"
+  printf -- '- Cerrado %s.\n' "$2" >> "$1/docs/estado.md"
 }
 # recibo_bruto <dir> <línea completa> → al log tal cual (huellas inventadas, etc.)
 recibo_bruto() { printf '%s\n' "$2" >> "$1/docs/revisiones.log"; }
@@ -208,6 +216,19 @@ Ref: F1"
 espera falla "tras el reencuadre, eliminar scripts/check.sh se rechaza (obligación adquirida)" "obligación adquirida" -- sh -c 'cd "$1" && git rm -q scripts/check.sh && git -c core.hooksPath=.githooks commit -q -m "sin suite
 
 Ref: F1"' sh "$D"
+
+echo "== El avance queda a la vista: casilla del plan y estado.md en el commit Ref: I<n>"
+# recibo_bruto con la huella del índice: un recibo vigente que NO pasa por cierra_inc.
+copia f3 av1; printf '\ndef resta(a, b):\n    return a - b\n' >> "$D/app.py"; printf -- '- Cerrado I2.\n' >> "$D/docs/estado.md"
+recibo_bruto "$D" "fecha=2026-10-19T10:00Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 huella=$(huella_idx "$D") ejecutor=regresion seguridad=no-aplica"
+espera falla "Ref: I2 con su casilla aún en '- [ ]' se rechaza" "I2 sigue como" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 av2; printf '\ndef resta(a, b):\n    return a - b\n' >> "$D/app.py"; sed -i.bak 's/^- \[ \] I2 /- [x] I2 /' "$D/docs/plan.md"; rm -f "$D/docs/plan.md.bak"
+recibo_bruto "$D" "fecha=2026-10-19T10:00Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 huella=$(huella_idx "$D") ejecutor=regresion seguridad=no-aplica"
+espera falla "Ref: I2 sin regenerar docs/estado.md se rechaza" "sin regenerar docs/estado.md" -- commitea "$D" "I2
+
+Ref: I2"
 
 echo "== Código sin Ref: I<n>"
 copia f3 b1; printf 'def resta(a, b):\n    return a - b\n' >> "$D/app.py"
@@ -404,6 +425,7 @@ espera falla "hito I1-I3 cuando solo I1 está cerrado se rechaza (revisa lo cons
 
 Ref: hito:I1-I3"
 copia f2 h9; fase "$D" F3 "I1 «suma»"; printf 'def suma(a, b):\n    return a + b\n' > "$D/app.py"
+for i in 1 2 3 4; do cierra_inc "$D" I$i; done   # antes de los recibos: ninguno cambia la huella del anterior
 for i in 1 2 3 4; do recibo "$D" juez-codigo incremento I$i PASA 0 seguridad=no-aplica; done
 espera pasa "recibos preparados para I1..I4 no bloquean el cierre de I1: el contador son commits cerrados" "" -- commitea "$D" "I1
 

@@ -13,11 +13,12 @@ allowed-tools: Read, Grep, Glob, Bash
 ## Antes de invocar
 
 1. **Deja escrito todo lo revisable**: la bitácora del incremento en `docs/plan.md`
-   **ya colapsada a su línea** (qué cambió y por qué), el `README.md` al día si cambió
+   **ya colapsada a su línea** (qué cambió y por qué) y su casilla en `- [x]`, el `README.md` al día si cambió
    comportamiento, ADRs si hubo decisión. `plan.md` y `convenciones.md` cuentan en la
    huella: después del PASA no se tocan. Lo que sí se escribe después son los
    **registros** fuera de la huella (recibo, filas, `estado.md`, consumo y lecciones en
-   `MEMORIA.md`).
+   `MEMORIA.md`). El `commit-msg` rechaza `Ref: I<n>` sin la casilla en `[x]` o sin
+   `estado.md` en el commit.
 2. **Stagea todo** (`git add -A`) y toma las dos huellas: `V0=$(sh scripts/huella.sh)`
    (vigencia: lo revisable) e `I0=$(sh scripts/huella.sh integridad)` (integridad: todo,
    registros incluidos).

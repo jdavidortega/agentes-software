@@ -285,7 +285,8 @@ solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo u
 `git config core.hooksPath .githooks` (parte del Bootstrap del arranque)—:
 
 - **`commit-msg`** valida **todos** los trailers contra una gramática cerrada y resuelve
-  cada ID contra el índice: `Ref: I<n>` existe en `docs/plan.md`; todo `Cierra:` nombra un
+  cada ID contra el índice: `Ref: I<n>` existe en `docs/plan.md`, ya marcado `- [x]`, y el
+  commit trae `docs/estado.md` regenerado (el avance queda a la vista); todo `Cierra:` nombra un
   hallazgo **con fila** en `docs/trazabilidad.md` (un `Cierra:` es una afirmación sobre
   otro documento, y las afirmaciones cruzadas se mecanizan o se vuelven prosa); y
   `Ref: F4|F5` **dispara el modo cierre** de `check_docs` (nada `abierto`, nada `resuelto`

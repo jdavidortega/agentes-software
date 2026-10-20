@@ -20,7 +20,31 @@ cada pieza está en «Cómo está armado el sistema» y en el glosario de «Defi
 
 ## Cómo usarla
 
-1. Copia el contenido de este repo a tu nuevo proyecto.
+1. Crea la carpeta del proyecto nuevo, entra en ella y copia la plantilla con
+   `git archive`: trae exactamente lo versionado en el último commit, sin `.git`, sin
+   `mejoras/` ni archivos locales, y con los permisos de ejecución de los hooks.
+
+   ```sh
+   mkdir mi-proyecto && cd mi-proyecto
+   git -C /ruta/a/agente-software archive HEAD | tar -x
+   git init
+   git config core.hooksPath .githooks
+   git add -A
+   sh scripts/check_docs.sh      # debe terminar en verde
+   ```
+
+   Si lo extrajiste donde no era, mira antes qué hay (`pwd`, `ls -A`). Si la carpeta solo
+   tenía lo de la plantilla, sal y bórrala entera (`cd .. && rm -rf mi-proyecto`). Si ya
+   tenía otras cosas, borra solo lo que trajo la plantilla:
+
+   ```sh
+   git -C /ruta/a/agente-software archive HEAD | tar -t | grep -v '/$' | xargs rm -f
+   rm -rf .claude .githooks .github contexto docs scripts
+   ```
+
+   Y el `.git`: si `git init` dijo «Initialized empty…», lo creó la receta y se quita con
+   `rm -rf .git`; si dijo «Reinitialized existing…», **ya existía y no se borra**: solo
+   `git config --unset core.hooksPath` y `git reset -q`.
 2. El agente ejecuta primero el **Bootstrap (paso 0)**: verifica que git esté
    configurado, que los hooks estén activos (`git config core.hooksPath .githooks`),
    que `.env*` esté ignorado y que exista un **remoto** con push inicial (sin
@@ -295,7 +319,8 @@ git config core.hooksPath .githooks
   `resuelto|verificado`), rechaza familias desconocidas, exige por transición un **recibo
   de revisión vigente** en `docs/revisiones.log` (el último del rol y alcance, en PASA, con
   `huella` igual a la del índice; `Ref: I<n>` → juez de código más seguridad si la declaró
-  requerida, sin hallazgos `R-I<n>.*`/`R-S<n>.*` abiertos y como máximo tres incrementos
+  requerida, sin hallazgos `R-I<n>.*`/`R-S<n>.*` abiertos, con `- [x] I<n>` en el plan y
+  `docs/estado.md` regenerado en el commit, y como máximo tres incrementos
   cerrados —commits `Ref: I<k>`— desde el último commit `Ref: hito:…`; `hito:I<a>-I<b>` →
   juez de conjunto (más seguridad, misma huella) sobre un rango que existe en el plan y
   cuyos incrementos ya tienen su commit; `F2` → revisor funcional (una `reentrada:C<n>`
@@ -478,7 +503,9 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 
 ---
 
-> **Al iniciar tu proyecto real**, reemplaza el contenido de arriba por el README
-> de tu proyecto (formato: `.claude/skills/escribiendo-readme/SKILL.md`): descripción, diagrama
-> gerencial, estructura, entradas/salidas y cómo ejecutarlo. Lo sustantivo
-> (objetivos, criterios, stack) vive en `docs/encuadre.md`.
+> **En tu proyecto, este README lo reemplaza el agente, no tú.** En el diseño (Fase 2,
+> `docs/arranque.md`) cambia el contenido de arriba por el README del proyecto (formato:
+> `.claude/skills/escribiendo-readme/SKILL.md`): qué resuelve, diagrama gerencial,
+> estructura, entradas/salidas y cómo ejecutarlo. Lo valida contigo antes del gate y lo
+> mantiene al día en cada fase. Lo sustantivo (objetivos, criterios, stack) vive en
+> `docs/encuadre.md`.

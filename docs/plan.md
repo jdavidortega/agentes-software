@@ -26,7 +26,8 @@ que el consumidor real ejecuta, y cambiarlo después requiere ADR. -->
 
 <!-- Pasos pequeños y revisables, en orden. ID I# con su alias «slug» (aquí vive el
 alias de los incrementos); indica qué criterio(s) C# satisface (enlace en
-docs/trazabilidad.md). Marca el estado. -->
+docs/trazabilidad.md). La casilla pasa a [x] al cerrar el incremento, antes de pedir la
+revisión final (el commit-msg rechaza `Ref: I#` sin ella). -->
 - [ ] I1 «…» — _…_ (satisface: C_)
 - [ ] I2 «…» — _…_ (satisface: C_)
 

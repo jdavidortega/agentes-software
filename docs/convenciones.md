@@ -98,12 +98,14 @@ de un requerimiento tiene que poder hacerse leyendo, no descifrando.
   `cubre=` no es vacío ni `ninguno`; un criterio construido (cada incremento de su fila de
   Cobertura tiene commit) va en `cubre=`; `excluye=` es solo lo futuro (`ninguno` si no hay).
   El plan tiene una sola gramática de incremento, `- [ ] I<n> «alias» — …` (o `- [x]`): una
-  casilla con `I<n>` en otra forma es error, y al cierre ningún `- [ ]` queda fuera del
-  backlog. Lo que no se renderiza (comentarios `<!-- -->`, bloques cercados) no es plan. En cada
+  casilla con `I<n>` en otra forma es error; la casilla se marca `[x]` al cerrar **cada**
+  incremento (el `commit-msg` lo exige en `Ref: I<n>`), y al cierre ningún `- [ ]` queda
+  fuera del backlog. Lo que no se renderiza (comentarios `<!-- -->`, bloques cercados) no es plan. En cada
   hito: pasada del juez de conjunto sobre lo ensamblado, síntesis de `docs/MEMORIA.md` §Lo
   crítico, mutation testing informativo si hay camino crítico.
 - **Momentos de compactación (fijos, no a criterio):** al cierre de **cada incremento**
-  (la bitácora del incremento se colapsa a una línea **antes** de pedir la revisión final,
+  (la bitácora del incremento se colapsa a una línea y su casilla pasa a `[x]` **antes** de
+  pedir la revisión final,
   porque `plan.md` entra en la huella; tras el PASA solo se tocan registros: `estado.md`
   regenerado, hallazgos `verificado` al Histórico de `docs/trazabilidad.md`, consumo y
   lecciones en `MEMORIA.md`), al cierre de **cada

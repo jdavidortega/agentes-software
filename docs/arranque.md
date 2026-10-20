@@ -296,7 +296,8 @@ bitácora). Lo que no entra ahora va al **backlog** de ese archivo, organizado p
 posible incremento futuro.
 
 **Socializa la arquitectura antes del gate.** El diseño no se aprueba solo leyendo
-`plan.md`: siembra el `README.md` con el qué y el **diagrama Mermaid gerencial** del
+`plan.md`: **reemplaza el `README.md` de la plantilla** (describe el método, no el
+proyecto; no se conserva nada de él) por el del proyecto, con el qué y el **diagrama Mermaid gerencial** del
 flujo propuesto (formato: `.claude/skills/escribiendo-readme/SKILL.md`; los comandos llegan
 cuando exista algo ejecutable) y pide a la persona validar la arquitectura **ahí**,
 iterando hasta su OK. Es la decisión que condiciona todo el desarrollo: se discute al
@@ -332,7 +333,7 @@ incremento cuesta más que el experimento.
   `check.sh` **tolera la suite de tests aún vacía** (ver `docs/convenciones.md`).
 - [ ] **Decisión de entorno:** ¿el proyecto maneja secretos o config de entorno? Si no,
   **no se crea `.env`/`.env.example`**; si sí, se crean entonces (no por defecto).
-- [ ] `README.md` sembrado con el diagrama gerencial de la arquitectura propuesta y
+- [ ] `README.md` de la plantilla reemplazado por el del proyecto, con el diagrama gerencial de la arquitectura propuesta y
   **validado por la persona** (iterado hasta su OK).
 - [ ] Ningún incremento se apoya en un supuesto técnico sin verificar: tiene su
   **experimento mínimo** previo en el plan, o su validación diferida registrada.
@@ -396,7 +397,8 @@ Confirma que el rastro quedó guardado antes de empezar a construir.
 > veredicto + hallazgos (con ID `R-I#.n` y estado en `docs/trazabilidad.md`); los
 > bloqueantes se resuelven como subtareas y se marcan `resuelto` antes de continuar.
 > Aplica la Definición de Hecho (`docs/definicion-de-hecho.md`) en su orden: todo lo
-> revisable —código, docs, bitácora del incremento ya colapsada en `docs/plan.md`,
+> revisable —código, docs, bitácora del incremento ya colapsada en `docs/plan.md` y su
+> casilla en `[x]`,
 > README— **antes** de pedir el PASA; después, solo los registros fuera de la huella
 > (recibo, filas, `estado.md`, consumo y lecciones en `MEMORIA.md`) y el **commit
 > enlazado** (`Ref:`/`Cierra:`). Procedimiento: `.claude/skills/dirigiendo-revisiones/SKILL.md`.

@@ -13,7 +13,7 @@
 > ni commitear antes de la revisión: **A** es lo que el juez verifica **antes del commit**;
 > **B** es lo que el principal hace **después del PASA** para cerrar el incremento. Regla
 > del orden: **todo lo revisable queda escrito antes de pedir el PASA** (código, docs,
-> bitácora del incremento ya colapsada a una línea, README); después del PASA solo se
+> bitácora del incremento ya colapsada a una línea y su casilla en `[x]`, README); después del PASA solo se
 > tocan los **registros** fuera de la huella (`revisiones.log`, `trazabilidad.md`,
 > `estado.md`, `MEMORIA.md`). Si algo revisable cambia después, el recibo caduca y la
 > revisión se repite; eso no es un defecto del control, es su razón de ser.
@@ -94,7 +94,8 @@
   consumo** en `docs/MEMORIA.md` §Consumo (`scripts/consumo.py`; ver
   `docs/convenciones.md` §Contexto); lecciones y obstáculos en `docs/MEMORIA.md`. La
   bitácora de `docs/plan.md` **no se toca aquí**: su línea del incremento se escribió y
-  colapsó antes de pedir el PASA.
+  colapsó, y su casilla pasó a `- [x]`, antes de pedir el PASA. El `commit-msg` exige ambas
+  cosas (casilla y `estado.md` en el commit) para `Ref: I#`.
 - [ ] **Commit enlazado** con `Ref: I#` **siempre** (es lo que exige el recibo del juez
   sobre el código; `Cierra: R-…` se añade cuando además cierra hallazgos, nunca lo sustituye),
   con mensaje concreto y suficiente;

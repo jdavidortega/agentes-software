@@ -108,7 +108,7 @@ trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
 # Rutas que un commit puede tocar SIN `Ref: I<n>`: el rastro documental, las entradas, las
 # notas locales, la instrumentación del método (hooks, scripts de la plantilla, agentes y
 # skills) y la configuración del repositorio. Ampliarla es una decisión (ADR), no un atajo.
-SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents|\.githooks|\.github|scripts/pruebas)/|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check_docs\.sh|scripts/huella\.sh|scripts/recibos\.sh|scripts/trazabilidad\.sh|scripts/guardas\.sh|scripts/consumo\.py|scripts/check\.sh)$'
+SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents|\.githooks|\.github|scripts/pruebas)/|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check_docs\.sh|scripts/adoptar\.sh|scripts/huella\.sh|scripts/recibos\.sh|scripts/trazabilidad\.sh|scripts/guardas\.sh|scripts/consumo\.py|scripts/check\.sh)$'
 # Quitar un .env versionado es la corrección de un secreto, no código: no exige `Ref: I<n>`.
 en_candidato() { if [ -n "${cand:-}" ]; then git cat-file -e "$cand:$1" 2>/dev/null; else git ls-files --error-unmatch -- "$1" >/dev/null 2>&1; fi; }
 codigo=$(printf '%s\n' "$cambios" | grep -vE "$SIN_REVISION" | grep . | while IFS= read -r f; do

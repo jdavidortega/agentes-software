@@ -18,7 +18,33 @@ RANGO="${1:-}"
 if [ -z "$RANGO" ]; then
   if git rev-parse --verify -q origin/main >/dev/null 2>&1; then RANGO="origin/main..HEAD"; else RANGO="HEAD"; fi
 fi
-commits=$(git rev-list --reverse "$RANGO" 2>/dev/null) || { echo "validar_historial: rango inválido '$RANGO'" >&2; exit 2; }
+# Base del método (solo proyectos ADOPTADOS, docs/arranque-existente.md): si docs/convenciones.md
+# declara `- **Base del método:** <sha>` (el último commit previo a la adopción), la selección es el
+# rango MENOS lo alcanzable desde la base: el historial anterior al método no se juzga y el commit
+# de instalación sí. Sin declaración, nada cambia. Una declaración duplicada o malformada, una base
+# ajena a la historia del extremo final o una base en o después de un commit con fase (moverla
+# hacia adelante ocultaría commits ya sujetos a revisión) FALLAN; nunca equivalen a «sin base».
+EXCLUIR=""
+DECL=$(grep -E '^- \*\*Base del método:\*\*' docs/convenciones.md 2>/dev/null || true)
+if [ -n "$DECL" ]; then
+  nb() { echo "validar_historial: base del método: $1" >&2; exit 2; }
+  [ "$(printf '%s\n' "$DECL" | grep -c .)" -eq 1 ] || nb "hay más de una declaración en docs/convenciones.md; debe haber una"
+  sha=$(printf '%s' "$DECL" | sed -nE 's/^- \*\*Base del método:\*\* `?([0-9a-f]{7,40})`?[[:space:]]*$/\1/p')
+  [ -n "$sha" ] || nb "declaración malformada ('$DECL'); forma: - **Base del método:** <sha de 7 a 40 hexadecimales>"
+  BASE=$(git rev-parse --verify -q --end-of-options "$sha^{commit}" 2>/dev/null) || nb "$sha no resuelve a un commit"
+  case "$RANGO" in
+    *...*|*..*..*) nb "con base declarada el rango debe ser <rev> o <a>..<b> (recibido '$RANGO')" ;;
+    *..*) FIN=${RANGO#*..}; [ -n "$FIN" ] || FIN=HEAD ;;
+    *) FIN=$RANGO ;;
+  esac
+  git merge-base --is-ancestor "$BASE" "$FIN" 2>/dev/null || nb "$sha no es ancestro de $FIN: no pertenece a esta historia"
+  [ -z "$(sh scripts/check_docs.sh fase-historica "$BASE" 2>/dev/null)" ] \
+    || nb "$sha ya tiene un commit con fase en su historia: la base es el último commit PREVIO a la adopción y no se mueve hacia adelante"
+  EXCLUIR="^$BASE"
+  echo "base del método: $(git rev-parse --short "$BASE") (se excluye lo alcanzable desde ahí)"
+fi
+# shellcheck disable=SC2086
+commits=$(git rev-list --reverse "$RANGO" $EXCLUIR 2>/dev/null) || { echo "validar_historial: rango inválido '$RANGO'" >&2; exit 2; }
 [ -n "$commits" ] || { echo "validar_historial: ningún commit en $RANGO"; exit 0; }
 MAL=0; TOTAL=0
 fallo() { echo "  ✗ $1" >&2; ok=0; }

@@ -273,16 +273,21 @@ revertir) vive en docs/despliegue.md. -->
   (`--no-verify`); el CI no. El CI corre también `sh scripts/check_docs.sh`,
   `sh scripts/pruebas/validar_historial.sh origin/main..HEAD` (el contrato de los hooks
   reejecutado sobre cada commit nuevo: así un `--no-verify` local falla en el remoto) y
-  `sh scripts/pruebas/regresion.sh` (la regresión de los propios hooks, sin red ni
+  `sh scripts/pruebas/regresion.sh` y `regresion-adopcion.sh` (la regresión de los propios hooks y de la adopción, sin red ni
   credenciales). `.github/workflows/metodo.yml` trae exactamente eso para GitHub Actions
   con la política de rango explícita (push: `before..after`; rama nueva: desde la base con
   la rama por defecto; PR: los commits reales de la rama, nunca el merge sintético); en
-  otro CI se copian los cuatro comandos y esa política. **Merges:** uno limpio (árbol igual a
+  otro CI se copian esos comandos y esa política. **Merges:** uno limpio (árbol igual a
   la fusión automática de sus dos padres) no lleva trailer; si al fusionar se resuelve un
   conflicto o se añade algo, ese contenido es nuevo: trailer y, si toca código, `Ref: I<n>`
   con recibo sobre la huella del merge. Lo decide el `commit-msg`, en local y en el replay. Las guardas de contenido
   (secretos, append-only, registros y suite que no desaparecen) son **una sola
   implementación**, `scripts/guardas.sh`, que usan el `pre-commit` y el replay.
+- **Base del método (solo proyectos adoptados, `docs/arranque-existente.md`):** el Paso 0
+  añade aquí una línea `- **Base del método:** <sha>` con el **último commit previo a la
+  adopción**. `validar_historial.sh` resta lo alcanzable desde ahí: el historial anterior no
+  se juzga y el commit de instalación sí. Una sola declaración; duplicada, malformada, ajena
+  a la historia o movida a un commit con fase, falla. Sin ella, el replay es el de siempre.
 - **Límites del modelo de cierre (deliberados):** varios commits `Ref: I3` cuentan como
   **un** incremento cerrado (el contador cuenta incrementos distintos; una corrección
   reabre el mismo `I#`, un alcance nuevo exige otro). Un commit `Ref: I<n>` con recibo
@@ -311,7 +316,7 @@ revertir) vive en docs/despliegue.md. -->
   si su resolución amerita commit propio). Es la trazabilidad en el
   historial (ver `docs/trazabilidad.md`). **Qué entra sin `Ref: I<n>`:** solo el rastro
   (`docs/`, `contexto/`, `mejoras/`), la plantilla (`.claude/`, `.codex/`, `.githooks/`, `.github/`,
-  `scripts/check_docs.sh|huella.sh|recibos.sh|trazabilidad.sh|guardas.sh|consumo.py|check.sh`, `scripts/pruebas/`) y la
+  `scripts/check_docs.sh|adoptar.sh|huella.sh|recibos.sh|trazabilidad.sh|guardas.sh|consumo.py|check.sh`, `scripts/pruebas/`) y la
   configuración del repo (`README.md`, `AGENTS.md`, `.gitignore`…). Todo lo demás es código
   del producto: `Ref: I<n>` y recibo del juez, siempre; un `Cierra:` solo o un `Ref: F#` con
   código se rechaza. Ampliar esa lista (`SIN_REVISION` en el hook) es un ADR.

@@ -7,10 +7,11 @@
 
 ## 0. Punto de entrada obligatorio
 
-Antes de cualquier diseño o línea de código, abre y ejecuta `docs/arranque.md`.
-Es el guion de arranque determinista: conduce a la persona paso a paso, con una
-condición de salida binaria por paso y un gate humano entre cada uno. No empieces
-por otro lado.
+Antes de cualquier diseño o línea de código, abre y ejecuta el guion de arranque que
+corresponde: `docs/arranque.md` si el proyecto nace con el método, o
+`docs/arranque-existente.md` si el repositorio ya tiene código que funciona. Es un guion
+determinista: conduce a la persona paso a paso, con una condición de salida binaria por
+paso y un gate humano entre cada uno. No empieces por otro lado.
 
 Verifica también que **git esté configurado** antes de empezar; si no lo está,
 detente y pídelo. Se hace **un commit al cierre de cada fase y de cada incremento**

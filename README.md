@@ -67,6 +67,14 @@ cada pieza está en «Cómo está armado el sistema» y en el glosario de «Defi
    cero—, seguido del diseño y la validación. Hay un gate en cada actividad, **antes de
    programar**.
 
+**Proyecto que ya existe y funciona.** No se copia con `git archive` (pisaría el README y
+otros archivos): desde la plantilla, `sh scripts/adoptar.sh vista-previa <ruta>` muestra
+qué se copiaría y qué colisiona, y `sh scripts/adoptar.sh copiar <ruta>` copia solo lo
+ausente, sin sobreescribir nada, y deja el manifiesto en `contexto/adopcion.md`. Luego se
+le pide al agente «arranca sobre proyecto existente», que ejecuta
+`docs/arranque-existente.md`: integra las colisiones con tu OK, registra la línea base,
+activa los controles y entiende el sistema antes de proponer cualquier cambio.
+
 ## Las 5 fases (con compuerta humana entre cada una)
 
 1. **Encuadre** — contexto, objetivos, no-objetivos, criterios de éxito, set de

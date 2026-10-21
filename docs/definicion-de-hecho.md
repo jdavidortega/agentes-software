@@ -26,6 +26,12 @@
 
 ## A. Listo para commit (lo verifica el juez; todo binario)
 
+> **Proyecto adoptado** (`docs/arranque-existente.md`): las **condiciones preexistentes**
+> registradas en `docs/encuadre.md` §Línea base (estilo, idioma, rutas, configuración,
+> documentación de interfaces…) no se exigen al incremento que no las toca; las **garantías
+> sobre el cambio actual** se exigen completas, incluidas las comprobaciones necesarias para
+> ejecutarlo y validarlo. Lo que el incremento modifica deja de ser preexistente.
+
 - [ ] Cumple los criterios de éxito **y el set de oro** de `docs/encuadre.md` (no
   solo "funciona": la salida tiene la calidad esperada).
 - [ ] **Las pruebas son las del plan de pruebas** del incremento (`docs/plan.md` §Plan de

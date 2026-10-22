@@ -827,6 +827,14 @@ printf 'SECRETO=y\n' > "$D/.env"; echo "- nota" >> "$D/docs/MEMORIA.md"
 espera falla "cambiar un .env ya versionado sigue rechazado" "guardas: .*\.env" -- commitea "$D" "memoria
 
 Ref: F1"
+copia f3-tres v8; mkdir -p "$D/sub"; printf 'API_URL=<api_url>\n' > "$D/sub/.env.example"
+espera pasa "un .env.example en una subcarpeta entra sin Ref: I<n> (configuración, como en guardas.sh)" "" -- commitea "$D" "plantilla de configuración
+
+Ref: F1"
+copia f3-tres v9; mkdir -p "$D/sub"; printf 'x\n' > "$D/sub/x.env.example"
+espera falla "un archivo que solo termina en .env.example sigue siendo código" "código fuera del rastro" -- commitea "$D" "no es plantilla
+
+Ref: F1"
 # Ramas: "rama" trae el hito y el I4 revisados; la principal avanza con un commit de rastro.
 R2="$W/etapas/ramas"; cp -R "$W/etapas/f3-tres" "$R2"
 en "$R2" git checkout -q -b rama && recibo "$R2" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app

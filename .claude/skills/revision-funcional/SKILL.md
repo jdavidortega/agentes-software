@@ -125,11 +125,18 @@ Fase 2). Cambios a la rúbrica de arriba:
   es vacío.
 - **Criterios:** describen comportamiento **vigente**; «medible» = una prueba o ejecución lo
   muestra hoy. Todo estado terminal expuesto tiene `C#` o está declarado fuera.
-- **Set de oro:** la referencia la **produce la versión actual**. Por par: procedencia
-  correcta, referencia persistida (salida, parámetros, versión, hash de la entrada y dónde
-  obtenerla) o reproducción declarada limitada.
+- **Set de oro:** la referencia la **produce la versión actual**, con los pares necesarios
+  para cubrir salidas y caminos materialmente distintos (no un número fijo). Por par:
+  procedencia correcta, referencia persistida (salida, parámetros, versión, hash de la entrada y
+  dónde obtenerla) o reproducción declarada limitada. Recalcula al menos una cifra desde el
+  artefacto persistido.
 - **Entradas y salidas:** cada fila dice qué se verificó y qué falta; un «sí» que excede lo
-  comprobado es vacío.
+  comprobado es vacío, también cuando la verificación usó un sustituto sin declararlo.
+- **Caminos:** la lista de caminos del guion (actividad 3) está cubierta o con «no aplica»
+  justificado; un camino que el código tiene y el encuadre omite es vacío.
+- **Citas:** cada `C#` y cada hallazgo citan `archivo:línea` del commit evaluado.
+- **Coherencia:** el resultado de la pasada consta en `docs/estado.md`.
+- **README:** sus desfases como hallazgos bastan; su corrección no se exige en la Fase 1.
 - **Stack y despliegue:** se **documentan**, no se deciden; no aplica «versiones verificadas
   contra la doc oficial», sí «versión de lo corrido frente a lo desplegado» (o la salvedad
   «equivalencia con producción no comprobada»).

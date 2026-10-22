@@ -29,6 +29,9 @@ responde por escrito, en el resumen del gate, cuatro preguntas:
 4. ¿Cada evidencia citada se puede **repetir desde lo escrito** (comando, directorio, qué
    se neutralizó, resultado)?
 
+El resultado queda también en `docs/estado.md`, en una línea con lo que quedó pendiente; la
+evidencia se referencia, no se copia. Así el revisor puede comprobar que la pasada ocurrió.
+
 ## Contrato de adopción
 
 Ocho cláusulas que no se negocian en cada proyecto; si una no puede cumplirse, se dice y
@@ -41,7 +44,10 @@ se decide con la persona antes de seguir.
    secretos versionados. Todo lo demás espera a un incremento con juez (Fase 3).
 3. **Colisiones.** Se listan antes de copiar y **nunca se sobreescriben**. El README, la
    documentación y las instrucciones de agente que el proyecto ya tiene se conservan; su
-   integración es explícita, por archivo y aprobada.
+   integración es explícita, por archivo y aprobada. **Excepción a `AGENTS.md` §2 (README
+   corregido antes de cada gate):** en una adopción el README se **verifica** y cada desfase se
+   registra como hallazgo; su corrección es una integración que la persona aprueba (en el gate o
+   en el plan), no un requisito para pedir el gate.
 4. **Línea base.** Lo que el código ya hace distinto de la Definición de Hecho (estilo,
    idioma, rutas, configuración, documentación de interfaces) se registra en
    `docs/encuadre.md` §Línea base y **no se le exige al incremento que no lo toca**; las
@@ -179,9 +185,15 @@ Produce `docs/encuadre.md` con **el sistema tal como está**, corto y referencia
 está escrito, más `docs/convenciones.md` y `docs/decisiones.md`. Se lee el código entero
 que toca cada capacidad; lo que se afirma, se cita.
 
-**Marcas de origen** (sustituyen a las del arranque normal): `[de código: archivo]`,
+**Marcas de origen** (sustituyen a las del arranque normal): `[de código: archivo:línea]`,
 `[de ejecución: script, fecha]`, `[de contexto/: archivo]`, `[inferido]` (por confirmar) y
-`[pendiente: quién lo confirma]`.
+`[pendiente: quién lo confirma]`. El encuadre declara una vez el **commit evaluado**; cada `C#`
+y cada hallazgo citan `archivo:línea` de ese commit.
+
+**Sustitutos (fakes y mocks).** Toda verificación hecha con un sustituto (Redis en memoria,
+broker eager, cliente HTTP falso, reloj fijo) declara **qué sustituye y qué garantía queda sin
+verificar** por eso (p. ej. «TTL y concurrencia de Redis no verificados»), en la fila de
+§Entradas y salidas o en el mapa de protección que corresponda.
 
 **Desconocidos: hecho pendiente ≠ elección.** Un dato que solo la persona u operación sabe
 (parámetros desplegados, política de una capa externa, tiempos reales) es un **hecho
@@ -200,23 +212,34 @@ Fase 1 si ninguna garantía que se declare verificada depende de él.
    responsabilidades principales; diagrama del README **verificado** (o creado). Versiones:
    las que corrieron; sin acceso autorizado a producción se escribe «evaluado localmente;
    equivalencia con producción no comprobada».
-3. **Cómo funciona.** Flujo en pasos, parámetros (valor por defecto **y** configurado),
-   estados y errores, en una página. **Contratos de salida en todos los caminos:** éxito,
-   sin datos, error previsto, excepción no prevista y caída de cada dependencia; qué ve
-   **cada consumidor** en cada uno (p. ej. el estado de la cola frente al de negocio).
-   El README se verifica contra el código y cada desfase es un hallazgo.
+3. **Cómo funciona.** Flujo en pasos, estados y errores, en una página. **Parámetros:** los que
+   gobiernan un comportamiento crítico (umbrales, límites de tiempo, reintentos, ventanas,
+   tamaños de muestra) se listan **aunque coincidan con su valor por defecto**, con el valor
+   configurado cuando difiere; los demás se referencian (`settings`, `.env.example`), no se copian.
+   **Contratos de salida por camino**, con «no aplica» justificado cuando corresponda:
+   éxito · sin datos · error previsto · excepción no prevista · fallo **antes** del manejo de
+   errores (arranque) · caída de **cada** dependencia · entrada con formato inesperado ·
+   concurrencia y locks (con y sin estado previo) · límites de tiempo (suave y duro) ·
+   interrupción y **reentrega** · cambio de fecha o zona horaria (claves diarias, ventanas).
+   En cada camino: qué ve **cada consumidor** (p. ej. el estado de la cola frente al de negocio).
+   El README se verifica contra el código y cada desfase es un hallazgo (cláusula 3).
 4. **Criterios vigentes y mapa de protección.** Un `C#` por comportamiento observable que
    debe conservarse, y **todo estado terminal** que el sistema expone tiene un `C#` o queda
    declarado fuera. Set de oro con **referencia producida por la versión actual** (no por un
-   análisis previo cuya procedencia no se conoce): por par, procedencia (script o prueba que
+   análisis previo cuya procedencia no se conoce), con **los pares necesarios para representar
+   salidas y caminos materialmente distintos** (cinco es una referencia, no una garantía de
+   suficiencia). Toda **cifra** del set de oro se **deriva del artefacto persistido** con una
+   definición de conteo declarada (p. ej. vértices únicos, sin el punto que cierra el anillo) y
+   se verifica contra él. Por par, procedencia (script o prueba que
    lo produce), y persistidos en `contexto/exploracion/` la **salida pequeña**, los
    **parámetros**, la **versión del código** y el **hash de la entrada** con **dónde y cómo
    obtenerla**; si la entrada no es accesible de forma estable, la reproducción se declara
    **limitada**. Mapa: cada prueba existente con lo que **realmente ejecuta** (qué sustituye).
    La brecha queda nombrada.
-5. **Convenciones observadas** en `docs/convenciones.md`: cómo se configura, se levanta y se
-   prueba (comandos verificados), estilo tal como es. Lo que difiere de la DoD va a
-   `docs/encuadre.md` §Línea base (cláusula 4).
+5. **Convenciones observadas** en `docs/convenciones.md`, en una sección propia **al inicio**
+   («Observado en este proyecto»): cómo se configura, se levanta, se prueba y se aplica un cambio
+   (comandos verificados) y el estilo tal como es. Las reglas de la plantilla **se conservan**:
+   rigen lo nuevo o modificado. Lo que difiere de ellas va a `docs/encuadre.md` §Línea base (cláusula 4).
 6. **Decisiones visibles** en `docs/decisiones.md`: ADR retrospectivos de lo que condiciona un
    cambio (algoritmos, parámetros, persistencia, políticas de reintento, nombres de salida),
    cada uno con **evidencia** (archivo), **explicación confirmada** por la persona o
@@ -230,12 +253,15 @@ Fase 1 si ninguna garantía que se declare verificada depende de él.
 - [ ] Cada fila de §Entradas y salidas dice qué se verificó y qué falta.
 - [ ] Hay un script de ejecución local en `contexto/exploracion/` que corre la transformación
   principal sobre entradas reales, o la imposibilidad está declarada.
+- [ ] La lista de caminos de la actividad 3 está completa: cada camino con su contrato o con
+  «no aplica» justificado.
 - [ ] Cada estado terminal expuesto tiene `C#` o está declarado fuera; cada `C#` tiene una
-  prueba que lo ejecuta de verdad o una brecha nombrada.
+  prueba que lo ejecuta de verdad o una brecha nombrada, y cita `archivo:línea`.
 - [ ] Cada par del set de oro tiene procedencia y referencia persistida (o reproducción
-  declarada limitada).
+  declarada limitada); sus cifras se derivan del artefacto persistido.
+- [ ] Cada verificación con sustituto declara qué garantía queda sin verificar.
 - [ ] Sin `[inferido]` sin confirmar; cada `[pendiente]` con impacto y quién lo confirma.
-- [ ] Revisor funcional en PASA y pasada de coherencia respondida.
+- [ ] Revisor funcional en PASA y pasada de coherencia respondida y anotada en `docs/estado.md`.
 
 ---
 

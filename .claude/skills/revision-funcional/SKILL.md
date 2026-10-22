@@ -118,28 +118,17 @@ alcance** (`docs/arranque-existente.md`). No basta con que exista `contexto/adop
 ese archivo sigue ahí en todas las fases posteriores, donde rige la rúbrica normal.
 
 **Alcance Fase 1 (reconocimiento):** se revisa `docs/encuadre.md`, `docs/convenciones.md` y
-`docs/decisiones.md`. No se exige `docs/plan.md` ni incrementos en trazabilidad (nacen en la
-Fase 2). Cambios a la rúbrica de arriba:
-- **Fuente:** el **código** del repositorio, además de `contexto/`. Se verifica cada `C#` y
-  cada hallazgo **contra el código**, muestreando con archivo:línea; lo falso o sobredeclarado
+`docs/decisiones.md`. **La rúbrica es el validador de la Fase 1 de `docs/arranque-existente.md`,
+ítem por ítem, con sus actividades como definición**: no se copia aquí, para que no diverja.
+Sustituye a la rúbrica de arriba en lo que esta exija distinto: no se exige `docs/plan.md` ni
+incrementos en trazabilidad (nacen en la Fase 2), ni un mínimo fijo de pares del set de oro
+(el «≥5» de arriba no aplica), ni «versiones verificadas contra la doc oficial» (el stack se
+documenta, no se decide). Lo propio del revisor en este modo:
+- **Fuente:** el **código** del repositorio, además de `contexto/`. Cada `C#` y cada hallazgo
+  se contrasta con el código, muestreando sus citas `archivo:línea`; lo falso o sobredeclarado
   es vacío.
-- **Criterios:** describen comportamiento **vigente**; «medible» = una prueba o ejecución lo
-  muestra hoy. Todo estado terminal expuesto tiene `C#` o está declarado fuera.
-- **Set de oro:** la referencia la **produce la versión actual**, con los pares necesarios
-  para cubrir salidas y caminos materialmente distintos (no un número fijo). Por par:
-  procedencia correcta, referencia persistida (salida, parámetros, versión, hash de la entrada y
-  dónde obtenerla) o reproducción declarada limitada. Recalcula al menos una cifra desde el
-  artefacto persistido.
-- **Entradas y salidas:** cada fila dice qué se verificó y qué falta; un «sí» que excede lo
-  comprobado es vacío, también cuando la verificación usó un sustituto sin declararlo.
-- **Caminos:** la lista de caminos del guion (actividad 3) está cubierta o con «no aplica»
-  justificado; un camino que el código tiene y el encuadre omite es vacío.
-- **Citas:** cada `C#` y cada hallazgo citan `archivo:línea` del commit evaluado.
-- **Coherencia:** el resultado de la pasada consta en `docs/estado.md`.
-- **README:** sus desfases como hallazgos bastan; su corrección no se exige en la Fase 1.
-- **Stack y despliegue:** se **documentan**, no se deciden; no aplica «versiones verificadas
-  contra la doc oficial», sí «versión de lo corrido frente a lo desplegado» (o la salvedad
-  «equivalencia con producción no comprobada»).
+- **Recalcula** al menos una cifra del set de oro desde su artefacto persistido y re-ejecuta un
+  script de `contexto/exploracion/` si corre sin red.
 - **Desconocidos:** un hecho pendiente con impacto y responsable no es vacío si ninguna
   garantía declarada verificada depende de él; solo una **elección** exige ADR `propuesta`.
 - **Decisiones:** ADR retrospectivos con evidencia, explicación confirmada o hipótesis; no se

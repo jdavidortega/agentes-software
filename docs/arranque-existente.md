@@ -260,6 +260,9 @@ Fase 1 si ninguna garantía que se declare verificada depende de él.
 - [ ] Cada par del set de oro tiene procedencia y referencia persistida (o reproducción
   declarada limitada); sus cifras se derivan del artefacto persistido.
 - [ ] Cada verificación con sustituto declara qué garantía queda sin verificar.
+- [ ] §Cómo funciona lista los parámetros críticos (aunque coincidan con su valor por defecto).
+- [ ] `docs/convenciones.md` abre con «Observado en este proyecto» (configurar, levantar,
+  probar, aplicar un cambio; estilo) y conserva las reglas de la plantilla.
 - [ ] Sin `[inferido]` sin confirmar; cada `[pendiente]` con impacto y quién lo confirma.
 - [ ] Revisor funcional en PASA y pasada de coherencia respondida y anotada en `docs/estado.md`.
 

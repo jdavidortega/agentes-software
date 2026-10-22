@@ -134,6 +134,7 @@ inspeccionar() {
     printf '%-22s%s\n' "$f:" "$([ -e "$DESTINO/$f" ] && echo existe || echo ausente)"
   done
   echo "manifiesto:           $([ -f "$DESTINO/$MANIFIESTO" ] && echo "existe ($MANIFIESTO)" || echo ausente)"
+  [ ! -L "$DESTINO/.gitignore" ] || echo ".gitignore:           ENLACE SIMBÓLICO (el modo gitignore lo rechaza: escribiría fuera del repositorio)"
   echo "plantilla:            $PLANTILLA_COMMIT (árbol del conjunto limpio: $PLANTILLA_LIMPIA)"
   echo "== Bloqueos: $BLOQUEOS"
   [ -z "$BLOQ_ENLACE" ] || seccion "enlace simbólico en la ruta (se escribiría fuera del repositorio)" "$BLOQ_ENLACE"
@@ -220,6 +221,10 @@ copiar() {
 gitignore_modo() {
   [ -f "$PLANTILLA/.gitignore" ] || fallo "la plantilla no tiene .gitignore"
   gi="$DESTINO/.gitignore"
+  # El .gitignore raíz es la única ruta que este modo escribe: si es un enlace simbólico (o un
+  # directorio), escribir en él saldría del repositorio. Se rechaza antes de leer o escribir nada.
+  [ ! -L "$gi" ] || fallo ".gitignore es un enlace simbólico (apunta a $(readlink "$gi")): escribir en él modificaría un archivo fuera del repositorio. Reemplázalo por un archivo real y repite."
+  [ ! -e "$gi" ] || [ -f "$gi" ] || fallo ".gitignore existe pero no es un archivo regular"
   # Bloque candidato: reglas de la plantilla ausentes (línea exacta) en el .gitignore raíz, en su orden.
   bloque=""
   for r in $(grep -vE '^[[:space:]]*(#|$)' "$PLANTILLA/.gitignore"); do

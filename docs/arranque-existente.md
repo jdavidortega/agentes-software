@@ -80,6 +80,8 @@ plantilla actualizada, idéntico sin registro, colisión) e informan.
   método antes y después. Si ocultaría un archivo **versionado** (típico: un `.env`), no se
   aplica nada: primero se decide qué hacer con ese archivo (cláusula 2) y se repite con
   `--aplicar`. Lo que el proyecto ya ignoraba estando versionado es un **hallazgo**, no un bloqueo.
+  Si el `.gitignore` del proyecto es un enlace simbólico, el modo lo rechaza: escribir en él
+  modificaría un archivo fuera del repositorio.
 - **`CLAUDE.md` / `AGENTS.md` del proyecto:** no se renombran ni se diluyen. Si existe
   `CLAUDE.md`, se le añade la importación `@AGENTS.md`. Si existe `AGENTS.md` propio, sus
   instrucciones operativas se conservan con su alcance y prioridad (p. ej. como

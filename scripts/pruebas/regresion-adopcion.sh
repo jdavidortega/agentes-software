@@ -165,6 +165,10 @@ espera pasa "preexistente: no bloquea --aplicar" "Aplicado" -- adoptar "$P" giti
 copia existente c9; en "$D" git rm -q config/.env.prod
 printf 'notas/*\n!notas/mejoras/\n' >> "$D/.gitignore"; mkdir -p "$D/notas/mejoras"; printf 'z\n' > "$D/notas/mejoras/idea.md"; sin_hooks "$D" "notas"
 espera falla "negación del destino anulada por una regla posterior del bloque: se detecta por su efecto" "notas/mejoras/idea\.md +\(regla «mejoras/»\)" -- adoptar "$P" gitignore "$D" --aplicar
+copia existente c10; mkdir -p "$W/fuera3"; mv "$D/.gitignore" "$W/fuera3/gi"; ln -s "$W/fuera3/gi" "$D/.gitignore"; sin_hooks "$D" "gitignore enlazado"; cp "$W/fuera3/gi" "$W/gi.orig"
+espera falla ".gitignore enlace simbólico: --aplicar rehúsa" "enlace simbólico" -- adoptar "$P" gitignore "$D" --aplicar
+espera pasa ".gitignore enlace simbólico: el archivo externo queda intacto" "" -- cmp -s "$W/gi.orig" "$W/fuera3/gi"
+espera pasa ".gitignore enlace simbólico: la inspección lo reporta" "ENLACE SIMBÓLICO" -- adoptar "$P" inspeccionar "$D"
 
 echo "== base del método: commit de instalación con los hooks reales"
 copia existente inst; I="$D"

@@ -321,6 +321,19 @@ revertir) vive en docs/despliegue.md. -->
   del producto: `Ref: I<n>` y recibo del juez, siempre; un `Cierra:` solo o un `Ref: F#` con
   código se rechaza. Ampliar esa lista (`SIN_REVISION` en el hook) es un ADR.
 
+## Revisores y sandbox
+
+- **Por defecto:** filtro preventivo de revisores (`.claude/hooks/guarda-revisor.py`) y
+  modalidades de escritura según `.claude/skills/dirigiendo-revisiones/SKILL.md`. No es frontera.
+- **Sandbox de Bash (opcional, por proyecto; no se activa por defecto):** restringe a nivel del
+  sistema operativo dónde escriben los comandos de shell y sus procesos hijos, en **toda la
+  sesión** (también el principal) y también la red. No cubre herramientas de archivos, hooks ni
+  MCP. Se configura en `.claude/settings.json` (documentación oficial: «Sandboxing»), p. ej.
+  `{"sandbox": {"enabled": true, "allowUnsandboxedCommands": false, "filesystem": {"allowWrite": ["<dir>"]}}}`.
+  Por defecto ya permite escribir en el directorio de trabajo y en un temporal por usuario.
+  Activarlo es decisión del proyecto (ADR), con prueba de que una escritura no permitida se
+  niega antes de declararlo `verificado` en un informe.
+
 ## Pruebas
 - **Herméticas:** sin dependencia de `.env` real ni de servicios externos; inyectar
   o mockear. Un test cuyo resultado cambia por un `.env` es frágil.

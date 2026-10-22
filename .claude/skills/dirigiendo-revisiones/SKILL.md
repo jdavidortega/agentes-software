@@ -26,13 +26,22 @@ allowed-tools: Read, Grep, Glob, Bash
    funcional; incremento `I<n>` → juez de código (+ seguridad si toca superficie de
    riesgo); hito `hito:I<a>-I<b>` → juez de conjunto (+ seguridad); Fase 4 `F4` → juez de
    conjunto (+ seguridad). **Uno a la vez**; nunca con una suite o un sabotaje corriendo.
+3b. Fija la **modalidad de escritura** (procedimiento de control, no garantía; ver §Modalidades):
+   - **lectura** (por defecto): el revisor no escribe en ningún sitio. Borra
+     `.git/revision-modalidad` o escribe en él `lectura`.
+   - **experimentos** (reproducir, sabotear, correr algo que genera archivos):
+     `D=$(mktemp -d)` y `printf 'experimentos %s\n' "$D" > .git/revision-modalidad`. Es el
+     **único** lugar donde el revisor está autorizado a escribir.
 
 ## Invocación
 
 4. Lanza el agente declarado (`.claude/agents/<rol>.md`) o, sin subagentes, el «Prompt
    de invocación» de su skill. Pásale **solo** qué revisar: rol, alcance, rango del diff
    (`git diff <base>..HEAD` o árbol de trabajo) y los archivos. **No** le resumas tu
-   solución ni le adelantes conclusiones.
+   solución ni le adelantes conclusiones. Dile la **modalidad** con su regla literal: «no
+   escribas en ningún sitio, tampoco en directorios temporales» o «escribe solo en `<D>`»; y
+   pídele, como primer comando, el **canario** `touch .git/canario-revisor`: si el filtro
+   preventivo está activo debe rechazarse (en experimentos también, porque no nombra `<D>`).
 5. Pídele el reporte con el **formato exacto** y dentro del **presupuesto**: Veredicto ·
    Bloqueantes (ID, criterio, una frase, fila lista) · Sugerencias (máx. 5, una línea
    cada una) · Preguntas · Cobertura y limitaciones (seguridad) · Obstáculos («ninguno»
@@ -45,14 +54,25 @@ allowed-tools: Read, Grep, Glob, Bash
 
 6. **Integridad:** `I1=$(sh scripts/huella.sh integridad)`; exige `I0 == I1`. Si difiere,
    el revisor escribió algo (código, docs o registros): la revisión **no vale**, averigua
-   qué y repítela. **Vigencia:** exige `V0 == huella del recibo`; si difiere, el revisor
-   juzgó otra cosa. Ninguna de las dos ve la red ni los archivos ignorados por git.
+   qué y repítela. La huella **detecta diferencias observables** en el repositorio al final;
+   no lo protege contra escrituras ni ve cambios transitorios, la red o lo ignorado por git.
+   **Vigencia:** exige `V0 == huella del recibo`; si difiere, el revisor juzgó otra cosa.
+   **Modalidad:** en experimentos, inventaría `<D>` (`ls -laR "$D"`), copia a
+   `contexto/exploracion/` solo lo que sea evidencia y borra `.git/revision-modalidad`. Si
+   existe `.git/canario-revisor`, el filtro **no** estaba activo: bórralo y decláralo.
 7. **Registra tal cual, sin editar:** la línea del recibo al final de
    `docs/revisiones.log` (append; nunca se compacta) y las filas de hallazgos en
    `docs/trazabilidad.md` (numeración que continúa, incluido el Histórico). Ambos están
    fuera de la huella, igual que `estado.md` y `MEMORIA.md`: registrarlos no invalida el
    recibo.
-8. **Rutea los obstáculos a `docs/MEMORIA.md`** (sección «Operativa») y la línea de
+8. **Declara la modalidad** en el informe de la revisión (y en la bitácora), sin tocar la
+   gramática del recibo: modalidad (`lectura` | `experimentos`), directorio autorizado,
+   **filtro preventivo** (`comprobado`: el canario fue rechazado · `desactivado`: el canario
+   se creó · `sin verificar`), **aislamiento** (`ninguno` · `sandbox configurado` · `sandbox
+   verificado`, ver §Modalidades), comprobaciones hechas (huellas, inventario) y **límites**.
+   Sin aislamiento verificado, el límite dice: «no se garantiza la ausencia de escrituras
+   fuera del repositorio».
+8b. **Rutea los obstáculos a `docs/MEMORIA.md`** (sección «Operativa») y la línea de
    consumo a `MEMORIA.md` §Consumo: comandos, flags, workarounds, tokens. Su promoción a `docs/convenciones.md` va en el **siguiente** incremento,
    porque `convenciones.md` sí es contenido revisado y cambiarlo ahora invalidaría el
    recibo.
@@ -63,6 +83,25 @@ allowed-tools: Read, Grep, Glob, Bash
 10. Con **PASA**: cierra con la lista B de la DoD y el commit enlazado. El `commit-msg`
     verificará el recibo contra la huella del índice; si rechaza por huella, algo cambió
     después del PASA: no lo "arregles" editando el recibo, repite la revisión.
+
+## Modalidades de escritura (qué garantiza cada control)
+
+- **Filtro preventivo** (`.claude/hooks/guarda-revisor.py`, hook `PreToolUse` de Bash en
+  `.claude/settings.json`; solo actúa sobre los cuatro revisores por `agent_type`): rechaza
+  escrituras **evidentes** en el texto del comando según la modalidad. **No es frontera:** no
+  ve lo que escribe un programa lanzado desde el comando (python, git) y un comando que nombre
+  `<D>` pasa aunque también escriba en otro sitio. Solo corre si el proyecto aceptó la
+  confianza de la carpeta; por eso se **comprueba** con el canario, no se presume.
+- **Directorio autorizado** (experimentos): **delimita la autorización**; sin una restricción
+  efectiva, no impide escribir fuera.
+- **Sandbox de Bash** (opcional por proyecto, `docs/convenciones.md` §Revisores y sandbox): la
+  única restricción efectiva, aplicada por el sistema operativo a los comandos de shell y sus
+  procesos hijos; es de **toda la sesión** (principal incluido) y no cubre herramientas de
+  archivos, hooks ni MCP. «Sandbox configurado» no equivale a «ejecución aislada»: solo se
+  declara `verificado` si una escritura fuera de lo permitido se intentó y el sistema la negó.
+- **Suites:** `PYTHONDONTWRITEBYTECODE=1` (o el equivalente del stack) evita el bytecode, no
+  garantiza una suite sin escrituras; una suite que genera temporales, bases o informes va en
+  modalidad **experimentos**.
 
 ## Notas / trampas
 

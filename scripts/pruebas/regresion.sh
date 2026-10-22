@@ -874,6 +874,25 @@ espera pasa "un merge que solo añade rastro (docs/) con su trailer se acepta" "
 
 Ref: F1"
 
+# --- Filtro preventivo de revisores (.claude/hooks/guarda-revisor.py): NO es frontera; se prueba
+#     que rechaza patrones evidentes, permite lecturas y respeta la modalidad «experimentos».
+echo "== filtro preventivo de revisores"
+GR="$RAIZ/.claude/hooks/guarda-revisor.py"; GW="$W/guarda"; mkdir -p "$GW/.git"
+gr() {  # gr <agente> <comando>: corre el hook con la entrada JSON del evento PreToolUse
+  python3 -c 'import json,sys; print(json.dumps({"agent_type":sys.argv[1],"tool_name":"Bash","tool_input":{"command":sys.argv[2]},"cwd":sys.argv[3]}))' "$1" "$2" "$GW" \
+    | CLAUDE_PROJECT_DIR="$GW" python3 "$GR"
+}
+espera falla "revisor en lectura: rm se rechaza" "filtro preventivo" -- gr revisor-funcional 'rm -rf docs'
+espera falla "revisor en lectura: redirección a un archivo se rechaza" "filtro preventivo" -- gr juez-codigo 'echo x > /tmp/salida.txt'
+espera falla "revisor en lectura: git commit se rechaza" "filtro preventivo" -- gr juez-conjunto 'git commit -m x'
+espera falla "revisor en lectura: sed -i se rechaza" "filtro preventivo" -- gr juez-seguridad "sed -i '' s/a/b/ f"
+espera pasa "revisor en lectura: la suite y las lecturas pasan" "" -- gr revisor-funcional 'sh scripts/check.sh 2>&1 | tail -3 && git log --oneline -3 > /dev/null'
+espera pasa "revisor en lectura: un patrón entre comillas es una lectura" "" -- gr revisor-funcional 'grep -rn "a > b; rm -rf x" docs'
+espera pasa "un agente que no es revisor no se filtra" "" -- gr general-purpose 'rm -rf docs'
+printf 'experimentos %s/aut\n' "$GW" > "$GW/.git/revision-modalidad"
+espera pasa "revisor en experimentos: escribir en el directorio autorizado pasa" "" -- gr juez-conjunto "python3 x.py > $GW/aut/out.txt"
+espera falla "revisor en experimentos: escribir fuera del directorio autorizado se rechaza" "solo en $GW/aut" -- gr juez-conjunto 'cp a /tmp/b'
+
 echo
 echo "regresion: $((TOTAL-MAL))/$TOTAL casos en verde"
 if [ "$MAL" -gt 0 ]; then echo "FALLARON:$FALLIDOS"; exit 1; fi

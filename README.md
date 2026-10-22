@@ -67,13 +67,43 @@ cada pieza está en «Cómo está armado el sistema» y en el glosario de «Defi
    cero—, seguido del diseño y la validación. Hay un gate en cada actividad, **antes de
    programar**.
 
-**Proyecto que ya existe y funciona.** No se copia con `git archive` (pisaría el README y
-otros archivos): desde la plantilla, `sh scripts/adoptar.sh vista-previa <ruta>` muestra
-qué se copiaría y qué colisiona, y `sh scripts/adoptar.sh copiar <ruta>` copia solo lo
-ausente, sin sobreescribir nada, y deja el manifiesto en `contexto/adopcion.md`. Luego se
-le pide al agente «arranca sobre proyecto existente», que ejecuta
-`docs/arranque-existente.md`: integra las colisiones con tu OK, registra la línea base,
-activa los controles y entiende el sistema antes de proponer cualquier cambio.
+### En un proyecto que ya existe y funciona
+
+**No uses `git archive` ni copies carpetas a mano:** pisarían el README del proyecto y
+cualquier archivo con el mismo nombre. La copia la hace un script de la plantilla que
+**solo añade lo que falta** y nunca sobreescribe.
+
+1. **Prepara el proyecto.** Árbol limpio (`git status` sin cambios) y una rama local para
+   probar: `git switch -c adopcion-metodo`. Nada se publica hasta que tú lo decidas.
+2. **Mira qué pasaría, sin escribir nada.** Desde la carpeta de la plantilla, con la ruta
+   de la **raíz** del proyecto:
+
+   ```sh
+   cd /ruta/a/agente-software
+   sh scripts/adoptar.sh inspeccionar /ruta/al/proyecto   # estado del proyecto y bloqueos
+   sh scripts/adoptar.sh vista-previa /ruta/al/proyecto   # qué se copia, qué choca, qué se excluye
+   ```
+
+3. **Copia.** `sh scripts/adoptar.sh copiar /ruta/al/proyecto`. Puedes repetirlo: si no
+   cambió nada, no escribe nada.
+4. **Pídele al agente, abierto en el proyecto: «arranca sobre proyecto existente».**
+   Ejecuta `docs/arranque-existente.md`: te propone cómo integrar cada choque, el
+   `.gitignore` (`adoptar.sh gitignore`) y los secretos versionados, registra el entorno,
+   activa los hooks y hace el commit de instalación. Después entiende el sistema y lo
+   protege con pruebas **antes** de proponer cualquier cambio.
+
+Qué pasa con lo que el proyecto ya tiene:
+
+| En el proyecto | Qué hace la copia |
+|---|---|
+| `README.md` | **Nunca se toca.** El agente lo verifica contra el código en la Fase 1. |
+| Un archivo con el mismo nombre que uno del método (p. ej. `docs/despliegue.md`) | Se conserva el del proyecto; queda listado como colisión para integrarlo después. |
+| `CLAUDE.md`, `AGENTS.md`, hooks o CI propios | Se conservan; el agente propone cómo convivir y tú apruebas. |
+| `.gitignore` | No lo toca la copia; `adoptar.sh gitignore` propone las entradas y se niega si ocultarían un archivo ya versionado. |
+| El código, las pruebas y los datos | **Nada cambia.** Cualquier cambio posterior entra como incremento con revisión. |
+
+Lo copiado y lo omitido queda registrado en `contexto/adopcion.md`. Si algo salió mal y
+no has commiteado, ese manifiesto dice exactamente qué archivos añadió la copia.
 
 ## Las 5 fases (con compuerta humana entre cada una)
 

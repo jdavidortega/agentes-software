@@ -6,6 +6,8 @@
 #   sh scripts/adoptar.sh vista-previa <destino>           qué copiaría, qué colisiona, qué se excluye; no escribe
 #   sh scripts/adoptar.sh copiar <destino>                 copia SOLO lo ausente; crea contexto/adopcion.md una vez
 #   sh scripts/adoptar.sh gitignore <destino> [--aplicar]  entradas del método que faltan; con --aplicar las añade
+#   sh scripts/adoptar.sh actualizar <destino> "<motivo>"   sustituye SOLO lo instalado que el proyecto no tocó
+#                                                          y lo registra en contexto/adopcion-actualizaciones.md
 #
 # Garantías (regresión: scripts/pruebas/regresion-adopcion.sh):
 # - Ningún archivo existente del destino cambia. Repetir `copiar` con la misma plantilla no escribe nada.
@@ -14,7 +16,10 @@
 #   propósito: el README del proyecto manda, .gitignore tiene su modo, mejoras/ es local.
 # - Antes de escribir se bloquea: un enlace simbólico en CUALQUIER componente de una ruta destino (se
 #   escribiría fuera del repositorio) y una ruta que el destino ignora con la semántica de git.
-# - El manifiesto registra lo instalado con su hash y no se modifica después: cada corrida clasifica
+# - El manifiesto registra lo instalado con su hash y no se modifica NUNCA (tampoco antes del commit
+#   de instalación). Una actualización posterior va a contexto/adopcion-actualizaciones.md (append-only:
+#   ruta · hash anterior → hash nuevo · plantilla · fecha · motivo), y la clasificación usa el último
+#   hash registrado allí. Resumen: cada corrida clasifica
 #   contra él (sin cambios, modificado en el destino, plantilla actualizada, idéntico sin registro,
 #   colisión) y nunca sobreescribe.
 # - `gitignore` evalúa el efecto del bloque candidato ANTES y DESPUÉS en un repositorio temporal con
@@ -26,10 +31,11 @@ PLANTILLA=$(cd "$(dirname "$0")/.." && pwd -P)
 CONJUNTO='.claude .githooks .github/workflows/metodo.yml scripts docs contexto/README.md AGENTS.md CLAUDE.md .editorconfig'
 EXCLUIDOS='README.md, .gitignore, mejoras/'
 MANIFIESTO='contexto/adopcion.md'
+ACTUALIZACIONES='contexto/adopcion-actualizaciones.md'
 
-uso() { sed -n '2,9p' "$0" >&2; exit 2; }
+uso() { sed -n '2,11p' "$0" >&2; exit 2; }
 fallo() { echo "adoptar: $1" >&2; exit 1; }
-case "$MODO" in inspeccionar|vista-previa|copiar|gitignore) ;; *) uso ;; esac
+case "$MODO" in inspeccionar|vista-previa|copiar|gitignore|actualizar) ;; *) uso ;; esac
 [ -n "$DESTINO_ARG" ] || uso
 [ -d "$DESTINO_ARG" ] || fallo "el destino no existe o no es un directorio: $DESTINO_ARG"
 DESTINO=$(cd "$DESTINO_ARG" && pwd -P)
@@ -61,8 +67,12 @@ enlace_en_ruta() {
   return 1
 }
 # Hash registrado en el manifiesto para una ruta (sección «Añadidos»: «- <ruta> · <hash>»).
-registrado() {
+registrado() {  # el último hash registrado: el de la actualización más reciente, o el de la instalación
   [ -f "$DESTINO/$MANIFIESTO" ] || return 0
+  if [ -f "$DESTINO/$ACTUALIZACIONES" ]; then
+    u=$(awk -v r="$1" '$1=="-" && $2==r && $3=="·" && $5=="→" { h=$6 } END { print h }' "$DESTINO/$ACTUALIZACIONES")
+    [ -z "$u" ] || { printf '%s\n' "$u"; return 0; }
+  fi
   awk -v r="$1" '
     /^## /{ sec = ($0 ~ /^## Añadidos/) }
     sec && $1=="-" && $2==r && $3=="·" { print $4; exit }' "$DESTINO/$MANIFIESTO"
@@ -71,13 +81,13 @@ registrado() {
 # --- clasificación de cada archivo del conjunto ----------------------------------------
 COPIAR=""; AUTO=""; SIN_CAMBIOS=""; MODIFICADO=""; ACTUALIZADA=""; IDENTICO=""; COLISION=""
 BLOQ_ENLACE=""; BLOQ_IGNORADO=""
-IGN=$(printf '%s\n%s\n' "$ARCHIVOS" "$MANIFIESTO" | git -C "$DESTINO" check-ignore --stdin 2>/dev/null || true)
-for f in $ARCHIVOS $MANIFIESTO; do
+IGN=$(printf '%s\n%s\n%s\n' "$ARCHIVOS" "$MANIFIESTO" "$ACTUALIZACIONES" | git -C "$DESTINO" check-ignore --stdin 2>/dev/null || true)
+for f in $ARCHIVOS $MANIFIESTO $ACTUALIZACIONES; do
   if e=$(enlace_en_ruta "$f"); then BLOQ_ENLACE="$BLOQ_ENLACE
 $f (enlace simbólico en «${e}»)"; continue; fi
   if printf '%s\n' "$IGN" | grep -qxF -- "$f"; then BLOQ_IGNORADO="$BLOQ_IGNORADO
 $f"; continue; fi
-  [ "$f" = "$MANIFIESTO" ] && continue
+  [ "$f" = "$MANIFIESTO" ] || [ "$f" = "$ACTUALIZACIONES" ] && continue
   if [ ! -e "$DESTINO/$f" ]; then
     COPIAR="$COPIAR
 $f"
@@ -260,7 +270,34 @@ $r"
   fi
 }
 
+actualizar() {
+  [ -f "$DESTINO/$MANIFIESTO" ] || fallo "no hay manifiesto de instalación ($MANIFIESTO): primero 'copiar'"
+  [ "$BLOQUEOS" -eq 0 ] || { inspeccionar >&2 || true; fallo "hay $BLOQUEOS bloqueo(s): resuélvelos antes de actualizar"; }
+  [ -n "$BANDERA" ] || fallo "falta el motivo: sh scripts/adoptar.sh actualizar <destino> \"<motivo>\""
+  log="$DESTINO/$ACTUALIZACIONES"
+  if [ ! -f "$log" ]; then
+    { echo "# Adopción del método — actualizaciones de archivos instalados"
+      echo
+      echo "> Append-only. Lo escribe \`scripts/adoptar.sh actualizar\`: solo sustituye archivos que el proyecto"
+      echo "> no modificó desde su último registro. El manifiesto (\`$MANIFIESTO\`) no se toca nunca."
+      echo "> Formato: ruta · hash anterior → hash nuevo · plantilla · fecha UTC · motivo."
+      echo; } > "$log"
+  fi
+  n=0; fecha=$(date -u +'%Y-%m-%d %H:%M')
+  for f in $(lista "$ACTUALIZADA"); do
+    ant=$(registrado "$f")
+    # ACTUALIZADA ya exige destino == último hash registrado: lo modificado por el proyecto no llega aquí.
+    cp -p "$PLANTILLA/$f" "$DESTINO/$f"
+    printf -- '- %s · %s → %s · plantilla %s · %s · %s\n' "$f" "$ant" "$(hash_de "$DESTINO/$f")" "$PLANTILLA_COMMIT" "$fecha" "$BANDERA" >> "$log"
+    n=$((n+1))
+  done
+  echo "== Actualización en $DESTINO: $n archivo(s) sustituido(s) y registrado(s) en $ACTUALIZACIONES"
+  seccion "No se actualiza: modificado en el destino (integración manual)" "$MODIFICADO"
+  seccion "Ausente en el destino (usa 'copiar')" "$COPIAR"
+}
+
 case "$MODO" in
+  actualizar) actualizar ;;
   inspeccionar) inspeccionar ;;
   vista-previa) vista_previa ;;
   copiar) copiar ;;

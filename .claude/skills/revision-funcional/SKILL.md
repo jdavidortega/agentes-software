@@ -111,6 +111,33 @@ Después, el agente principal **valida si el dato ya está presente**:
 
 - Cada `C#` está cubierto por al menos un incremento (`docs/trazabilidad.md`).
 
+## En una adopción (proyecto existente)
+
+Aplica cuando el principal pide la revisión **en modo adopción** e indica la **fase y el
+alcance** (`docs/arranque-existente.md`). No basta con que exista `contexto/adopcion.md`:
+ese archivo sigue ahí en todas las fases posteriores, donde rige la rúbrica normal.
+
+**Alcance Fase 1 (reconocimiento):** se revisa `docs/encuadre.md`, `docs/convenciones.md` y
+`docs/decisiones.md`. No se exige `docs/plan.md` ni incrementos en trazabilidad (nacen en la
+Fase 2). Cambios a la rúbrica de arriba:
+- **Fuente:** el **código** del repositorio, además de `contexto/`. Se verifica cada `C#` y
+  cada hallazgo **contra el código**, muestreando con archivo:línea; lo falso o sobredeclarado
+  es vacío.
+- **Criterios:** describen comportamiento **vigente**; «medible» = una prueba o ejecución lo
+  muestra hoy. Todo estado terminal expuesto tiene `C#` o está declarado fuera.
+- **Set de oro:** la referencia la **produce la versión actual**. Por par: procedencia
+  correcta, referencia persistida (salida, parámetros, versión, hash de la entrada y dónde
+  obtenerla) o reproducción declarada limitada.
+- **Entradas y salidas:** cada fila dice qué se verificó y qué falta; un «sí» que excede lo
+  comprobado es vacío.
+- **Stack y despliegue:** se **documentan**, no se deciden; no aplica «versiones verificadas
+  contra la doc oficial», sí «versión de lo corrido frente a lo desplegado» (o la salvedad
+  «equivalencia con producción no comprobada»).
+- **Desconocidos:** un hecho pendiente con impacto y responsable no es vacío si ninguna
+  garantía declarada verificada depende de él; solo una **elección** exige ADR `propuesta`.
+- **Decisiones:** ADR retrospectivos con evidencia, explicación confirmada o hipótesis; no se
+  juzgan como decisiones nuevas.
+
 ## Notas / trampas
 
 - **No inventa requisitos** para "cerrar" un punto: un criterio o un dato faltante es

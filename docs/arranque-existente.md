@@ -17,6 +17,18 @@ explícito por actividad), la sección Transversal (hallazgo ≠ decisión, ADR 
 etiquetas `REGISTRADO` / `PROPUESTO` / `PENDIENTE`, alias al crear) y el formato del gate
 como resumen ejecutivo (`AGENTS.md` §2).
 
+**Pasada de coherencia (antes de cada gate de este guion).** El doctor y los hooks prueban
+integridad estructural, no que lo escrito sea coherente. Antes de pedir un gate, el agente
+responde por escrito, en el resumen del gate, cuatro preguntas:
+1. ¿Queda algún **ejemplo de la plantilla** en lo que este paso tocó (`docs/estado.md`,
+   tabla de criterios, manifiesto de `contexto/README.md`, `docs/decisiones.md`)?
+2. ¿`docs/estado.md` distingue **lo terminado**, **lo pendiente de aprobación** y **lo que
+   falta**, sin contradecirse con lo commiteado (p. ej. «instalación terminada; gate
+   pendiente», «criterios aún no definidos»)?
+3. ¿Cada entrada nueva de `contexto/` tiene su **fila en el manifiesto** de `contexto/README.md`?
+4. ¿Cada evidencia citada se puede **repetir desde lo escrito** (comando, directorio, qué
+   se neutralizó, resultado)?
+
 ## Contrato de adopción
 
 Ocho cláusulas que no se negocian en cada proyecto; si una no puede cumplirse, se dice y
@@ -71,9 +83,16 @@ La persona revisa antes de copiar.
 **C. Copia de lo ausente.**
 `sh scripts/adoptar.sh copiar <ruta>` copia solo archivos que no existen y crea
 `contexto/adopcion.md` (añadidos con su hash, colisiones, idénticos, excluidos,
-pendientes). Repetirlo no escribe nada; el manifiesto **no se modifica** después: las
-corridas siguientes clasifican contra él (sin cambios, modificado en el proyecto,
-plantilla actualizada, idéntico sin registro, colisión) e informan.
+pendientes). Repetirlo no escribe nada; el manifiesto **no se modifica nunca**, tampoco
+antes del commit de instalación: las corridas siguientes clasifican contra él (sin cambios,
+modificado en el proyecto, plantilla actualizada, idéntico sin registro, colisión) e informan.
+
+**Si la plantilla cambia después de copiar** (antes o después del commit de instalación):
+`sh scripts/adoptar.sh actualizar <ruta> "<motivo>"` sustituye **solo** los archivos
+instalados que el proyecto no tocó y deja una línea por archivo en
+`contexto/adopcion-actualizaciones.md` (append-only: hash anterior, hash nuevo, plantilla,
+fecha, motivo). Lo que el proyecto ya modificó no se sustituye: es una integración manual
+con la persona. No se borra ni se reinstala nada, porque pueden existir integraciones manuales.
 
 **D. Integraciones acordadas** (cada una con OK explícito; ninguna toca lógica del producto).
 - **`.gitignore`:** `sh scripts/adoptar.sh gitignore <ruta>` evalúa el efecto del bloque del
@@ -105,7 +124,10 @@ Versión del lenguaje, dependencias **instaladas** (no solo declaradas), comando
 existente y su resultado. **Antes de correr la suite**, lee qué hace: si escribe archivos,
 llama servicios o lee un `.env` real, ejecútala aislada (copia temporal, variables
 neutras, sin red). El resultado es uno de: `pasa (N pruebas)`, `falla (cuáles)`, `sin
-pruebas`, `dependencias incompletas` o `requiere acceso externo`, y se registra tal cual.
+pruebas`, `dependencias incompletas` o `requiere acceso externo`, y se registra tal cual,
+**con el procedimiento exacto para repetirlo**: comando, directorio desde el que corre,
+qué se copió y qué se neutralizó (archivos, variables, red) y la salida resumida. Un
+inventario de paquetes describe el entorno observado; no prueba que pueda reconstruirse.
 **No se corrige nada.** Un `.env` versionado es un hallazgo con propuesta aparte.
 
 **G. Controles.**
@@ -123,8 +145,11 @@ pruebas`, `dependencias incompletas` o `requiere acceso externo`, y se registra 
 **H. Commit de instalación.**
 - Añade a `docs/convenciones.md` §Git la línea `- **Base del método:** <sha>` con el
   commit actual del proyecto (**previo** a la instalación): `git rev-parse HEAD` antes de commitear.
-- `docs/estado.md`: `Fase actual: F1 · en curso: reconocimiento del sistema existente`, con
-  lo pendiente en frases completas. El commit **no afirma** que haya encuadre ni protección.
+- `docs/estado.md`: `Fase actual: F1 · instalación terminada; gate del Paso 0 pendiente`;
+  en la tabla de criterios, «criterios aún no definidos (Fase 1)» en lugar de la fila de
+  ejemplo; lo pendiente en frases completas. El commit **no afirma** que haya encuadre ni protección.
+- Fila del brief y del manifiesto de instalación en el manifiesto de `contexto/README.md`,
+  sin las filas de ejemplo.
 - Commit con `Ref: F1`, sin tocar código del producto (el hook lo rechazaría). Comprueba
   `sh scripts/pruebas/validar_historial.sh HEAD`: debe validar solo el commit de instalación.
 - Si el remoto es compartido, trabaja en una rama y acuerda con la persona cuándo se integra.
@@ -140,34 +165,84 @@ pruebas`, `dependencias incompletas` o `requiere acceso externo`, y se registra 
 - [ ] `scripts/check.sh` existe, corre lo que ya había y reporta el número de pruebas.
 - [ ] Hooks activos y ejecutables; `sh scripts/check_docs.sh` en PASA.
 - [ ] Commit de instalación con `Ref: F1`, base declarada y `validar_historial.sh HEAD` en verde.
+- [ ] Pasada de coherencia respondida (cuatro preguntas) sin ningún «sí» pendiente en la 1
+  ni «no» en las 2–4.
 
 **Gate del Paso 0:** resumen ejecutivo: qué se instaló, qué se conservó, qué quedó
 pendiente de integrar, cómo está la suite, y que lo siguiente es **entender el sistema**.
 
 ---
 
+## Fase 1 · Reconocimiento (nada del producto cambia)
+
+Produce `docs/encuadre.md` con **el sistema tal como está**, corto y referenciando lo que ya
+está escrito, más `docs/convenciones.md` y `docs/decisiones.md`. Se lee el código entero
+que toca cada capacidad; lo que se afirma, se cita.
+
+**Marcas de origen** (sustituyen a las del arranque normal): `[de código: archivo]`,
+`[de ejecución: script, fecha]`, `[de contexto/: archivo]`, `[inferido]` (por confirmar) y
+`[pendiente: quién lo confirma]`.
+
+**Desconocidos: hecho pendiente ≠ elección.** Un dato que solo la persona u operación sabe
+(parámetros desplegados, política de una capa externa, tiempos reales) es un **hecho
+pendiente de confirmar**: se escribe con su impacto y quién lo confirma, sin ADR. Solo hay
+ADR (`propuesta`) cuando hay una **elección** entre opciones. Un pendiente no bloquea la
+Fase 1 si ninguna garantía que se declare verificada depende de él.
+
+**Actividades:**
+1. **Qué hace.** Contexto en cinco líneas. §Entradas y salidas: una fila por entrada y por
+   salida, con su muestra y una columna **qué se verificó / qué falta** (p. ej. «CSV histórico
+   inspeccionado; contrato HTTP no comprobado»), nunca un «sí» que exceda lo comprobado.
+   **Ejecución local:** la transformación principal corre sobre entradas reales con lo
+   externo sustituido **en la frontera** (la llamada HTTP, no la lógica), con un script
+   reproducible en `contexto/exploracion/`. Si no hay entradas reales accesibles, se dice.
+2. **Arquitectura tal como está.** El sistema, sus dependencias externas y las
+   responsabilidades principales; diagrama del README **verificado** (o creado). Versiones:
+   las que corrieron; sin acceso autorizado a producción se escribe «evaluado localmente;
+   equivalencia con producción no comprobada».
+3. **Cómo funciona.** Flujo en pasos, parámetros (valor por defecto **y** configurado),
+   estados y errores, en una página. **Contratos de salida en todos los caminos:** éxito,
+   sin datos, error previsto, excepción no prevista y caída de cada dependencia; qué ve
+   **cada consumidor** en cada uno (p. ej. el estado de la cola frente al de negocio).
+   El README se verifica contra el código y cada desfase es un hallazgo.
+4. **Criterios vigentes y mapa de protección.** Un `C#` por comportamiento observable que
+   debe conservarse, y **todo estado terminal** que el sistema expone tiene un `C#` o queda
+   declarado fuera. Set de oro con **referencia producida por la versión actual** (no por un
+   análisis previo cuya procedencia no se conoce): por par, procedencia (script o prueba que
+   lo produce), y persistidos en `contexto/exploracion/` la **salida pequeña**, los
+   **parámetros**, la **versión del código** y el **hash de la entrada** con **dónde y cómo
+   obtenerla**; si la entrada no es accesible de forma estable, la reproducción se declara
+   **limitada**. Mapa: cada prueba existente con lo que **realmente ejecuta** (qué sustituye).
+   La brecha queda nombrada.
+5. **Convenciones observadas** en `docs/convenciones.md`: cómo se configura, se levanta y se
+   prueba (comandos verificados), estilo tal como es. Lo que difiere de la DoD va a
+   `docs/encuadre.md` §Línea base (cláusula 4).
+6. **Decisiones visibles** en `docs/decisiones.md`: ADR retrospectivos de lo que condiciona un
+   cambio (algoritmos, parámetros, persistencia, políticas de reintento, nombres de salida),
+   cada uno con **evidencia** (archivo), **explicación confirmada** por la persona o
+   **hipótesis**; fecha de documentación en UTC, nunca una fecha original inventada.
+
+**Revisión:** el revisor funcional en **modo adopción, alcance Fase 1** (rúbrica:
+`.claude/skills/revision-funcional/SKILL.md` §En una adopción), antes del gate.
+
+**Validador de la Fase 1 (PASA/FALLA):**
+- [ ] Las seis actividades tienen su salida en el archivo que les toca.
+- [ ] Cada fila de §Entradas y salidas dice qué se verificó y qué falta.
+- [ ] Hay un script de ejecución local en `contexto/exploracion/` que corre la transformación
+  principal sobre entradas reales, o la imposibilidad está declarada.
+- [ ] Cada estado terminal expuesto tiene `C#` o está declarado fuera; cada `C#` tiene una
+  prueba que lo ejecuta de verdad o una brecha nombrada.
+- [ ] Cada par del set de oro tiene procedencia y referencia persistida (o reproducción
+  declarada limitada).
+- [ ] Sin `[inferido]` sin confirmar; cada `[pendiente]` con impacto y quién lo confirma.
+- [ ] Revisor funcional en PASA y pasada de coherencia respondida.
+
+---
+
 ## Lo que sigue (borrador; se valida y se precisa en el piloto)
 
-> Este bloque fija la dirección acordada; sus validadores binarios se escriben tras el
-> primer piloto. Mientras tanto se aplica con criterio y se anota en `docs/MEMORIA.md` lo
-> que no funcione.
-
-**Fase 1 · Reconocimiento** (lectura y ejecución; nada del producto cambia). Produce en
-`docs/encuadre.md`, corto y referenciando lo que ya está escrito:
-1. **Qué hace:** contexto en cinco líneas; §Entradas y salidas con muestra real referenciada;
-   una ejecución local registrada.
-2. **Arquitectura tal como está:** el sistema, sus dependencias externas y las
-   responsabilidades principales; se amplía solo donde ayude a entender o modificar. El
-   diagrama del README se **verifica** (o se crea si no hay).
-3. **Cómo funciona:** flujo en pasos, parámetros, estados, errores y dependencias, en una
-   página. El README se verifica contra el código y cada desfase es un hallazgo.
-4. **Criterios vigentes y mapa de protección:** `C#` por comportamiento observable, set de
-   oro con pares reales cuya procedencia (versión, datos, parámetros) se conoce, y cada
-   prueba existente mapeada a lo que **realmente ejecuta**. La brecha queda nombrada.
-5. **Convenciones observadas** y **§Línea base** (cláusula 4).
-6. **Decisiones visibles:** ADR retrospectivos que separan **evidencia** (lo que el código
-   muestra), **explicación confirmada** por la persona e **hipótesis**; fecha de
-   documentación en UTC, nunca una fecha original inventada (si git la da, se cita el commit).
+> La Fase 2 de adopción fija la dirección acordada; su validador binario se escribe tras
+> ejecutarla en el piloto.
 
 **Fase 2 · Diagnóstico y plan.** Pasada de línea base del juez de conjunto (y del de
 seguridad si hay superficie de riesgo): sus hallazgos no bloquean commits, alimentan el

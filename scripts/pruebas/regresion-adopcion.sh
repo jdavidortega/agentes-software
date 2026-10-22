@@ -138,6 +138,17 @@ printf '\n(nota a mano)\n' >> "$D/contexto/adopcion.md"; cp "$D/contexto/adopcio
 espera pasa "destino modificado: se reporta y no se sobreescribe" "desde la instalación \(no se toca\): 1" -- adoptar "$P" copiar "$D"
 espera pasa "destino modificado: contenido y manifiesto editado se conservan" "" -- sh -c "cmp -s '$W/memoria.mod' '$D/docs/MEMORIA.md' && cmp -s '$W/manif.mod' '$D/contexto/adopcion.md'"
 
+echo "== adoptar.sh: actualizar (registro aparte; el manifiesto no se toca)"
+copia existente c11; adoptar "$P" copiar "$D" >/dev/null; cp "$D/contexto/adopcion.md" "$W/m11"; H1=$(git hash-object "$D/docs/MEMORIA.md")
+espera falla "actualizar sin motivo se rechaza" "falta el motivo" -- adoptar "$P2" actualizar "$D"
+espera pasa "actualizar sustituye lo instalado que la plantilla cambió" "1 archivo\(s\) sustituido" -- adoptar "$P2" actualizar "$D" "prueba de regresión"
+espera pasa "actualizar: el archivo queda como el de la plantilla nueva y el manifiesto intacto" "" -- sh -c "cmp -s '$P2/docs/MEMORIA.md' '$D/docs/MEMORIA.md' && cmp -s '$W/m11' '$D/contexto/adopcion.md'"
+espera pasa "actualizar: registro con hash anterior y nuevo" "" -- sh -c "grep -qE '^- docs/MEMORIA\.md · $H1 → [0-9a-f]{40} · plantilla ' '$D/contexto/adopcion-actualizaciones.md'"
+espera pasa "tras actualizar: no queda pendiente ni se ve como modificado" "actualización pendiente\): 0" -- sh -c "sh '$P2/scripts/adoptar.sh' vista-previa '$D' | grep -q 'desde la instalación (no se toca): 0' && sh '$P2/scripts/adoptar.sh' vista-previa '$D'"
+espera pasa "actualizar repetido: nada que sustituir y el registro no crece" "0 archivo\(s\) sustituido" -- sh -c "n=\$(wc -l < '$D/contexto/adopcion-actualizaciones.md'); sh '$P2/scripts/adoptar.sh' actualizar '$D' 'otra vez' && [ \$(wc -l < '$D/contexto/adopcion-actualizaciones.md') -eq \$n ]"
+copia existente c12; adoptar "$P" copiar "$D" >/dev/null; printf '\nnota del proyecto\n' >> "$D/docs/MEMORIA.md"; cp "$D/docs/MEMORIA.md" "$W/memoria12"
+espera pasa "actualizar no sustituye lo que el proyecto modificó (integración manual)" "integración manual\): 1" -- adoptar "$P2" actualizar "$D" "prueba"
+espera pasa "actualizar: lo modificado por el proyecto queda intacto" "" -- cmp -s "$W/memoria12" "$D/docs/MEMORIA.md"
 echo "== adoptar.sh: bloqueos (enlaces simbólicos y rutas ignoradas)"
 copia existente c4; mkdir -p "$W/fuera"; mv "$D/docs" "$W/fuera/docs"; ln -s "$W/fuera/docs" "$D/docs"; sin_hooks "$D" "docs enlazado"
 espera falla "enlace simbólico en docs/: la inspección bloquea" "enlace simbólico" -- adoptar "$P" inspeccionar "$D"

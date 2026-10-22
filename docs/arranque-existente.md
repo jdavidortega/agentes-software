@@ -268,19 +268,60 @@ Fase 1 si ninguna garantía que se declare verificada depende de él.
 
 ---
 
-## Lo que sigue (borrador; se valida y se precisa en el piloto)
+## Fase 2 · Diagnóstico y plan (nada del producto cambia)
 
-> La Fase 2 de adopción fija la dirección acordada; su validador binario se escribe tras
-> ejecutarla en el piloto.
+**Objetivo:** un **diagnóstico priorizado** y un **plan mínimo defendible**. El plan no convierte
+cada hallazgo en trabajo: selecciona lo necesario y explica por qué lo demás puede esperar.
 
-**Fase 2 · Diagnóstico y plan.** Pasada de línea base del juez de conjunto (y del de
-seguridad si hay superficie de riesgo): sus hallazgos no bloquean commits, alimentan el
-diagnóstico. El diagnóstico va en dos pistas —**método** (pruebas, convenciones, rastro,
-runbook) y **solución** (arquitectura, componentes, dependencias, operación)—, cada ítem con
-evidencia, impacto, esfuerzo y riesgo de regresión, y se clasifica con una pregunta: ¿rompe
-un `C#` vigente, o impide ejecutar o verificar con seguridad? Si sí, incremento propuesto;
-si no, backlog. El plan separa **protección** (lo mínimo para decir «protegido»; puede no
-haber nada si la protección ya basta) de **mejora** (opcional). Revisor funcional y gate F2
-como siempre. En el gate la persona elige: **mejorar ahora**, o **proteger, cerrar el ciclo
-y seguir con funcionalidad nueva** por reentrada (recomendado: cerrar deja una línea base
-verificada antes de cambiar nada).
+**1. Evidencia de línea base.** El principal invoca, en serie, al **juez de conjunto** y, si hay
+superficie de riesgo, al **juez de seguridad**, sobre el sistema existente y **acotados a lo que
+la Fase 1 no resolvió** (composición entre componentes, seguridad); reutilizan la evidencia de la
+Fase 1 y no repiten reproducciones salvo por una duda concreta. Sus informes quedan en
+`contexto/exploracion/linea-base-*.md` con IDs propios (`LB-C.n`, `LB-S.n`). No bloquean commits:
+son **evidencia, no una lista de tareas**. Se registra el consumo de cada etapa.
+
+**2. Diagnóstico** (`docs/plan.md` §Diagnóstico). Una fila por hallazgo relevante: los `H#` del
+encuadre y los `LB-*`, **consolidando duplicados** (una fila, varias fuentes). Por fila:
+- **Clase** (antes de valorar): incumplimiento de un `C#` · brecha de evidencia (un `C#` sin
+  prueba que lo demuestre) · riesgo (algo que puede fallar y hoy no está contratado) · mejora
+  opcional.
+- **Valoración cualitativa:** impacto, probabilidad, esfuerzo y riesgo de regresión (alto, medio
+  o bajo), con la **incertidumbre** declarada cuando falten datos. No se inventan puntuaciones.
+- **Decisión:** seleccionado (→ `I#`) · diferido (**por qué puede esperar**) · pendiente de
+  confirmar (qué dato y quién) · descartado (razón).
+El diagnóstico **puede discrepar** de los informes de los jueces, con justificación y fuente.
+
+**3. Plan** (`docs/plan.md`), en dos bloques separados:
+- **Protección (obligatoria y mínima):** lo necesario para que **cada `C#` vigente quede
+  verificable**. Un `C#` cubierto por pruebas existentes va a un incremento de **verificación por
+  sabotaje** (`.claude/skills/verificando-por-sabotaje/SKILL.md`): demuestra que la prueba protege
+  la garantía, sin tocar el producto. Un `C#` con brecha va a un incremento que escribe la prueba
+  que falta (y, si hace falta, una costura mínima, con juez).
+- **Mejora (opcional):** cada incremento dice qué riesgo trata y **por qué ahora** y no después.
+Cada `I#` lleva alias e indica el `C#` que protege o el hallazgo que trata. **Línea de corte:**
+un párrafo que explica qué queda fuera y por qué puede esperar. Plan de pruebas por incremento
+(solo lo que cierra brechas). Decisiones con opciones (alcance del linter sobre lo existente,
+tolerancia del set de oro…) como ADR; los ADR `propuesta` de la Fase 1 se resuelven o se
+reasignan a su actividad. `docs/trazabilidad.md`: una fila por `C#` con su incremento.
+
+**4. Revisión:** revisor funcional en **modo adopción, alcance Fase 2**: el validador de abajo y
+la **síntesis contra sus fuentes** (encuadre e informes de línea base).
+
+**Validador de la Fase 2 (PASA/FALLA):**
+- [ ] Informes de línea base en `contexto/exploracion/`, acotados a lo no resuelto por la Fase 1,
+  con el consumo de cada etapa registrado.
+- [ ] Cada hallazgo relevante (encuadre e informes) está en §Diagnóstico, consolidado, con
+  clase, valoración (e incertidumbre si falta dato) y decisión; los diferidos dicen por qué
+  pueden esperar y los descartados, por qué.
+- [ ] Toda discrepancia con un informe está justificada con su fuente.
+- [ ] Bloque de protección mínimo: cada `C#` con un incremento (verificación por sabotaje o
+  prueba nueva) en `docs/trazabilidad.md`; ningún incremento de protección sin `C#`.
+- [ ] Mejoras separadas, cada una con el riesgo que trata y por qué ahora; línea de corte escrita.
+- [ ] Plan de pruebas por incremento; ADR de la Fase 1 resueltos o reasignados.
+- [ ] El plan se defiende en ≤ 10 líneas en el resumen del gate.
+- [ ] Nada del producto cambió (`git diff <base>..HEAD` sobre el código).
+- [ ] Revisor funcional en PASA y pasada de coherencia anotada en `docs/estado.md`.
+
+**Gate de la Fase 2:** la persona elige la ruta: **mejorar ahora** (protección + mejoras
+aprobadas) o **proteger, cerrar el ciclo y seguir con funcionalidad nueva** por reentrada
+(recomendado: cerrar deja una línea base verificada antes de cambiar nada).

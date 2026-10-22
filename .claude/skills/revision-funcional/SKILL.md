@@ -134,6 +134,14 @@ documenta, no se decide). Lo propio del revisor en este modo:
 - **Decisiones:** ADR retrospectivos con evidencia, explicación confirmada o hipótesis; no se
   juzgan como decisiones nuevas.
 
+**Alcance Fase 2 (diagnóstico y plan):** la rúbrica es el **validador de la Fase 2** del mismo
+guion, ítem por ítem, más la **síntesis contra sus fuentes**: cada fila del diagnóstico se
+contrasta con el encuadre y con los informes de línea base (`contexto/exploracion/linea-base-*.md`);
+un hallazgo relevante omitido, un duplicado sin consolidar, una discrepancia sin justificar o un
+incremento que no protege un `C#` ni trata un hallazgo son vacíos. Sustituye a la rúbrica de
+arriba en lo que esta exija distinto (los `C#` describen lo vigente; el plan no se deriva de
+criterios nuevos).
+
 ## Notas / trampas
 
 - **No inventa requisitos** para "cerrar" un punto: un criterio o un dato faltante es

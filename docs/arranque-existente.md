@@ -28,6 +28,9 @@ responde por escrito, en el resumen del gate, cuatro preguntas:
 3. ¿Cada entrada nueva de `contexto/` tiene su **fila en el manifiesto** de `contexto/README.md`?
 4. ¿Cada evidencia citada se puede **repetir desde lo escrito** (comando, directorio, qué
    se neutralizó, resultado)?
+5. ¿Queda algún ADR `propuesta` **asignado a este gate**? Un gate no se cruza con decisiones
+   suyas abiertas: se deciden, o se reasignan **con razón** a una actividad posterior. Una
+   elección pendiente es ADR; un **hecho desconocido** no (va a §Pendientes con impacto y quién).
 
 El resultado queda también en `docs/estado.md`, en una línea con lo que quedó pendiente; la
 evidencia se referencia, no se copia. Así el revisor puede comprobar que la pasada ocurrió.
@@ -171,7 +174,7 @@ inventario de paquetes describe el entorno observado; no prueba que pueda recons
 - [ ] `scripts/check.sh` existe, corre lo que ya había y reporta el número de pruebas.
 - [ ] Hooks activos y ejecutables; `sh scripts/check_docs.sh` en PASA.
 - [ ] Commit de instalación con `Ref: F1`, base declarada y `validar_historial.sh HEAD` en verde.
-- [ ] Pasada de coherencia respondida (cuatro preguntas) sin ningún «sí» pendiente en la 1
+- [ ] Pasada de coherencia respondida (cinco preguntas) sin ningún «sí» pendiente en la 1 y la 5
   ni «no» en las 2–4.
 
 **Gate del Paso 0:** resumen ejecutivo: qué se instaló, qué se conservó, qué quedó
@@ -281,28 +284,45 @@ Fase 1 y no repiten reproducciones salvo por una duda concreta. Sus informes que
 son **evidencia, no una lista de tareas**. Se registra el consumo de cada etapa.
 
 **2. Diagnóstico** (`docs/plan.md` §Diagnóstico). Una fila por hallazgo relevante: los `H#` del
-encuadre y los `LB-*`, **consolidando duplicados** (una fila, varias fuentes). Por fila:
+encuadre y los `LB-*`, **consolidando duplicados** (una fila, varias fuentes). **Inventario:** cada
+ID de origen tiene **destino explícito** —fila propia, consolidado en otra fila (cuál), descartado
+(razón) o pendiente— en un cotejo que permita contar origen contra destino; ningún ID desaparece.
+Por fila:
 - **Clase** (antes de valorar): incumplimiento de un `C#` · brecha de evidencia (un `C#` sin
   prueba que lo demuestre) · riesgo (algo que puede fallar y hoy no está contratado) · mejora
   opcional.
 - **Valoración cualitativa:** impacto, probabilidad, esfuerzo y riesgo de regresión (alto, medio
   o bajo), con la **incertidumbre** declarada cuando falten datos. No se inventan puntuaciones.
+  La probabilidad se apoya en datos representativos: una observación aislada (p. ej. una sola
+  duración medida) no estima la cola; sin datos, **desconocida**, y el riesgo queda **condicionado**.
+- **Valoración del informe**, en su propia columna, cuando difiera de la propia, con la
+  justificación y su fuente. Así toda discrepancia es visible y la lista es cerrada.
 - **Decisión:** seleccionado (→ `I#`) · diferido (**por qué puede esperar**) · pendiente de
   confirmar (qué dato y quién) · descartado (razón).
 El diagnóstico **puede discrepar** de los informes de los jueces, con justificación y fuente.
+**Si un informe contradice el encuadre**, primero se comprueba contra el código cuál afirmación es
+correcta. Una corrección **factual** del encuadre (una fila de contratos, un hallazgo) se hace con
+nota en el diagnóstico; si cambia un `C#` o el set de oro, es **reentrada** (ADR, revisor, gate).
 
 **3. Plan** (`docs/plan.md`), en dos bloques separados:
 - **Protección (obligatoria y mínima):** lo necesario para que **cada `C#` vigente quede
   verificable**. Un `C#` cubierto por pruebas existentes va a un incremento de **verificación por
   sabotaje** (`.claude/skills/verificando-por-sabotaje/SKILL.md`): demuestra que la prueba protege
   la garantía, sin tocar el producto. Un `C#` con brecha va a un incremento que escribe la prueba
-  que falta (y, si hace falta, una costura mínima, con juez).
+  que falta (y, si hace falta, una costura mínima, con juez). Una prueba que fija un
+  comportamiento observado **con limitación conocida** (un hallazgo) se marca como
+  **caracterización**, citando el hallazgo: protege lo que hay hoy sin convertir el defecto en
+  obligación; cambiarlo después exige actualizar el contrato (`C#` o ADR) en ese mismo incremento.
 - **Mejora (opcional):** cada incremento dice qué riesgo trata y **por qué ahora** y no después.
 Cada `I#` lleva alias e indica el `C#` que protege o el hallazgo que trata. **Línea de corte:**
 un párrafo que explica qué queda fuera y por qué puede esperar. Plan de pruebas por incremento
 (solo lo que cierra brechas). Decisiones con opciones (alcance del linter sobre lo existente,
 tolerancia del set de oro…) como ADR; los ADR `propuesta` de la Fase 1 se resuelven o se
 reasignan a su actividad. `docs/trazabilidad.md`: una fila por `C#` con su incremento.
+**Reglas compartidas que se comprueban aquí** (no se repiten): `AGENTS.md` §1 sin marcadores
+(el doctor los rechaza desde F2); el plan respeta la regla de **hito** (`docs/convenciones.md`,
+«Hito»: uno cada tres incrementos cerrados); el consumo de cada etapa se anota en
+`docs/MEMORIA.md` §Consumo.
 
 **4. Revisión:** revisor funcional en **modo adopción, alcance Fase 2**: el validador de abajo y
 la **síntesis contra sus fuentes** (encuadre e informes de línea base).
@@ -310,14 +330,18 @@ la **síntesis contra sus fuentes** (encuadre e informes de línea base).
 **Validador de la Fase 2 (PASA/FALLA):**
 - [ ] Informes de línea base en `contexto/exploracion/`, acotados a lo no resuelto por la Fase 1,
   con el consumo de cada etapa registrado.
-- [ ] Cada hallazgo relevante (encuadre e informes) está en §Diagnóstico, consolidado, con
-  clase, valoración (e incertidumbre si falta dato) y decisión; los diferidos dicen por qué
-  pueden esperar y los descartados, por qué.
-- [ ] Toda discrepancia con un informe está justificada con su fuente.
+- [ ] Cotejo de inventario: cada ID de origen (`H#`, `LB-*`) tiene destino explícito; ninguno
+  desaparece.
+- [ ] Cada fila de §Diagnóstico tiene clase, valoración (probabilidad desconocida si no hay datos
+  representativos) y decisión; los diferidos dicen por qué pueden esperar y los descartados, por qué.
+- [ ] Toda discrepancia con un informe consta en la columna de su valoración, con justificación y
+  fuente; las contradicciones con el encuadre se resolvieron contra el código.
 - [ ] Bloque de protección mínimo: cada `C#` con un incremento (verificación por sabotaje o
   prueba nueva) en `docs/trazabilidad.md`; ningún incremento de protección sin `C#`.
 - [ ] Mejoras separadas, cada una con el riesgo que trata y por qué ahora; línea de corte escrita.
-- [ ] Plan de pruebas por incremento; ADR de la Fase 1 resueltos o reasignados.
+- [ ] Plan de pruebas por incremento; las caracterizaciones marcadas con su hallazgo.
+- [ ] Reglas compartidas comprobadas: `AGENTS.md` §1 sin marcadores, hitos en el plan, consumo
+  anotado.
 - [ ] El plan se defiende en ≤ 10 líneas en el resumen del gate.
 - [ ] Nada del producto cambió (`git diff <base>..HEAD` sobre el código).
 - [ ] Revisor funcional en PASA y pasada de coherencia anotada en `docs/estado.md`.

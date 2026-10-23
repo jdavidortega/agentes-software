@@ -113,6 +113,24 @@ $f"; fi
 done
 BLOQUEOS=$(( $(cuenta "$BLOQ_ENLACE") + $(cuenta "$BLOQ_IGNORADO") ))
 
+# Instalados que la plantilla ya no distribuye: se informan y se conservan (retirarlos exige
+# revisar modificaciones e integraciones locales; no se hace en automático).
+RETIRADOS=""
+if [ -f "$DESTINO/$MANIFIESTO" ]; then
+  instalados=$( { awk '/^## /{ sec = ($0 ~ /^## Añadidos/) } sec && $1=="-" && $3=="·" { print $2 }' "$DESTINO/$MANIFIESTO"
+                  [ -f "$DESTINO/$ACTUALIZACIONES" ] && awk '$1=="-" && $3=="·" && $5=="→" && $6 !~ /^\(retirado/ { print $2 }' "$DESTINO/$ACTUALIZACIONES"
+                } | sort -u)
+  retirados_ya=""
+  [ ! -f "$DESTINO/$ACTUALIZACIONES" ] || retirados_ya=$(awk '$1=="-" && $3=="·" && $5=="→" && $6 ~ /^\(retirado/ { print $2 }' "$DESTINO/$ACTUALIZACIONES" | sort -u)
+  for f in $instalados; do
+    printf '%s\n' "$ARCHIVOS" | grep -qxF -- "$f" && continue
+    printf '%s\n' "$retirados_ya" | grep -qxF -- "$f" && continue
+    [ -e "$DESTINO/$f" ] || continue
+    RETIRADOS="$RETIRADOS
+$f"
+  done
+fi
+
 HOOKS_PATH=$(git -C "$DESTINO" config core.hooksPath 2>/dev/null || echo "sin configurar")
 HOOKS_PROPIOS=$(ls "$DESTINO/.git/hooks" 2>/dev/null | grep -v '\.sample$' | tr '\n' ' ' || true)
 PENDIENTES="README.md: se conserva el del proyecto; se verifica contra el código en la Fase 1
@@ -127,6 +145,8 @@ hooks: core.hooksPath apunta a «${HOOKS_PATH}»; decidir cómo conviven antes d
 hooks: .git/hooks tiene hooks propios ($HOOKS_PROPIOS); decidir cómo conviven antes de activar .githooks"
 if [ -d "$DESTINO/.github" ] && printf '%s\n' "$COPIAR" | grep -qx '.github/workflows/metodo.yml'; then PENDIENTES="$PENDIENTES
 .github/: el proyecto ya tiene; revisar el efecto de metodo.yml sobre su CI"; fi
+for f in $(lista "$RETIRADOS"); do PENDIENTES="$PENDIENTES
+$f: la plantilla ya no lo distribuye; se conserva; decidir a mano si se retira (y registrarlo)"; done
 for f in $(lista "$COLISION"); do
   case "$f" in CLAUDE.md|AGENTS.md) continue ;; esac
   PENDIENTES="$PENDIENTES
@@ -162,6 +182,7 @@ informe() {
   seccion "Plantilla actualizada desde la instalación (no se toca; actualización pendiente)" "$ACTUALIZADA"
   seccion "Existente e idéntico a la plantilla, sin instalación registrada" "$IDENTICO"
   seccion "Colisión: existe y difiere de la plantilla (se conserva el del proyecto)" "$COLISION"
+  seccion "Retirado de la distribución (instalado; se conserva; decidir a mano)" "$RETIRADOS"
   echo "-- Excluido deliberadamente: $EXCLUIDOS"
   seccion "Bloqueado" "$BLOQ_ENLACE$BLOQ_IGNORADO"
 }

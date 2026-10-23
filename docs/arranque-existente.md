@@ -150,7 +150,10 @@ inventario de paquetes describe el entorno observado; no prueba que pueda recons
   `VERIFICACIÓN BLOQUEADA: <clase del paso F> — 0 pruebas ejecutadas; no es un resultado
   aprobado`, termina en 0 (el `pre-commit` lo exige desde F2 para dejar commitear el rastro) y
   queda escrito qué condición lo desbloquea. Esa salida **no acredita** nada: ningún `C#` pasa a
-  verificado con ella y un juez que la vea no tiene evidencia de pruebas. El **linter no se activa todavía**: su alcance sobre
+  verificado con ella y un juez que la vea no tiene evidencia de pruebas. **Modo estricto:** con
+  `CHECK_ESTRICTO=1`, el mismo `check.sh` termina en **2** ante el bloqueo (señal estructurada,
+  no una frase del log); la CI lo invoca así (`.github/workflows/metodo.yml`), y el commit del
+  rastro conserva el comportamiento normal. El **linter no se activa todavía**: su alcance sobre
   código preexistente se decide en la Fase 2 con la línea base.
   `check.sh` corre con el intérprete y las dependencias **del proyecto** (su entorno
   virtual, por ejemplo); con otro intérprete falla en rojo, y es lo correcto: el pre-commit lo
@@ -207,6 +210,11 @@ sistema, tres, y no se mezclan:
 - `[inferido: razonamiento; falta confirmar: …]`: un comportamiento **deducido** juntando piezas
   (p. ej. «la limpieza nunca corre porque falta X»). Una cita no la convierte en observación.
 - `[comprobado por ejecución: script, fecha]`: visto al ejecutar.
+La marca va **por afirmación**: si un párrafo junta un hecho literal y su consecuencia, cada uno
+lleva la suya; varias afirmaciones que comparten claramente la misma evidencia pueden compartirla.
+Una **ausencia** («ningún código asigna X», «nunca se llena») solo se afirma como **no encontrado
+dentro de un alcance**: se cita la búsqueda (`[buscado: comando; alcance; commit]`), que no prueba
+una ausencia universal; lo que se deduce de ella sigue siendo `inferido`.
 Para lo demás: `[de contexto/: archivo]` (documentos aportados) y `[pendiente: quién lo
 confirma]` (hechos que solo la persona u operación saben). El encuadre declara una vez el
 **commit evaluado**; cada `C#` y cada hallazgo citan `archivo:línea` de ese commit.
@@ -218,11 +226,14 @@ estático** y declara el resto, sin PASA ficticio:
   de protección, con marcas `observado` e `inferido`.
 - **Verificación dinámica bloqueada:** causa, garantías pendientes y **condición** que la
   habilita (p. ej. «caché de dependencias o red autorizada; luego `./gradlew test` aislado»).
-- **Criterios `sin verificar`:** leer el código no valida un `C#`; cada uno indica la prueba
-  existente que lo cubriría (no ejecutada) o su brecha.
-- **Set de oro candidato:** sin ejecución, la referencia es **candidata** (derivada de las
-  aserciones de las pruebas, del contrato o de la especificación, con su fuente) y se confirma
-  al habilitar la ejecución.
+- **Criterios en `pendiente`, con la nota «verificación dinámica bloqueada: <causa>»** (en la
+  columna Nota de `docs/trazabilidad.md` y en `docs/estado.md`): leer el código no valida un `C#`;
+  cada uno indica la prueba existente que lo cubriría (no ejecutada) o su brecha. `verificado` se
+  reserva para garantías demostradas.
+- **Set de oro candidato:** sin ejecución, la referencia es **candidata**, con su fuente. Si sale
+  de una **prueba**, la cifra es la **expectativa** que afirma su aserción (citada como tal, no
+  como resultado ejecutado); si sale de un **artefacto** (un archivo de datos, una salida
+  guardada), se calcula desde ese artefacto. Se confirma al habilitar la ejecución.
 
 **Sustitutos (fakes y mocks).** Toda verificación hecha con un sustituto (Redis en memoria,
 broker eager, cliente HTTP falso, reloj fijo) declara **qué sustituye y qué garantía queda sin
@@ -292,7 +303,8 @@ Fase 1 si ninguna garantía que se declare verificada depende de él.
   «no aplica» justificado.
 - [ ] Hay entre 3 y 8 `C#`; cada estado terminal expuesto tiene `C#` o está declarado fuera;
   cada `C#` tiene una prueba que lo ejecuta de verdad o una brecha nombrada, y cita
-  `archivo:línea`. Con la verificación bloqueada, cada `C#` está `sin verificar`.
+  `archivo:línea`. Con la verificación bloqueada, cada `C#` está en `pendiente` con la nota
+  «verificación dinámica bloqueada: <causa>».
 - [ ] Cada par del set de oro tiene procedencia y referencia persistida (o reproducción
   declarada limitada, o referencia **candidata** con su fuente si la ejecución está
   bloqueada); sus cifras se derivan del artefacto persistido.

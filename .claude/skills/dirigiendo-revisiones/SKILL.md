@@ -39,7 +39,9 @@ allowed-tools: Read, Grep, Glob, Bash
    La modalidad depende de la **operación**, no del rol: si la revisión necesita una herramienta
    que escribe temporales (`validar_historial.sh`, `sabotear.py`, una suite que crea archivos),
    es **experimentos**, y el revisor la corre con `TMPDIR="$D"` delante para que sus temporales
-   caigan en el directorio autorizado.
+   caigan en el directorio autorizado. El filtro reconoce el directorio solo si el comando lo
+   **nombra literalmente**: una variable (`> "$X/out"`) se rechaza aunque apunte a él. Dilo en
+   el prompt; es un límite conocido del filtro, no un error del revisor.
 
 ## Invocación
 

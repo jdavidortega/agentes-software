@@ -72,7 +72,8 @@ def main() -> int:
         return 0
     where = f"solo en {allowed}" if kind == "experimentos" else "en ningún sitio"
     print(
-        f"guarda-revisor (filtro preventivo, no frontera): modalidad «{kind}», escritura permitida {where}. "
+        f"guarda-revisor (filtro preventivo, no frontera): modalidad «{kind}» leída de "
+        f"{os.path.join(project, '.git', 'revision-modalidad')}, escritura permitida {where}. "
         f"Bloqueado por: {', '.join(sorted(set(hits)))}. Si la revisión necesita escribir, pide al "
         f"principal la modalidad «experimentos» con su directorio autorizado.",
         file=sys.stderr,

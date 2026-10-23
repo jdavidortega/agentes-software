@@ -26,7 +26,11 @@ allowed-tools: Read, Grep, Glob, Bash
    funcional; incremento `I<n>` → juez de código (+ seguridad si toca superficie de
    riesgo); hito `hito:I<a>-I<b>` → juez de conjunto (+ seguridad); Fase 4 `F4` → juez de
    conjunto (+ seguridad). **Uno a la vez**; nunca con una suite o un sabotaje corriendo.
-3b. Fija la **modalidad de escritura** (procedimiento de control, no garantía; ver §Modalidades):
+3b. Fija la **modalidad de escritura** (procedimiento de control, no garantía; ver §Modalidades).
+   El filtro la lee de `.git/revision-modalidad` del **proyecto de la sesión**
+   (`$CLAUDE_PROJECT_DIR`), no del repositorio revisado: si son distintos (p. ej. el principal
+   revisa otro repositorio desde la sesión de la plantilla), escríbela en el de la sesión y
+   decláralo en el informe. El rechazo del canario muestra qué archivo se leyó.
    - **lectura** (por defecto): el revisor no escribe en ningún sitio. Borra
      `.git/revision-modalidad` o escribe en él `lectura`.
    - **experimentos** (reproducir, sabotear, correr algo que genera archivos):

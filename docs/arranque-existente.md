@@ -132,8 +132,9 @@ persona lo dice en el chat, se captura ahí. Fila en el manifiesto de `contexto/
 Versión del lenguaje, dependencias **instaladas** (no solo declaradas), comando de pruebas
 existente y su resultado. **Antes de correr la suite**, lee qué hace: si escribe archivos,
 llama servicios o lee un `.env` real, ejecútala aislada (copia temporal, variables
-neutras, sin red). El resultado es uno de: `pasa (N pruebas)`, `falla (cuáles)`, `sin
-pruebas`, `dependencias incompletas` o `requiere acceso externo`, y se registra tal cual,
+neutras, sin red). El resultado es uno de: `pasa (N pruebas)` · `pruebas fallidas (cuáles)` ·
+`fallo de compilación` · `herramienta ausente (cuál)` · `dependencias no disponibles sin red` ·
+`requiere servicio externo` · `sin pruebas`; no se agrupan. Se registra tal cual,
 **con el procedimiento exacto para repetirlo**: comando, directorio desde el que corre,
 qué se copió y qué se neutralizó (archivos, variables, red) y la salida resumida. Un
 inventario de paquetes describe el entorno observado; no prueba que pueda reconstruirse.

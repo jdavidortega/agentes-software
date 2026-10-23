@@ -106,6 +106,7 @@ espera falla "un directorio sin repositorio se rechaza" "no es un repositorio" -
 espera pasa "vista previa: README excluido deliberadamente" "Excluido deliberadamente: README\.md" -- adoptar "$P" vista-previa "$E"
 espera pasa "vista previa: docs/despliegue.md propio es colisión" "Colisión: existe y difiere de la plantilla \(se conserva el del proyecto\): 1" -- adoptar "$P" vista-previa "$E"
 espera pasa "vista previa: CLAUDE.md marcado como autodescubrimiento" "autodescubrimiento[^:]*: [1-9]" -- adoptar "$P" vista-previa "$E"
+espera pasa "vista previa: las herramientas de la plantilla se excluyen deliberadamente" "Excluido deliberadamente: .*scripts/adoptar\\.sh" -- adoptar "$P" vista-previa "$E"
 espera pasa "vista previa no escribe nada" "" -- sh -c "[ -z \"\$(git -C '$E' status --porcelain)\" ]"
 
 echo "== adoptar.sh: copia"
@@ -113,6 +114,7 @@ copia existente c1
 espera pasa "copiar: crea el manifiesto" "Manifiesto creado" -- adoptar "$P" copiar "$D"
 espera pasa "copiar: README del proyecto idéntico byte a byte" "" -- cmp "$W/readme.orig" "$D/README.md"
 espera pasa "copiar: runbook propio idéntico byte a byte" "" -- cmp "$W/runbook.orig" "$D/docs/despliegue.md"
+espera pasa "copiar: adoptar.sh y su regresión no se distribuyen" "" -- sh -c "[ ! -e '$D/scripts/adoptar.sh' ] && [ ! -e '$D/scripts/pruebas/regresion-adopcion.sh' ]"
 espera pasa "copiar: los hooks quedan ejecutables" "" -- sh -c "[ -x '$D/.githooks/pre-commit' ] && [ -x '$D/.githooks/commit-msg' ]"
 espera pasa "copiar: manifiesto registra hash por archivo y la colisión" "" -- sh -c "grep -qE '^- AGENTS\.md · [0-9a-f]{40}$' '$D/contexto/adopcion.md' && grep -qx -- '- docs/despliegue.md' '$D/contexto/adopcion.md'"
 huella_arbol "$D" > "$W/h1"; cp "$D/contexto/adopcion.md" "$W/m1"

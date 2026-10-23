@@ -129,6 +129,9 @@ documenta, no se decide). Lo propio del revisor en este modo:
   es vacío.
 - **Recalcula** al menos una cifra del set de oro desde su artefacto persistido y re-ejecuta un
   script de `contexto/exploracion/` si corre sin red.
+- **Observado frente a inferido:** lo marcado `observado en código` tiene que estar literalmente
+  en su cita; un comportamiento que exige juntar piezas es `inferido`, y marcarlo como observado
+  o comprobado es vacío.
 - **Desconocidos:** un hecho pendiente con impacto y responsable no es vacío si ninguna
   garantía declarada verificada depende de él; solo una **elección** exige ADR `propuesta`.
 - **Decisiones:** ADR retrospectivos con evidencia, explicación confirmada o hipótesis; no se

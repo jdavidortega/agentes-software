@@ -3,7 +3,8 @@
 > **ADR** = Architecture Decision Record (registro de decisión de arquitectura);
 > "-lite" = versión ligera: fecha y hora, contexto, opciones, decisión, razón, consecuencias.
 > Una entrada por cada decisión donde había más de una opción razonable.
-> Copia el bloque de abajo hacia arriba (las más recientes primero).
+> El formato es el bloque ADR-000 de abajo: al registrar el primer ADR real, cópialo y borra
+> ADR-000 (el doctor lo exige al cierre). Las más recientes primero.
 > **Fecha y hora en UTC**, tomadas del reloj real (`date -u`), no de memoria.
 >
 > **Estado y decisiones diferidas.** Un ADR en estado **`propuesta`** es una decisión

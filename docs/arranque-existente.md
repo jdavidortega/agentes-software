@@ -19,7 +19,7 @@ como resumen ejecutivo (`AGENTS.md` §2).
 
 **Pasada de coherencia (antes de cada gate de este guion).** El doctor y los hooks prueban
 integridad estructural, no que lo escrito sea coherente. Antes de pedir un gate, el agente
-responde por escrito, en el resumen del gate, cuatro preguntas:
+responde por escrito, en el resumen del gate, cinco preguntas:
 1. ¿Queda algún **ejemplo de la plantilla** en lo que este paso tocó (`docs/estado.md`,
    tabla de criterios, manifiesto de `contexto/README.md`, `docs/decisiones.md`)?
 2. ¿`docs/estado.md` distingue **lo terminado**, **lo pendiente de aprobación** y **lo que
@@ -32,8 +32,9 @@ responde por escrito, en el resumen del gate, cuatro preguntas:
    suyas abiertas: se deciden, o se reasignan **con razón** a una actividad posterior. Una
    elección pendiente es ADR; un **hecho desconocido** no (va a §Pendientes con impacto y quién).
 
-El resultado queda también en `docs/estado.md`, en una línea con lo que quedó pendiente; la
-evidencia se referencia, no se copia. Así el revisor puede comprobar que la pasada ocurrió.
+El resultado queda también en `docs/estado.md`: **una línea breve por pregunta**, con la
+respuesta y su evidencia referenciada (no copiada), y lo que quedó pendiente. Así el revisor
+puede comprobar cada respuesta y no solo que la pasada ocurrió.
 
 ## Contrato de adopción
 
@@ -104,7 +105,8 @@ fecha, motivo). Lo que el proyecto ya modificó no se sustituye: es una integrac
 con la persona. No se borra ni se reinstala nada, porque pueden existir integraciones manuales.
 
 **D. Integraciones acordadas** (cada una con OK explícito; ninguna toca lógica del producto).
-- **`.gitignore`:** `sh scripts/adoptar.sh gitignore <ruta>` evalúa el efecto del bloque del
+- **`.gitignore`:** lo corre la **persona desde la plantilla**, como A–C (`adoptar.sh` no se
+  distribuye al proyecto). `sh scripts/adoptar.sh gitignore <ruta>` evalúa el efecto del bloque del
   método antes y después. Si ocultaría un archivo **versionado** (típico: un `.env`), no se
   aplica nada: primero se decide qué hacer con ese archivo (cláusula 2) y se repite con
   `--aplicar`. Lo que el proyecto ya ignoraba estando versionado es un **hallazgo**, no un bloqueo.
@@ -143,7 +145,12 @@ inventario de paquetes describe el entorno observado; no prueba que pueda recons
 **G. Controles.**
 - `scripts/check.sh` nace aquí (no en F2: el stack ya existe) con el comando de pruebas
   que ya funciona. Imprime **cuántas pruebas ejecutó** y un aviso visible si fueron cero;
-  un cero silencioso está prohibido. El **linter no se activa todavía**: su alcance sobre
+  un cero silencioso está prohibido. **Si la verificación está bloqueada** (resultado del paso F
+  distinto de `pasa` o `pruebas fallidas`), `check.sh` igual se crea: su **primera línea** dice
+  `VERIFICACIÓN BLOQUEADA: <clase del paso F> — 0 pruebas ejecutadas; no es un resultado
+  aprobado`, termina en 0 (el `pre-commit` lo exige desde F2 para dejar commitear el rastro) y
+  queda escrito qué condición lo desbloquea. Esa salida **no acredita** nada: ningún `C#` pasa a
+  verificado con ella y un juez que la vea no tiene evidencia de pruebas. El **linter no se activa todavía**: su alcance sobre
   código preexistente se decide en la Fase 2 con la línea base.
   `check.sh` corre con el intérprete y las dependencias **del proyecto** (su entorno
   virtual, por ejemplo); con otro intérprete falla en rojo, y es lo correcto: el pre-commit lo
@@ -160,19 +167,23 @@ inventario de paquetes describe el entorno observado; no prueba que pueda recons
   ejemplo; lo pendiente en frases completas. El commit **no afirma** que haya encuadre ni protección.
 - Fila del brief y del manifiesto de instalación en el manifiesto de `contexto/README.md`,
   sin las filas de ejemplo.
+- En `docs/estado.md`, una línea con la **vista previa revisada**: cuántos archivos se copian,
+  colisiones, excluidos, quién la revisó y cuándo (o «aprobación anticipada de la persona», si
+  así fue). Es la evidencia del primer ítem del validador.
 - Commit con `Ref: F1`, sin tocar código del producto (el hook lo rechazaría). Comprueba
   `sh scripts/pruebas/validar_historial.sh HEAD`: debe validar solo el commit de instalación.
 - Si el remoto es compartido, trabaja en una rama y acuerda con la persona cuándo se integra.
 
 **Validador del Paso 0 (PASA/FALLA):**
-- [ ] La inspección no tiene bloqueos y la persona revisó la vista previa.
+- [ ] La inspección no tiene bloqueos y la vista previa revisada consta en `docs/estado.md`.
 - [ ] `git diff --stat <base>..HEAD` solo muestra archivos del método, `contexto/`,
   `docs/`, `scripts/check.sh`, `.gitignore` y, si se aprobó, la retirada de secretos. El
   README y los archivos en colisión están **idénticos** a la base.
 - [ ] Cada colisión e integración pendiente del manifiesto tiene resolución aprobada o
   está explícitamente diferida a la Fase 1.
 - [ ] `contexto/exploracion/entorno-base.md` registra entorno y resultado de la suite.
-- [ ] `scripts/check.sh` existe, corre lo que ya había y reporta el número de pruebas.
+- [ ] `scripts/check.sh` existe y corre lo que ya había reportando el número de pruebas, o
+  declara `VERIFICACIÓN BLOQUEADA` con su causa y la condición que la desbloquea.
 - [ ] Hooks activos y ejecutables; `sh scripts/check_docs.sh` en PASA.
 - [ ] Commit de instalación con `Ref: F1`, base declarada y `validar_historial.sh HEAD` en verde.
 - [ ] Pasada de coherencia respondida (cinco preguntas) sin ningún «sí» pendiente en la 1 y la 5
@@ -189,10 +200,29 @@ Produce `docs/encuadre.md` con **el sistema tal como está**, corto y referencia
 está escrito, más `docs/convenciones.md` y `docs/decisiones.md`. Se lee el código entero
 que toca cada capacidad; lo que se afirma, se cita.
 
-**Marcas de origen** (sustituyen a las del arranque normal): `[de código: archivo:línea]`,
-`[de ejecución: script, fecha]`, `[de contexto/: archivo]`, `[inferido]` (por confirmar) y
-`[pendiente: quién lo confirma]`. El encuadre declara una vez el **commit evaluado**; cada `C#`
-y cada hallazgo citan `archivo:línea` de ese commit.
+**Marcas de origen** (sustituyen a las del arranque normal). Para afirmaciones sobre el
+sistema, tres, y no se mezclan:
+- `[observado en código: archivo:línea]`: lo que el código **dice** literalmente en ese lugar
+  (un valor, una firma, una llamada).
+- `[inferido: razonamiento; falta confirmar: …]`: un comportamiento **deducido** juntando piezas
+  (p. ej. «la limpieza nunca corre porque falta X»). Una cita no la convierte en observación.
+- `[comprobado por ejecución: script, fecha]`: visto al ejecutar.
+Para lo demás: `[de contexto/: archivo]` (documentos aportados) y `[pendiente: quién lo
+confirma]` (hechos que solo la persona u operación saben). El encuadre declara una vez el
+**commit evaluado**; cada `C#` y cada hallazgo citan `archivo:línea` de ese commit.
+
+**Si la verificación dinámica está bloqueada** (paso F: herramienta ausente, dependencias no
+disponibles sin red, fallo de compilación, servicio externo), la Fase 1 **completa su alcance
+estático** y declara el resto, sin PASA ficticio:
+- **Reconocimiento estático completado:** propósito, arquitectura, contratos por camino y mapa
+  de protección, con marcas `observado` e `inferido`.
+- **Verificación dinámica bloqueada:** causa, garantías pendientes y **condición** que la
+  habilita (p. ej. «caché de dependencias o red autorizada; luego `./gradlew test` aislado»).
+- **Criterios `sin verificar`:** leer el código no valida un `C#`; cada uno indica la prueba
+  existente que lo cubriría (no ejecutada) o su brecha.
+- **Set de oro candidato:** sin ejecución, la referencia es **candidata** (derivada de las
+  aserciones de las pruebas, del contrato o de la especificación, con su fuente) y se confirma
+  al habilitar la ejecución.
 
 **Sustitutos (fakes y mocks).** Toda verificación hecha con un sustituto (Redis en memoria,
 broker eager, cliente HTTP falso, reloj fijo) declara **qué sustituye y qué garantía queda sin
@@ -256,18 +286,23 @@ Fase 1 si ninguna garantía que se declare verificada depende de él.
 - [ ] Las seis actividades tienen su salida en el archivo que les toca.
 - [ ] Cada fila de §Entradas y salidas dice qué se verificó y qué falta.
 - [ ] Hay un script de ejecución local en `contexto/exploracion/` que corre la transformación
-  principal sobre entradas reales, o la imposibilidad está declarada.
+  principal sobre entradas reales, o la **verificación dinámica bloqueada** está declarada con
+  causa, garantías pendientes y condición.
 - [ ] La lista de caminos de la actividad 3 está completa: cada camino con su contrato o con
   «no aplica» justificado.
-- [ ] Cada estado terminal expuesto tiene `C#` o está declarado fuera; cada `C#` tiene una
-  prueba que lo ejecuta de verdad o una brecha nombrada, y cita `archivo:línea`.
+- [ ] Hay entre 3 y 8 `C#`; cada estado terminal expuesto tiene `C#` o está declarado fuera;
+  cada `C#` tiene una prueba que lo ejecuta de verdad o una brecha nombrada, y cita
+  `archivo:línea`. Con la verificación bloqueada, cada `C#` está `sin verificar`.
 - [ ] Cada par del set de oro tiene procedencia y referencia persistida (o reproducción
-  declarada limitada); sus cifras se derivan del artefacto persistido.
+  declarada limitada, o referencia **candidata** con su fuente si la ejecución está
+  bloqueada); sus cifras se derivan del artefacto persistido.
+- [ ] Ninguna inferencia lleva la marca de observación ni de ejecución; cada `inferido` dice
+  qué falta confirmar.
 - [ ] Cada verificación con sustituto declara qué garantía queda sin verificar.
 - [ ] §Cómo funciona lista los parámetros críticos (aunque coincidan con su valor por defecto).
 - [ ] `docs/convenciones.md` abre con «Observado en este proyecto» (configurar, levantar,
   probar, aplicar un cambio; estilo) y conserva las reglas de la plantilla.
-- [ ] Sin `[inferido]` sin confirmar; cada `[pendiente]` con impacto y quién lo confirma.
+- [ ] Cada `[pendiente]` con impacto y quién lo confirma.
 - [ ] Revisor funcional en PASA y pasada de coherencia respondida y anotada en `docs/estado.md`.
 
 ---
@@ -305,7 +340,10 @@ El diagnóstico **puede discrepar** de los informes de los jueces, con justifica
 correcta. Una corrección **factual** del encuadre (una fila de contratos, un hallazgo) se hace con
 nota en el diagnóstico; si cambia un `C#` o el set de oro, es **reentrada** (ADR, revisor, gate).
 
-**3. Plan** (`docs/plan.md`), en dos bloques separados:
+**3. Plan** (`docs/plan.md`), en dos bloques separados. **Con la verificación bloqueada**, el
+plan es **condicionado**: su primer incremento es **habilitar la verificación** (la condición de
+la Fase 1, sin tocar el producto: caché, entorno, acceso) y los de protección dependen de él; el
+plan no afirma que el sistema funciona, y los `C#` siguen `sin verificar` hasta ejecutarse.
 - **Protección (obligatoria y mínima):** lo necesario para que **cada `C#` vigente quede
   verificable**. Un `C#` cubierto por pruebas existentes va a un incremento de **verificación por
   sabotaje** (`.claude/skills/verificando-por-sabotaje/SKILL.md`): demuestra que la prueba protege

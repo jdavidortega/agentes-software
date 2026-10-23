@@ -36,6 +36,10 @@ allowed-tools: Read, Grep, Glob, Bash
    - **experimentos** (reproducir, sabotear, correr algo que genera archivos):
      `D=$(mktemp -d)` y `printf 'experimentos %s\n' "$D" > .git/revision-modalidad`. Es el
      **único** lugar donde el revisor está autorizado a escribir.
+   La modalidad depende de la **operación**, no del rol: si la revisión necesita una herramienta
+   que escribe temporales (`validar_historial.sh`, `sabotear.py`, una suite que crea archivos),
+   es **experimentos**, y el revisor la corre con `TMPDIR="$D"` delante para que sus temporales
+   caigan en el directorio autorizado.
 
 ## Invocación
 

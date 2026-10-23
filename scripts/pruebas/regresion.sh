@@ -889,6 +889,9 @@ espera falla "revisor en lectura: sed -i se rechaza" "filtro preventivo" -- gr j
 espera pasa "revisor en lectura: la suite y las lecturas pasan" "" -- gr revisor-funcional 'sh scripts/check.sh 2>&1 | tail -3 && git log --oneline -3 > /dev/null'
 espera pasa "revisor en lectura: un patrón entre comillas es una lectura" "" -- gr revisor-funcional 'grep -rn "a > b; rm -rf x" docs'
 espera pasa "un agente que no es revisor no se filtra" "" -- gr general-purpose 'rm -rf docs'
+espera pasa "revisor en lectura: consultar git config pasa" "" -- gr juez-codigo 'git config core.hooksPath && git config --get user.name && git config --list > /dev/null'
+espera falla "revisor en lectura: escribir git config se rechaza" "git config \\(escritura\\)" -- gr juez-codigo 'git config user.name intruso'
+espera falla "revisor en lectura: git config --unset se rechaza" "git config \\(escritura\\)" -- gr juez-codigo 'git config --unset core.hooksPath'
 printf 'experimentos %s/aut\n' "$GW" > "$GW/.git/revision-modalidad"
 espera pasa "revisor en experimentos: escribir en el directorio autorizado pasa" "" -- gr juez-conjunto "python3 x.py > $GW/aut/out.txt"
 espera falla "revisor en experimentos: escribir fuera del directorio autorizado se rechaza" "solo en $GW/aut" -- gr juez-conjunto 'cp a /tmp/b'

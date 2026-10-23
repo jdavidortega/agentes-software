@@ -29,7 +29,7 @@ set -euf   # -f: sin comodines; las reglas de .gitignore (*.pyc) no se expanden
 MODO="${1:-}"; DESTINO_ARG="${2:-}"; BANDERA="${3:-}"
 PLANTILLA=$(cd "$(dirname "$0")/.." && pwd -P)
 CONJUNTO='.claude .githooks .github/workflows/metodo.yml scripts docs contexto/README.md AGENTS.md CLAUDE.md .editorconfig'
-EXCLUIDOS='README.md, .gitignore, mejoras/'
+EXCLUIDOS='README.md, .gitignore, mejoras/, scripts/adoptar.sh, scripts/pruebas/regresion-adopcion.sh (herramientas de la plantilla)'
 MANIFIESTO='contexto/adopcion.md'
 ACTUALIZACIONES='contexto/adopcion-actualizaciones.md'
 
@@ -46,7 +46,10 @@ raiz=$(cd "$raiz" && pwd -P)
 [ "$DESTINO" != "$PLANTILLA" ] || fallo "el destino es la propia plantilla"
 
 # shellcheck disable=SC2086
-ARCHIVOS=$(git -C "$PLANTILLA" ls-files -- $CONJUNTO)
+# Herramientas que solo tienen sentido en la plantilla (se corren desde ella; dentro de un proyecto
+# confunden): no se distribuyen.
+SOLO_PLANTILLA='scripts/adoptar.sh scripts/pruebas/regresion-adopcion.sh'
+ARCHIVOS=$(git -C "$PLANTILLA" ls-files -- $CONJUNTO | grep -vxF "$(printf '%s\n' $SOLO_PLANTILLA)")
 [ -n "$ARCHIVOS" ] || fallo "la plantilla no tiene archivos versionados en el conjunto distribuible"
 printf '%s\n' "$ARCHIVOS" | grep -q '[[:space:]]' && fallo "una ruta del conjunto tiene espacios; no se admite"
 PLANTILLA_COMMIT=$(git -C "$PLANTILLA" rev-parse HEAD 2>/dev/null || echo "sin-commits")

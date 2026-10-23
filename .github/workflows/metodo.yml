@@ -58,6 +58,6 @@ jobs:
       - name: Regresión de los hooks
         run: sh scripts/pruebas/regresion.sh
       - name: Regresión de la adopción (copia sin sobreescribir y base del método)
-        run: sh scripts/pruebas/regresion-adopcion.sh
+        run: if [ -f scripts/pruebas/regresion-adopcion.sh ]; then sh scripts/pruebas/regresion-adopcion.sh; else echo "sin regresión de adopción (solo en la plantilla)"; fi
       - name: Suite del producto (desde F2)
         run: if [ -f scripts/check.sh ]; then sh scripts/check.sh; else echo "sin scripts/check.sh todavía (llega con el diseño)"; fi

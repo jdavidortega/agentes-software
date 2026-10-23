@@ -22,7 +22,7 @@ WRITE_COMMANDS = re.compile(
     r"(^|[\s;&|(])("
     r"rm|rmdir|mv|cp|mkdir|touch|tee|ln|chmod|chown|truncate|dd|install|patch|"
     r"sed\s+(-[a-zA-Z]*i|--in-place)|perl\s+-[a-zA-Z]*i|"
-    r"git\s+(add|commit|reset|checkout|switch|restore|stash|rm|mv|clean|push|tag|branch|merge|rebase|apply|am|config|update-index|worktree|init|clone)|"
+    r"git\s+(add|commit|reset|checkout|switch|restore|stash|rm|mv|clean|push|tag|branch|merge|rebase|apply|am|update-index|worktree|init|clone)|"
     r"pip3?\s+install|python3?\s+-m\s+pip\s+install|npm\s+(install|ci)|uv\s+(pip|add|sync)"
     r")(\s|$)"
 )
@@ -48,9 +48,37 @@ def mode(project_dir: str) -> tuple[str, str]:
     return "lectura", ""
 
 
+GIT_CONFIG = re.compile(r"(^|[\s;&|(])git\s+config((\s+[^\s;&|<>]+)*)")  # a redirection ends the args
+GIT_CONFIG_WRITE_OPTS = {"--unset", "--unset-all", "--add", "--replace-all", "--rename-section",
+                         "--remove-section", "-e", "--edit"}
+GIT_CONFIG_VALUE_OPTS = {"--file", "-f", "--blob", "--type", "--default"}
+
+
+def git_config_writes(bare: str) -> bool:
+    """`git config` reads (`--get`, `--list`, `<key>`) pass; writes (`<key> <value>`, --unset…) do not."""
+    for m in GIT_CONFIG.finditer(bare):
+        args, positional, skip = m.group(2).split(), 0, False
+        for a in args:
+            if skip:
+                skip = False
+                continue
+            if a in GIT_CONFIG_WRITE_OPTS:
+                return True
+            if a in GIT_CONFIG_VALUE_OPTS:
+                skip = True
+                continue
+            if not a.startswith("-"):
+                positional += 1
+        if positional >= 2:
+            return True
+    return False
+
+
 def writes(cmd: str) -> list[str]:
     bare = strip_quotes(cmd)
     found = [m.group(2).split()[0] for m in WRITE_COMMANDS.finditer(bare)]
+    if git_config_writes(bare):
+        found.append("git config (escritura)")
     found += [f"> {m.group(2)}" for m in REDIRECTION.finditer(bare) if m.group(2) not in HARMLESS_TARGETS]
     return found
 

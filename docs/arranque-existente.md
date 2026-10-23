@@ -215,8 +215,10 @@ lleva la suya; varias afirmaciones que comparten claramente la misma evidencia p
 Una **ausencia** («ningún código asigna X», «nunca se llena») solo se afirma como **no encontrado
 dentro de un alcance**: se cita la búsqueda (`[buscado: comando; alcance; commit]`), que no prueba
 una ausencia universal; lo que se deduce de ella sigue siendo `inferido`.
-Para lo demás: `[de contexto/: archivo]` (documentos aportados) y `[pendiente: quién lo
-confirma]` (hechos que solo la persona u operación saben). El encuadre declara una vez el
+Para lo demás: `[documentado por el proyecto: archivo:línea]` (lo que dicen el README, otros documentos
+del repositorio o un **comentario** del código: es intención declarada, **no** comportamiento comprobado),
+`[de contexto/: archivo]` (documentos aportados en `contexto/`) y `[pendiente: quién lo confirma]`
+(hechos que solo la persona u operación saben). El encuadre declara una vez el
 **commit evaluado**; cada `C#` y cada hallazgo citan `archivo:línea` de ese commit.
 
 **Si la verificación dinámica está bloqueada** (paso F: herramienta ausente, dependencias no
@@ -245,6 +247,16 @@ verificar** por eso (p. ej. «TTL y concurrencia de Redis no verificados»), en 
 pendiente de confirmar**: se escribe con su impacto y quién lo confirma, sin ADR. Solo hay
 ADR (`propuesta`) cuando hay una **elección** entre opciones. Un pendiente no bloquea la
 Fase 1 si ninguna garantía que se declare verificada depende de él.
+
+**Pendiente de seguridad física** (un dato del que depende que el sistema actúe o no sobre equipos,
+personas o el mundo real: configuración desplegada, a qué alcanza un mando, si un automatismo está
+encendido) lleva cuatro partes: **qué** falta confirmar y **quién** puede hacerlo; **qué decisión**
+queda bloqueada hasta conocerlo; **cuándo** debe resolverse (p. ej. «antes del gate de la Fase 2»); y
+**qué medida provisional** se propone, **quién la autoriza** y **cómo se comprueba**. Una medida
+provisional es **candidata**: se dice si es suficiente o qué otros caminos persisten. El cierre
+documental de una fase **no autoriza** operar, desplegar ni declarar seguro el sistema, y un documento
+del proyecto (README) no acredita la configuración desplegada. Cambiar producción nunca ocurre dentro de
+la adopción sin la autorización puntual de la persona (`AGENTS.md` §3).
 
 **Actividades:**
 1. **Qué hace.** Contexto en cinco líneas. §Entradas y salidas: una fila por entrada y por
@@ -329,7 +341,9 @@ superficie de riesgo, al **juez de seguridad**, sobre el sistema existente y **a
 la Fase 1 no resolvió** (composición entre componentes, seguridad); reutilizan la evidencia de la
 Fase 1 y no repiten reproducciones salvo por una duda concreta. Sus informes quedan en
 `contexto/exploracion/linea-base-*.md` con IDs propios (`LB-C.n`, `LB-S.n`). No bloquean commits:
-son **evidencia, no una lista de tareas**. Se registra el consumo de cada etapa.
+son **evidencia, no una lista de tareas**. Se registra el consumo de cada etapa; si no se puede medir,
+«no medido, con su causa» es un registro válido de esa limitación, y entonces no se presenta un total
+como completo.
 
 **2. Diagnóstico** (`docs/plan.md` §Diagnóstico). Una fila por hallazgo relevante: los `H#` del
 encuadre y los `LB-*`, **consolidando duplicados** (una fila, varias fuentes). **Inventario:** cada
@@ -347,7 +361,8 @@ Por fila:
   justificación y su fuente. Así toda discrepancia es visible y la lista es cerrada.
 - **Decisión:** seleccionado (→ `I#`) · diferido (**por qué puede esperar**) · pendiente de
   confirmar (qué dato y quién) · descartado (razón).
-El diagnóstico **puede discrepar** de los informes de los jueces, con justificación y fuente.
+El diagnóstico **puede discrepar** de los informes de los jueces, con justificación y fuente. Una cita
+tomada de un informe se **reverifica** en el código antes de llevar la marca `observado`.
 **Si un informe contradice el encuadre**, primero se comprueba contra el código cuál afirmación es
 correcta. Una corrección **factual** del encuadre (una fila de contratos, un hallazgo) se hace con
 nota en el diagnóstico; si cambia un `C#` o el set de oro, es **reentrada** (ADR, revisor, gate).
@@ -366,7 +381,9 @@ plan no afirma que el sistema funciona, y los `C#` siguen `sin verificar` hasta 
   obligación; cambiarlo después exige actualizar el contrato (`C#` o ADR) en ese mismo incremento.
 - **Mejora (opcional):** cada incremento dice qué riesgo trata y **por qué ahora** y no después.
 Cada `I#` lleva alias e indica el `C#` que protege o el hallazgo que trata. **Línea de corte:**
-un párrafo que explica qué queda fuera y por qué puede esperar. Plan de pruebas por incremento
+separa la **protección necesaria por criterio** (lo que hace verificable cada `C#`, nace de sus brechas)
+de las **mejoras seleccionadas por riesgo** (nacen de filas del diagnóstico), y explica qué queda fuera y
+por qué puede esperar. Plan de pruebas por incremento
 (solo lo que cierra brechas). Decisiones con opciones (alcance del linter sobre lo existente,
 tolerancia del set de oro…) como ADR; los ADR `propuesta` de la Fase 1 se resuelven o se
 reasignan a su actividad. `docs/trazabilidad.md`: una fila por `C#` con su incremento.
@@ -389,8 +406,12 @@ la **síntesis contra sus fuentes** (encuadre e informes de línea base).
   fuente; las contradicciones con el encuadre se resolvieron contra el código.
 - [ ] Bloque de protección mínimo: cada `C#` con un incremento (verificación por sabotaje o
   prueba nueva) en `docs/trazabilidad.md`; ningún incremento de protección sin `C#`.
-- [ ] Mejoras separadas, cada una con el riesgo que trata y por qué ahora; línea de corte escrita.
+- [ ] Mejoras separadas, cada una con el riesgo que trata y por qué ahora; línea de corte escrita. Una
+  mejora condicional tiene **un solo disparador**, idéntico en el diagnóstico, el plan, la línea de corte
+  y el backlog.
 - [ ] Plan de pruebas por incremento; las caracterizaciones marcadas con su hallazgo.
+- [ ] Cada pendiente de seguridad física tiene sus cuatro partes (qué y quién, decisión bloqueada,
+  cuándo, medida provisional candidata con quién la autoriza y cómo se comprueba).
 - [ ] Reglas compartidas comprobadas: `AGENTS.md` §1 sin marcadores, hitos en el plan, consumo
   anotado.
 - [ ] El plan se defiende en ≤ 10 líneas en el resumen del gate.

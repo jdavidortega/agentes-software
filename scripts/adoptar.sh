@@ -69,6 +69,23 @@ enlace_en_ruta() {
   done
   return 1
 }
+# negables <lista> → de las rutas del método que el destino ignora, imprime las que una negación
+# precisa al final del .gitignore raíz («!/<ruta>») vuelve a incluir. Si lo excluido es una carpeta
+# padre, git no permite re-incluir el archivo: esa ruta no sale y sigue siendo bloqueo.
+copia_gitignores() {  # copia_gitignores <dir> → todos los .gitignore del destino en sus rutas
+  ( cd "$DESTINO" && find . -name .gitignore -not -path './.git/*' -type f ) | while IFS= read -r g; do
+    mkdir -p "$1/$(dirname "$g")"; cp "$DESTINO/$g" "$1/$g"
+  done
+}
+negables() {
+  [ -n "$(lista "$1")" ] || return 0
+  Tn=$(mktemp -d 2>/dev/null || mktemp -d -t adoptar-neg); git init -q "$Tn"; copia_gitignores "$Tn"
+  { [ -f "$Tn/.gitignore" ] && [ -n "$(tail -c1 "$Tn/.gitignore")" ] && echo; lista "$1" | sed 's|^|!/|'; } >> "$Tn/.gitignore"
+  aun=$(lista "$1" | git -C "$Tn" check-ignore --no-index --stdin 2>/dev/null || true)
+  rm -rf "$Tn"
+  lista "$1" | while IFS= read -r p; do printf '%s\n' "$aun" | grep -qxF -- "$p" || printf '%s\n' "$p"; done
+}
+
 # Hash registrado en el manifiesto para una ruta (sección «Añadidos»: «- <ruta> · <hash>»).
 registrado() {  # el último hash registrado: el de la actualización más reciente, o el de la instalación
   [ -f "$DESTINO/$MANIFIESTO" ] || return 0
@@ -171,7 +188,13 @@ inspeccionar() {
   echo "plantilla:            $PLANTILLA_COMMIT (árbol del conjunto limpio: $PLANTILLA_LIMPIA)"
   echo "== Bloqueos: $BLOQUEOS"
   [ -z "$BLOQ_ENLACE" ] || seccion "enlace simbólico en la ruta (se escribiría fuera del repositorio)" "$BLOQ_ENLACE"
-  [ -z "$BLOQ_IGNORADO" ] || seccion "ignorado por el destino (entraría al disco, no al repositorio)" "$BLOQ_IGNORADO"
+  if [ -n "$BLOQ_IGNORADO" ]; then
+    seccion "ignorado por el destino (entraría al disco, no al repositorio)" "$BLOQ_IGNORADO"
+    neg=$(negables "$BLOQ_IGNORADO")
+    [ -z "$(lista "$neg")" ] || seccion "de ellos, resolubles con una negación precisa (la propone y la aplica, con --aplicar, «sh scripts/adoptar.sh gitignore <destino>»)" "$neg"
+    duro=$(lista "$BLOQ_IGNORADO" | while IFS= read -r p; do printf '%s\n' "$neg" | grep -qxF -- "$p" || printf '%s\n' "$p"; done)
+    [ -z "$(lista "$duro")" ] || seccion "de ellos, con una carpeta padre excluida (una negación no los rescata; se resuelve con la persona)" "$duro"
+  fi
   [ "$BLOQUEOS" -eq 0 ]
 }
 informe() {
@@ -266,14 +289,15 @@ gitignore_modo() {
     bloque="$bloque
 $r"
   done
+  # Negaciones precisas para archivos del método que el destino ignora y que una negación rescata.
+  negaciones=$(negables "$BLOQ_IGNORADO" | sed 's|^|!/|')
+  bloque="$bloque
+$negaciones"
   echo "== .gitignore de $DESTINO"
   if [ -z "$(lista "$bloque")" ]; then echo "-- Nada que añadir: todas las entradas del método ya están."; return 0; fi
   # Efecto ANTES y DESPUÉS en un repositorio temporal con todos los .gitignore del destino en sus rutas.
   T=$(mktemp -d 2>/dev/null || mktemp -d -t adoptar-gi)
-  git init -q "$T"
-  ( cd "$DESTINO" && find . -name .gitignore -not -path './.git/*' -type f ) | while IFS= read -r g; do
-    mkdir -p "$T/$(dirname "$g")"; cp "$DESTINO/$g" "$T/$g"
-  done
+  git init -q "$T"; copia_gitignores "$T"
   versionados=$(git -C "$DESTINO" ls-files)
   antes=$(printf '%s\n' "$versionados" | git -C "$T" check-ignore --no-index --stdin 2>/dev/null || true)
   { [ -f "$T/.gitignore" ] && [ -n "$(tail -c1 "$T/.gitignore")" ] && echo; lista "$bloque"; } >> "$T/.gitignore"
@@ -285,6 +309,7 @@ $r"
   [ -z "$nuevas" ] || explica=$(printf '%s\n' "$nuevas" | git -C "$T" check-ignore --no-index -v --stdin 2>/dev/null | awk -F'\t' '{ n=split($1,a,":"); printf "%s  (regla «%s»)\n", $2, a[n] }')
   rm -rf "$T"
   seccion "Entradas del método que faltan (bloque candidato, en orden)" "$bloque"
+  seccion "Archivos del método que el destino ignora y que la negación vuelve a incluir" "$(printf '%s\n' "$negaciones" | sed 's|^!/||')"
   seccion "Versionados que el bloque OCULTARÍA (exclusión nueva)" "$explica"
   seccion "Versionados que el destino YA ignoraba (preexistente; hallazgo, no causado por el bloque)" "$antes"
   if [ "$BANDERA" = "--aplicar" ]; then

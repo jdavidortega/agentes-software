@@ -896,6 +896,42 @@ printf 'experimentos %s/aut\n' "$GW" > "$GW/.git/revision-modalidad"
 espera pasa "revisor en experimentos: escribir en el directorio autorizado pasa" "" -- gr juez-conjunto "python3 x.py > $GW/aut/out.txt"
 espera falla "revisor en experimentos: escribir fuera del directorio autorizado se rechaza" "solo en $GW/aut" -- gr juez-conjunto 'cp a /tmp/b'
 
+# --- Captura de búsquedas (scripts/buscar.sh): lee con git grep contra un commit y escribe
+# evidencia append-only; nunca guarda contenido ni toca archivos sensibles.
+echo "== captura de búsquedas (buscar.sh)"
+BW="$W/buscar"; mkdir -p "$BW/src" "$BW/docs" "$BW/otro"; BR="$BW/docs/busquedas.md"
+( cd "$BW" && git init -q && printf 'uno firma\ndos\nfirma tres\n' > src/a.rs && printf 'nada\n' > src/b.rs \
+  && printf 'TOKEN=firma\n' > .env && printf 'firma\n' > otro/c.md && git add -A && git commit -q -m base )
+bus() { ( cd "$BW" && sh "$RAIZ/scripts/buscar.sh" "$@" ); }
+reg_tiene() { grep -qF -- "$1" "$BR"; }
+espera pasa "buscar: coincidencias registradas como archivo:línea" "B-1 registrada.*coincidencias" -- bus registrar --registro "$BR" -e firma --control otro/c.md -- src
+espera pasa "buscar: el registro guarda la ubicación, no el contenido" "" -- sh -c "grep -qF 'coincidencias: src/a.rs:1, src/a.rs:3' '$BR' && ! grep -qF 'uno firma' '$BR'"
+espera pasa "buscar: el control positivo queda registrado" "" -- reg_tiene "control: \`otro/c.md\` → líneas coincidentes: 1"
+espera pasa "buscar: el .env no se busca ni se registra" "" -- sh -c "cd '$BW' && sh '$RAIZ/scripts/buscar.sh' registrar --registro '$BR' -e TOKEN -- . | grep -q 'sin coincidencias' && ! grep -q '\.env:' '$BR'"
+espera pasa "buscar: sin coincidencias es resultado del alcance, no error" "sin coincidencias en el alcance" -- bus registrar --registro "$BR" -e zzz -- src
+espera falla "buscar: una ruta sin archivos es error y se registra" "no tiene archivos de texto" -- bus registrar --registro "$BR" -e firma -- a.rs
+espera pasa "buscar: la búsqueda fallida queda en el registro como no ejecutada" "" -- sh -c "tail -6 '$BR' | grep -q 'código de salida: no ejecutada'"
+espera falla "buscar: un patrón inválido es error con su código" "parentheses|paréntesis|Unmatched|balanced" -- bus registrar --registro "$BR" -e 'a(' -- src
+espera pasa "buscar: el patrón inválido se registra con código 128" "" -- sh -c "tail -6 '$BR' | grep -q 'código de salida: 128'"
+espera pasa "buscar: -F trata el patrón como literal" "sin coincidencias" -- bus registrar --registro "$BR" -F -e 'a(' -- src
+espera falla "buscar: un commit que no existe es error" "no se resuelve el commit" -- bus registrar --registro "$BR" --commit no-existe -e firma -- src
+n_antes=$(wc -c < "$BR")
+espera falla "buscar: un patrón con cabecera de llave se rechaza" "usa .*nombre llaves-privadas" -- bus registrar --registro "$BR" -e 'BEGIN RSA PRIVATE K''EY' -- .
+espera falla "buscar: un patrón con un token largo se rechaza" "valores secretos" -- bus registrar --registro "$BR" -e 'abcdefghijklmnopqrstuvwxyz0123456789' -- .
+espera pasa "buscar: los rechazos no escriben en el registro" "" -- test "$(wc -c < "$BR")" = "$n_antes"
+espera pasa "buscar: la búsqueda con nombre no deja el patrón en el registro" "" -- sh -c "cd '$BW' && sh '$RAIZ/scripts/buscar.sh' registrar --registro '$BR' --nombre llaves-privadas -- . >/dev/null && grep -q 'nombre: llaves-privadas' '$BR' && ! grep -q 'PRIVATE' '$BR'"
+espera falla "buscar: sin --registro no busca" "falta --registro" -- bus registrar -e firma -- src
+ln -s "$BW/docs/fuera.md" "$BW/docs/enlace.md"
+espera falla "buscar: un registro enlace simbólico se rechaza" "enlace simbólico" -- bus registrar --registro "$BW/docs/enlace.md" -e firma -- src
+cp "$BR" "$W/buscar-previo.md"
+espera pasa "buscar: append-only con identificador siguiente" "" -- sh -c "cd '$BW' && sh '$RAIZ/scripts/buscar.sh' registrar --registro '$BR' -e dos -- src | grep -q '^B-9 ' && head -c $(wc -c < "$W/buscar-previo.md") '$BR' | cmp -s - '$W/buscar-previo.md'"
+h_antes=$(cksum < "$BR")
+espera pasa "buscar: repetir reproduce una entrada" "B-1 reproduce" -- bus repetir --registro "$BR" B-1
+espera pasa "buscar: repetir no escribe" "" -- test "$(cksum < "$BR")" = "$h_antes"
+espera falla "buscar: repetir de una entrada con error se rechaza" "no hay resultado que reproducir" -- bus repetir --registro "$BR" B-4
+sed 's/^- coincidencias: src\/a.rs:1, src\/a.rs:3$/- coincidencias: src\/a.rs:1/; s/^- líneas coincidentes: 2 (archivos: 1)$/- líneas coincidentes: 1 (archivos: 1)/' "$BR" > "$W/buscar-alterado.md"
+espera falla "buscar: repetir detecta un resultado que no reproduce" "B-1 NO reproduce" -- bus repetir --registro "$W/buscar-alterado.md" B-1
+
 echo
 echo "regresion: $((TOTAL-MAL))/$TOTAL casos en verde"
 if [ "$MAL" -gt 0 ]; then echo "FALLARON:$FALLIDOS"; exit 1; fi

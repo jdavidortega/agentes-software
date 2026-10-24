@@ -99,7 +99,7 @@ Qué pasa con lo que el proyecto ya tiene:
 | `README.md` | **Nunca se toca.** El agente lo verifica contra el código en la Fase 1. |
 | Un archivo con el mismo nombre que uno del método (p. ej. `docs/despliegue.md`) | Se conserva el del proyecto; queda listado como colisión para integrarlo después. |
 | `CLAUDE.md`, `AGENTS.md`, hooks o CI propios | Se conservan; el agente propone cómo convivir y tú apruebas. |
-| `.gitignore` | No lo toca la copia; `adoptar.sh gitignore` propone las entradas y se niega si ocultarían un archivo ya versionado. |
+| `.gitignore` | No lo toca la copia; `adoptar.sh gitignore` propone las entradas (y una negación precisa si una regla amplia del proyecto tapa un archivo del método) y se niega si ocultarían un archivo ya versionado. |
 | El código, las pruebas y los datos | **Nada cambia.** Cualquier cambio posterior entra como incremento con revisión. |
 
 Lo copiado y lo omitido queda registrado en `contexto/adopcion.md`. Si algo salió mal y
@@ -530,6 +530,8 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 │   ├── trazabilidad.sh      lector único de trazabilidad.md (doctor, hook y replay)
 │   ├── guardas.sh           guardas de contenido entre dos estados (pre-commit y replay)
 │   ├── consumo.py           consumo de tokens por modelo desde los transcripts locales
+│   ├── buscar.sh            búsquedas registradas (git grep contra un commit; evidencia
+│   │                        append-only citable como B-<n>; usado en la adopción)
 │   └── pruebas/
 │       ├── regresion.sh     regresión de los hooks y scripts (repos temporales; sin red)
 │       └── validar_historial.sh  el contrato de los hooks sobre cada commit de un rango (CI)

@@ -79,7 +79,11 @@ agente **dentro del proyecto**. Ninguno modifica la lógica del producto.
 pendientes, `core.hooksPath`, hooks propios y qué existe ya (README, CLAUDE.md, AGENTS.md,
 `.claude/`, `scripts/`, `docs/`, `.github/`). Detecta dos **bloqueos**: un enlace
 simbólico en cualquier componente de una ruta destino y una ruta que el `.gitignore` del
-proyecto ignora. Con bloqueos no se sigue: se resuelven con la persona. Con cambios
+proyecto ignora. Con bloqueos no se sigue: se resuelven con la persona. Una ruta del método que
+tapa una regla amplia del proyecto (p. ej. `*.log` sobre `docs/revisiones.log`) se resuelve con una
+**negación precisa** que propone `adoptar.sh gitignore` (paso D): muestra su efecto y solo se aplica con
+`--aplicar`, como integración explícita. Si lo excluido es la carpeta, una negación no la rescata y el
+bloqueo se resuelve con la persona. Con cambios
 pendientes en el proyecto, se pide commitearlos o apartarlos antes: la instalación tiene
 que poder distinguirse de ellos.
 
@@ -134,9 +138,11 @@ persona lo dice en el chat, se captura ahí. Fila en el manifiesto de `contexto/
 Versión del lenguaje, dependencias **instaladas** (no solo declaradas), comando de pruebas
 existente y su resultado. **Antes de correr la suite**, lee qué hace: si escribe archivos,
 llama servicios o lee un `.env` real, ejecútala aislada (copia temporal, variables
-neutras, sin red). El resultado es uno de: `pasa (N pruebas)` · `pruebas fallidas (cuáles)` ·
+neutras, sin red). El resultado es uno de: `pasa (N pruebas)` · `suite parcial (N de M)` · `pruebas fallidas (cuáles)` ·
 `fallo de compilación` · `herramienta ausente (cuál)` · `dependencias no disponibles sin red` ·
-`requiere servicio externo` · `sin pruebas`; no se agrupan. Se registra tal cual,
+`requiere servicio externo` · `sin pruebas`; no se agrupan. Una **suite parcial** declara qué
+ejecutó y con qué resultado, qué no ejecutó y por qué (cada parte con su clase) y **qué garantías
+quedan pendientes** por no haberse ejecutado; no es un `pasa`. Se registra tal cual,
 **con el procedimiento exacto para repetirlo**: comando, directorio desde el que corre,
 qué se copió y qué se neutralizó (archivos, variables, red) y la salida resumida. Un
 inventario de paquetes describe el entorno observado; no prueba que pueda reconstruirse.
@@ -213,8 +219,17 @@ sistema, tres, y no se mezclan:
 La marca va **por afirmación**: si un párrafo junta un hecho literal y su consecuencia, cada uno
 lleva la suya; varias afirmaciones que comparten claramente la misma evidencia pueden compartirla.
 Una **ausencia** («ningún código asigna X», «nunca se llena») solo se afirma como **no encontrado
-dentro de un alcance**: se cita la búsqueda (`[buscado: comando; alcance; commit]`), que no prueba
-una ausencia universal; lo que se deduce de ella sigue siendo `inferido`.
+dentro de un alcance**, y se cita la búsqueda que lo sostiene; lo que se deduce de ella sigue siendo
+`inferido`. Las búsquedas se **ejecutan y registran** con `scripts/buscar.sh` (lectura del código con
+escritura de evidencia en `contexto/exploracion/busquedas.md`, la ubicación autorizada del ejecutor) y se
+citan `[buscado: B-<n>]` seguido de la interpretación. **No se transcriben a mano** comandos ni
+resultados. Una referencia `B-<n>` acredita que la búsqueda se ejecutó contra un commit, con un alcance
+exacto, y qué devolvió; **no acredita la interpretación**. «Sin coincidencias» vale solo para ese commit y
+esas rutas; una búsqueda registrada con error no sostiene ninguna afirmación. Los patrones no llevan
+valores secretos (llaves y credenciales, con `--nombre`); los archivos sensibles quedan fuera de la
+búsqueda y del registro. Una búsqueda tomada de un informe se vuelve a ejecutar con la herramienta antes
+de citarla. Un revisor repite una entrada con `repetir` (no escribe) y registra búsquedas nuevas solo en
+su directorio autorizado.
 Para lo demás: `[documentado por el proyecto: archivo:línea]` (lo que dicen el README, otros documentos
 del repositorio o un **comentario** del código: es intención declarada, **no** comportamiento comprobado),
 `[de contexto/: archivo]` (documentos aportados en `contexto/`) y `[pendiente: quién lo confirma]`
@@ -253,7 +268,10 @@ personas o el mundo real: configuración desplegada, a qué alcanza un mando, si
 encendido) lleva cuatro partes: **qué** falta confirmar y **quién** puede hacerlo; **qué decisión**
 queda bloqueada hasta conocerlo; **cuándo** debe resolverse (p. ej. «antes del gate de la Fase 2»); y
 **qué medida provisional** se propone, **quién la autoriza** y **cómo se comprueba**. Una medida
-provisional es **candidata**: se dice si es suficiente o qué otros caminos persisten. El cierre
+provisional es **candidata**: se dice si es suficiente o qué otros caminos persisten. **Al vencer sin
+resolverse**, la decisión bloqueada **no se toma** en ese gate: la persona puede aprobar el resto, pero el
+gate dice explícitamente qué decisión queda fuera, y `docs/estado.md` distingue la **revisión documental
+aprobada** del **gate pendiente** de esa decisión; el pendiente sigue con un nuevo «cuándo». El cierre
 documental de una fase **no autoriza** operar, desplegar ni declarar seguro el sistema, y un documento
 del proyecto (README) no acredita la configuración desplegada. Cambiar producción nunca ocurre dentro de
 la adopción sin la autorización puntual de la persona (`AGENTS.md` §3).
@@ -329,6 +347,12 @@ la adopción sin la autorización puntual de la persona (`AGENTS.md` §3).
 - [ ] Cada `[pendiente]` con impacto y quién lo confirma.
 - [ ] Revisor funcional en PASA y pasada de coherencia respondida y anotada en `docs/estado.md`.
 
+**Evidencia de las revisiones sin recibo.** La gramática de `docs/revisiones.log` solo admite recibos
+desde la Fase 2 (`scripts/recibos.sh`); la revisión de la Fase 1 y las pasadas de línea base no dejan
+recibo. Su evidencia son las filas `R-E.n` de `docs/trazabilidad.md` con el commit que las resolvió, los
+commits `Ref: F1` y los informes `contexto/exploracion/linea-base-*.md` con su consumo. No se fabrican
+recibos retrospectivos.
+
 ---
 
 ## Fase 2 · Diagnóstico y plan (nada del producto cambia)
@@ -352,7 +376,8 @@ ID de origen tiene **destino explícito** —fila propia, consolidado en otra fi
 Por fila:
 - **Clase** (antes de valorar): incumplimiento de un `C#` · brecha de evidencia (un `C#` sin
   prueba que lo demuestre) · riesgo (algo que puede fallar y hoy no está contratado) · mejora
-  opcional.
+  opcional. Una **corrección factual del encuadre** no es una clase: la fila conserva la clase del hecho
+  que corrige y lleva la nota de la corrección.
 - **Valoración cualitativa:** impacto, probabilidad, esfuerzo y riesgo de regresión (alto, medio
   o bajo), con la **incertidumbre** declarada cuando falten datos. No se inventan puntuaciones.
   La probabilidad se apoya en datos representativos: una observación aislada (p. ej. una sola
@@ -369,7 +394,8 @@ nota en el diagnóstico; si cambia un `C#` o el set de oro, es **reentrada** (AD
 
 **3. Plan** (`docs/plan.md`), en dos bloques separados. **Con la verificación bloqueada**, el
 plan es **condicionado**: su primer incremento es **habilitar la verificación** (la condición de
-la Fase 1, sin tocar el producto: caché, entorno, acceso) y los de protección dependen de él; el
+la Fase 1, sin tocar el producto: caché, entorno, acceso) y los de protección que necesitan ejecutar
+dependen de él (cada `I#` dice si depende; uno que no lo necesita puede ir antes); el
 plan no afirma que el sistema funciona, y los `C#` siguen `sin verificar` hasta ejecutarse.
 - **Protección (obligatoria y mínima):** lo necesario para que **cada `C#` vigente quede
   verificable**. Un `C#` cubierto por pruebas existentes va a un incremento de **verificación por
@@ -408,7 +434,7 @@ la **síntesis contra sus fuentes** (encuadre e informes de línea base).
   prueba nueva) en `docs/trazabilidad.md`; ningún incremento de protección sin `C#`.
 - [ ] Mejoras separadas, cada una con el riesgo que trata y por qué ahora; línea de corte escrita. Una
   mejora condicional tiene **un solo disparador**, idéntico en el diagnóstico, el plan, la línea de corte
-  y el backlog.
+  y el backlog; vive en el **backlog** y el plan la cita sin contarla como seleccionada.
 - [ ] Plan de pruebas por incremento; las caracterizaciones marcadas con su hallazgo.
 - [ ] Cada pendiente de seguridad física tiene sus cuatro partes (qué y quién, decisión bloqueada,
   cuándo, medida provisional candidata con quién la autoriza y cómo se comprueba).
@@ -416,7 +442,7 @@ la **síntesis contra sus fuentes** (encuadre e informes de línea base).
   anotado.
 - [ ] El plan se defiende en ≤ 10 líneas en el resumen del gate.
 - [ ] Nada del producto cambió (`git diff <base>..HEAD` sobre el código).
-- [ ] Revisor funcional en PASA y pasada de coherencia anotada en `docs/estado.md`.
+- [ ] Revisor funcional en PASA y pasada de coherencia respondida y anotada en `docs/estado.md`.
 
 **Gate de la Fase 2:** la persona elige la ruta: **mejorar ahora** (protección + mejoras
 aprobadas) o **proteger, cerrar el ciclo y seguir con funcionalidad nueva** por reentrada

@@ -165,6 +165,15 @@ copia existente c5; mkdir -p "$W/fuera2"; ln -s "$W/fuera2" "$D/contexto"; sin_h
 espera falla "enlace simbólico en contexto/: bloquea también el manifiesto" "contexto/adopcion\.md" -- adoptar "$P" inspeccionar "$D"
 copia existente c6; printf 'scripts/\n' >> "$D/.gitignore"; sin_hooks "$D" "ignora scripts"
 espera falla "ruta ignorada por el destino: bloquea" "ignorado por el destino" -- adoptar "$P" inspeccionar "$D"
+espera falla "carpeta excluida: la negación no la rescata y sigue bloqueando" "carpeta padre excluida[^:]*: [1-9]" -- adoptar "$P" inspeccionar "$D"
+espera pasa "carpeta excluida: gitignore no propone negaciones para ella" "" -- sh -c "! sh '$P/scripts/adoptar.sh' gitignore '$D' | grep -q '^ *!/scripts/'"
+copia existente c6b; en "$D" git rm -q config/.env.prod; printf '*.log\n' >> "$D/.gitignore"; sin_hooks "$D" "ignora *.log"
+espera falla "*.log tapa el registro: bloquea y señala la negación" "resolubles con una negación precisa[^:]*: 1" -- adoptar "$P" inspeccionar "$D"
+espera pasa "*.log: gitignore propone la negación precisa y su efecto" "!/docs/revisiones\.log" -- adoptar "$P" gitignore "$D"
+espera pasa "*.log: sin --aplicar no se escribe" "" -- sh -c "! grep -qxF '!/docs/revisiones.log' '$D/.gitignore'"
+espera pasa "*.log: --aplicar añade la negación" "Aplicado" -- adoptar "$P" gitignore "$D" --aplicar
+espera pasa "*.log: tras la negación el registro ya no está ignorado y no hay bloqueos" "Bloqueos: 0" -- adoptar "$P" inspeccionar "$D"
+espera pasa "*.log: la negación no rescata otros .log del proyecto" "" -- sh -c "cd '$D' && git check-ignore -q otro.log"
 
 echo "== adoptar.sh: .gitignore por efecto (antes y después)"
 copia existente c7

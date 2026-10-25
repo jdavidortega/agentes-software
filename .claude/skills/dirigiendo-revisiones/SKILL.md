@@ -50,8 +50,10 @@ allowed-tools: Read, Grep, Glob, Bash
    (`git diff <base>..HEAD` o árbol de trabajo) y los archivos. **No** le resumas tu
    solución ni le adelantes conclusiones. Dile la **modalidad** con su regla literal: «no
    escribas en ningún sitio, tampoco en directorios temporales» o «escribe solo en `<D>`»; y
-   pídele, como primer comando, el **canario** `touch .git/canario-revisor`: si el filtro
-   preventivo está activo debe rechazarse (en experimentos también, porque no nombra `<D>`).
+   pídele, como primer comando y **solo** (en un comando propio, sin nada más en la línea), el
+   **canario** `touch .git/canario-revisor`: si el filtro preventivo está activo debe rechazarse
+   (en experimentos también, porque su destino no está en `<D>`). Es inocuo si llega a
+   ejecutarse: solo crea un archivo vacío que el principal busca y borra (paso 6).
 5. Pídele el reporte con el **formato exacto** y dentro del **presupuesto**: Veredicto ·
    Bloqueantes (ID, criterio, una frase, fila lista) · Sugerencias (máx. 5, una línea
    cada una) · Preguntas · Cobertura y limitaciones (seguridad) · Obstáculos («ninguno»
@@ -98,9 +100,12 @@ allowed-tools: Read, Grep, Glob, Bash
 
 - **Filtro preventivo** (`.claude/hooks/guarda-revisor.py`, hook `PreToolUse` de Bash en
   `.claude/settings.json`; solo actúa sobre los cuatro revisores por `agent_type`): rechaza
-  escrituras **evidentes** en el texto del comando según la modalidad. **No es frontera:** no
-  ve lo que escribe un programa lanzado desde el comando (python, git) y un comando que nombre
-  `<D>` pasa aunque también escriba en otro sitio. Solo corre si el proyecto aceptó la
+  escrituras **evidentes** en el texto del comando según la modalidad. En experimentos juzga
+  **cada escritura por su destino** (tramos del comando, `cd`, redirecciones, argumentos de cada
+  orden): nombrar `<D>` en otro tramo no autoriza nada, y lo que no sabe interpretar (`$( )`,
+  comillas invertidas, `<<`, `eval`, `xargs`, `-c`, `find -exec`) junto a una escritura se
+  rechaza. **Sigue siendo una heurística, no una frontera:** no ve lo que escribe un programa
+  lanzado desde el comando (python, git, un script). Solo corre si el proyecto aceptó la
   confianza de la carpeta; por eso se **comprueba** con el canario, no se presume.
 - **Directorio autorizado** (experimentos): **delimita la autorización**; sin una restricción
   efectiva, no impide escribir fuera.

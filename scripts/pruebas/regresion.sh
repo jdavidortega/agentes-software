@@ -895,6 +895,18 @@ espera falla "revisor en lectura: git config --unset se rechaza" "git config \\(
 printf 'experimentos %s/aut\n' "$GW" > "$GW/.git/revision-modalidad"
 espera pasa "revisor en experimentos: escribir en el directorio autorizado pasa" "" -- gr juez-conjunto "python3 x.py > $GW/aut/out.txt"
 espera falla "revisor en experimentos: escribir fuera del directorio autorizado se rechaza" "solo en $GW/aut" -- gr juez-conjunto 'cp a /tmp/b'
+# Cada escritura se juzga por su destino: nombrar el directorio autorizado en OTRO tramo no autoriza
+# (caso reproducido en la medición: canario en la misma línea que el doctor con TMPDIR=<autorizado>).
+espera falla "experimentos: canario solo se rechaza" "touch → $GW/.git/canario" -- gr revisor-funcional "touch $GW/.git/canario"
+espera falla "experimentos: canario seguido del doctor con TMPDIR autorizado se rechaza" "touch → $GW/.git/canario" -- gr revisor-funcional "touch $GW/.git/canario; echo rc=\$?; TMPDIR=$GW/aut sh scripts/check_docs.sh"
+espera falla "experimentos: doctor con TMPDIR autorizado seguido del canario se rechaza" "touch → $GW/.git/canario" -- gr revisor-funcional "TMPDIR=$GW/aut sh scripts/check_docs.sh && touch $GW/.git/canario"
+espera pasa "experimentos: el doctor con TMPDIR autorizado pasa" "" -- gr revisor-funcional "TMPDIR=$GW/aut sh scripts/check_docs.sh"
+espera pasa "experimentos: cd al autorizado y escrituras relativas pasan" "" -- gr juez-conjunto "cd $GW/aut && mkdir -p d && touch d/f && git init -q"
+espera falla "experimentos: cd fuera y escritura relativa se rechaza" "touch → $GW/f" -- gr juez-conjunto "cd $GW && touch f"
+espera falla "experimentos: salir del autorizado con .. se rechaza" "rm → $GW/x" -- gr juez-conjunto "rm -rf $GW/aut/../x"
+espera falla "experimentos: destino con variable no se da por permitido" "destino desconocido" -- gr juez-conjunto 'touch $HOME/x'
+espera falla "experimentos: escritura dentro de \$( ) no se interpreta y se rechaza" "no interpreta" -- gr juez-conjunto "echo \$(touch $GW/aut/f)"
+espera falla "experimentos: git commit en el proyecto se rechaza aunque otro tramo nombre el autorizado" "git → $GW" -- gr juez-conjunto "git commit -m x; ls $GW/aut"
 
 # --- Captura de búsquedas (scripts/buscar.sh): lee con git grep contra un commit y escribe
 # evidencia append-only; nunca guarda contenido ni toca archivos sensibles.

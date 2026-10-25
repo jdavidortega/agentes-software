@@ -4,13 +4,14 @@
 #
 #   sh scripts/adoptar.sh inspeccionar <destino>           solo lectura: estado del destino y bloqueos
 #   sh scripts/adoptar.sh vista-previa <destino>           qué copiaría, qué colisiona, qué se excluye; no escribe
-#   sh scripts/adoptar.sh copiar <destino>                 copia SOLO lo ausente; crea contexto/adopcion.md una vez
+#   sh scripts/adoptar.sh copiar <destino> [motivo]        copia SOLO lo ausente; crea contexto/adopcion.md una vez;
+#                                                          tras la instalación, anota cada adición en el log de actualizaciones
 #   sh scripts/adoptar.sh gitignore <destino> [--aplicar]  entradas del método que faltan; con --aplicar las añade
 #   sh scripts/adoptar.sh actualizar <destino> "<motivo>"   sustituye SOLO lo instalado que el proyecto no tocó
 #                                                          y lo registra en contexto/adopcion-actualizaciones.md
 #
 # Garantías (regresión: scripts/pruebas/regresion-adopcion.sh):
-# - Ningún archivo existente del destino cambia. Repetir `copiar` con la misma plantilla no escribe nada.
+# - Ningún archivo existente del destino cambia (salvo el log append-only de actualizaciones, que solo crece). Repetir `copiar` con la misma plantilla no escribe nada.
 # - Conjunto distribuible CERRADO por nombre ($CONJUNTO); su contenido se enumera con git. Un archivo
 #   nuevo en la raíz de la plantilla no entra solo. README.md, .gitignore y mejoras/ quedan fuera a
 #   propósito: el README del proyecto manda, .gitignore tiene su modo, mejoras/ es local.
@@ -244,15 +245,36 @@ manifiesto() {
   echo
   printf '%s\n' "$PENDIENTES" | sed 's/^/- /'
 }
+# Log append-only de cambios tras la instalación (el manifiesto no se toca nunca). Lo escriben
+# `actualizar` (sustituciones) y `copiar` (adiciones de archivos nuevos de la plantilla).
+log_actualizaciones() {
+  log="$DESTINO/$ACTUALIZACIONES"
+  [ ! -f "$log" ] || return 0
+  { echo "# Adopción del método — actualizaciones de archivos instalados"
+    echo
+    echo "> Append-only. Lo escriben \`scripts/adoptar.sh actualizar\` (sustituye solo archivos que el proyecto"
+    echo "> no modificó desde su último registro) y \`copiar\` (añade archivos nuevos de la plantilla tras la"
+    echo "> instalación; hash anterior «(ausente)»). El manifiesto (\`$MANIFIESTO\`) no se toca nunca."
+    echo "> Formato: ruta · hash anterior → hash nuevo · plantilla · fecha UTC · motivo."
+    echo; } > "$log"
+}
+
 copiar() {
   [ "$BLOQUEOS" -eq 0 ] || { inspeccionar >&2 || true; fallo "hay $BLOQUEOS bloqueo(s): resuélvelos antes de copiar"; }
-  n=0
+  instalado=0; [ ! -f "$DESTINO/$MANIFIESTO" ] || instalado=1
+  n=0; fecha=$(date -u +'%Y-%m-%d %H:%M')
   for f in $(lista "$COPIAR"); do
     [ -e "$DESTINO/$f" ] && continue   # defensa: nunca sobre un existente
     mkdir -p "$DESTINO/$(dirname "$f")"
     cp -p "$PLANTILLA/$f" "$DESTINO/$f"
+    if [ "$instalado" -eq 1 ]; then   # adición tras la instalación: al log, no al manifiesto
+      log_actualizaciones
+      printf -- '- %s · (ausente) → %s · plantilla %s · %s · %s\n' "$f" "$(hash_de "$DESTINO/$f")" "$PLANTILLA_COMMIT" "$fecha" "${BANDERA:-adición tras la instalación (copiar)}" >> "$log"
+    fi
     n=$((n+1))
   done
+  [ "$instalado" -eq 0 ] || [ "$n" -eq 0 ] || echo "-- Adiciones registradas en $ACTUALIZACIONES: $n"
+
   echo "== Copia en $DESTINO: $n archivo(s) copiado(s)"
   informe
   if [ -f "$DESTINO/$MANIFIESTO" ]; then
@@ -323,15 +345,7 @@ actualizar() {
   [ -f "$DESTINO/$MANIFIESTO" ] || fallo "no hay manifiesto de instalación ($MANIFIESTO): primero 'copiar'"
   [ "$BLOQUEOS" -eq 0 ] || { inspeccionar >&2 || true; fallo "hay $BLOQUEOS bloqueo(s): resuélvelos antes de actualizar"; }
   [ -n "$BANDERA" ] || fallo "falta el motivo: sh scripts/adoptar.sh actualizar <destino> \"<motivo>\""
-  log="$DESTINO/$ACTUALIZACIONES"
-  if [ ! -f "$log" ]; then
-    { echo "# Adopción del método — actualizaciones de archivos instalados"
-      echo
-      echo "> Append-only. Lo escribe \`scripts/adoptar.sh actualizar\`: solo sustituye archivos que el proyecto"
-      echo "> no modificó desde su último registro. El manifiesto (\`$MANIFIESTO\`) no se toca nunca."
-      echo "> Formato: ruta · hash anterior → hash nuevo · plantilla · fecha UTC · motivo."
-      echo; } > "$log"
-  fi
+  log_actualizaciones
   n=0; fecha=$(date -u +'%Y-%m-%d %H:%M')
   for f in $(lista "$ACTUALIZADA"); do
     ant=$(registrado "$f")

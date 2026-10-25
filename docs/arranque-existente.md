@@ -105,8 +105,9 @@ modificado en el proyecto, plantilla actualizada, idéntico sin registro, colisi
 `sh scripts/adoptar.sh actualizar <ruta> "<motivo>"` sustituye **solo** los archivos
 instalados que el proyecto no tocó y deja una línea por archivo en
 `contexto/adopcion-actualizaciones.md` (append-only: hash anterior, hash nuevo, plantilla,
-fecha, motivo). Lo que el proyecto ya modificó no se sustituye: es una integración manual
-con la persona. No se borra ni se reinstala nada, porque pueden existir integraciones manuales.
+fecha, motivo). Un archivo **nuevo** de la plantilla se añade con `copiar <ruta> ["<motivo>"]`,
+que también lo anota en ese log con hash anterior «(ausente)»; el manifiesto sigue intacto. Lo
+que el proyecto ya modificó no se sustituye: es una integración manual con la persona. No se borra ni se reinstala nada, porque pueden existir integraciones manuales.
 
 **D. Integraciones acordadas** (cada una con OK explícito; ninguna toca lógica del producto).
 - **`.gitignore`:** lo corre la **persona desde la plantilla**, como A–C (`adoptar.sh` no se

@@ -80,7 +80,7 @@ else
   printf '# Plan\n\n- [ ] I1 «…» — _…_ (satisface: C_)\n' > "$P/docs/plan.md"
   printf '# Trazabilidad\n\n## Cobertura de criterios\n\n| Criterio | Alias | Incremento(s) | Estado | Nota |\n|----------|-------|---------------|--------|------|\n| C1 | «…» | I_ | pendiente / cubierto / verificado | |\n\n## Registro de vacíos del revisor funcional (arranque)\n\n| Vacío | Alias | Punto incumplido | Estado | Resuelto (cómo · AAAA-MM-DD HH:MM UTC) |\n|-------|-------|------------------|--------|----------------------------------------|\n\n## Registro de revisiones del juez\n\n| Hallazgo | Alias | Incr. | Criterio | Descripción | Estado | Resuelto (AAAA-MM-DD HH:MM UTC · commit) |\n|----------|-------|-------|----------|-------------|--------|------------------------------------------|\n\n## Histórico (compactado)\n\n' > "$P/docs/trazabilidad.md"
   for f in decisiones convenciones definicion-de-hecho despliegue MEMORIA; do printf '# %s\n\n(sintético)\n' "$f" > "$P/docs/$f.md"; done
-  printf '# Registro de recibos (sintético). Las líneas que empiezan por # se ignoran.\n' > "$P/docs/revisiones.log"
+  printf '# Registro de recibos (sintético). Las líneas que empiezan por # se ignoran.\n# contrato-recibos: 2\n' > "$P/docs/revisiones.log"
 fi
 base_decl "$P" ""
 chmod +x "$P"/.githooks/* "$P"/scripts/*.sh "$P"/scripts/pruebas/*.sh 2>/dev/null
@@ -267,7 +267,7 @@ recibo() {  # recibo <dir> rol tipo alcance veredicto bloqueantes [extra...] →
   [ "$rol $tipo" = "juez-codigo incremento" ] && cierra_inc "$d" "$alc"
   h=$(huella_idx "$d")
   printf 'fecha=2026-10-22T10:00Z rol=%s tipo=%s alcance=%s veredicto=%s bloqueantes=%s huella=%s ejecutor=regresion %s\n' \
-    "$rol" "$tipo" "$alc" "$ver" "$blo" "$h" "$*" >> "$d/docs/revisiones.log"
+    "$rol" "$tipo" "$alc" "$ver" "$blo" "$h" "${MODALIDAD-modalidad=lectura filtro=comprobado aislamiento=ninguno} $*" >> "$d/docs/revisiones.log"
 }
 trazabilidad() {  # trazabilidad <dir> "<filas C>" "<filas E>" "<filas R>" ["<histórico>"]
   {
@@ -396,6 +396,125 @@ recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica; en "$D" git ad
 espera pasa "adoptado: merge que integra el cierre con Ref: F5 y recibo sobre el árbol integrado se acepta" "" -- en "$D" git -c core.hooksPath=.githooks commit -q -m "integra el cierre
 
 Ref: F5"
+
+echo "== adoptado: contrato de recibos y evidencia tras la instalación"
+espera pasa "la instalación trae el marcador una sola vez en docs/revisiones.log" "" -- sh -c "[ \"\$(grep -c '^# contrato-recibos: 2' '$W/etapas/instalado/docs/revisiones.log')\" -eq 1 ]"
+incompleto() { MODALIDAD=""; recibo "$@"; unset MODALIDAD; }
+copia adoptado-f3 ar1
+grep -v '^# contrato-recibos: 2' "$D/docs/revisiones.log" | sed -E 's/ modalidad=[^ ]+ filtro=[^ ]+ aislamiento=[^ ]+//' > "$D/l"; mv "$D/l" "$D/docs/revisiones.log"
+sin_hooks "$D" "registro con una versión anterior de la plantilla (preparación)" || die "no pude preparar el registro anterior adoptado"
+printf -- '- nota\n' >> "$D/docs/MEMORIA.md"
+espera falla "adoptado: al actualizar la plantilla, el registro anterior se bloquea con la instrucción de migrar" "añade al FINAL del registro" -- commitea "$D" "nota
+
+Ref: F1"
+printf '# contrato-recibos: 2\n' >> "$D/docs/revisiones.log"
+espera pasa "adoptado: con el marcador al final se acepta" "" -- commitea "$D" "migra el registro
+
+Ref: F1"
+printf 'assert 3 + 3 == 6\n' >> "$D/app.py"; incompleto "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "adoptado: un recibo nuevo incompleto se rechaza" "sin modalidad=" -- commitea "$D" "I2
+
+Ref: I2"
+copia adoptado-f3 ar1b
+grep -v '^# contrato-recibos: 2' "$D/docs/revisiones.log" | sed -E 's/ modalidad=[^ ]+ filtro=[^ ]+ aislamiento=[^ ]+//' > "$D/l"; mv "$D/l" "$D/docs/revisiones.log"
+sin_hooks "$D" "registro anterior (preparación)" || die "no pude preparar el registro anterior adoptado (ar1b)"
+printf 'assert 3 + 3 == 6\n' >> "$D/app.py"; incompleto "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica; printf '# contrato-recibos: 2\n' >> "$D/docs/revisiones.log"
+espera falla "adoptado: al migrar, un recibo nuevo incompleto colocado ANTES del marcador se rechaza" "aunque quede antes del marcador" -- commitea "$D" "I2 y migración
+
+Ref: I2"
+espera falla "adoptado: con RECIBOS_CONTRATO_PREVIO=1 heredado, el recibo incompleto antes del marcador sigue rechazado" "aunque quede antes del marcador" -- sh -c 'export RECIBOS_CONTRATO_PREVIO=1; cd "$1" && git add -A && git -c core.hooksPath=.githooks commit -q -m "I2 y migración
+
+Ref: I2"' sh "$D"
+copia adoptado-f3 ar2; printf 'assert 3 + 3 == 6\n' >> "$D/app.py"
+mkdir -p "$W/evsrc-ad"; printf 'salida\n' > "$W/evsrc-ad/salida.txt"; h=$(en "$D" sh scripts/huella.sh evidencia "$W/evsrc-ad")
+recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica evidencia=docs/revisiones/I2-ad@$h
+mkdir -p "$D/docs/revisiones"; cp -R "$W/evsrc-ad" "$D/docs/revisiones/I2-ad"
+espera pasa "adoptado: guardar evidencia tras el PASA permite cerrar Ref: I2" "" -- commitea "$D" "I2
+
+Ref: I2"
+printf 'retocada\n' >> "$D/docs/revisiones/I2-ad/salida.txt"; sin_hooks "$D" "retoca evidencia colada
+
+Ref: F1"
+espera falla "adoptado: el replay detecta la evidencia modificada" "cambió después de registrarse" -- replay "$D" HEAD~1..HEAD
+
+echo "== adoptado: separadores, carpetas ocultas y migración con adoptar.sh actualizar"
+copia adoptado-f3 at1; printf 'assert 3 + 3 == 6\n' >> "$D/app.py"; cierra_inc "$D" I2
+printf '%s\n' "$(printf 'fecha=2026-10-22T10:00Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=%s ejecutor=x modalidad=lectura filtro=comprobado aislamiento=ninguno\tevidencia=docs/revisiones/no-existe@0123456789ab' "$(huella_idx "$D")")" >> "$D/docs/revisiones.log"
+espera falla "adoptado: un tabulador entre campos: el parser lo rechaza" "separador no admitido" -- en "$D" sh scripts/recibos.sh validar docs/revisiones.log
+espera falla "adoptado: un tabulador entre campos se rechaza" "separador no admitido|no existe en lo que se guarda" -- commitea "$D" "I2
+
+Ref: I2"
+copia adoptado-f3 at2; mkdir -p "$D/docs/revisiones/.huerfana"; printf 'x\n' > "$D/docs/revisiones/.huerfana/salida.txt"
+espera falla "adoptado: una carpeta oculta en docs/revisiones/ se rechaza" "entrada oculta" -- commitea "$D" "oculta
+
+Ref: F1"
+sin_hooks "$D" "oculta colada
+
+Ref: F1"
+espera falla "adoptado: el replay rechaza la carpeta oculta colada" "entrada oculta" -- replay "$D" HEAD~1..HEAD
+# Plantilla ANTERIOR: recibos.sh que no conoce el marcador y registro sin él. Se adopta con ella
+# (commits con sus hooks: aquí, sin hooks) y luego se actualiza con la actual.
+PA="$W/plantilla-anterior"; rm -rf "$PA"; cp -R "$P" "$PA"
+sed -e 's/contrato-recibos: 2/contrato-recibos-anterior/g' -e 's/if (nm==0 \&\& marca \&\& !previo) ok=bad(/if (0) ok=bad(/' -e 's/if (nm==0 \&\& !hm \&\& !previo) ok=bad(/if (0) ok=bad(/' "$PA/scripts/recibos.sh" > "$PA/r" && mv "$PA/r" "$PA/scripts/recibos.sh"
+grep -v '^# contrato-recibos: 2' "$PA/docs/revisiones.log" > "$PA/l" && mv "$PA/l" "$PA/docs/revisiones.log"
+sin_hooks "$PA" "versión anterior de la plantilla" || die "no pude preparar la plantilla anterior"
+copia existente am; PREVIO_AM=$(en "$D" git rev-parse HEAD)
+adoptar "$PA" copiar "$D" >/dev/null; en "$D" git rm -q --cached config/.env.prod; adoptar "$PA" gitignore "$D" --aplicar >/dev/null
+base_decl "$D" "- **Base del método:** $PREVIO_AM"; fase "$D" F1; en "$D" git config core.hooksPath .githooks
+sin_hooks "$D" "Instalación del método (versión anterior)
+
+Ref: F1" || die "no pude instalar la versión anterior"
+siembra_f2 "$D"; fase "$D" F2; incompleto "$D" revisor-funcional encuadre F2 PASA 0
+sin_hooks "$D" "Plan
+
+Ref: F2" || die "no pude preparar el plan con la versión anterior"
+fase "$D" F3; printf 'assert 2 + 2 == 4\n' >> "$D/app.py"; incompleto "$D" juez-codigo incremento I1 PASA 0 seguridad=no-aplica
+sin_hooks "$D" "I1
+
+Ref: I1" || die "no pude cerrar I1 con la versión anterior"
+espera pasa "adoptado con la versión anterior: el replay acepta su historial" "3/3 commits cumplen" -- replay "$D" HEAD
+adoptar "$P" actualizar "$D" "T3: contrato de recibos" >/dev/null || die "adoptar.sh actualizar falló"
+espera pasa "adoptar.sh actualizar sustituye recibos.sh (no lo había tocado el proyecto)" "" -- grep -q 'contrato-recibos: 2' "$D/scripts/recibos.sh"
+printf -- '- nota\n' >> "$D/docs/MEMORIA.md"
+espera falla "adoptado y actualizado: sin el marcador se bloquea con la instrucción de migrar" "añade al FINAL del registro" -- commitea "$D" "actualización
+
+Ref: F1"
+printf '# contrato-recibos: 2\n' >> "$D/docs/revisiones.log"
+espera pasa "adoptado y actualizado: con el marcador al final se acepta" "" -- commitea "$D" "actualiza la plantilla y migra el registro
+
+Ref: F1"
+espera pasa "adoptado y migrado: el replay del historial completo sigue aceptándolo" "4/4 commits cumplen" -- replay "$D" HEAD
+# Merge de una rama con la versión anterior (desde el commit previo a la migración) sobre lo migrado.
+RAMA0=$(en "$D" git rev-parse --abbrev-ref HEAD); rm -rf "$W/etapas/adop-migrado"; cp -R "$D" "$W/etapas/adop-migrado"
+copia adop-migrado amf1; en "$D" git checkout -q -b antigua HEAD~1; printf -- '- nota\n' >> "$D/docs/MEMORIA.md"
+sin_hooks "$D" "nota en la rama antigua
+
+Ref: F1" || die "no pude commitear en la rama antigua adoptada"
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-commit "$RAMA0" >/dev/null 2>&1; en "$D" git checkout -q HEAD -- scripts/recibos.sh
+espera falla "adoptado: merge sobre la rama antigua que conserva su recibos.sh se rechaza" "no retrocede" -- en "$D" git -c core.hooksPath=.githooks commit -q -m "integra conservando el parser anterior
+
+Ref: F1"
+en "$D" git -c core.hooksPath=/dev/null commit -q --no-verify -m "integra colado
+
+Ref: F1" || die "no pude colar el merge adoptado"
+incompleto "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica; sin_hooks "$D" "recibo incompleto colado
+
+Ref: F1"
+espera falla "adoptado: el replay rechaza el merge que retrocede (y lo que sigue)" "no retrocede" -- replay "$D" HEAD~2..HEAD
+copia adop-migrado amf2; en "$D" git checkout -q -b antigua HEAD~1; printf -- '- nota\n' >> "$D/docs/MEMORIA.md"
+sin_hooks "$D" "nota en la rama antigua
+
+Ref: F1" || die "no pude commitear en la rama antigua adoptada (2)"
+espera pasa "adoptado: merge limpio que conserva la versión migrada se acepta" "" -- en "$D" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit "$RAMA0"
+copia adop-migrado amv; printf -- '- nota\n' >> "$D/docs/MEMORIA.md"; incompleto "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "adoptado: con RECIBOS_CONTRATO_PREVIO=1 heredado, el commit local sigue rechazando" "sin modalidad=" -- sh -c 'export RECIBOS_CONTRATO_PREVIO=1; cd "$1" && git add -A && git -c core.hooksPath=.githooks commit -q -m "x
+
+Ref: F1"' sh "$D"
+copia adop-migrado amc
+incompleto "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica; sin_hooks "$D" "recibo incompleto colado
+
+Ref: F1"
+espera falla "adoptado y migrado: un recibo incompleto colado lo rechaza el replay" "sin modalidad=" -- replay "$D" HEAD~1..HEAD
 
 echo
 echo "regresion-adopcion: $((TOTAL-MAL))/$TOTAL casos en verde"

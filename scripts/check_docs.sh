@@ -494,6 +494,19 @@ if has docs/revisiones.log; then
   fi
 fi
 
+# --- 7b) Evidencia de revisiones: cada carpeta de docs/revisiones/ la registra un recibo -----------
+#     (evidencia=docs/revisiones/<id>@<huella>). Una carpeta sin recibo no es evidencia de nada; que
+#     la huella coincida lo comprueba scripts/guardas.sh (pre-commit y replay), que ve el árbol de git.
+if [ -d docs/revisiones ]; then
+  for e in docs/revisiones/* docs/revisiones/.[!.]* docs/revisiones/..?*; do
+    [ -e "$e" ] || [ -L "$e" ] || continue
+    case "${e##*/}" in .*) err "$e: entrada oculta en docs/revisiones/; la evidencia va en carpetas visibles cuyo nombre empieza por letra o número"; continue ;; esac
+    if [ ! -d "$e" ] || [ -L "$e" ]; then err "$e: en docs/revisiones/ solo van carpetas de evidencia (una por revisión), no archivos ni enlaces"; continue; fi
+    grep -v '^[[:space:]]*#' docs/revisiones.log 2>/dev/null | grep -qE "(^| )evidencia=$e@[0-9a-f]{12}( |\$)" \
+      || err "$e no la registra ningún recibo de docs/revisiones.log (evidencia=$e@<huella>): una carpeta de evidencia sin su recibo no es evidencia"
+  done
+fi
+
 # --- Modo cierre (F4/F5): condiciones de salida del ciclo ----------------------------------
 if [ "$MODE" = "cierre" ]; then
   if has docs/trazabilidad.md; then

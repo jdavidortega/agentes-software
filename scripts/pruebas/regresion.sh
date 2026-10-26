@@ -51,7 +51,7 @@ recibo() {
   [ "$rol $tipo" = "juez-codigo incremento" ] && cierra_inc "$d" "$alc"
   h=$(huella_idx "$d")
   printf 'fecha=2026-10-19T10:00Z rol=%s tipo=%s alcance=%s veredicto=%s bloqueantes=%s huella=%s ejecutor=regresion %s\n' \
-    "$rol" "$tipo" "$alc" "$ver" "$blo" "$h" "$*" >> "$d/docs/revisiones.log"
+    "$rol" "$tipo" "$alc" "$ver" "$blo" "$h" "${MODALIDAD-modalidad=lectura filtro=comprobado aislamiento=ninguno} $*" >> "$d/docs/revisiones.log"
 }
 cierra_inc() {  # cierra_inc <dir> I<n> → casilla [x] y una línea en estado.md; idempotente
   grep -q "^- \[ \] $2 " "$1/docs/plan.md" 2>/dev/null || return 0
@@ -119,7 +119,7 @@ else
   printf '# Plan\n\n- [ ] I1 «…» — _…_ (satisface: C_)\n' > "$B/docs/plan.md"
   trazabilidad "$B" '| C1 | «…» | I_ | pendiente / cubierto / verificado | |' '| R-E._ | «…» | _…_ | abierto | — |' '| R-I_._ | «…» | I_ | C_ | _…_ | abierto | — |' '- _(ejemplo)_ `R-I_._ «alias» · verificado AAAA-MM-DD · commit abc1234`'
   for f in decisiones convenciones definicion-de-hecho despliegue MEMORIA; do printf '# %s\n\n(sintético)\n' "$f" > "$B/docs/$f.md"; done
-  printf '# Registro de recibos (sintético). Las líneas que empiezan por # se ignoran.\n' > "$B/docs/revisiones.log"
+  printf '# Registro de recibos (sintético). Las líneas que empiezan por # se ignoran.\n# contrato-recibos: 2\n' > "$B/docs/revisiones.log"
 fi
 rm -rf "$B/mejoras"
 en "$B" git init -q && en "$B" git config core.hooksPath .githooks
@@ -206,7 +206,7 @@ espera pasa "plantilla sin iniciar: F_ sigue siendo modo plantilla" "" -- commit
 
 Ref: F1"
 copia plantilla a01e; fase "$D" "F1"
-espera falla "F1: borrar scripts/recibos.sh se rechaza" "falta scripts/recibos.sh" -- sh -c 'cd "$1" && git add -A && git rm -q scripts/recibos.sh && git -c core.hooksPath=.githooks commit -q -m "x
+espera falla "F1: borrar scripts/recibos.sh se rechaza" "falta scripts/recibos.sh|no retrocede" -- sh -c 'cd "$1" && git add -A && git rm -q scripts/recibos.sh && git -c core.hooksPath=.githooks commit -q -m "x
 
 Ref: F1"' sh "$D"
 copia f3 a02; fase "$D" "F1"; echo "- reencuadre" >> "$D/docs/MEMORIA.md"
@@ -382,15 +382,229 @@ en "$D" git checkout -q "$RAMA0"; printf '\nnota\n' >> "$D/README.md"; commitea 
 Ref: F1" || die "no pude cambiar la principal (mg3)"
 espera pasa "merge limpio que no entra a F5 ni pierde hallazgos sigue aceptándose sin trailer" "" -- en "$D" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit notas
 
+echo "== Contrato de recibos: modalidad declarada y marcador"
+incompleto() { MODALIDAD=""; recibo "$@"; unset MODALIDAD; }   # recibo sin modalidad/filtro/aislamiento
+sin_marcador() {  # sin_marcador <dir> [quitar-campos]: registro de una versión anterior (base sin marcador)
+  grep -v '^# contrato-recibos: 2' "$1/docs/revisiones.log" > "$1/docs/revisiones.log.t"
+  [ -n "${2:-}" ] && sed -i.bak -E 's/ modalidad=[^ ]+ filtro=[^ ]+ aislamiento=[^ ]+//' "$1/docs/revisiones.log.t" && rm -f "$1/docs/revisiones.log.t.bak"
+  mv "$1/docs/revisiones.log.t" "$1/docs/revisiones.log"
+  sin_hooks "$1" "registro de una versión anterior (preparación)" || die "no pude preparar el registro sin marcador"
+}
+nota() { printf -- '- nota %s\n' "$2" >> "$1/docs/MEMORIA.md"; }
+copia f3 rc1; sin_marcador "$D"
+printf 'y2 = 2\n' >> "$D/app.py"; incompleto "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "proyecto nuevo sin marcador: un recibo incompleto se rechaza" "sin modalidad=" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 rc2; sin_marcador "$D"
+printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera pasa "proyecto nuevo sin marcador: un recibo completo se acepta" "" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 rc3; sin_marcador "$D" quitar; nota "$D" 1
+espera falla "registro anterior (recibos sin campos, sin marcador): se bloquea y dice cómo migrar" "añade al FINAL del registro" -- commitea "$D" "nota
+
+Ref: F1"
+printf '# contrato-recibos: 2\n' >> "$D/docs/revisiones.log"
+espera pasa "tras añadir el marcador al final, los recibos anteriores quedan históricos y se acepta" "" -- commitea "$D" "migra el registro de recibos
+
+Ref: F1"
+printf 'y2 = 2\n' >> "$D/app.py"; incompleto "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "después de migrar, un recibo nuevo incompleto se rechaza" "sin modalidad=" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 rc4; sin_marcador "$D" quitar
+printf 'y2 = 2\n' >> "$D/app.py"; incompleto "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica; printf '# contrato-recibos: 2\n' >> "$D/docs/revisiones.log"
+espera falla "un recibo nuevo incompleto ANTES del marcador añadido en el mismo commit se rechaza" "aunque quede antes del marcador" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 rc5; printf 'y2 = 2\n' >> "$D/app.py"; cierra_inc "$D" I2
+recibo_bruto "$D" "fecha=2020-01-02 rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x"
+espera falla "un recibo nuevo incompleto con fecha antigua se rechaza" "sin modalidad=" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 rc5b; incompleto "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "el doctor de inicio de sesión rechaza un recibo sin campos posterior al marcador" "posterior al marcador" -- en "$D" sh scripts/check_docs.sh
+copia f3 rc6; printf '# contrato-recibos: 2\n' >> "$D/docs/revisiones.log"; nota "$D" 6
+espera falla "marcador duplicado se rechaza" "repetido" -- commitea "$D" "nota
+
+Ref: F1"
+copia f3 rc7; grep -v '^# contrato-recibos: 2' "$D/docs/revisiones.log" > "$D/l"; printf '# contrato-recibos: 2\n' >> "$D/l"; mv "$D/l" "$D/docs/revisiones.log"; nota "$D" 7
+espera falla "marcador movido (al final) se rechaza" "append-only" -- commitea "$D" "nota
+
+Ref: F1"
+copia f3 rc8; grep -v '^# contrato-recibos: 2' "$D/docs/revisiones.log" > "$D/l"; mv "$D/l" "$D/docs/revisiones.log"; nota "$D" 8
+espera falla "marcador eliminado se rechaza" "append-only" -- commitea "$D" "nota
+
+Ref: F1"
+copia f3 rc9; printf 'y2 = 2\n' >> "$D/app.py"; MODALIDAD="modalidad=otra filtro=comprobado aislamiento=ninguno"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica; unset MODALIDAD
+espera falla "modalidad fuera del enum se rechaza" "modalidad debe ser" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 rc10; printf 'y2 = 2\n' >> "$D/app.py"; MODALIDAD="modalidad=lectura filtro=comprobado"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica; unset MODALIDAD
+espera falla "solo dos de los tres campos: el parser lo rechaza" "van los tres juntos" -- en "$D" sh scripts/recibos.sh validar docs/revisiones.log
+espera falla "solo dos de los tres campos: el commit lo rechaza" "sin modalidad=" -- commitea "$D" "I2
+
+Ref: I2"
+
+echo "== Evidencia de una revisión: guardarla permite cerrar; cambiarla después se detecta"
+# Flujo real: el revisor calcula la huella sobre su directorio autorizado; el principal la copia
+# a docs/revisiones/<id>/ DESPUÉS del recibo (fuera de la huella de vigencia).
+evid() {  # evid <dir> <id> → deja la fuente en $W/evsrc-<id> e imprime su huella
+  mkdir -p "$W/evsrc-$2"; printf 'salida del experimento %s\n' "$2" > "$W/evsrc-$2/salida.txt"
+  en "$1" sh scripts/huella.sh evidencia "$W/evsrc-$2"
+}
+copia f3 ev1; printf 'y2 = 2\n' >> "$D/app.py"; h=$(evid "$D" I2-juez-codigo-1)
+recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica evidencia=docs/revisiones/I2-juez-codigo-1@$h
+mkdir -p "$D/docs/revisiones"; cp -R "$W/evsrc-I2-juez-codigo-1" "$D/docs/revisiones/I2-juez-codigo-1"
+espera pasa "evidencia copiada a docs/revisiones/ después del PASA: Ref: I2 se acepta (no caduca el recibo)" "" -- commitea "$D" "I2
+
+Ref: I2"
+rm -rf "$W/etapas/con-evidencia"; cp -R "$D" "$W/etapas/con-evidencia"
+copia con-evidencia ev2; printf 'retocada\n' >> "$D/docs/revisiones/I2-juez-codigo-1/salida.txt"
+espera falla "modificar la evidencia ya registrada se rechaza" "cambió después de registrarse" -- commitea "$D" "retoca evidencia
+
+Ref: F1"
+sin_hooks "$D" "retoca evidencia colada
+
+Ref: F1"
+espera falla "validar_historial rechaza la evidencia modificada colada con --no-verify" "cambió después de registrarse" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia con-evidencia ev3; rm -rf "$D/docs/revisiones/I2-juez-codigo-1"
+espera falla "borrar la evidencia ya registrada se rechaza" "no existe en lo que se guarda" -- commitea "$D" "borra evidencia
+
+Ref: F1"
+copia con-evidencia ev3b; printf 'nuevo\n' > "$D/docs/revisiones/I2-juez-codigo-1/otro.txt"
+espera falla "añadir un archivo a la evidencia ya registrada se rechaza" "cambió después de registrarse" -- commitea "$D" "añade a la evidencia
+
+Ref: F1"
+copia f3 ev4; printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+mkdir -p "$D/contexto/exploracion"; printf 'salida\n' > "$D/contexto/exploracion/evidencia-I2.txt"
+espera falla "contraste: la misma evidencia en contexto/ después del PASA caduca el recibo" "el contenido cambió después de la revisión" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 ev5; printf 'y2 = 2\n' >> "$D/app.py"; h=$(evid "$D" I2-mal)
+recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica evidencia=docs/revisiones/I2-mal@000000000000
+mkdir -p "$D/docs/revisiones"; cp -R "$W/evsrc-I2-mal" "$D/docs/revisiones/I2-mal"
+espera falla "evidencia recién registrada con huella incorrecta se rechaza" "cambió después de registrarse" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 ev6; printf 'y2 = 2\n' >> "$D/app.py"; h=$(evid "$D" I2-falta)
+recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica evidencia=docs/revisiones/I2-falta@$h
+espera falla "evidencia registrada que no se copió se rechaza" "no existe en lo que se guarda" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 ev7; mkdir -p "$D/docs/revisiones/huerfana"; printf 'x\n' > "$D/docs/revisiones/huerfana/a.txt"
+espera falla "el doctor rechaza una carpeta de evidencia que ningún recibo registra" "no la registra ningún recibo" -- en "$D" sh scripts/check_docs.sh
+copia f3 ev8; mkdir -p "$W/evsrc-enlace"; ln -s /etc/hosts "$W/evsrc-enlace/h"
+espera falla "huella.sh evidencia rechaza enlaces simbólicos" "enlaces simbólicos" -- en "$D" sh scripts/huella.sh evidencia "$W/evsrc-enlace"
+
+echo "== Separadores y carpetas ocultas en la evidencia"
+copia f3 tb1; printf 'y2 = 2\n' >> "$D/app.py"; cierra_inc "$D" I2
+recibo_bruto "$D" "$(printf 'fecha=2026-10-19T10:00Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=%s ejecutor=x modalidad=lectura filtro=comprobado aislamiento=ninguno\tevidencia=docs/revisiones/no-existe@0123456789ab' "$(huella_idx "$D")")"
+en "$D" git add -A
+espera falla "un tabulador entre campos: la guarda de evidencia lee igual y la rechaza" "no existe en lo que se guarda" -- en "$D" sh scripts/guardas.sh HEAD INDICE
+espera falla "un tabulador entre campos: el parser lo rechaza" "separador no admitido" -- en "$D" sh scripts/recibos.sh validar docs/revisiones.log
+espera falla "un tabulador entre campos se rechaza (evidencia inexistente no se cuela)" "separador no admitido|no existe en lo que se guarda" -- commitea "$D" "I2
+
+Ref: I2"
+sin_hooks "$D" "I2 colado
+
+Ref: I2"
+espera falla "validar_historial rechaza el recibo con tabulador colado" "separador no admitido|no existe en lo que se guarda" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia f3 tb2; mkdir -p "$D/docs/revisiones/.huerfana"; printf 'x\n' > "$D/docs/revisiones/.huerfana/salida.txt"
+espera falla "el doctor rechaza una carpeta oculta en docs/revisiones/" "entrada oculta" -- en "$D" sh scripts/check_docs.sh
+espera falla "el commit rechaza la carpeta oculta" "entrada oculta" -- commitea "$D" "oculta
+
+Ref: F1"
+sin_hooks "$D" "oculta colada
+
+Ref: F1"
+espera falla "validar_historial rechaza la carpeta oculta colada" "entrada oculta" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia f3 tb3; printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica evidencia=docs/revisiones/.oculta@0123456789ab
+espera falla "un id de evidencia que empieza por punto se rechaza" "empieza por letra o número" -- en "$D" sh scripts/recibos.sh validar docs/revisiones.log
+
+echo "== Migración del registro: el historial hecho con la versión anterior sigue validando"
+antigua() {  # simula el scripts/recibos.sh de una versión anterior: no conoce el marcador ni exige los campos
+  sed -e 's/contrato-recibos: 2/contrato-recibos-anterior/g' -e 's/if (nm==0 \&\& marca \&\& !previo) ok=bad(/if (0) ok=bad(/' -e 's/if (nm==0 \&\& !hm \&\& !previo) ok=bad(/if (0) ok=bad(/' "$1/scripts/recibos.sh" > "$1/scripts/recibos.sh.t" && mv "$1/scripts/recibos.sh.t" "$1/scripts/recibos.sh"
+}
+registro_anterior() {  # sin marcador y sin los tres campos
+  grep -v '^# contrato-recibos: 2' "$1/docs/revisiones.log" | sed -E 's/ modalidad=[^ ]+ filtro=[^ ]+ aislamiento=[^ ]+//' > "$1/l" && mv "$1/l" "$1/docs/revisiones.log"
+}
+M="$W/mig"; rm -rf "$M"; mkdir -p "$M"; ( cd "$W/etapas/f3" && tar cf - --exclude ./.git . ) | ( cd "$M" && tar xf - )
+antigua "$M"; registro_anterior "$M"; en "$M" git init -q; en "$M" git config core.hooksPath .githooks
+sin_hooks "$M" "Plan con la versión anterior
+
+Ref: F2" || die "no pude preparar el proyecto con la versión anterior"
+INI=$(en "$M" git rev-parse HEAD)
+printf 'y2 = 2\n' >> "$M/app.py"; incompleto "$M" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+sin_hooks "$M" "I2 (hooks de la versión anterior)
+
+Ref: I2" || die "no pude preparar I2 con la versión anterior"
+espera pasa "antes de migrar: el replay acepta el historial hecho con la versión anterior" "1/1 commits cumplen" -- en "$M" sh scripts/pruebas/validar_historial.sh "$INI..HEAD"
+cp "$W/etapas/f3/scripts/recibos.sh" "$M/scripts/recibos.sh"; printf '# contrato-recibos: 2\n' >> "$M/docs/revisiones.log"
+espera pasa "migración: actualizar recibos.sh y añadir el marcador al final se acepta" "" -- commitea "$M" "actualiza la instrumentación y migra el registro
+
+Ref: F1"
+espera pasa "después de migrar: el replay del historial completo sigue aceptándolo" "2/2 commits cumplen" -- en "$M" sh scripts/pruebas/validar_historial.sh "$INI..HEAD"
+rm -rf "$W/etapas/migrado"; cp -R "$M" "$W/etapas/migrado"
+copia migrado mg4; incompleto "$D" juez-codigo incremento I3 PASA 0 seguridad=no-aplica; sin_hooks "$D" "recibo incompleto colado
+
+Ref: F1"
+espera falla "después de migrar: un recibo incompleto colado lo rechaza el replay" "sin modalidad=" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia migrado mg5; antigua "$D"; printf -- '- nota\n' >> "$D/docs/MEMORIA.md"
+espera falla "la instrumentación del contrato de recibos no retrocede (commit)" "no retrocede" -- commitea "$D" "vuelve a la versión anterior
+
+Ref: F1"
+sin_hooks "$D" "retroceso colado
+
+Ref: F1"
+espera falla "la instrumentación no retrocede (replay)" "no retrocede" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+
+echo "== La excepción histórica no sale del entorno ni de un padre antiguo"
+con_previo() { ( export RECIBOS_CONTRATO_PREVIO=1; "$@" ); }
+copia f3 vp1; printf 'y2 = 2\n' >> "$D/app.py"; incompleto "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "con RECIBOS_CONTRATO_PREVIO=1 heredado, el commit local sigue rechazando un recibo incompleto" "sin modalidad=" -- con_previo commitea "$D" "I2
+
+Ref: I2"
+espera falla "con la variable heredada, el doctor sigue rechazando el recibo incompleto" "posterior al marcador" -- con_previo en "$D" sh scripts/check_docs.sh
+copia f3 vp2; sin_marcador "$D" quitar
+printf 'y2 = 2\n' >> "$D/app.py"; incompleto "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica; printf '# contrato-recibos: 2\n' >> "$D/docs/revisiones.log"
+espera falla "con la variable heredada, un recibo incompleto antes del marcador al migrar sigue rechazado (solo la guarda lo ve)" "aunque quede antes del marcador" -- con_previo commitea "$D" "I2 y migración
+
+Ref: I2"
+fusion_antigua() {  # fusion_antigua <dir>: rama 'antigua' desde el commit previo a la migración, con un commit propio
+  RAMA0=$(en "$1" git rev-parse --abbrev-ref HEAD)
+  en "$1" git checkout -q -b antigua HEAD~1 || die "no pude crear la rama antigua"
+  printf -- '- nota de la rama antigua\n' >> "$1/docs/MEMORIA.md"
+  sin_hooks "$1" "nota (rama con la versión anterior)
+
+Ref: F1" || die "no pude commitear en la rama antigua"
+}
+copia migrado mf1; fusion_antigua "$D"
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-commit "$RAMA0" >/dev/null 2>&1; en "$D" git checkout -q HEAD -- scripts/recibos.sh
+espera falla "merge sobre la rama antigua que conserva su recibos.sh (otro padre ya migró) se rechaza" "no retrocede" -- en "$D" git -c core.hooksPath=.githooks commit -q -m "integra la migración conservando el parser anterior
+
+Ref: F1"
+en "$D" git -c core.hooksPath=/dev/null commit -q --no-verify -m "integra colado
+
+Ref: F1" || die "no pude colar el merge"
+espera falla "validar_historial rechaza ese merge colado" "no retrocede" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia migrado mf2; fusion_antigua "$D"
+espera pasa "merge limpio que conserva la versión migrada se acepta" "" -- en "$D" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit "$RAMA0"
+incompleto "$D" juez-codigo incremento I3 PASA 0 seguridad=no-aplica; sin_hooks "$D" "recibo incompleto colado tras la fusión
+
+Ref: F1"
+espera falla "tras ese merge, un recibo incompleto colado lo rechaza el replay" "sin modalidad=" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+
 echo "== El avance queda a la vista: casilla del plan y estado.md en el commit Ref: I<n>"
 # recibo_bruto con la huella del índice: un recibo vigente que NO pasa por cierra_inc.
 copia f3 av1; printf '\ndef resta(a, b):\n    return a - b\n' >> "$D/app.py"; printf -- '- Cerrado I2.\n' >> "$D/docs/estado.md"
-recibo_bruto "$D" "fecha=2026-10-19T10:00Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 huella=$(huella_idx "$D") ejecutor=regresion seguridad=no-aplica"
+recibo_bruto "$D" "fecha=2026-10-19T10:00Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 huella=$(huella_idx "$D") ejecutor=regresion seguridad=no-aplica modalidad=lectura filtro=comprobado aislamiento=ninguno"
 espera falla "Ref: I2 con su casilla aún en '- [ ]' se rechaza" "I2 sigue como" -- commitea "$D" "I2
 
 Ref: I2"
 copia f3 av2; printf '\ndef resta(a, b):\n    return a - b\n' >> "$D/app.py"; sed -i.bak 's/^- \[ \] I2 /- [x] I2 /' "$D/docs/plan.md"; rm -f "$D/docs/plan.md.bak"
-recibo_bruto "$D" "fecha=2026-10-19T10:00Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 huella=$(huella_idx "$D") ejecutor=regresion seguridad=no-aplica"
+recibo_bruto "$D" "fecha=2026-10-19T10:00Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 huella=$(huella_idx "$D") ejecutor=regresion seguridad=no-aplica modalidad=lectura filtro=comprobado aislamiento=ninguno"
 espera falla "Ref: I2 sin regenerar docs/estado.md se rechaza" "sin regenerar docs/estado.md" -- commitea "$D" "I2
 
 Ref: I2"
@@ -452,13 +666,13 @@ copia f3 r5
 espera falla "log eliminado en F3 se rechaza" "desaparece|falta docs/revisiones.log" -- sh -c 'cd "$1" && git rm -q docs/revisiones.log && git -c core.hooksPath=.githooks commit -q -m "x
 
 Ref: F1"' sh "$D"
-copia f3 p9; recibo_bruto "$D" "fecha=ayer rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x"
+copia f3 p9; recibo_bruto "$D" "fecha=ayer rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x modalidad=lectura filtro=comprobado aislamiento=ninguno"
 espera falla "fecha=ayer es inválida" "fecha debe ser ISO" -- en "$D" sh scripts/recibos.sh validar docs/revisiones.log
-copia f3 p9b; recibo_bruto "$D" "fecha=2026-02-30 rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x"
+copia f3 p9b; recibo_bruto "$D" "fecha=2026-02-30 rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x modalidad=lectura filtro=comprobado aislamiento=ninguno"
 espera falla "fecha=2026-02-30 es inválida" "fecha debe ser ISO" -- en "$D" sh scripts/recibos.sh validar docs/revisiones.log
-copia f3 p10; recibo_bruto "$D" "fecha=2026-10-19 rol=juez-codigo tipo=incremento alcance=I2 veredicto=FALLA bloqueantes=00 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x"
+copia f3 p10; recibo_bruto "$D" "fecha=2026-10-19 rol=juez-codigo tipo=incremento alcance=I2 veredicto=FALLA bloqueantes=00 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x modalidad=lectura filtro=comprobado aislamiento=ninguno"
 espera falla "bloqueantes=00 es inválido" "bloqueantes debe ser" -- en "$D" sh scripts/recibos.sh validar docs/revisiones.log
-copia f3 p10b; recibo_bruto "$D" "fecha=2026-10-19T23:59:59Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=FALLA bloqueantes=12 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x"
+copia f3 p10b; recibo_bruto "$D" "fecha=2026-10-19T23:59:59Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=FALLA bloqueantes=12 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x modalidad=lectura filtro=comprobado aislamiento=ninguno"
 espera pasa "fecha ISO completa y bloqueantes=12 son válidos" "" -- en "$D" sh scripts/recibos.sh validar docs/revisiones.log
 
 echo "== Hallazgos del incremento y Cierra:"
@@ -558,14 +772,14 @@ espera pasa "cuarto incremento tras el commit del hito se acepta" "" -- commitea
 
 Ref: I4"
 copia f3-tres h3
-recibo_bruto "$D" "fecha=2026-10-19 rol=juez-conjunto tipo=hito alcance=hito:I1-I3 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=000000000000 ejecutor=x cubre=C1 excluye=ninguno componentes=app"
+recibo_bruto "$D" "fecha=2026-10-19 rol=juez-conjunto tipo=hito alcance=hito:I1-I3 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=000000000000 ejecutor=x cubre=C1 excluye=ninguno componentes=app modalidad=lectura filtro=comprobado aislamiento=ninguno"
 printf 'z = 4\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I4 PASA 0 seguridad=no-aplica
 espera falla "un recibo de hito suelto (sin su commit Ref: hito) no cuenta como hito" "hito" -- commitea "$D" "I4
 
 Ref: I4"
 copia f3-tres h4
 recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=requerida cubre=C1 excluye=ninguno componentes=app
-recibo_bruto "$D" "fecha=2026-10-19 rol=juez-seguridad tipo=hito alcance=hito:I1-I3 veredicto=PASA bloqueantes=0 huella=000000000000 ejecutor=x cubre=C1 excluye=ninguno componentes=app"
+recibo_bruto "$D" "fecha=2026-10-19 rol=juez-seguridad tipo=hito alcance=hito:I1-I3 veredicto=PASA bloqueantes=0 huella=000000000000 ejecutor=x cubre=C1 excluye=ninguno componentes=app modalidad=lectura filtro=comprobado aislamiento=ninguno"
 espera falla "hito con seguridad=requerida cuyo recibo de seguridad tiene otra huella se rechaza" "juez-seguridad .hito hito:I1-I3. tiene huella 000000000000" -- commitea "$D" "hito
 
 Ref: hito:I1-I3"

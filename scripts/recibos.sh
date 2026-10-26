@@ -20,16 +20,36 @@
 #   veredicto=PASA|FALLA  bloqueantes=<entero sin ceros a la izquierda>  huella=<12 hex>  ejecutor=<quién>
 #   seguridad=requerida|no-aplica   (obligatorio en juez-codigo y juez-conjunto)
 #   cubre=<C..>  excluye=<C..|ninguno>  componentes=<..>   (obligatorios en tipo=hito)
+#   modalidad=lectura|experimentos  filtro=comprobado|desactivado|sin-verificar
+#   aislamiento=ninguno|sandbox-configurado|sandbox-verificado   (los tres juntos; ver abajo)
+#   evidencia=docs/revisiones/<id>@<12 hex>   (opcional: carpeta con lo que sostiene el veredicto
+#                                              y su huella, `sh scripts/huella.sh evidencia <carpeta>`)
 # Relaciones: PASA ⇒ bloqueantes=0; FALLA ⇒ bloqueantes≥1; rol↔tipo↔alcance coherentes.
+#
+# CONTRATO DE RECIBOS (marcador): la línea exacta `# contrato-recibos: 2` (puede seguirle texto) es la
+# frontera. Es ÚNICA. Todo recibo POSTERIOR declara modalidad=, filtro= y aislamiento=; los anteriores
+# son históricos. SIN marcador, todo recibo los declara (estricto por defecto): un registro de una
+# versión anterior de la plantilla se migra AÑADIENDO el marcador al FINAL del registro existente,
+# sin tocar lo que ya hay. Que un recibo NUEVO (ausente de HEAD) los declare aunque quede antes del
+# marcador o con fecha antigua lo exige scripts/guardas.sh, que conoce HEAD; este parser no.
+# Los tres campos registran la modalidad DECLARADA; no demuestran que el aislamiento se aplicara.
+# REPLAY de un commit hecho con una versión anterior (su propio scripts/recibos.sh no conoce el
+# marcador): el commit-msg en modo REV lo deriva DE ESE COMMIT y pasa el argumento final `previo`;
+# entonces los campos no se exigen (el commit se rige por el contrato con que se hizo). Nunca sale
+# del entorno: una validación local no puede pedirlo. scripts/guardas.sh impide que la
+# instrumentación retroceda respecto de CUALQUIER padre, así que no es un atajo tras migrar.
+# SEPARADOR: un espacio. Tabuladores u otros blancos son error: todos los lectores parten igual.
 MODE="${1:-validar}"
 case "$MODE" in
-  validar) FILE="${2:-docs/revisiones.log}" ;;
-  ultimo)  R="$2"; T="$3"; A="$4"; FILE="${5:-docs/revisiones.log}" ;;
+  validar) FILE="${2:-docs/revisiones.log}"; PREVIO="${3:-}" ;;
+  ultimo)  R="$2"; T="$3"; A="$4"; FILE="${5:-docs/revisiones.log}"; PREVIO="${6:-}" ;;
   *) echo "recibos.sh: modo desconocido '$MODE' (validar | ultimo)" >&2; exit 2 ;;
 esac
 [ -f "$FILE" ] || exit 0
 
-awk -v mode="$MODE" -v R="${R:-}" -v T="${T:-}" -v A="${A:-}" '
+# ¿Tiene el registro marcador? Se sabe ANTES de leer: un recibo previo al marcador es histórico.
+HM=$(grep -c '^# contrato-recibos: 2\([[:space:]].*\)\{0,1\}$' "$FILE")
+awk -v mode="$MODE" -v R="${R:-}" -v T="${T:-}" -v A="${A:-}" -v hm="$HM" -v previo="$([ "$PREVIO" = previo ] && echo 1)" '
 function bad(msg) { print "  ✗ recibos: línea " NR ": " msg " → " substr($0,1,80) > "/dev/stderr"; fail=1; return 0 }
 function fecha_valida(d,   y, m, dd, mx) {
   if (d !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9](T[0-9][0-9]:[0-9][0-9](:[0-9][0-9])?Z?)?$/) return 0
@@ -40,7 +60,9 @@ function fecha_valida(d,   y, m, dd, mx) {
   if (length(d)>10 && (substr(d,12,2)+0>23 || substr(d,15,2)+0>59 || (length(d)>=19 && substr(d,18,2)+0>59))) return 0
   return 1
 }
+/^# contrato-recibos: 2([ \t].*)?$/ { if (marca) bad("marcador «# contrato-recibos: 2» repetido: es único"); marca=NR; next }
 /^[ \t]*(#|$)/ { next }
+/[\t\r\v\f]/ { bad("separador no admitido (tabulador u otro blanco): los campos se separan con un espacio"); next }
 {
   delete f; ok=1
   for (i=1;i<=NF;i++) {
@@ -74,6 +96,16 @@ function fecha_valida(d,   y, m, dd, mx) {
   if (f["veredicto"]=="FALLA" && f["bloqueantes"]=="0") ok=bad("FALLA exige bloqueantes>=1")
   if ((r=="juez-codigo" || r=="juez-conjunto") && f["seguridad"] !~ /^(requerida|no-aplica)$/) ok=bad("juez-codigo/juez-conjunto deben declarar seguridad=requerida|no-aplica")
   if (t=="hito" && (!("cubre" in f) || !("excluye" in f) || !("componentes" in f))) ok=bad("tipo=hito exige cubre=, excluye= y componentes=")
+  nm = ("modalidad" in f) + ("filtro" in f) + ("aislamiento" in f)
+  if (nm==0 && marca && !previo) ok=bad("recibo posterior al marcador sin modalidad=, filtro= y aislamiento=")
+  if (nm==0 && !hm && !previo) ok=bad("recibo sin modalidad=, filtro= y aislamiento= en un registro sin marcador. Si son recibos de una versión anterior de la plantilla, añade al FINAL del registro (sin tocar lo existente) la línea «# contrato-recibos: 2»: lo anterior queda histórico y lo nuevo declara los tres campos")
+  if (nm>0 && nm<3) ok=bad("modalidad=, filtro= y aislamiento= van los tres juntos")
+  if (nm==3) {
+    if (f["modalidad"] !~ /^(lectura|experimentos)$/) ok=bad("modalidad debe ser lectura|experimentos")
+    if (f["filtro"] !~ /^(comprobado|desactivado|sin-verificar)$/) ok=bad("filtro debe ser comprobado|desactivado|sin-verificar")
+    if (f["aislamiento"] !~ /^(ninguno|sandbox-configurado|sandbox-verificado)$/) ok=bad("aislamiento debe ser ninguno|sandbox-configurado|sandbox-verificado")
+  }
+  if ("evidencia" in f && f["evidencia"] !~ /^docs\/revisiones\/[A-Za-z0-9][A-Za-z0-9._:-]*@[0-9a-f]{12}$/) ok=bad("evidencia debe ser docs/revisiones/<id>@<12 hex>: una carpeta directa de docs/revisiones/ cuyo id empieza por letra o número (sin carpetas ocultas)")
   if (!ok) next
   if (mode=="ultimo" && r==R && t==T && (a==A || (A=="F2" && a ~ /^reentrada:/))) last=$0
 }

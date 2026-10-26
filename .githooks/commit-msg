@@ -140,13 +140,17 @@ done)
 # (PASA ⇒ bloqueantes=0). Un registro con una línea inválida no entrega ningún recibo.
 LOGTMP=$(mktemp 2>/dev/null || mktemp -t recibos); trap 'rm -f "$LOGTMP"' EXIT INT TERM
 idx docs/revisiones.log > "$LOGTMP"
-sh scripts/recibos.sh validar "$LOGTMP" || fail "docs/revisiones.log tiene líneas inválidas (arriba): corrígelas; mientras tanto ningún recibo cuenta."
+# Contrato de recibos con que se hizo el commit validado: solo en el REPLAY (REV) y derivado de
+# ESE commit; en local nunca hay excepción, venga lo que venga en el entorno.
+PREVIO=""
+if [ -n "${REV:-}" ] && ! git show "$REV:scripts/recibos.sh" 2>/dev/null | grep -q 'contrato-recibos: 2'; then PREVIO=previo; fi
+sh scripts/recibos.sh validar "$LOGTMP" $PREVIO || fail "docs/revisiones.log tiene líneas inválidas (arriba): corrígelas; mientras tanto ningún recibo cuenta."
 campo() { printf '%s' "$1" | tr ' ' '\n' | sed -n "s/^$2=//p" | head -1; }
-ultimo_recibo() { sh scripts/recibos.sh ultimo "$1" "$2" "$3" "$LOGTMP" 2>/dev/null; }
+ultimo_recibo() { sh scripts/recibos.sh ultimo "$1" "$2" "$3" "$LOGTMP" $PREVIO 2>/dev/null; }
 exige_recibo() {  # $1 rol $2 tipo $3 alcance $4 descripción para el error → 0 si vigente
   rec=$(ultimo_recibo "$1" "$2" "$3")
   if [ -z "$rec" ]; then
-    fail "$4: no hay recibo válido de $1 ($2 $3) en docs/revisiones.log. Formato: fecha=… rol=$1 tipo=$2 alcance=$3 veredicto=PASA bloqueantes=0 [seguridad=requerida|no-aplica] huella=$HUELLA ejecutor=…"; return 1
+    fail "$4: no hay recibo válido de $1 ($2 $3) en docs/revisiones.log. Formato: fecha=… rol=$1 tipo=$2 alcance=$3 veredicto=PASA bloqueantes=0 [seguridad=requerida|no-aplica] huella=$HUELLA ejecutor=… modalidad=lectura|experimentos filtro=comprobado|desactivado|sin-verificar aislamiento=ninguno|sandbox-configurado|sandbox-verificado [evidencia=docs/revisiones/<id>@<huella>] (gramática: scripts/recibos.sh)"; return 1
   fi
   v=$(campo "$rec" veredicto); h=$(campo "$rec" huella)
   [ "$v" = "PASA" ] || { fail "$4: la última revisión de $1 ($2 $3) fue $v, no PASA."; return 1; }

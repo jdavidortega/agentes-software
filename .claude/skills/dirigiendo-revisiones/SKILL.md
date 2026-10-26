@@ -16,8 +16,9 @@ allowed-tools: Read, Grep, Glob, Bash
    **ya colapsada a su línea** (qué cambió y por qué) y su casilla en `- [x]`, el `README.md` al día si cambió
    comportamiento, ADRs si hubo decisión. `plan.md` y `convenciones.md` cuentan en la
    huella: después del PASA no se tocan. Lo que sí se escribe después son los
-   **registros** fuera de la huella (recibo, filas, `estado.md`, consumo y lecciones en
-   `MEMORIA.md`). El `commit-msg` rechaza `Ref: I<n>` sin la casilla en `[x]` o sin
+   **registros** fuera de la huella (recibo, filas, evidencia en `docs/revisiones/`, `estado.md`,
+   consumo y lecciones en `MEMORIA.md`). **Nada de la revisión va a `contexto/` después del PASA**:
+   `contexto/` es contenido revisado y caducaría el recibo. El `commit-msg` rechaza `Ref: I<n>` sin la casilla en `[x]` o sin
    `estado.md` en el commit.
 2. **Stagea todo** (`git add -A`) y toma las dos huellas: `V0=$(sh scripts/huella.sh)`
    (vigencia: lo revisable) e `I0=$(sh scripts/huella.sh integridad)` (integridad: todo,
@@ -58,7 +59,11 @@ allowed-tools: Read, Grep, Glob, Bash
    Bloqueantes (ID, criterio, una frase, fila lista) · Sugerencias (máx. 5, una línea
    cada una) · Preguntas · Cobertura y limitaciones (seguridad) · Obstáculos («ninguno»
    si no hubo) · **Recibo** (la línea para `docs/revisiones.log`, con la huella que él
-   mismo calculó con `sh scripts/huella.sh`). **Sin narrativa**: un reporte de revisión
+   mismo calculó con `sh scripts/huella.sh`, y `modalidad=`, `filtro=` y `aislamiento=`: la
+   modalidad y el aislamiento que le diste, y `filtro=comprobado` solo si su canario fue
+   rechazado. En experimentos, si conserva evidencia, la deja en `<D>/evidencia/` y añade
+   `evidencia=docs/revisiones/<alcance>-<rol>-<AAAAMMDDTHHMMZ>@<h>` con
+   `h=$(sh scripts/huella.sh evidencia <D>/evidencia)`. Gramática: `scripts/recibos.sh`). **Sin narrativa**: un reporte de revisión
    cabe en ~40 líneas salvo que haya muchos bloqueantes; lo que no decide no se escribe
    (`docs/convenciones.md` §Contexto).
 
@@ -69,21 +74,25 @@ allowed-tools: Read, Grep, Glob, Bash
    qué y repítela. La huella **detecta diferencias observables** en el repositorio al final;
    no lo protege contra escrituras ni ve cambios transitorios, la red o lo ignorado por git.
    **Vigencia:** exige `V0 == huella del recibo`; si difiere, el revisor juzgó otra cosa.
-   **Modalidad:** en experimentos, inventaría `<D>` (`ls -laR "$D"`), copia a
-   `contexto/exploracion/` solo lo que sea evidencia y borra `.git/revision-modalidad`. Si
-   existe `.git/canario-revisor`, el filtro **no** estaba activo: bórralo y decláralo.
+   **Modalidad:** en experimentos, inventaría `<D>` (`ls -laR "$D"`) y borra
+   `.git/revision-modalidad`. Si el recibo trae `evidencia=docs/revisiones/<id>@<h>`, copia
+   `<D>/evidencia/` **tal cual** a `docs/revisiones/<id>/` (fuera de la huella de vigencia; su
+   propia huella `<h>` la ata al recibo: el `pre-commit` y el replay rechazan que no coincida, que
+   falte o que cambie después). Si existe `.git/canario-revisor`, el filtro **no** estaba activo:
+   bórralo y la revisión no vale con `filtro=comprobado`: repítela o que el recibo diga
+   `filtro=desactivado`.
 7. **Registra tal cual, sin editar:** la línea del recibo al final de
    `docs/revisiones.log` (append; nunca se compacta) y las filas de hallazgos en
    `docs/trazabilidad.md` (numeración que continúa, incluido el Histórico). Ambos están
    fuera de la huella, igual que `estado.md` y `MEMORIA.md`: registrarlos no invalida el
    recibo.
-8. **Declara la modalidad** en el informe de la revisión (y en la bitácora), sin tocar la
-   gramática del recibo: modalidad (`lectura` | `experimentos`), directorio autorizado,
-   **filtro preventivo** (`comprobado`: el canario fue rechazado · `desactivado`: el canario
-   se creó · `sin verificar`), **aislamiento** (`ninguno` · `sandbox configurado` · `sandbox
-   verificado`, ver §Modalidades), comprobaciones hechas (huellas, inventario) y **límites**.
-   Sin aislamiento verificado, el límite dice: «no se garantiza la ausencia de escrituras
-   fuera del repositorio».
+8. **La modalidad queda en el recibo** (`modalidad=lectura|experimentos`,
+   `filtro=comprobado|desactivado|sin-verificar` —comprobado: el canario fue rechazado—,
+   `aislamiento=ninguno|sandbox-configurado|sandbox-verificado`, ver §Modalidades): es lo
+   **declarado**, no prueba que el aislamiento se aplicara; eso lo sostienen la evidencia y los
+   controles efectivos. El informe al gate añade directorio autorizado, comprobaciones (huellas,
+   inventario) y **límites**; sin aislamiento verificado: «no se garantiza la ausencia de
+   escrituras fuera del repositorio». No va a la bitácora (`plan.md` está en la huella).
 8b. **Rutea los obstáculos a `docs/MEMORIA.md`** (sección «Operativa») y la línea de
    consumo a `MEMORIA.md` §Consumo: comandos, flags, workarounds, tokens. Su promoción a `docs/convenciones.md` va en el **siguiente** incremento,
    porque `convenciones.md` sí es contenido revisado y cambiarlo ahora invalidaría el

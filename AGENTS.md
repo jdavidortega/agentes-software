@@ -339,7 +339,8 @@ Cuatro roles, rúbrica en su skill (`.claude/skills/revision-*/`), rol en
   en HEAD sea prefijo exacto de lo nuevo; nunca se compacta; un solo parser,
   `scripts/recibos.sh`, para hook y doctor) con rol, tipo, alcance, veredicto,
   bloqueantes (PASA ⇒ 0), `seguridad=requerida|no-aplica` (jueces de código y conjunto),
-  `huella`, ejecutor y, en hitos, `cubre`/`excluye`/`componentes`. El `commit-msg` exige el
+  `huella`, ejecutor, `modalidad`/`filtro`/`aislamiento` (lo declarado), `evidencia` opcional
+  atada por su huella y, en hitos, `cubre`/`excluye`/`componentes`. El `commit-msg` exige el
   **último** recibo válido del alcance en PASA con la huella del índice para `Ref: I<n>`,
   `F2` (o `reentrada:C<n>`), `F4` y `F5` (F5 exige lo mismo que F4, seguridad incluida),
   y `hito:I<a>-I<b>` (rango del plan cuyos incrementos ya están commiteados); rechaza

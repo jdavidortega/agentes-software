@@ -411,7 +411,13 @@ los instala ni los activa en el remoto; lo último es deliberado.
 Que el juez y el revisor funcional corrieron se exige por su rastro: cada revisión deja
 su **recibo** en `docs/revisiones.log` (rol, alcance, veredicto, huella; también con PASA
 limpio) y sus bloqueantes/vacíos en `docs/trazabilidad.md`; el `commit-msg` no acepta la
-transición sin el recibo vigente.
+transición sin el recibo vigente. Desde el marcador `# contrato-recibos: 2` del registro, cada
+recibo nuevo declara también `modalidad`, `filtro` y `aislamiento` (lo declarado, no una prueba
+de aislamiento) y puede atar evidencia en `docs/revisiones/<id>/` por su propia huella: el
+`pre-commit` y el replay rechazan un recibo nuevo sin esos campos y una evidencia registrada que
+falte o cambie. Un registro de una versión anterior se migra añadiendo el marcador al final;
+el replay sigue aceptando los commits hechos con esa versión (los juzga con el contrato con que se
+hicieron) y la instrumentación del contrato no puede retroceder. Los campos se separan con un espacio.
 Y la **regla del segundo hallazgo** (`AGENTS.md` §8) convierte en linter/hook todo
 hallazgo mecanizable que se repita.
 
@@ -517,6 +523,7 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 │   ├── definicion-de-hecho.md
 │   ├── despliegue.md        runbook vivo: dónde está cada cosa, cómo se despliega, verifica y revierte
 │   ├── revisiones.log       recibos de revisión (una línea estructurada por pasada; append-only)
+│   ├── revisiones/          evidencia conservada de una revisión (una carpeta por recibo; se crea al usarla)
 │   ├── plantilla-requerimiento.md   cómo escribir un requerimiento (inicial y de reentrada)
 │   └── MEMORIA.md           lecciones del proyecto
 ├── contexto/            única carpeta de entrada (obligatoria): documentos, datos y

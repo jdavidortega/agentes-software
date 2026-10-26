@@ -31,7 +31,7 @@ Verificados contra la doc oficial actual de cada herramienta. -->
   `jest` necesita `--passWithNoTests`): si no, bloquea los commits del arranque (`Ref: F2`)
   cuando aún no hay código. Con el primer test, falla de verdad.
 - **`scripts/huella.sh`** — dos huellas: **vigencia** (lo revisable: todo salvo los
-  registros `revisiones.log`, `trazabilidad.md`, `estado.md`, `MEMORIA.md`), que el revisor
+  registros `revisiones.log`, `revisiones/` (evidencia), `trazabilidad.md`, `estado.md`, `MEMORIA.md`), que el revisor
   pone en su recibo y `commit-msg` exige igual a la del índice en `Ref: I<n>`, `hito`, `F2`,
   `F4` y `F5`; e **integridad** (árbol completo), que el principal toma antes y después de
   cada revisor para detectar si escribió algo. `huella.sh commit <sha>` da la vigencia de un

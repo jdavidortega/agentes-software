@@ -14,8 +14,8 @@
 > **B** es lo que el principal hace **después del PASA** para cerrar el incremento. Regla
 > del orden: **todo lo revisable queda escrito antes de pedir el PASA** (código, docs,
 > bitácora del incremento ya colapsada a una línea y su casilla en `[x]`, README); después del PASA solo se
-> tocan los **registros** fuera de la huella (`revisiones.log`, `trazabilidad.md`,
-> `estado.md`, `MEMORIA.md`). Si algo revisable cambia después, el recibo caduca y la
+> tocan los **registros** fuera de la huella (`revisiones.log`, la evidencia en `revisiones/`,
+> `trazabilidad.md`, `estado.md`, `MEMORIA.md`). Si algo revisable cambia después, el recibo caduca y la
 > revisión se repite; eso no es un defecto del control, es su razón de ser.
 >
 > **Si el conjunto NO cumple (Fase 4):** vuelve atrás según la causa. Defecto o

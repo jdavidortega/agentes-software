@@ -48,6 +48,8 @@ commits=$(git rev-list --reverse "$RANGO" $EXCLUIR 2>/dev/null) || { echo "valid
 [ -n "$commits" ] || { echo "validar_historial: ningún commit en $RANGO"; exit 0; }
 MAL=0; TOTAL=0
 fallo() { echo "  ✗ $1" >&2; ok=0; }
+# El contrato de recibos con que se hizo cada commit lo derivan guardas.sh y el commit-msg (REV) del
+# propio commit; check_docs usa el recibos.sh del árbol del commit. Nada se pasa por el entorno.
 for c in $commits; do
   TOTAL=$((TOTAL+1)); ok=1
   corto=$(git log -1 --format='%h %s' "$c")

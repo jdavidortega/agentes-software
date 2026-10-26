@@ -110,7 +110,7 @@ ejemplo en `docs/convenciones.md` §Redacción.
    **También por hito** (tres incrementos cerrados o antes de un despliegue): la misma
    pasada sobre **lo ensamblado hasta ahí y sus interacciones**, excluyendo por nombre los
    criterios de incrementos futuros; lo que encuentra vuelve a la Fase 3. La Fase 4 cubre
-   todos (`docs/convenciones.md` §Hito).
+   todos (`docs/convenciones.md` §Contexto, «Hito»).
    - Si **el conjunto NO cumple lo acordado**, no se sigue: se vuelve atrás según la
      causa. **Defecto / regresión / cobertura faltante** (los requisitos están bien) →
      **Fase 3**, incremento de corrección. **El encuadre estaba mal o falta un
@@ -122,7 +122,7 @@ ejemplo en `docs/convenciones.md` §Redacción.
    → Gate: la persona confirma que el conjunto cumple la Definición de Hecho.
 5. **Cierre y aprendizaje** — retrospectiva breve; lecciones a `docs/MEMORIA.md`. La
    retro incluye la **tabla de consumo de tokens por fase** (de las líneas de
-   `docs/MEMORIA.md` §Consumo; ver `docs/convenciones.md` §Contexto): es el dato que permite afinar el
+   `docs/MEMORIA.md` §Consumo; formato en `.claude/skills/dirigiendo-revisiones/SKILL.md` paso 8b): es el dato que permite afinar el
    método y detectar sobredimensionamiento. **El aprendizaje no espera al cierre:** las
    lecciones se anotan al cerrar cada incremento, y la síntesis «Lo crítico» de
    `docs/MEMORIA.md` (§7) se rehace en cada hito y al cierre de cada fase, porque un
@@ -136,48 +136,30 @@ ejemplo en `docs/convenciones.md` §Redacción.
 
 **Operación / Despliegue (rebanada, cuando aplica).** Todo trabajo que impacte
 producción —deploy, migración, config, secretos— es una rebanada del método, nunca
-trabajo "aparte": tiene bitácora, ADRs, su propia DoD (runbook verificado contra el
-entorno real, réplica local del entorno, pruebas exhaustivas en local **antes** de
-tocar producción, plan de reversión escrito, autorización explícita) y **pasada de
-juez**. Con servicios o bases de datos reales, los resultados se validan primero en un
-**entorno de prueba** con OK de la persona; el plan de despliegue **protege los datos
-de producción** (respaldo verificado antes de cualquier operación destructiva). El
-procedimiento vive en `.claude/skills/desplegando-a-produccion/SKILL.md` (núcleo común + la sección
-del modelo de despliegue que el encuadre decidió), y **lo que este proyecto concretamente
-hace** —dónde está el código, qué base de datos, dónde viven las credenciales (nunca sus
-valores), cómo se despliega, se verifica en producción y se revierte— vive en
-**`docs/despliegue.md`**, el runbook vivo: se siembra en el encuadre con lo local, se
-completa en esta rebanada y es **lectura obligatoria** antes de tocar producción y en
-toda reentrada que lo haga. Las pruebas en local no sustituyen lo que ahí dice.
+trabajo "aparte": bitácora, ADRs, su propia DoD y **pasada de juez**. **Antes de tocar
+producción**, lee `docs/despliegue.md` (el runbook vivo del proyecto; lectura obligatoria también
+en toda reentrada que lo toque) y sigue `.claude/skills/desplegando-a-produccion/SKILL.md`
+§Núcleo común —réplica local, entorno de prueba con OK de la persona, respaldo verificado,
+reversión escrita, `--confirm-prod`— más la sección del modelo de despliegue del encuadre.
 → Gate: la persona autoriza el impacto a producción de forma explícita y puntual.
 
 ### Reentrada — trabajo nuevo después del cierre
 
-El **cierre (Fase 5) dispara la reentrada**: cuando llega trabajo nuevo —en ese momento o
-en una sesión futura— **no se re-ejecuta el arranque ni se abre un flujo aparte**; se
-reentra en este mismo ciclo y se abre **solo la rebanada que el cambio necesita**. (Lo
-pedido **con el plan aún vivo** no es reentrada: va por el bucle de la Fase 3 si no cambia
-un `C#`; si lo cambia, el pivote de abajo aplica igual, sin esperar a F5.) Antes de
-tocar nada, clasifica el pedido con **una sola pregunta** —el mismo pivote que ya usa la
-Fase 4—: **¿cambia la verdad acordada, es decir un `C#` o el set de oro de
-`docs/encuadre.md`?**
+El **cierre (Fase 5) dispara la reentrada**: el trabajo nuevo no re-ejecuta el arranque; se
+abre **solo la rebanada que el cambio necesita** (con el plan aún vivo, lo mismo vía Fase 3).
+**Antes de tocar nada**, una sola pregunta: **¿cambia la verdad acordada —un `C#` o el set de
+oro de `docs/encuadre.md`?**
 
-- **No la cambia** (defecto que incumple un `C#` vigente, regresión, cobertura faltante,
-  o un ajuste interno/cosmético que el criterio ya permitía) → el requisito ya existe:
-  **Fase 3**, incremento de corrección (juez + DoD). No se reabre el encuadre.
-- **Sí la cambia** → reentra por el **Encuadre**, con peso proporcional y **solo sobre lo
-  afectado** (no se re-ingiere todo ni se rehace el encuadre completo): un **ajuste**
-  *edita* un `C#` o un par del set de oro (pesa poco); un **requisito nuevo** *añade* uno
-  (pesa lo normal). En ambos: ADR del cambio, revisor funcional sobre lo afectado, gate y
-  luego Fase 3.
-- **Pregunta/soporte** → respóndela; **mejora opcional** más allá de lo acordado →
-  **backlog** de `docs/plan.md` (si se decide perseguirla, se vuelve requisito nuevo).
+- **No** (defecto, regresión, cobertura faltante, ajuste que el criterio ya permitía) →
+  **Fase 3**, incremento de corrección. No se reabre el encuadre.
+- **Sí** → reentra por el **Encuadre**, solo sobre lo afectado: ADR, revisor funcional
+  (recibo `reentrada:C<n>`, o `F2` si cambia más de uno), commit `Ref: F2` y gate; hasta
+  entonces el `commit-msg` no cierra trabajo que dependa de ese criterio.
+- **Pregunta** → respóndela; **mejora opcional** → backlog de `docs/plan.md`.
 
-El insumo del trabajo nuevo aterriza como documento en `contexto/` (si solo se describe
-en el chat, **captúralo como brief corto ahí**). Clasifica **por aspecto, no por ticket**
-(la parte rota va a Fase 3; la que cambia un criterio, al Encuadre), y la reentrada que
-tocó código **revalida la Fase 4 sobre el conjunto** (sin regresiones). El detalle
-operativo está en `docs/arranque.md`.
+**Al reentrar**, abre `docs/arranque.md` §Reentrada: el insumo como brief en `contexto/`, la
+clasificación por aspecto (no por ticket) y la revalidación de la Fase 4 si tocó código.
+
 
 ## 3. Cuándo DETENERTE y preguntar
 
@@ -285,18 +267,13 @@ que no puede permitirse ser "mayormente seguida" se refuerza con un mecanismo **
 solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo una vez con
 `git config core.hooksPath .githooks` (parte del Bootstrap del arranque)—:
 
-- **`commit-msg`** valida **todos** los trailers contra una gramática cerrada y resuelve
-  cada ID contra el índice: `Ref: I<n>` existe en `docs/plan.md`, ya marcado `- [x]`, y el
-  commit trae `docs/estado.md` regenerado (el avance queda a la vista); todo `Cierra:` nombra un
-  hallazgo **con fila** en `docs/trazabilidad.md` (un `Cierra:` es una afirmación sobre
-  otro documento, y las afirmaciones cruzadas se mecanizan o se vuelven prosa); y
-  `Ref: F4|F5` **dispara el modo cierre** de `check_docs` (nada `abierto`, nada `resuelto`
-  sin `verificado`, todo `C#` verificado con incremento, sin ADR `propuesta` ni ADR-000).
-  **El código del producto entra solo con `Ref: I<n>`** (y su recibo): un commit que toca
-  algo fuera del rastro y la plantilla con solo `Cierra:` o `Ref: F#` se rechaza. **Ata el
-  trabajo al contrato revisado:** `Ref: I<n>|hito|F4|F5` exigen los `C#` y el set de oro del
-  último `Ref: F2`; ningún hallazgo desaparece; entrar a F5 exige `Ref: F5`
-  (`docs/convenciones.md` §Git).
+- **`commit-msg`** valida **todos** los trailers contra una gramática cerrada, resuelve cada ID
+  contra el índice (casilla `[x]` y `docs/estado.md` en `Ref: I<n>`; fila para todo `Cierra:`) y
+  exige el recibo vigente de cada transición. **El código del producto entra solo con
+  `Ref: I<n>`** y su recibo. **Ata el trabajo al contrato revisado:** `Ref: I<n>|hito|F4|F5`
+  exigen los `C#` y el set de oro del último `Ref: F2`; ningún hallazgo desaparece; entrar a F5
+  exige `Ref: F5`, y `Ref: F4|F5` dispara el modo cierre de `check_docs`. Qué exige cada
+  trailer: la cabecera del hook; resumen en `docs/convenciones.md` §Git.
 - **`pre-commit`** bloquea versionar un `.env`/secreto; **rechaza si hay cambios sin
   stagear en archivos rastreados** (lo que se verifica tiene que ser lo que se versiona);
   corre **`scripts/check_docs.sh`** sobre una exportación del **índice** (contrato por fase:
@@ -334,18 +311,13 @@ Cuatro roles, rúbrica en su skill (`.claude/skills/revision-*/`), rol en
   **detecta** el principal con dos huellas (`scripts/huella.sh`): la de **integridad**
   (todo el árbol, registros incluidos) igual antes y después del revisor, y la de
   **vigencia** (lo revisable) igual a la del recibo. Ninguna ve la red ni lo ignorado.
-- **El recibo ata el veredicto al contenido:** una línea estructurada en
-  `docs/revisiones.log` (append-only **mecanizado**: el `pre-commit` exige que lo guardado
-  en HEAD sea prefijo exacto de lo nuevo; nunca se compacta; un solo parser,
-  `scripts/recibos.sh`, para hook y doctor) con rol, tipo, alcance, veredicto,
-  bloqueantes (PASA ⇒ 0), `seguridad=requerida|no-aplica` (jueces de código y conjunto),
-  `huella`, ejecutor, `modalidad`/`filtro`/`aislamiento` (lo declarado), `evidencia` opcional
-  atada por su huella y, en hitos, `cubre`/`excluye`/`componentes`. El `commit-msg` exige el
-  **último** recibo válido del alcance en PASA con la huella del índice para `Ref: I<n>`,
-  `F2` (o `reentrada:C<n>`), `F4` y `F5` (F5 exige lo mismo que F4, seguridad incluida),
-  y `hito:I<a>-I<b>` (rango del plan cuyos incrementos ya están commiteados); rechaza
-  `Ref: I<n>` con hallazgos `R-I<n>.*`/`R-S<n>.*` abiertos, y cuenta los commits `Ref: I<k>`
-  desde el último commit `Ref: hito:…`: al cuarto sin hito, rechaza.
+- **El recibo ata el veredicto al contenido:** una línea en `docs/revisiones.log`, append-only
+  **mecanizado** (el `pre-commit` exige que lo guardado en HEAD sea prefijo exacto; nunca se
+  compacta), leída por un solo parser, `scripts/recibos.sh`, cuya cabecera es la gramática
+  canónica (campos, modalidad declarada, evidencia, hito). El `commit-msg` exige el **último**
+  recibo válido del alcance en PASA con la huella del índice para `Ref: I<n>`, `F2` (o
+  `reentrada:C<n>`), `hito:I<a>-I<b>`, `F4` y `F5` (lo mismo que F4, seguridad incluida);
+  rechaza `Ref: I<n>` con hallazgos propios abiertos y el cuarto incremento sin hito.
   **Todo lo revisable se escribe antes del PASA**; después, solo registros. La aprobación
   humana es otra cosa: la da la persona en el gate.
 - **Reporte breve y exacto:** veredicto, bloqueantes con fila lista, ≤5 sugerencias,

@@ -97,8 +97,8 @@
 - [ ] **Registros del cierre** (todos fuera de la huella): `docs/estado.md` regenerado
   (fase, `C#` con alias y estado, hallazgos abiertos, **pendiente** y próximo paso);
   hallazgos `verificado` archivados en el Histórico de `docs/trazabilidad.md`; **línea de
-  consumo** en `docs/MEMORIA.md` §Consumo (`scripts/consumo.py`; ver
-  `docs/convenciones.md` §Contexto); lecciones y obstáculos en `docs/MEMORIA.md`. La
+  consumo** en `docs/MEMORIA.md` §Consumo (`scripts/consumo.py`; formato en
+  `.claude/skills/dirigiendo-revisiones/SKILL.md` paso 8b); lecciones y obstáculos en `docs/MEMORIA.md`. La
   bitácora de `docs/plan.md` **no se toca aquí**: su línea del incremento se escribió y
   colapsó, y su casilla pasó a `- [x]`, antes de pedir el PASA. El `commit-msg` exige ambas
   cosas (casilla y `estado.md` en el commit) para `Ref: I#`.

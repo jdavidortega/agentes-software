@@ -96,6 +96,9 @@ el incremento y el rango del diff:
 
 ## Notas / trampas
 
+- **Recibo de un hito:** lleva `cubre=`, `excluye=` y `componentes=`. **Al escribirlo**, su
+  gramática (qué criterio va en cada lista, partición del encuadre, rango) está en la cabecera de
+  `scripts/recibos.sh` §HITO.
 - **En el conjunto (hito / Fase 4)** la pregunta central es de composición: ¿qué
   invariante de un módulo deja de valer cuando otro falla o cuando ambos corren juntos?
   Orden de efectos, encadenamientos transitivos, simetrías a medio cubrir: no se

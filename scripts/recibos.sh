@@ -26,6 +26,18 @@
 #                                              y su huella, `sh scripts/huella.sh evidencia <carpeta>`)
 # Relaciones: PASA ⇒ bloqueantes=0; FALLA ⇒ bloqueantes≥1; rol↔tipo↔alcance coherentes.
 #
+# HITO (rol=juez-conjunto tipo=hito alcance=hito:I<a>-I<b>; fuente canónica de esta gramática):
+#   cubre=C<n>[,C<n>…]               los criterios CONSTRUIDOS: todo incremento de su fila de Cobertura
+#                                     (docs/trazabilidad.md) ya tiene su commit `Ref: I`. Nunca vacío ni
+#                                     «ninguno».
+#   excluye=ninguno | C<n>[,C<n>…]   solo criterios de incrementos futuros («ninguno» si no hay).
+#   componentes=<..>                 lo ensamblado que se revisó.
+#   Ambas listas: forma cerrada (sin vacíos ni mezclas), criterios que existen en el encuadre, sin
+#   repetir y disjuntas; entre las dos PARTEN los criterios del encuadre. El rango I<a>..I<b> incluye
+#   todo incremento cerrado desde el hito anterior y cada uno tiene ya su commit. Lo comprueba el
+#   commit-msg al commitear `Ref: hito:I<a>-I<b>`. Ejemplo: C1..C3 construidos en I1..I3, C4 en I4
+#   aún sin commit → `cubre=C1,C2,C3 excluye=C4`.
+#
 # CONTRATO DE RECIBOS (marcador): la línea exacta `# contrato-recibos: 2` (puede seguirle texto) es la
 # frontera. Es ÚNICA. Todo recibo POSTERIOR declara modalidad=, filtro= y aislamiento=; los anteriores
 # son históricos. SIN marcador, todo recibo los declara (estricto por defecto): un registro de una

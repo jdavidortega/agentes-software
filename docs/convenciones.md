@@ -36,17 +36,12 @@ Verificados contra la doc oficial actual de cada herramienta. -->
 
   | Ruta | Propósito | Cómo se reproduce |
   |------|-----------|-------------------|
-- **`scripts/huella.sh`** — dos huellas: **vigencia** (lo revisable: todo salvo los
-  registros `revisiones.log`, `revisiones/` (evidencia), `trazabilidad.md`, `estado.md`, `MEMORIA.md`), que el revisor
-  pone en su recibo y `commit-msg` exige igual a la del índice en `Ref: I<n>`, `hito`, `F2`,
-  `F4` y `F5`; e **integridad** (árbol completo), que el principal toma antes y después de
-  cada revisor para detectar si escribió algo. `huella.sh commit <sha>` da la vigencia de un
-  commit del historial (así se comprueba que el recibo de un hito es real).
-- **`scripts/check_docs.sh`** — integridad del rastro documental (viene con la
-  plantilla). El `pre-commit` lo corre sobre la exportación del índice; el `commit-msg`
-  corre el modo `cierre` cuando el trailer es `Ref: F4|F5`; y el agente lo corre **a mano
-  al inicio de cada sesión** (`sh scripts/check_docs.sh`), que es cuando también verifica
-  que los hooks están activos y son ejecutables.
+- **`scripts/huella.sh`** — huella de **vigencia** (lo revisable; va en el recibo y el
+  `commit-msg` la exige igual a la del índice) e **integridad** (árbol completo; el principal la
+  toma antes y después de cada revisor). Qué excluye y sus modos: cabecera del script.
+- **`scripts/check_docs.sh`** — integridad del rastro documental. El agente lo corre **a mano al
+  inicio de cada sesión** (verifica también que los hooks están activos y son ejecutables); el
+  `pre-commit` y el `commit-msg` (modo `cierre` con `Ref: F4|F5`) lo corren solos.
 
 ## Identificadores y alias
 
@@ -91,24 +86,16 @@ de un requerimiento tiene que poder hacerse leyendo, no descifrando.
 - **`estado.md` en cada parada:** además de los cierres, se regenera al terminar una
   sesión, al dejar un gate pendiente o al quedar bloqueado, con la sección «Pendiente»
   en frases completas. Es lo único que se escribe fuera de los momentos fijos.
-- **Hito:** tres incrementos cerrados desde el último hito, o el momento previo a un
-  despliegue. **Mecanizado, con un solo significado:** un hito ES un commit
-  `Ref: hito:I<a>-I<b>` (recibo del juez de conjunto —y de seguridad si la requiere— con la
-  huella de ese commit; el rango existe en el plan y cada incremento del rango ya tiene su
-  commit `Ref: I`). El `commit-msg` cuenta los commits `Ref: I<k>` distintos desde el último
-  commit de hito y rechaza el cuarto: un recibo de hito suelto en el log no cuenta.
-  El rango incluye **todo** incremento cerrado desde el hito anterior (un hito parcial o
-  sin incrementos nuevos no reinicia el contador). `cubre=` y `excluye=` son conjuntos de
-  criterios existentes con forma cerrada (`cubre=C1,C2`; `excluye=` es `ninguno` **o** una
-  lista, sin vacíos ni mezclas), disjuntos y sin repeticiones, que **parten** el encuadre:
-  `cubre=` no es vacío ni `ninguno`; un criterio construido (cada incremento de su fila de
-  Cobertura tiene commit) va en `cubre=`; `excluye=` es solo lo futuro (`ninguno` si no hay).
-  El plan tiene una sola gramática de incremento, `- [ ] I<n> «alias» — …` (o `- [x]`): una
-  casilla con `I<n>` en otra forma es error; la casilla se marca `[x]` al cerrar **cada**
-  incremento (el `commit-msg` lo exige en `Ref: I<n>`), y al cierre ningún `- [ ]` queda
-  fuera del backlog. Lo que no se renderiza (comentarios `<!-- -->`, bloques cercados) no es plan. En cada
-  hito: pasada del juez de conjunto sobre lo ensamblado, síntesis de `docs/MEMORIA.md` §Lo
-  crítico, mutation testing informativo si hay camino crítico.
+- **Hito:** tres incrementos cerrados desde el último hito, o antes de un despliegue. Es un
+  commit `Ref: hito:I<a>-I<b>` con recibo del juez de conjunto (y de seguridad si la requiere);
+  el `commit-msg` rechaza el cuarto incremento sin él. En cada hito: pasada del juez de conjunto
+  sobre lo ensamblado, síntesis de `docs/MEMORIA.md` §Lo crítico y mutation testing informativo si
+  hay camino crítico. **Al pedir o registrar el recibo del hito**, la gramática de `cubre=`,
+  `excluye=`, `componentes=` y del rango está en la cabecera de `scripts/recibos.sh` §HITO.
+- **Plan:** un incremento es `- [ ] I<n> «alias» — …` (o `- [x]`); la casilla pasa a `[x]` al
+  cerrar **cada** incremento (el `commit-msg` lo exige) y al cierre ningún `- [ ]` queda fuera del
+  backlog. Gramática completa (comentarios, cercos, formas rechazadas): `scripts/check_docs.sh`,
+  «Lector ÚNICO del plan».
 - **Momentos de compactación (fijos, no a criterio):** al cierre de **cada incremento**
   (la bitácora del incremento se colapsa a una línea y su casilla pasa a `[x]` **antes** de
   pedir la revisión final,
@@ -123,14 +110,9 @@ de un requerimiento tiene que poder hacerse leyendo, no descifrando.
   la fase actual. Compactar no es truncar: es reescribir corto sin perder lo que decide.
 - **Señal de poda adicional:** un documento vivo con más de ~2 páginas de contenido
   operativo se compacta en el siguiente cierre, sin esperar la fase.
-- **Consumo por rebanada (no invasivo: una línea):** al cierre de cada incremento y de
-  cada fase, corre `python3 scripts/consumo.py` (acumulado por modelo desde los
-  transcripts locales) y registra **una línea** en `docs/MEMORIA.md` §Consumo (fuera de
-  la huella: se escribe **después** del PASA sin caducar el recibo):
-  `Consumo I5 «alias»: +X entrada / +Y salida (acum X'/Y')` — el delta se calcula contra
-  la línea anterior. La retro de F5 arma la tabla por fase y la **evalúa**: es el dato
-  que detecta sobredimensionamiento del método, no ceremonia. Si el script falla
-  (formato interno cambió), regístralo con `/usage` y anota el hallazgo.
+- **Consumo por rebanada:** al cierre de cada incremento y de cada fase, una línea en
+  `docs/MEMORIA.md` §Consumo con `python3 scripts/consumo.py` (formato y qué hacer si falla:
+  `dirigiendo-revisiones` paso 8b). La retro de F5 la evalúa: detecta sobredimensionamiento.
 - **Presupuesto de escritura (la ventana de contexto es finita y la calidad cae antes
   de llenarla):** todo lo que el agente escribe lo volverá a leer él mismo, muchas veces,
   en sesiones futuras. Topes que se respetan salvo razón escrita: reporte de revisión
@@ -272,23 +254,12 @@ revertir) vive en docs/despliegue.md. -->
   un archivo que cambió; la huella y los hooks se calcularían sobre contenido viejo. El
   `pre-commit`, `huella.sh` y el doctor los rechazan; si aparecen, `git update-index
   --no-assume-unchanged / --no-skip-worktree <archivo>`.
-- **Trunk-based:** se trabaja sobre la rama principal, con commits pequeños y
-  enlazados; una rama solo si la persona la pide (experimento, cambio grande), no por
-  defecto. Con **remoto compartido**, `scripts/check.sh` se cablea además en un **CI
-  mínimo** (se decide en el diseño): los hooks locales se pueden esquivar
-  (`--no-verify`); el CI no. El CI corre también `sh scripts/check_docs.sh`,
-  `sh scripts/pruebas/validar_historial.sh origin/main..HEAD` (el contrato de los hooks
-  reejecutado sobre cada commit nuevo: así un `--no-verify` local falla en el remoto) y
-  `sh scripts/pruebas/regresion.sh` y `regresion-adopcion.sh` (la regresión de los propios hooks y de la adopción, sin red ni
-  credenciales). `.github/workflows/metodo.yml` trae exactamente eso para GitHub Actions
-  con la política de rango explícita (push: `before..after`; rama nueva: desde la base con
-  la rama por defecto; PR: los commits reales de la rama, nunca el merge sintético); en
-  otro CI se copian esos comandos y esa política. **Merges:** uno limpio (árbol igual a
-  la fusión automática de sus dos padres) no lleva trailer; si al fusionar se resuelve un
-  conflicto o se añade algo, ese contenido es nuevo: trailer y, si toca código, `Ref: I<n>`
-  con recibo sobre la huella del merge. Lo decide el `commit-msg`, en local y en el replay. Las guardas de contenido
-  (secretos, append-only, registros y suite que no desaparecen) son **una sola
-  implementación**, `scripts/guardas.sh`, que usan el `pre-commit` y el replay.
+- **Trunk-based:** rama principal, commits pequeños y enlazados; una rama solo si la persona la
+  pide. Con **remoto compartido**, CI mínimo (se decide en el diseño): los hooks locales se
+  esquivan con `--no-verify`, el CI no. **Al montar el CI**: la política de rango de commits está en la
+  cabecera de `.github/workflows/metodo.yml` y los comandos, en sus pasos (`steps`); en otro CI se
+  copian ambos. Un merge limpio no lleva trailer; lo que se añade al fusionar es contenido nuevo
+  (cabecera del `commit-msg`, texto «MERGE LIMPIO»). Las guardas de contenido son una sola, `scripts/guardas.sh`.
 - **Base del método (solo proyectos adoptados, `docs/arranque-existente.md`):** el Paso 0
   añade aquí una línea `- **Base del método:** <sha>` con el **último commit previo a la
   adopción**. `validar_historial.sh` resta lo alcanzable desde ahí: el historial anterior no
@@ -318,34 +289,22 @@ revertir) vive en docs/despliegue.md. -->
   Con el trailer, `git log --oneline` queda como índice legible y
   `git log --grep="Cierra: R-I9.1"` recupera cualquier cierre puntual. Git es
   **archivo**, no contexto de trabajo: la operación diaria no lo relee.
-- **Enlaza** cada commit a lo que resuelve, en el footer: `Ref: F#` (cierre de fase:
-  `F1` encuadre, `F2` plan, `F4` validación, `F5` cierre), `Ref: I3` (incremento de la
-  Fase 3), `Ref: hito:I1-I3` (registros de un hito: recibo del juez de conjunto y síntesis),
-  `Cierra: R-I3.1` (hallazgo del juez), `Cierra: R-S3.1` (seguridad),
-  `Cierra: R-F4.1` (juez de conjunto) o `Cierra: R-E.1` (vacío del revisor funcional,
-  si su resolución amerita commit propio). Es la trazabilidad en el
-  historial (ver `docs/trazabilidad.md`). **Transiciones:** ningún hallazgo con fila o entrada
-  del Histórico en HEAD desaparece, y una fila que pasa a `resuelto` o `verificado` lleva en
-  «Resuelto» una referencia que **resuelve** (ruta `archivo:línea` del índice o commit del
-  historial); que **demuestre** la resolución lo juzga el revisor. **Qué entra sin `Ref: I<n>`:** solo el rastro
-  (`docs/`, `contexto/`, `mejoras/`), la plantilla (`.claude/`, `.codex/`, `.githooks/`, `.github/`,
-  `scripts/check_docs.sh|adoptar.sh|huella.sh|recibos.sh|trazabilidad.sh|guardas.sh|consumo.py|check.sh`, `scripts/pruebas/`) y la
-  configuración del repo (`README.md`, `AGENTS.md`, `.gitignore`…). Todo lo demás es código
-  del producto: `Ref: I<n>` y recibo del juez, siempre; un `Cierra:` solo o un `Ref: F#` con
-  código se rechaza. Ampliar esa lista (`SIN_REVISION` en el hook) es un ADR.
+- **Enlaza** cada commit en el footer con la gramática cerrada de la cabecera del
+  `commit-msg`: `Ref: F1|F2|F4|F5`, `Ref: I<n>`, `Ref: hito:I<a>-I<b>`, `Cierra: R-<ID>` (familias
+  de IDs: `docs/trazabilidad.md` §IDs). **Transiciones:** ningún hallazgo con fila o entrada del
+  Histórico en HEAD desaparece, y una fila que pasa a `resuelto` o `verificado` lleva en «Resuelto»
+  una referencia que **resuelve** (ruta `archivo:línea` del índice o commit del historial); que
+  **demuestre** la resolución lo juzga el revisor. **El código del producto** —todo lo que no es
+  rastro, plantilla ni configuración: lista `SIN_REVISION` del `commit-msg`— entra solo con
+  `Ref: I<n>` y recibo del juez; ampliar esa lista es un ADR.
 
 ## Revisores y sandbox
 
 - **Por defecto:** filtro preventivo de revisores (`.claude/hooks/guarda-revisor.py`) y
   modalidades de escritura según `.claude/skills/dirigiendo-revisiones/SKILL.md`. No es frontera.
-- **Sandbox de Bash (opcional, por proyecto; no se activa por defecto):** restringe a nivel del
-  sistema operativo dónde escriben los comandos de shell y sus procesos hijos, en **toda la
-  sesión** (también el principal) y también la red. No cubre herramientas de archivos, hooks ni
-  MCP. Se configura en `.claude/settings.json` (documentación oficial: «Sandboxing»), p. ej.
-  `{"sandbox": {"enabled": true, "allowUnsandboxedCommands": false, "filesystem": {"allowWrite": ["<dir>"]}}}`.
-  Por defecto ya permite escribir en el directorio de trabajo y en un temporal por usuario.
-  Activarlo es decisión del proyecto (ADR), con prueba de que una escritura no permitida se
-  niega antes de declararlo `verificado` en un informe.
+- **Sandbox de Bash** (opcional, por proyecto; ADR): la única restricción efectiva de escritura
+  y red para los comandos de shell, en toda la sesión. **Antes de activarlo o de declararlo en
+  un informe**: alcance, configuración y cómo verificarlo en `dirigiendo-revisiones` §Modalidades.
 
 ## Pruebas
 - **Herméticas:** sin dependencia de `.env` real ni de servicios externos; inyectar

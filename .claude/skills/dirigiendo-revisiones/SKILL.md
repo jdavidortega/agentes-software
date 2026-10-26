@@ -94,7 +94,10 @@ allowed-tools: Read, Grep, Glob, Bash
    inventario) y **límites**; sin aislamiento verificado: «no se garantiza la ausencia de
    escrituras fuera del repositorio». No va a la bitácora (`plan.md` está en la huella).
 8b. **Rutea los obstáculos a `docs/MEMORIA.md`** (sección «Operativa») y la línea de
-   consumo a `MEMORIA.md` §Consumo: comandos, flags, workarounds, tokens. Su promoción a `docs/convenciones.md` va en el **siguiente** incremento,
+   consumo a `MEMORIA.md` §Consumo: `python3 scripts/consumo.py` (acumulado por modelo desde los
+   transcripts locales) y una línea `Consumo I5 «alias»: +X entrada / +Y salida (acum X'/Y')`,
+   delta contra la anterior; si el script falla, regístralo con `/usage` y anota el hallazgo.
+   Obstáculos: comandos, flags, workarounds. Su promoción a `docs/convenciones.md` va en el **siguiente** incremento,
    porque `convenciones.md` sí es contenido revisado y cambiarlo ahora invalidaría el
    recibo.
 9. Con **FALLA**: resuelve los bloqueantes como subtareas, deja en cada fila la mutación
@@ -125,11 +128,14 @@ allowed-tools: Read, Grep, Glob, Bash
   confianza de la carpeta; por eso se **comprueba** con el canario, no se presume.
 - **Directorio autorizado** (experimentos): **delimita la autorización**; sin una restricción
   efectiva, no impide escribir fuera.
-- **Sandbox de Bash** (opcional por proyecto, `docs/convenciones.md` §Revisores y sandbox): la
+- **Sandbox de Bash** (opcional por proyecto, decisión con ADR): la
   única restricción efectiva, aplicada por el sistema operativo a los comandos de shell y sus
   procesos hijos; es de **toda la sesión** (principal incluido) y no cubre herramientas de
-  archivos, hooks ni MCP. «Sandbox configurado» no equivale a «ejecución aislada»: solo se
-  declara `verificado` si una escritura fuera de lo permitido se intentó y el sistema la negó.
+  archivos, hooks ni MCP. Se configura en `.claude/settings.json` (documentación oficial:
+  «Sandboxing»), p. ej. `{"sandbox": {"enabled": true, "allowUnsandboxedCommands": false,
+  "filesystem": {"allowWrite": ["<dir>"]}}}`; por defecto ya permite escribir en el directorio de
+  trabajo y en un temporal por usuario. «Sandbox configurado» no equivale a «ejecución aislada»:
+  solo se declara `verificado` si una escritura fuera de lo permitido se intentó y el sistema la negó.
 - **Suites:** `PYTHONDONTWRITEBYTECODE=1` (o el equivalente del stack) evita el bytecode, no
   garantiza una suite sin escrituras; una suite que genera temporales, bases o informes va en
   modalidad **experimentos**.
@@ -146,7 +152,8 @@ allowed-tools: Read, Grep, Glob, Bash
   commit** (`Ref: hito:I<a>-I<b>`: recibo del juez de conjunto —y de seguridad si la
   requiere— con la huella de ese commit, más la síntesis de `MEMORIA.md`), hecho después
   de los commits `Ref: I` que cubre. Un recibo de hito suelto en el log no cuenta para el
-  contador; solo el commit.
+  contador; solo el commit. Gramática de `cubre=`/`excluye=`/`componentes=`: cabecera de
+  `scripts/recibos.sh` §HITO.
 - **Un incremento no cierra con sus hallazgos abiertos:** `Ref: I<n>` se rechaza mientras
   algún `R-I<n>.*` o `R-S<n>.*` siga `abierto`; `resuelto` (con su mutación escrita) basta
   para el commit, `verificado` es condición de salida de la fase. Y el código solo entra

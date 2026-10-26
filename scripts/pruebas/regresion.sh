@@ -1297,6 +1297,66 @@ espera falla "experimentos: destino con variable no se da por permitido" "destin
 espera falla "experimentos: escritura dentro de \$( ) no se interpreta y se rechaza" "no interpreta" -- gr juez-conjunto "echo \$(touch $GW/aut/f)"
 espera falla "experimentos: git commit en el proyecto se rechaza aunque otro tramo nombre el autorizado" "git → $GW" -- gr juez-conjunto "git commit -m x; ls $GW/aut"
 
+# T4 (ronda 11): destinos entre comillas, opciones globales de git, mv con origen, destino indeterminable.
+F="$W/fuera4"; mkdir -p "$F"
+espera falla "experimentos: touch con destino entre comillas fuera del autorizado se rechaza" "touch → $F/archivo" -- gr juez-codigo "touch \"$F/archivo\""
+espera falla "experimentos: cp con origen y destino entre comillas simples se rechaza" "cp → $F/b" -- gr juez-codigo "cp '$F/a' '$F/b'"
+espera falla "experimentos: mv de un origen externo al autorizado se rechaza (el origen se modifica)" "mv → $F/origen" -- gr juez-codigo "mv $F/origen $GW/aut/destino"
+espera falla "experimentos: git -C <fuera> add se rechaza" "git → $F" -- gr juez-codigo "git -C $F add archivo"
+espera falla "experimentos: git -c clave=valor commit en el proyecto se rechaza" "git → $GW" -- gr juez-codigo "git -c user.name=x commit -m y"
+espera falla "experimentos: git --git-dir con un subcomando que escribe es destino desconocido" "destino desconocido" -- gr juez-codigo "git --git-dir=$GW/aut/.git --work-tree=$GW/aut add x"
+espera falla "experimentos: destino \$( ) entre comillas no se da por permitido" "no interpreta|destino desconocido" -- gr juez-codigo "touch \"\$(echo $F)/x\""
+espera falla "experimentos: env rm (envoltorio) se juzga por su destino" "rm → $F/x" -- gr juez-codigo "env LC_ALL=C rm $F/x"
+espera falla "experimentos: cd dentro de ( ) no cambia el directorio de fuera" "touch → $GW/x" -- gr juez-codigo "(cd $GW/aut && touch a) ; touch x"
+espera falla "experimentos: una línea nueva separa tramos (cd y escritura)" "touch → $GW/y" -- gr juez-codigo "cd $GW
+touch y"
+espera falla "experimentos: una palabra de escritura sin destino ubicable se rechaza" "destino indeterminable|destino desconocido" -- gr juez-codigo "echo rm x"
+espera pasa "experimentos (control): touch con destino entre comillas dentro del autorizado pasa" "" -- gr juez-codigo "touch \"$GW/aut/ok\""
+espera pasa "experimentos (control): mv dentro del autorizado pasa" "" -- gr juez-codigo "mv $GW/aut/a $GW/aut/b"
+espera pasa "experimentos (control): git -C <autorizado> init pasa" "" -- gr juez-codigo "git -C $GW/aut init -q"
+espera pasa "experimentos (control): leer con git -C fuera (log) pasa" "" -- gr juez-codigo "git -C $F log --oneline -3"
+espera pasa "experimentos (control): grep de 'rm -rf' entre comillas es lectura" "" -- gr juez-codigo 'grep -rn "rm -rf" docs'
+espera pasa "experimentos (control): redirección 2>&1 y > /dev/null no son escrituras" "" -- gr juez-codigo 'sh scripts/check.sh 2>&1 | tail -3 > /dev/null'
+# Segunda pasada de T4: destinos explícitos de git, incertidumbre por tramo, cd según operador.
+mkdir -p "$GW/aut"
+espera falla "experimentos: git -C <D> init <fuera>/repo se rechaza" "git → $F/repo" -- gr juez-codigo "git -C $GW/aut init $F/repo"
+espera falla "experimentos: git -C <D> config --file <fuera> se rechaza" "git → $F/config" -- gr juez-codigo "git -C $GW/aut config --file $F/config a.b c"
+espera falla "experimentos: git config --global es destino desconocido" "destino desconocido" -- gr juez-codigo "git -C $GW/aut config --global a.b c"
+espera falla "experimentos: git archive -o <fuera> se rechaza" "git → $F/x.tar" -- gr juez-codigo "git -C $GW/aut archive -o $F/x.tar HEAD"
+espera pasa "experimentos (control): git -C <D> init <D>/sub pasa" "" -- gr juez-codigo "git -C $GW/aut init -q $GW/aut/sub"
+espera falla "experimentos: una escritura permitida no oculta otra indeterminable en otro tramo" "touch → (destino desconocido|$F/x)" -- gr juez-codigo "touch $GW/aut/ok; env -u VARIABLE touch $F/x"
+espera falla "experimentos: tras un envoltorio desconocido (flock), la escritura de ese tramo es desconocida aunque otro tramo esté permitido" "touch → destino desconocido" -- gr juez-codigo "touch $GW/aut/ok; flock $F/lock touch $F/x"
+espera pasa "experimentos (control): env -u VAR touch <D> pasa (la opción consume su argumento)" "" -- gr juez-codigo "env -u VARIABLE touch $GW/aut/ok"
+espera falla "experimentos: env -C cambia el directorio: escritura relativa con destino desconocido" "destino desconocido" -- gr juez-codigo "env -C $F touch x"
+espera falla "experimentos: cd en una tubería no cambia el directorio de fuera" "touch → $GW/x" -- gr juez-codigo "cd $GW/aut | cat; touch x"
+espera falla "experimentos: cd a un directorio inexistente con ; deja el directorio incierto" "destino desconocido" -- gr juez-codigo "cd $GW/aut/inexistente; touch x"
+espera falla "experimentos: cd X || escritura: corre si el cd falló, directorio incierto" "destino desconocido" -- gr juez-codigo "cd $GW/aut || touch x"
+espera pasa "experimentos (control): cd <D existente>; touch relativo pasa" "" -- gr juez-codigo "cd $GW/aut; touch z"
+espera pasa "experimentos (control): cd <D> && touch relativo pasa aunque <D>/nuevo aún no exista" "" -- gr juez-codigo "mkdir -p $GW/aut/nuevo && cd $GW/aut/nuevo && touch z"
+# Tercera pasada de T4: opciones de git con su aridad; el camino de fallo de un cd encadenado con &&.
+espera falla "experimentos: git clone --branch <rama> consume el valor y ve el destino de fuera" "git → $F/clon" -- gr juez-codigo "git -C $GW/aut clone -q --branch main $GW/aut/origen $F/clon"
+espera falla "experimentos: git worktree add -b <rama> consume el valor y ve el destino de fuera" "git → $F/arbol" -- gr juez-codigo "git -C $GW/aut/origen worktree add -b rama $F/arbol"
+espera falla "experimentos: git clone con una opción desconocida deja el destino desconocido" "destino desconocido" -- gr juez-codigo "git -C $GW/aut clone --opcion-rara x $GW/aut/o $GW/aut/c"
+espera pasa "experimentos (control): git clone --branch dentro del autorizado pasa" "" -- gr juez-codigo "git -C $GW/aut clone -q --branch main $GW/aut/origen $GW/aut/clon"
+espera pasa "experimentos (control): git worktree add -b dentro del autorizado pasa" "" -- gr juez-codigo "git -C $GW/aut/origen worktree add -b rama $GW/aut/arbol"
+espera falla "experimentos: cd <inexistente> && …; escritura: si el cd falla, lo de después corre fuera" "destino desconocido" -- gr juez-codigo "cd $GW/aut/no-existe && true; touch x"
+espera falla "experimentos: cd <inexistente> && … || escritura: el camino de fallo corre fuera" "destino desconocido" -- gr juez-codigo "cd $GW/aut/no-existe && true || touch x"
+espera pasa "experimentos (control): cd <D existente> && …; escritura relativa pasa" "" -- gr juez-codigo "cd $GW/aut && true; touch z"
+# Cuarta pasada de T4: opción de valor opcional (--shared) y operadores contiguos (`);`).
+espera falla "experimentos: git init --shared no consume el destino de fuera" "git → $F/repo2" -- gr juez-codigo "git -C $GW/aut init --shared $F/repo2"
+espera pasa "experimentos (control): git init --shared=group dentro pasa" "" -- gr juez-codigo "git -C $GW/aut init --shared=group $GW/aut/r"
+espera falla "experimentos: (cd <D> && …); escritura relativa: el ) pegado al ; restaura el directorio" "touch → $GW/externo" -- gr juez-codigo "(cd $GW/aut && touch interno); touch externo"
+espera falla "experimentos: (cd <D>)&&escritura relativa: el ) pegado al && restaura el directorio" "touch → $GW/y" -- gr juez-codigo "(cd $GW/aut)&&touch y"
+espera pasa "experimentos (control): (cd <D> && touch interno); touch <D>/x pasa" "" -- gr juez-codigo "(cd $GW/aut && touch interno); touch $GW/aut/x"
+rm -f "$GW/.git/revision-modalidad"
+espera falla "lectura: git -C <otro> commit se rechaza" "git" -- gr juez-codigo "git -C $F commit -m x"
+espera falla "lectura: git -c clave=valor commit se rechaza" "git" -- gr juez-codigo "git -c user.name=x commit -m y"
+espera falla "lectura: touch con destino entre comillas se rechaza" "touch" -- gr juez-codigo "touch \"$F/x\""
+espera falla "lectura: sh -c con una escritura en su texto se rechaza" "no interpreta" -- gr juez-codigo "sh -c 'touch $F/x'"
+espera pasa "lectura (control): git -C <otro> log pasa" "" -- gr juez-codigo "git -C $F log --oneline -3"
+espera pasa "lectura (control): grep con palabras de escritura entre comillas pasa" "" -- gr juez-codigo 'grep -rn "git commit; rm -rf x > y" docs'
+espera pasa "lectura (límite declarado): python3 -c que abre un archivo no se ve" "" -- gr juez-codigo "python3 -c 'print(1)'"
+
 # --- Captura de búsquedas (scripts/buscar.sh): lee con git grep contra un commit y escribe
 # evidencia append-only; nunca guarda contenido ni toca archivos sensibles.
 echo "== captura de búsquedas (buscar.sh)"

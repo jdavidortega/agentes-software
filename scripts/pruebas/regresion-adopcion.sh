@@ -516,6 +516,34 @@ incompleto "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica; sin_hooks 
 Ref: F1"
 espera falla "adoptado y migrado: un recibo incompleto colado lo rechaza el replay" "sin modalidad=" -- replay "$D" HEAD~1..HEAD
 
+echo "== adoptado: el filtro de revisores instalado juzga cada escritura por su destino"
+GI="$W/etapas/instalado"; GA="$W/filtro-aut"; GF="$W/filtro-fuera"; mkdir -p "$GA" "$GF"
+grA() {  # grA <modalidad|''> <comando>: el hook que trae la instalación, como revisor
+  if [ -n "$1" ]; then printf '%s\n' "$1" > "$GI/.git/revision-modalidad"; else rm -f "$GI/.git/revision-modalidad"; fi
+  python3 -c 'import json,sys; print(json.dumps({"agent_type":"juez-codigo","tool_name":"Bash","tool_input":{"command":sys.argv[1]},"cwd":sys.argv[2]}))' "$2" "$GI" \
+    | CLAUDE_PROJECT_DIR="$GI" python3 "$GI/.claude/hooks/guarda-revisor.py"
+}
+espera falla "adoptado: experimentos: git -C <fuera> add se rechaza" "git → $GF" -- grA "experimentos $GA" "git -C $GF add x"
+espera falla "adoptado: experimentos: touch con destino entre comillas fuera se rechaza" "touch → $GF/x" -- grA "experimentos $GA" "touch \"$GF/x\""
+espera pasa "adoptado: experimentos (control): touch entre comillas dentro del autorizado pasa" "" -- grA "experimentos $GA" "touch \"$GA/ok\""
+espera falla "adoptado: lectura: git -c clave=valor commit se rechaza" "git" -- grA "" "git -c user.name=x commit -m y"
+espera pasa "adoptado: lectura (control): git -C <otro> log pasa" "" -- grA "" "git -C $GF log --oneline -1"
+espera falla "adoptado: git -C <D> init <fuera>/repo se rechaza" "git → $GF/repo" -- grA "experimentos $GA" "git -C $GA init $GF/repo"
+espera falla "adoptado: una escritura permitida no oculta otra indeterminable" "touch → (destino desconocido|$GF/x)" -- grA "experimentos $GA" "touch $GA/ok; env -u V touch $GF/x"
+espera falla "adoptado: cd en una tubería no cambia el directorio de fuera" "touch → $GI/x" -- grA "experimentos $GA" "cd $GA | cat; touch x"
+espera falla "adoptado: cd a un inexistente con ; deja el directorio incierto" "destino desconocido" -- grA "experimentos $GA" "cd $GA/inexistente; touch x"
+espera pasa "adoptado (control): cd <D>; touch relativo pasa" "" -- grA "experimentos $GA" "cd $GA; touch z"
+espera falla "adoptado: git clone --branch consume el valor y ve el destino de fuera" "git → $GF/clon" -- grA "experimentos $GA" "git -C $GA clone -q --branch main $GA/origen $GF/clon"
+espera falla "adoptado: git worktree add -b consume el valor y ve el destino de fuera" "git → $GF/arbol" -- grA "experimentos $GA" "git -C $GA/origen worktree add -b rama $GF/arbol"
+espera pasa "adoptado (control): git clone --branch dentro pasa" "" -- grA "experimentos $GA" "git -C $GA clone -q --branch main $GA/origen $GA/clon"
+espera falla "adoptado: cd <inexistente> && …; escritura se rechaza" "destino desconocido" -- grA "experimentos $GA" "cd $GA/no-existe && true; touch x"
+espera falla "adoptado: cd <inexistente> && … || escritura se rechaza" "destino desconocido" -- grA "experimentos $GA" "cd $GA/no-existe && true || touch x"
+espera pasa "adoptado (control): cd <D> && touch relativo pasa" "" -- grA "experimentos $GA" "cd $GA && touch z"
+espera falla "adoptado: git init --shared no consume el destino de fuera" "git → $GF/repo2" -- grA "experimentos $GA" "git -C $GA init --shared $GF/repo2"
+espera falla "adoptado: (cd <D> && …); escritura relativa se juzga fuera" "touch → $GI/externo" -- grA "experimentos $GA" "(cd $GA && touch interno); touch externo"
+espera pasa "adoptado (control): (cd <D> && touch interno); touch <D>/x pasa" "" -- grA "experimentos $GA" "(cd $GA && touch interno); touch $GA/x"
+rm -f "$GI/.git/revision-modalidad"
+
 echo
 echo "regresion-adopcion: $((TOTAL-MAL))/$TOTAL casos en verde"
 if [ "$MAL" -gt 0 ]; then echo "FALLARON:$FALLIDOS"; exit 1; fi

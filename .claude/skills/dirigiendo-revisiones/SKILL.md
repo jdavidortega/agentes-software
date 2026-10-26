@@ -112,10 +112,15 @@ allowed-tools: Read, Grep, Glob, Bash
 - **Filtro preventivo** (`.claude/hooks/guarda-revisor.py`, hook `PreToolUse` de Bash en
   `.claude/settings.json`; solo actúa sobre los cuatro revisores por `agent_type`): rechaza
   escrituras **evidentes** en el texto del comando según la modalidad. En experimentos juzga
-  **cada escritura por su destino** (tramos del comando, `cd`, redirecciones, argumentos de cada
-  orden): nombrar `<D>` en otro tramo no autoriza nada, y lo que no sabe interpretar (`$( )`,
-  comillas invertidas, `<<`, `eval`, `xargs`, `-c`, `find -exec`) junto a una escritura se
-  rechaza. **Sigue siendo una heurística, no una frontera:** no ve lo que escribe un programa
+  **cada escritura por su destino** (tramos del comando, `cd`, `( )`, redirecciones, argumentos de
+  cada orden, con el contenido de las comillas conservado): nombrar `<D>` en otro tramo no autoriza
+  nada; `mv` cuenta origen y destino; las opciones globales de `git` (`-C`, `-c`, `--git-dir`,
+  `--work-tree`) se leen antes del subcomando y sus destinos explícitos (`init <dir>`, `clone`,
+  `worktree add`, `config --file`, `-o`) cuentan, consumiendo cada opción con su valor (una opción
+  que no conoce deja el destino desconocido); un `cd` solo mueve lo que sigue dentro de su cadena
+  `&&`, o después si el directorio ya existe (en una tubería, no); una escritura cuyo destino no sabe ubicar, en cualquier tramo, se
+  rechaza, y lo que no sabe interpretar (`$( )`, comillas invertidas, `<<`, `eval`, `xargs`, `-c`,
+  `find -exec`) junto a una escritura, también. **Sigue siendo una heurística, no una frontera:** no ve lo que escribe un programa
   lanzado desde el comando (python, git, un script). Solo corre si el proyecto aceptó la
   confianza de la carpeta; por eso se **comprueba** con el canario, no se presume.
 - **Directorio autorizado** (experimentos): **delimita la autorización**; sin una restricción

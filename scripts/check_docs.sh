@@ -216,8 +216,18 @@ printf '%s\n' "$FILAS" | awk '
   ($1=="E" && $4 !~ /^(abierto|resuelto)$/) ||
   ($1=="R" && $4 !~ /^(abierto|resuelto|verificado)$/) { bad=1 } END { exit bad ? 1 : 0 }' || FAIL=1
 
+# Una fila E/R en resuelto|verificado con la celda «Resuelto» vacía (o solo «—») no dice qué la
+# sostiene. Que la referencia RESUELVA (ruta del repositorio, commit del historial) lo comprueba el
+# commit-msg, que tiene índice e historial; que DEMUESTRE la resolución lo juzga el revisor.
+if [ "$INICIADO" -eq 1 ]; then
+  for id in $(printf '%s\n' "$FILAS" | awk '$1 ~ /^(E|R)$/ && $4 ~ /^(resuelto|verificado)$/ {print $2}'); do
+    printf '%s\n' "$FILAS" | awk -v id="$id" '$1=="RES" && $2==id && NF>=3 {f=1} END {exit f?0:1}' \
+      || err "trazabilidad.md: $id está en Estado '$(printf '%s\n' "$FILAS" | awk -v id="$id" '$1 ~ /^(E|R)$/ && $2==id {print $4; exit}')' con la columna Resuelto vacía: escribe qué lo sostiene (ruta archivo:línea de la prueba o mutación, o commit)"
+  done
+fi
+
 # Unicidad: un C# o un hallazgo con dos filas es un registro ambiguo (V04/V10).
-for dup in $(printf '%s\n' "$FILAS" | awk 'NF && $1!="X" && $1!="T" && $1!="HDR" && $1!="NOEST" && $1!="EJ" && $1!="SANGRIA" && $1!="ARIDAD" && $1!="INCR" {print $2}' | sort | uniq -d); do
+for dup in $(printf '%s\n' "$FILAS" | awk '$1 ~ /^(C|E|R|H)$/ {print $2}' | sort | uniq -d); do
   err "trazabilidad.md tiene más de una fila para $dup (tablas o Histórico): un ID se registra una sola vez; una pasada nueva continúa la numeración desde el último, incluido el Histórico"
 done
 
@@ -230,6 +240,18 @@ if has docs/encuadre.md; then
   CRIT=$(grep -oE '^- C[0-9]+:' docs/encuadre.md | grep -oE 'C[0-9]+' | sort -u)
   mal=$(awk '/^[[:space:]]*[-*+][[:space:]]+/ { t=$2; gsub(/[*_`]/,"",t); if (t ~ /^C[0-9]+:?$/ && $0 !~ /^- C[0-9]+:/) print }' docs/encuadre.md | head -2)
   [ -z "$mal" ] || err "encuadre.md: criterio escrito fuera de la gramática '- C<n>: enunciado' (no se inventaría): $(printf '%s' "$mal" | tr '\n' '|' | cut -c1-80)"
+  # Un criterio es UNA línea. Tras `- C<n>:` lo siguiente (saltando blancos) es otro ítem, un
+  # encabezado, un comentario, una tabla o un separador en la columna 1. Una continuación «perezosa»
+  # (sin blanco) o un párrafo SANGRADO tras uno o más blancos pertenecen al ítem en Markdown: el hook
+  # no los compara contra el contrato revisado, así que se rechazan en vez de interpretarlos.
+  cont=$(awk '
+    /^- C[0-9]+:/ { c=1; b=0; next }
+    !c { next }
+    /^[ \t]*$/ { b=1; next }
+    b { if ($0 ~ /^[ \t]/) print NR": "substr($0,1,50); c=0; next }
+    $0 !~ /^([-*+] |#|<!--|\||---)/ { print NR": "substr($0,1,50) }
+    { c=0 }' docs/encuadre.md | head -2)
+  [ -z "$cont" ] || err "encuadre.md: criterio con texto de continuación en la línea $(printf '%s' "$cont" | tr '\n' '|'); un criterio es una sola línea '- C<n>: enunciado' (el commit-msg compara esa línea con el contrato revisado)"
   dups=$(grep -oE '^- C[0-9]+:' docs/encuadre.md | grep -oE 'C[0-9]+' | sort | uniq -d)
   for c in $dups; do err "$c está definido más de una vez en encuadre.md"; done
   if [ "$INICIADO" -eq 1 ]; then
@@ -272,7 +294,7 @@ if has docs/plan.md; then
     err "$i está definido más de una vez en plan.md"
   done
   if [ "$INICIADO" -eq 1 ]; then
-    cited=$( { printf '%s\n' "$FILAS" | awk 'NF{print $3}' | grep -oE 'I[0-9]+' ; \
+    cited=$( { printf '%s\n' "$FILAS" | awk '$1 ~ /^(C|E|R)$/ {print $3}' | grep -oE 'I[0-9]+' ; \
                has docs/estado.md && grep -oE 'incremento activo:[[:space:]]*I[0-9]+' docs/estado.md | grep -oE 'I[0-9]+' ; } \
              | sort -u)
     for i in $cited; do

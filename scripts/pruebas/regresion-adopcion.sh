@@ -35,6 +35,7 @@ espera() {
   { [ "$VERBOSE" = 1 ] || [ "$ok" = 0 ]; } && printf '%s\n' "$out" | sed 's/^/        | /' | head -20
   return 0
 }
+die() { echo "regresion-adopcion: $1" >&2; exit 2; }   # una preparación fallida aborta: nunca sigue en silencio
 en() { d=$1; shift; ( cd "$d" && "$@" ); }
 sin_hooks() { en "$1" git add -A && en "$1" git -c core.hooksPath=/dev/null commit -q --no-verify -m "$2"; }
 commitea() { en "$1" git add -A && en "$1" git -c core.hooksPath=.githooks commit -q -m "$2"; }
@@ -252,6 +253,149 @@ copia instalado r9; printf 'assert 2 + 2 == 4\n' >> "$D/app.py"; sin_hooks "$D" 
 
 Ref: F1"
 espera falla "commit posterior que toca código sin Ref: I<n>: rechazado por el replay" "código fuera del rastro" -- replay "$D" HEAD
+
+echo "== etapa: adoptado en F3 (encuadre revisado, plan aprobado, I1 cerrado)"
+# Los controles comunes se prueban también DESPUÉS de la instalación: mismas utilidades que regresion.sh.
+huella_idx() { en "$1" git add -A >/dev/null 2>&1; en "$1" sh scripts/huella.sh indice; }
+cierra_inc() {  # casilla [x] y una línea en estado.md; idempotente
+  grep -q "^- \[ \] $2 " "$1/docs/plan.md" 2>/dev/null || return 0
+  sed -i.bak "s/^- \[ \] $2 /- [x] $2 /" "$1/docs/plan.md" && rm -f "$1/docs/plan.md.bak"
+  printf -- '- Cerrado %s.\n' "$2" >> "$1/docs/estado.md"
+}
+recibo() {  # recibo <dir> rol tipo alcance veredicto bloqueantes [extra...] → al log con la huella del índice
+  d=$1; rol=$2; tipo=$3; alc=$4; ver=$5; blo=$6; shift 6
+  [ "$rol $tipo" = "juez-codigo incremento" ] && cierra_inc "$d" "$alc"
+  h=$(huella_idx "$d")
+  printf 'fecha=2026-10-22T10:00Z rol=%s tipo=%s alcance=%s veredicto=%s bloqueantes=%s huella=%s ejecutor=regresion %s\n' \
+    "$rol" "$tipo" "$alc" "$ver" "$blo" "$h" "$*" >> "$d/docs/revisiones.log"
+}
+trazabilidad() {  # trazabilidad <dir> "<filas C>" "<filas E>" "<filas R>" ["<histórico>"]
+  {
+    printf '# Trazabilidad\n\n## Cobertura de criterios\n\n| Criterio | Alias | Incremento(s) | Estado | Nota |\n|----------|-------|---------------|--------|------|\n'
+    [ -n "$2" ] && printf '%s\n' "$2"
+    printf '\n## Registro de vacíos del revisor funcional (arranque)\n\n| Vacío | Alias | Punto incumplido | Estado | Resuelto (cómo · AAAA-MM-DD HH:MM UTC) |\n|-------|-------|------------------|--------|----------------------------------------|\n'
+    [ -n "$3" ] && printf '%s\n' "$3"
+    printf '\n## Registro de revisiones del juez\n\n| Hallazgo | Alias | Incr. | Criterio | Descripción | Estado | Resuelto (AAAA-MM-DD HH:MM UTC · commit) |\n|----------|-------|-------|----------|-------------|--------|------------------------------------------|\n'
+    [ -n "$4" ] && printf '%s\n' "$4"
+    printf '\n## Histórico (compactado)\n\n'
+    [ -n "${5:-}" ] && printf '%s\n' "$5"
+  } > "$1/docs/trazabilidad.md"
+}
+C1A='| C1 | «arranca» | I1 | pendiente | |'
+siembra_f2() {  # documentos mínimos de un plan aprobado sobre el proyecto adoptado
+  printf '# AGENTS.md\n\nProyecto adoptado (regresión). Ver docs/.\n' > "$1/AGENTS.md"
+  printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: app.py termina sin error (comportamiento que se conserva).\n\n## Set de oro\n\n- ejecutar app.py: sin salida, código 0\n' > "$1/docs/encuadre.md"
+  printf '# Plan\n\n## Incrementos\n\n- [ ] I1 «caracteriza» — prueba de caracterización (satisface: C1)\n- [ ] I2 «protege» — (satisface: C1)\n' > "$1/docs/plan.md"
+  printf '# Decisiones\n\n(ninguna todavía)\n' > "$1/docs/decisiones.md"
+  trazabilidad "$1" "$C1A" "" ""
+  printf '#!/bin/sh\npython3 -I app.py || exit 1\nexit 0\n' > "$1/scripts/check.sh"
+}
+copia instalado af; A="$D"; siembra_f2 "$A"; fase "$A" F2; recibo "$A" revisor-funcional encuadre F2 PASA 0
+commitea "$A" "Plan de adopción
+
+Ref: F2" || die "no pude preparar el plan del proyecto adoptado"
+fase "$A" F3; printf 'assert 2 + 2 == 4\n' >> "$A/app.py"; recibo "$A" juez-codigo incremento I1 PASA 0 seguridad=no-aplica
+commitea "$A" "I1
+
+Ref: I1" || die "no pude cerrar I1 en el proyecto adoptado"
+rm -rf "$W/etapas/adoptado-f3"; cp -R "$A" "$W/etapas/adoptado-f3"
+espera pasa "adoptado en F3: el replay desde la base valida instalación, plan e I1" "3/3 commits cumplen" -- replay "$A" HEAD
+
+echo "== contrato revisado tras la adopción"
+reescribe_c1() { sed -i.bak 's/^- C1: .*/- C1: app.py hace lo que sea./' "$1/docs/encuadre.md" && rm -f "$1/docs/encuadre.md.bak"; }
+copia adoptado-f3 ac1; reescribe_c1 "$D"; printf 'assert 3 + 3 == 6\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "adoptado: reescribir C1 dentro de Ref: I2 se rechaza" "contrato revisado" -- commitea "$D" "I2
+
+Ref: I2"
+copia adoptado-f3 ac2; fase "$D" F1; reescribe_c1 "$D"
+commitea "$D" "reencuadre
+
+Ref: F1" || die "no pude preparar el reencuadre adoptado"
+printf 'assert 3 + 3 == 6\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "adoptado: F3→F1, reescribir C1 y cerrar Ref: I2 quedándose en F1 se rechaza" "contrato revisado" -- commitea "$D" "I2
+
+Ref: I2"
+copia adoptado-f3 ac3; fase "$D" F1; reescribe_c1 "$D"
+commitea "$D" "reencuadre
+
+Ref: F1" || die "no pude preparar el reencuadre completo adoptado"
+fase "$D" F2; recibo "$D" revisor-funcional encuadre reentrada:C1 PASA 0
+espera pasa "adoptado: reencuadre completo con Ref: F2 y recibo reentrada:C1 se acepta" "" -- commitea "$D" "reentrada
+
+Ref: F2"
+fase "$D" F3; printf 'assert 3 + 3 == 6\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera pasa "adoptado: Ref: I2 tras el contrato nuevo se acepta" "" -- commitea "$D" "I2
+
+Ref: I2"
+copia adoptado-f3 ac4; trazabilidad "$D" "$C1A" "" '| R-I2.1 | «bug» | I2 | C1 | falta prueba | abierto | — |'; sin_hooks "$D" "hallazgo abierto"
+trazabilidad "$D" "$C1A" "" ""; printf 'assert 3 + 3 == 6\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "adoptado: un hallazgo abierto que desaparece se rechaza" "desaparece" -- commitea "$D" "I2
+
+Ref: I2"
+sin_hooks "$D" "I2 colado
+
+Ref: I2"
+espera falla "adoptado: el replay detecta la desaparición colada" "desaparece" -- replay "$D" HEAD~1..HEAD
+copia adoptado-f3 ac5; trazabilidad "$D" "$C1A" "" '| R-I2.1 | «bug» | I2 | C1 | falta prueba | resuelto | 2026-10-22 10:00 |'; printf 'assert 3 + 3 == 6\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "adoptado: resuelto con solo una fecha se rechaza" "referencia que resuelva" -- commitea "$D" "I2
+
+Ref: I2"
+copia adoptado-f3 ac6; trazabilidad "$D" "$C1A" "" '| R-I2.1 | «bug» | I2 | C1 | falta prueba | resuelto | 2026-10-22 10:00 · app.py:2 |'; printf 'assert 3 + 3 == 6\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera pasa "adoptado: resuelto con una ruta del índice se acepta" "" -- commitea "$D" "I2
+
+Ref: I2"
+copia adoptado-f3 ac7; fase "$D" F5
+espera falla "adoptado: estado.md pasa a F5 con Ref: F1 se rechaza" "entrar a la Fase 5" -- commitea "$D" "cierre fingido
+
+Ref: F1"
+# Un `Ref: F2` del historial PREVIO a la adopción no acredita contrato: se busca tras la base del método.
+copia existente ab; printf '\nnota antigua\n' >> "$D/README.md"; sin_hooks "$D" "commit antiguo con trailer
+
+Ref: F2"
+PREVIO_AB=$(en "$D" git rev-parse HEAD)
+adoptar "$P" copiar "$D" >/dev/null; en "$D" git rm -q --cached config/.env.prod; adoptar "$P" gitignore "$D" --aplicar >/dev/null
+base_decl "$D" "- **Base del método:** $PREVIO_AB"; fase "$D" F1; en "$D" git config core.hooksPath .githooks
+commitea "$D" "Instalación del método (adopción)
+
+Ref: F1" || die "no pude instalar sobre el historial con trailer antiguo"
+siembra_f2 "$D"; fase "$D" F3; printf 'assert 2 + 2 == 4\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I1 PASA 0 seguridad=no-aplica
+espera falla "adoptado: un Ref: F2 anterior a la Base del método no acredita contrato revisado" "posterior a la Base del método" -- commitea "$D" "I1
+
+Ref: I1"
+
+echo "== adoptado: criterio en una línea y merge limpio que integra un cierre"
+copia adoptado-f3 ad1; printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: app.py termina sin error (comportamiento que se conserva).\n  Y además lo que sea.\n\n## Set de oro\n\n- ejecutar app.py: sin salida, código 0\n' > "$D/docs/encuadre.md"
+espera falla "adoptado: el doctor rechaza un criterio con continuación" "continuación" -- en "$D" sh scripts/check_docs.sh
+copia adoptado-f3 ad1b; printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: app.py termina sin error (comportamiento que se conserva).\n\n  Y además lo que sea.\n\n## Set de oro\n\n- ejecutar app.py: sin salida, código 0\n' > "$D/docs/encuadre.md"
+espera falla "adoptado: el pre-commit rechaza un párrafo sangrado tras blanco en un criterio" "continuación" -- commitea "$D" "criterio con párrafo
+
+Ref: F1"
+sin_hooks "$D" "criterio con párrafo colado
+
+Ref: F1"
+espera falla "adoptado: el replay rechaza ese criterio colado" "continuación" -- replay "$D" HEAD~1..HEAD
+# Cierre legítimo del ciclo de adopción en una rama; la principal cambia el README; el merge entra a F5.
+copia adoptado-f3 ad2; RAMA0=$(en "$D" git rev-parse --abbrev-ref HEAD); en "$D" git checkout -q -b cierre-rama
+printf '# Plan\n\n## Incrementos\n\n- [x] I1 «caracteriza» — prueba de caracterización (satisface: C1)\n\n## Fuera de alcance / backlog\n\n- I2 «protege» — siguiente ciclo\n' > "$D/docs/plan.md"
+trazabilidad "$D" '| C1 | «arranca» | I1 | verificado | |' "" ""
+fase "$D" F4; recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+commitea "$D" "validación
+
+Ref: F4" || die "no pude validar el ciclo adoptado"
+fase "$D" F5
+commitea "$D" "cierre
+
+Ref: F5" || die "no pude cerrar el ciclo adoptado"
+en "$D" git checkout -q "$RAMA0"; printf '\nnota\n' >> "$D/README.md"; commitea "$D" "readme
+
+Ref: F1" || die "no pude cambiar la principal adoptada"
+espera falla "adoptado: merge limpio que lleva estado.md a F5 sin Ref: F5 se rechaza" "entrar a la Fase 5" -- en "$D" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit cierre-rama
+en "$D" git merge --abort >/dev/null 2>&1 || true
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-commit cierre-rama >/dev/null 2>&1 || die "no pude preparar el merge adoptado con recibo"
+recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica; en "$D" git add -A
+espera pasa "adoptado: merge que integra el cierre con Ref: F5 y recibo sobre el árbol integrado se acepta" "" -- en "$D" git -c core.hooksPath=.githooks commit -q -m "integra el cierre
+
+Ref: F5"
 
 echo
 echo "regresion-adopcion: $((TOTAL-MAL))/$TOTAL casos en verde"

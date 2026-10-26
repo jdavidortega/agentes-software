@@ -23,6 +23,21 @@
 #   Ref: F4   → juez-conjunto conjunto F4 (no sirve un recibo de hito) (+ seguridad si requerida)
 #   Ref: F5   → exactamente lo de F4 (conjunto + seguridad), vigente sobre lo que se commitea
 # Ref: F4|F5 dispara además check_docs en modo cierre.
+# CONTRATO REVISADO (la verdad acordada): las líneas `- C<n>:` y la sección `## Set de oro` de
+# docs/encuadre.md tal como estaban en el ÚLTIMO commit `Ref: F2` del historial (en un proyecto
+# adoptado, posterior a la «Base del método» de docs/convenciones.md: un trailer previo no acredita
+# revisión). Todo trabajo DEPENDIENTE (Ref: I<n>, Ref: hito, Ref: F4, Ref: F5) exige que el candidato
+# tenga ese contrato idéntico; sin ningún `Ref: F2` no hay contrato y se rechaza. `Ref: F1` edita el
+# encuadre libremente (borrador, reencuadre F3→F1, Fase 1 de una adopción) y `Ref: F2` fija el contrato
+# nuevo (su recibo lleva la huella del índice, que incluye encuadre.md); con alcance reentrada:C<n>
+# solo puede haber cambiado ese criterio (varios ⇒ alcance F2). La fase declarada no interviene, con
+# una excepción: ENTRAR a F5 (estado.md pasa a F5) exige `Ref: F5`, que dispara el cierre.
+# Un MERGE LIMPIO queda exento del trailer y del `Ref: I<n>` por el código que integra (ya revisado en sus
+# commits), pero NO de estas invariantes sobre el resultado: entrar a F5 y conservar los hallazgos.
+# TRANSICIONES de docs/trazabilidad.md: ningún hallazgo (R-E, R-I, R-S, R-F4, R-SF4) con fila o entrada
+# del Histórico en HEAD desaparece; una fila que PASA a resuelto|verificado (o una entrada nueva del
+# Histórico) lleva en «Resuelto» una referencia que RESUELVE: una ruta del índice (`archivo` o
+# `archivo:línea`) o un commit del historial. Que además DEMUESTRE la resolución lo juzga el revisor.
 # QUÉ PUEDE CAMBIAR SIN `Ref: I<n>`: solo el rastro y la plantilla (SIN_REVISION, abajo). Todo
 # lo demás es código del producto y entra únicamente con `Ref: I<n>` y su recibo: un `Cierra:`
 # o un `Ref: F#` no acreditan revisión del código. Emergencia: git commit --no-verify.
@@ -87,11 +102,14 @@ else
   mh=$(git rev-parse --git-path MERGE_HEAD)
   [ -f "$mh" ] && { padres="$(git rev-parse HEAD) $(tr '\n' ' ' < "$mh")"; cand=$(git write-tree); }
 fi
-MERGE_SUCIO=""
+MERGE_SUCIO=""; MERGE_LIMPIO=0
 if [ "$(printf '%s\n' $padres | grep -c .)" -ge 2 ]; then
   limpio=$(arbol_fusion_automatica $padres)
-  [ -n "$limpio" ] && [ "$limpio" = "$cand" ] && exit 0      # merge limpio: nada nuevo que acreditar
-  if [ -n "$limpio" ]; then
+  # Merge limpio: nada nuevo que acreditar POR COMMIT (sin trailer, sin exigir Ref: I<n> al código que
+  # trae), pero el RESULTADO integrado sí se juzga como estado: no entra a F5 sin Ref: F5 (el recibo del
+  # conjunto de la rama corresponde a otro árbol) y ningún hallazgo desaparece respecto del primer padre.
+  [ -n "$limpio" ] && [ "$limpio" = "$cand" ] && MERGE_LIMPIO=1
+  if [ "$MERGE_LIMPIO" -eq 1 ]; then :; elif [ -n "$limpio" ]; then
     # Lo que el merge añade por su cuenta es la diferencia con la fusión automática.
     cambios=$(git diff --name-only "$limpio" "$cand")
     MERGE_SUCIO=$(printf '%s\n' "$cambios" | head -3 | tr '\n' ' ')
@@ -102,7 +120,7 @@ fi
 
 trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
 [ -n "$trailers" ] || [ -z "$MERGE_SUCIO" ] || fail "el merge cambia contenido respecto de la fusión automática de sus padres ($MERGE_SUCIO…): una resolución de conflictos o un archivo añadido al fusionar es contenido nuevo; commitéalo con su trailer (y 'Ref: I<n>' con recibo si toca código), o deja el merge limpio."
-[ -n "$trailers" ] || [ -n "$MERGE_SUCIO" ] || fail "falta el trailer de enlace. Usa 'Ref: F1|F2|F4|F5', 'Ref: I3', 'Ref: hito:I1-I3', o 'Cierra: R-I3.1' / 'R-S3.1' / 'R-F4.1' / 'R-SF4.1' / 'R-E.1' (docs/convenciones.md §Git)."
+[ -n "$trailers" ] || [ -n "$MERGE_SUCIO" ] || [ "$MERGE_LIMPIO" -eq 1 ] || fail "falta el trailer de enlace. Usa 'Ref: F1|F2|F4|F5', 'Ref: I3', 'Ref: hito:I1-I3', o 'Cierra: R-I3.1' / 'R-S3.1' / 'R-F4.1' / 'R-SF4.1' / 'R-E.1' (docs/convenciones.md §Git)."
 [ -n "$HUELLA" ] || fail "no pude calcular la huella (scripts/huella.sh)."
 
 # Rutas que un commit puede tocar SIN `Ref: I<n>`: el rastro documental, las entradas, las
@@ -166,8 +184,31 @@ cerrados_desde_hito() {
   hc=$(git log -1 --format=%H -E --grep='^Ref:[[:space:]]*hito:I[0-9]+-I[0-9]+[[:space:]]*$' "$BASE" 2>/dev/null)
   git log --format=%B ${hc:+"$hc.."}"$BASE" 2>/dev/null | grep -oE '^Ref:[[:space:]]*I[0-9]+[[:space:]]*$' | grep -oE 'I[0-9]+' | sort -u
 }
+# Contrato revisado: `- C<n>:` y el cuerpo de `## Set de oro` de un encuadre (stdin), sin blancos finales.
+contrato() { awk '/^- C[0-9]+:/ {print; next} /^## / {s=($0 ~ /^## Set de oro/); next} s {print}' | sed 's/[[:space:]]*$//' | grep -v '^$'; }
+base_metodo() { idx docs/convenciones.md | sed -nE 's/^- \*\*Base del método:\*\* `?([0-9a-f]{7,40})`?[[:space:]]*$/\1/p' | head -1; }
+ultimo_f2() {  # sha del último commit `Ref: F2` alcanzable desde BASE (tras la base del método, si la hay)
+  [ "$HAY_HISTORIAL" -eq 1 ] || return 1
+  bm=$(base_metodo); excl=""
+  [ -n "$bm" ] && git rev-parse --verify -q "$bm^{commit}" >/dev/null 2>&1 && excl="^$bm"
+  # shellcheck disable=SC2086
+  git log -1 --format=%H -E --grep='^Ref:[[:space:]]*F2[[:space:]]*$' "$BASE" $excl 2>/dev/null | grep .
+}
+# ¿Resuelve una referencia? Una ruta del candidato (`archivo` o `archivo:línea`, con o sin acentos
+# graves, paréntesis o coma pegados) o un sha de 7–40 hex que es ancestro de BASE.
+referencia_resuelve() {  # $1 texto de la celda → 0 si algún token resuelve
+  for t in $(printf '%s' "$1" | tr '·,;()`' '      '); do
+    case "$t" in
+      */*|*.*) r=$(printf '%s' "$t" | sed -E 's/:[0-9]+(-[0-9]+)?$//'); en_candidato "$r" && return 0 ;;
+    esac
+    if printf '%s' "$t" | grep -qxE '[0-9a-f]{7,40}'; then
+      [ "$HAY_HISTORIAL" -eq 1 ] && git merge-base --is-ancestor "$t" "$BASE" 2>/dev/null && return 0
+    fi
+  done
+  return 1
+}
 
-cierre=0; con_incremento=0
+cierre=0; con_incremento=0; dependiente=0; con_f2=0; con_f5=0
 IFS='
 '
 for line in $trailers; do
@@ -175,20 +216,31 @@ for line in $trailers; do
     f=$(printf '%s' "$line" | grep -oE 'F[1245]')
     case "$f" in
       F2)
+        con_f2=1
         if exige_recibo revisor-funcional encuadre F2 "'$line'"; then
-          # Una reentrada se acredita sobre un criterio que EXISTE en el encuadre.
+          # Una reentrada se acredita sobre un criterio que EXISTE en el encuadre y es el ÚNICO que
+          # cambió respecto del contrato revisado anterior (varios criterios ⇒ alcance F2 completo).
           a=$(campo "$(ultimo_recibo revisor-funcional encuadre F2)" alcance)
           case "$a" in reentrada:C*)
             c=${a#reentrada:}
-            idx docs/encuadre.md | grep -qE "^- $c:" || fail "'$line': el recibo del revisor funcional es de alcance $a, pero $c no está definido en docs/encuadre.md ('- $c: …')." ;;
+            idx docs/encuadre.md | grep -qE "^- $c:" || fail "'$line': el recibo del revisor funcional es de alcance $a, pero $c no está definido en docs/encuadre.md ('- $c: …')."
+            if f2p=$(ultimo_f2); then
+              cambiados=$( { git show "$f2p:docs/encuadre.md" 2>/dev/null | grep -E '^- C[0-9]+:' ; idx docs/encuadre.md | grep -E '^- C[0-9]+:' ; } | sed 's/[[:space:]]*$//' | sort | uniq -u | grep -oE '^- C[0-9]+' | grep -oE 'C[0-9]+' | sort -u)
+              for k in $cambiados; do
+                [ "$k" = "$c" ] || fail "'$line': el recibo de reentrada cubre $c, pero también cambió $k respecto del contrato revisado (commit $(git rev-parse --short "$f2p")); con varios criterios el alcance de la revisión es F2 completo."
+              done
+            else
+              fail "'$line': recibo de alcance $a (reentrada) sin ningún commit 'Ref: F2' anterior$( [ -n "$(base_metodo)" ] && printf ' posterior a la Base del método'); una reentrada supone un contrato ya revisado."
+            fi ;;
           esac
         fi
         ab=$(abiertos '^R-E[.][0-9]+$')
         [ -z "$ab" ] || fail "'$line' con vacío(s) en Estado abierto en docs/trazabilidad.md ($ab): el gate de diseño no se cruza con vacíos abiertos." ;;
-      F4) cierre=1; exige_conjunto "'$line'" || : ;;
-      F5) cierre=1; exige_conjunto "'$line' (el cierre exige que la validación del conjunto, con su seguridad, siga vigente)" || : ;;
+      F4) cierre=1; dependiente=1; exige_conjunto "'$line'" || : ;;
+      F5) cierre=1; dependiente=1; con_f5=1; exige_conjunto "'$line' (el cierre exige que la validación del conjunto, con su seguridad, siga vigente)" || : ;;
     esac
   elif printf '%s' "$line" | grep -qE '^Ref:[[:space:]]*hito:I[0-9]+-I[0-9]+[[:space:]]*$'; then
+    dependiente=1
     a=$(printf '%s' "$line" | grep -oE 'hito:I[0-9]+-I[0-9]+')
     ia=$(printf '%s' "$a" | sed -E 's/hito:I([0-9]+)-I([0-9]+)/\1/'); ib=$(printf '%s' "$a" | sed -E 's/hito:I([0-9]+)-I([0-9]+)/\2/')
     [ "$ia" -le "$ib" ] || fail "'$line': rango invertido."
@@ -250,7 +302,7 @@ for line in $trailers; do
       done
     fi
   elif printf '%s' "$line" | grep -qE '^Ref:[[:space:]]*I[0-9]+[[:space:]]*$'; then
-    con_incremento=1
+    con_incremento=1; dependiente=1
     id=$(printf '%s' "$line" | grep -oE 'I[0-9]+')
     en_plan "$id" \
       || fail "'$line' pero $id no existe como incremento en docs/plan.md (formato: '- [ ] $id «alias» — …')."
@@ -278,9 +330,41 @@ for line in $trailers; do
 done
 unset IFS
 
+# --- Contrato revisado: el trabajo dependiente se ata al último `Ref: F2`, no a la fase ---------
+if [ "$dependiente" -eq 1 ] && [ "$con_f2" -eq 0 ]; then
+  if f2=$(ultimo_f2); then
+    ca=$(git show "$f2:docs/encuadre.md" 2>/dev/null | contrato); cb=$(idx docs/encuadre.md | contrato)
+    [ "$ca" = "$cb" ] || fail "los criterios o el set de oro de docs/encuadre.md no son los del último contrato revisado (commit $(git rev-parse --short "$f2"), 'Ref: F2'); difiere: $( { printf '%s\n' "$ca"; printf '%s\n' "$cb"; } | sort | uniq -u | head -2 | cut -c1-60 | tr '\n' '|'). Un cambio de la verdad acordada reentra por el encuadre (docs/arranque.md §Reentrada): ADR, revisor funcional y commit 'Ref: F2' (alcance F2, o reentrada:C<n> si solo cambió ese criterio) antes de cerrar trabajo que depende de ella."
+  else
+    fail "el commit cierra trabajo que depende de los criterios (Ref: I<n> | hito | F4 | F5) pero no hay ningún commit 'Ref: F2' en el historial$( [ -n "$(base_metodo)" ] && printf ' posterior a la Base del método'): sin plan aprobado no hay contrato revisado (docs/arranque.md, Fase 2)."
+  fi
+fi
+# --- Entrar a F5 es el cierre: estado.md no pasa a F5 sin `Ref: F5` -------------------------------
+fase_prev=$(git show "$BASE:docs/estado.md" 2>/dev/null | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' | grep -oE 'F[1-5]' | head -1)
+fase_cand=$(idx docs/estado.md | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' | grep -oE 'F[1-5]' | head -1)
+if [ "$fase_cand" = "F5" ] && [ "$fase_prev" != "F5" ] && [ "$con_f5" -eq 0 ]; then
+  fail "docs/estado.md pasa a F5 (antes: ${fase_prev:-sin fase}) sin 'Ref: F5': entrar a la Fase 5 es el cierre del ciclo y exige su trailer (conjunto PASA vigente y check_docs en modo cierre)$( [ "$MERGE_LIMPIO" -eq 1 ] && printf '; un merge que integra el cierre de una rama exige el recibo del conjunto sobre la huella del árbol integrado, no la de la rama')."
+fi
+# --- Transiciones de trazabilidad: nada desaparece; resuelto|verificado con referencia que resuelve --
+if [ "$HAY_HISTORIAL" -eq 1 ]; then
+  T_ANTES=$(git show "$BASE:docs/trazabilidad.md" 2>/dev/null | sh scripts/trazabilidad.sh -)
+  T_AHORA=$(idx docs/trazabilidad.md | sh scripts/trazabilidad.sh -)
+  ids_ahora=$(printf '%s\n' "$T_AHORA" | awk '$1 ~ /^(E|R|H)$/ {print $2}' | sort -u)
+  for id in $(printf '%s\n' "$T_ANTES" | awk '$1 ~ /^(E|R|H)$/ {print $2}' | sort -u); do
+    printf '%s\n' "$ids_ahora" | grep -qx "$id" || fail "el hallazgo $id tenía fila o entrada del Histórico en docs/trazabilidad.md (HEAD) y aquí desaparece: un hallazgo no se borra; se resuelve, se verifica y se compacta al Histórico."
+  done
+  pares_antes=$(printf '%s\n' "$T_ANTES" | awk '$1 ~ /^(E|R)$/ {print $2 ":" $4} $1=="H" {print $2 ":H"}')
+  for par in $(printf '%s\n' "$T_AHORA" | awk '$1 ~ /^(E|R)$/ && $4 ~ /^(resuelto|verificado)$/ {print $2 ":" $4} $1=="H" {print $2 ":H"}'); do
+    printf '%s\n' "$pares_antes" | grep -qx "$par" && continue   # ya estaba así en HEAD: no es transición
+    id=${par%%:*}
+    celda=$(printf '%s\n' "$T_AHORA" | awk -v id="$id" '$1=="RES" && $2==id {print substr($0, index($0,$3)); exit}')
+    referencia_resuelve "$celda" || fail "$id pasa a '${par#*:}' sin una referencia que resuelva en la columna Resuelto ('$(printf '%s' "$celda" | cut -c1-50)'): escribe la ruta de la prueba o mutación (archivo:línea, existente en el índice) o el commit del historial que lo sostiene. Que la referencia demuestre la resolución lo juzga el revisor."
+  done
+fi
+
 # Código sin revisión: cambios fuera del rastro/plantilla exigen `Ref: I<n>` (y, con él, el
 # recibo del juez sobre esta huella). Un `Cierra:` solo o un `Ref: F#` no bastan.
-if [ -n "$codigo" ] && [ "$con_incremento" -eq 0 ]; then
+if [ -n "$codigo" ] && [ "$con_incremento" -eq 0 ] && [ "$MERGE_LIMPIO" -eq 0 ]; then
   fail "el commit cambia código fuera del rastro ($(printf '%s\n' "$codigo" | head -3 | tr '\n' ' ')…) sin 'Ref: I<n>': el código entra solo como incremento con recibo del juez. Un 'Cierra:' o un 'Ref: F#' no acreditan revisión del código."
 fi
 

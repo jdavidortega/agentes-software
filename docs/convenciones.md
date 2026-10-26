@@ -288,12 +288,16 @@ revertir) vive en docs/despliegue.md. -->
   adopción**. `validar_historial.sh` resta lo alcanzable desde ahí: el historial anterior no
   se juzga y el commit de instalación sí. Una sola declaración; duplicada, malformada, ajena
   a la historia o movida a un commit con fase, falla. Sin ella, el replay es el de siempre.
-- **Límites del modelo de cierre (deliberados):** varios commits `Ref: I3` cuentan como
-  **un** incremento cerrado (el contador cuenta incrementos distintos; una corrección
-  reabre el mismo `I#`, un alcance nuevo exige otro). Un commit `Ref: I<n>` con recibo
-  vigente mientras `estado.md` declara F1 acredita la revisión de ese contenido, no que
-  hubo gate de diseño: la fase es un resumen vivo, no una máquina de estados, y la
-  aprobación humana vive en el chat.
+- **Contrato revisado y límites del modelo de cierre:** la *verdad acordada* son las líneas
+  `- C<n>:` y la sección «Set de oro» de `docs/encuadre.md` tal como quedaron en el **último
+  commit `Ref: F2`** (en un proyecto adoptado, posterior a la «Base del método»). Todo commit de
+  trabajo dependiente (`Ref: I<n>`, `Ref: hito`, `Ref: F4`, `Ref: F5`) exige ese contrato
+  **idéntico**; `Ref: F1` edita el encuadre libremente (borrador, reencuadre, Fase 1 de una
+  adopción) y `Ref: F2` fija el nuevo con recibo del revisor funcional (alcance `F2`, o
+  `reentrada:C<n>` si solo cambió ese criterio o el set de oro). La fase de `estado.md` sigue
+  siendo un resumen vivo, no una máquina de estados, con una excepción: **entrar a F5 exige
+  `Ref: F5`**. Varios commits `Ref: I3` cuentan como **un** incremento cerrado (una corrección
+  reabre el mismo `I#`, un alcance nuevo exige otro). La aprobación humana vive en el chat.
 - **Commit al cierre de CADA fase, no solo en los incrementos de código.** El error
   típico es no commitear nada hasta el primer incremento de la Fase 3 y dejar las
   Fases 1–2 sin guardar. Concretamente, hay al menos un commit:
@@ -314,7 +318,10 @@ revertir) vive en docs/despliegue.md. -->
   `Cierra: R-I3.1` (hallazgo del juez), `Cierra: R-S3.1` (seguridad),
   `Cierra: R-F4.1` (juez de conjunto) o `Cierra: R-E.1` (vacío del revisor funcional,
   si su resolución amerita commit propio). Es la trazabilidad en el
-  historial (ver `docs/trazabilidad.md`). **Qué entra sin `Ref: I<n>`:** solo el rastro
+  historial (ver `docs/trazabilidad.md`). **Transiciones:** ningún hallazgo con fila o entrada
+  del Histórico en HEAD desaparece, y una fila que pasa a `resuelto` o `verificado` lleva en
+  «Resuelto» una referencia que **resuelve** (ruta `archivo:línea` del índice o commit del
+  historial); que **demuestre** la resolución lo juzga el revisor. **Qué entra sin `Ref: I<n>`:** solo el rastro
   (`docs/`, `contexto/`, `mejoras/`), la plantilla (`.claude/`, `.codex/`, `.githooks/`, `.github/`,
   `scripts/check_docs.sh|adoptar.sh|huella.sh|recibos.sh|trazabilidad.sh|guardas.sh|consumo.py|check.sh`, `scripts/pruebas/`) y la
   configuración del repo (`README.md`, `AGENTS.md`, `.gitignore`…). Todo lo demás es código

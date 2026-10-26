@@ -89,7 +89,9 @@ allowed-tools: Read, Grep, Glob, Bash
    porque `convenciones.md` sí es contenido revisado y cambiarlo ahora invalidaría el
    recibo.
 9. Con **FALLA**: resuelve los bloqueantes como subtareas, deja en cada fila la mutación
-   que ahora muere (`verificando-por-sabotaje`), marca `resuelto`, y vuelve al paso 1: la
+   que ahora muere (`verificando-por-sabotaje`) con una **referencia que resuelve** (ruta
+   `archivo:línea` de la prueba o mutación, o commit; el `commit-msg` la comprueba), marca
+   `resuelto`, y vuelve al paso 1: la
    siguiente pasada produce un recibo nuevo (el hook solo acepta el **último** del mismo
    rol, tipo y alcance).
 10. Con **PASA**: cierra con la lista B de la DoD y el commit enlazado. El `commit-msg`

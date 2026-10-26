@@ -18,6 +18,9 @@
 #   T id           ID en la tabla equivocada
 #   INCR id incr want  la columna Incr. no nombra el incremento del ID (R-I3.n ⇒ I3; R-F4.n / R-SF4.n ⇒ F4)
 #   SANGRIA nlinea fila de tabla o entrada del Histórico con sangría (se lee igual; el doctor avisa)
+#   RES id texto…  la celda «Resuelto» de una fila E/R legible (tal cual, con sus espacios; vacío si
+#                  no hay nada o solo «—») o el texto de una entrada del Histórico. Va en un registro
+#                  aparte para que las filas conserven sus campos; se lee con substr($0, index($0,$3)).
 # Una fila con sangría SE LEE (nada se vuelve invisible por espacios); el doctor la señala
 # porque Markdown puede mostrarla como código.
 F="${1:-docs/trazabilidad.md}"
@@ -31,7 +34,7 @@ awk -F'|' '
     if (f[1]=="Criterio"||f[1]=="Vacío"||f[1]=="Hallazgo") {  # encabezado: ubicar columnas
       tipo = (f[1]=="Criterio") ? "C" : (f[1]=="Vacío") ? "E" : "R"
       ncol=n; ce=0; ci=0
-      ncc=0; for(k=1;k<=n;k++){ if(f[k]=="Estado") ce=k; if(f[k] ~ /^Incr/) ci=k; if(f[k]=="Criterio" && k>1) ncc=k }
+      ncc=0; cr=0; for(k=1;k<=n;k++){ if(f[k]=="Estado") ce=k; if(f[k] ~ /^Incr/) ci=k; if(f[k]=="Criterio" && k>1) ncc=k; if(f[k] ~ /^Resuelto/) cr=k }
       hdr=""; for(k=1;k<=n;k++) { c=f[k]; gsub(/ /,"_",c); hdr = hdr (k>1?",":"") c }
       print "HDR", tipo, hdr, "-"
       next
@@ -52,7 +55,8 @@ awk -F'|' '
       if (incr!=want) { print "INCR", id, incr, want; next }
     }
     est=f[ce]; sub(/ .*$/,"",est)
-    if (tipo=="R" && ncc>0) { cr=f[ncc]; gsub(/ /,"_",cr); if (cr=="") cr="-"; print tipo, id, incr, est, cr } else print tipo, id, incr, est
+    if (tipo=="R" && ncc>0) { c=f[ncc]; gsub(/ /,"_",c); if (c=="") c="-"; print tipo, id, incr, est, c } else print tipo, id, incr, est
+    if (tipo!="C" && cr>0) { r=f[cr]; if (r ~ /^[ —–-]*$/) r=""; print "RES", id, r }
     next
   }
   /^## Histórico/ { hist=1; next }
@@ -63,6 +67,7 @@ awk -F'|' '
     if (match($0, /R-(E|I[0-9]+|S[0-9]+|F4|SF4)\.[0-9]+/)) {
       id=substr($0, RSTART, RLENGTH)
       print "H", id, "-", (($0 ~ /· *verificado/) ? "verificado" : "desconocido")
+      t=$0; sub(/^[ \t]*- */, "", t); print "RES", id, t
     }
   }
 ' "$F"

@@ -293,7 +293,10 @@ solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo u
   `Ref: F4|F5` **dispara el modo cierre** de `check_docs` (nada `abierto`, nada `resuelto`
   sin `verificado`, todo `C#` verificado con incremento, sin ADR `propuesta` ni ADR-000).
   **El código del producto entra solo con `Ref: I<n>`** (y su recibo): un commit que toca
-  algo fuera del rastro y la plantilla con solo `Cierra:` o `Ref: F#` se rechaza.
+  algo fuera del rastro y la plantilla con solo `Cierra:` o `Ref: F#` se rechaza. **Ata el
+  trabajo al contrato revisado:** `Ref: I<n>|hito|F4|F5` exigen los `C#` y el set de oro del
+  último `Ref: F2`; ningún hallazgo desaparece; entrar a F5 exige `Ref: F5`
+  (`docs/convenciones.md` §Git).
 - **`pre-commit`** bloquea versionar un `.env`/secreto; **rechaza si hay cambios sin
   stagear en archivos rastreados** (lo que se verifica tiene que ser lo que se versiona);
   corre **`scripts/check_docs.sh`** sobre una exportación del **índice** (contrato por fase:

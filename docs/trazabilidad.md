@@ -29,6 +29,11 @@
 - **Numeración:** dentro de cada familia e incremento, `<n>` es consecutivo y **nunca se
   reutiliza**: una pasada nueva **continúa** desde el último `<n>` registrado (incluido el
   Histórico). Un ID con dos filas es un registro inválido (`check_docs` lo rechaza).
+- **Transiciones (las exige el `commit-msg`, también en el replay):** ningún hallazgo con fila
+  o entrada del Histórico desaparece; al pasar a `resuelto` o `verificado` la columna Resuelto
+  lleva una **referencia que resuelve** (ruta `archivo:línea` existente en el índice, o commit
+  del historial), además de la fecha UTC. Que la referencia **demuestre** la resolución lo
+  juzga el revisor, no el hook.
 - **Commits** enlazan en el footer: `Ref: F#` (cierre de fase — `F1`, `F2`, `F4`, `F5`),
   `Ref: I3` (incremento de la Fase 3), `Ref: hito:I1-I3` (hito), `Cierra: R-I3.1` (hallazgo del juez),
   `Cierra: R-S3.1` / `R-SF4.1` (seguridad), `Cierra: R-F4.1` (juez de conjunto) o

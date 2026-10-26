@@ -171,7 +171,7 @@ done
 Z="$W/etapas/cierre"; cp -R "$Q" "$Z"
 printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — función suma (satisface: C1)\n\n## Fuera de alcance / backlog\n\n- resta, multiplica: fuera de este ciclo (ADR-001)\n' > "$Z/docs/plan.md"
 printf '# Decisiones\n\n## ADR-001 — Alcance del primer ciclo\n\n- **Estado:** aceptada\n' > "$Z/docs/decisiones.md"
-trazabilidad "$Z" "$C1_VERIF" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | verificado | 2026-10-19 10:00 · abc1234 |'
+trazabilidad "$Z" "$C1_VERIF" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | verificado | 2026-10-19 10:00 · app.py:1 |'
 fase "$Z" F4 "— «ninguno»"
 recibo "$Z" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
 echo "== etapa: cierre"
@@ -217,6 +217,171 @@ espera falla "tras el reencuadre, eliminar scripts/check.sh se rechaza (obligaci
 
 Ref: F1"' sh "$D"
 
+echo "== Contrato revisado: el trabajo dependiente se ata al último Ref: F2, no a la fase"
+reescribe_c1() { sed -i.bak 's/^- C1: .*/- C1: la función suma devuelve lo que sea./' "$1/docs/encuadre.md" && rm -f "$1/docs/encuadre.md.bak"; }
+copia f3 cr1; printf -- '- C2: criterio colado.\n' >> "$D/docs/encuadre.md"; trazabilidad "$D" "$C1_PEND
+| C2 | «colado» | I2 | pendiente | |" "" ""
+espera pasa "borrador: añadir C2 con Ref: F1 se acepta (F1 edita el encuadre libremente)" "" -- commitea "$D" "C2
+
+Ref: F1"
+printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "Ref: I2 con un criterio que no está en el último contrato revisado se rechaza" "contrato revisado" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 cr2; reescribe_c1 "$D"; printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "reescribir C1 dentro del commit Ref: I2 se rechaza (el juez de código no juzga el encuadre)" "contrato revisado" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 cr3; fase "$D" F1 "I2 «resta»"; reescribe_c1 "$D"
+commitea "$D" "reencuadre
+
+Ref: F1" || die "no pude preparar el reencuadre"
+printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "reencuadre F3→F1 que reescribe C1 y cierra Ref: I2 quedándose en F1 se rechaza" "contrato revisado" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 cr4; fase "$D" F1 "I2 «resta»"; reescribe_c1 "$D"
+commitea "$D" "reencuadre
+
+Ref: F1" || die "no pude preparar el reencuadre completo"
+fase "$D" F2 "I2 «resta»"; recibo "$D" revisor-funcional encuadre reentrada:C1 PASA 0
+espera pasa "reencuadre completo: Ref: F2 con recibo reentrada:C1 (solo cambió C1) se acepta" "" -- commitea "$D" "reentrada
+
+Ref: F2"
+fase "$D" F3 "I2 «resta»"; printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera pasa "tras el Ref: F2 nuevo, Ref: I2 con el contrato revisado se acepta" "" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 cr5; reescribe_c1 "$D"; printf -- '- C2: criterio nuevo.\n' >> "$D/docs/encuadre.md"; trazabilidad "$D" "$C1_PEND
+| C2 | «nuevo» | I2 | pendiente | |" "" ""
+recibo "$D" revisor-funcional encuadre reentrada:C1 PASA 0
+espera falla "reentrada:C1 cuando también cambió C2 se rechaza (varios criterios ⇒ alcance F2)" "también cambió C2" -- commitea "$D" "reentrada parcial
+
+Ref: F2"
+copia f3 cr6; printf '\n## Set de oro\n\n- suma(1, 2) → 3\n' >> "$D/docs/encuadre.md"; printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "cambiar el set de oro dentro de Ref: I2 se rechaza" "contrato revisado" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 cr7; printf '\n## Set de oro\n\n- suma(1, 2) → 3\n' >> "$D/docs/encuadre.md"; recibo "$D" revisor-funcional encuadre reentrada:C1 PASA 0
+espera pasa "reentrada:C1 con solo el set de oro cambiado se acepta" "" -- commitea "$D" "set de oro
+
+Ref: F2"
+copia f3 cr8; reescribe_c1 "$D"; printf 'y2 = 2\n' >> "$D/app.py"; cierra_inc "$D" I2
+recibo "$D" revisor-funcional encuadre F2 PASA 0; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera pasa "Ref: F2 e I2 en el mismo commit, ambos recibos sobre el índice completo, se acepta" "" -- commitea "$D" "reentrada e I2
+
+Ref: F2
+Ref: I2"
+copia f3 cr9; recibo "$D" revisor-funcional encuadre F2 PASA 0; reescribe_c1 "$D"; printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "Ref: F2 e I2 en el mismo commit con el recibo del revisor sobre una huella anterior se rechaza" "huella" -- commitea "$D" "reentrada e I2
+
+Ref: F2
+Ref: I2"
+copia plantilla cr10; for f in AGENTS.md docs/encuadre.md docs/plan.md docs/trazabilidad.md docs/decisiones.md scripts/check.sh; do cp "$W/etapas/f2/$f" "$D/$f"; done
+fase "$D" F3 "I1 «suma»"; printf 'def suma(a, b):\n    return a + b\n' > "$D/app.py"; recibo "$D" juez-codigo incremento I1 PASA 0 seguridad=no-aplica
+espera falla "Ref: I1 sin ningún commit Ref: F2 en el historial se rechaza (sin plan aprobado no hay contrato)" "no hay ningún commit 'Ref: F2'" -- commitea "$D" "I1
+
+Ref: I1"
+copia f3 cr11; fase "$D" F5 "— «ninguno»"
+espera falla "estado.md pasa a F5 con Ref: F1 (sin cierre) se rechaza" "entrar a la Fase 5" -- commitea "$D" "cierre fingido
+
+Ref: F1"
+
+echo "== Transiciones de trazabilidad: nada desaparece; resuelto|verificado con referencia que resuelve"
+copia f3 hd1; trazabilidad "$D" "$C1_PEND" "" '| R-I2.1 | «bug» | I2 | C1 | falta prueba | abierto | — |'; sin_hooks "$D" "hallazgo abierto"
+trazabilidad "$D" "$C1_PEND" "" ""; printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "un hallazgo abierto que desaparece de trazabilidad se rechaza" "desaparece" -- commitea "$D" "I2
+
+Ref: I2"
+sin_hooks "$D" "I2 colado
+
+Ref: I2"
+espera falla "validar_historial detecta la desaparición colada con --no-verify" "desaparece" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia f3 hd2; trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | verificado | 2026-10-19 10:00 · app.py:1 |'; sin_hooks "$D" "verificado"
+trazabilidad "$D" "$C1_PEND" "" "" "- \`R-I1.1 «sin-prueba» · verificado 2026-10-19 · commit $(en "$D" git rev-parse --short HEAD)\`"
+espera pasa "un hallazgo verificado compactado al Histórico sigue existiendo: se acepta" "" -- commitea "$D" "compactación
+
+Cierra: R-I1.1"
+fila_res() { trazabilidad "$1" "$C1_PEND" "" "| R-I2.1 | «sin-prueba» | I2 | C1 | falta prueba | resuelto | $2 |"; printf 'y2 = 2\n' >> "$1/app.py"; recibo "$1" juez-codigo incremento I2 PASA 0 seguridad=no-aplica; }
+copia f3 rf1; fila_res "$D" "2026-10-19 10:00"
+espera falla "resuelto con solo una fecha (sin referencia) se rechaza" "referencia que resuelva" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 rf2; fila_res "$D" "2026-10-19 10:00 · app.py:3 (assert)"
+espera pasa "resuelto con una ruta existente del índice (app.py:3) se acepta" "" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 rf3; fila_res "$D" "2026-10-19 10:00 · $(en "$D" git rev-parse --short HEAD)"
+espera pasa "resuelto con un commit del historial se acepta" "" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 rf4; fila_res "$D" "2026-10-19 10:00 · abc1234"
+espera falla "resuelto con un sha que no está en el historial se rechaza" "referencia que resuelva" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 rf5; fila_res "$D" "2026-10-19 10:00 · tests/no_existe.py:1"
+espera falla "resuelto con una ruta que no está en el índice se rechaza" "referencia que resuelva" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 rf6; trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | resuelto | 2026-10-19 10:00 |'; sin_hooks "$D" "resuelto sin referencia (histórico)"
+printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera pasa "una fila ya resuelta en HEAD (sin transición) no se reevalúa" "" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 rf7; trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | resuelto | — |'
+espera falla "el doctor rechaza resuelto con la columna Resuelto vacía" "columna Resuelto vacía" -- en "$D" sh scripts/check_docs.sh
+
+echo "== Criterio en una línea; merges limpios y las invariantes del resultado"
+copia f3 cc1; printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\n  Las entradas inválidas se rechazan.\n' > "$D/docs/encuadre.md"
+espera falla "el doctor rechaza un criterio con texto de continuación (sangrado)" "continuación" -- en "$D" sh scripts/check_docs.sh
+copia f3 cc1b; printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\nLas entradas inválidas se rechazan.\n' > "$D/docs/encuadre.md"
+espera falla "el doctor rechaza un criterio con continuación perezosa (sin sangría)" "continuación" -- en "$D" sh scripts/check_docs.sh
+copia f3 cc2; printf '# Encuadre\n\n## Criterios de éxito\n\n<!-- nota -->\n- C1: la función suma devuelve a+b para enteros.\n- C2: resta devuelve a-b.\n\n## Set de oro\n\n- par\n' > "$D/docs/encuadre.md"; trazabilidad "$D" "$C1_PEND
+| C2 | «resta» | I2 | pendiente | |" "" ""
+espera pasa "criterios de una línea seguidos de otro ítem, blanco, comentario o encabezado pasan el doctor" "" -- en "$D" sh scripts/check_docs.sh
+copia f3 cc3; printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\n\n  Las entradas inválidas se rechazan.\n' > "$D/docs/encuadre.md"
+espera falla "el doctor rechaza un párrafo sangrado tras una línea blanca (sigue siendo del criterio)" "continuación" -- en "$D" sh scripts/check_docs.sh
+espera falla "el pre-commit rechaza ese criterio con párrafo tras blanco (Ref: F1)" "continuación" -- commitea "$D" "criterio con párrafo
+
+Ref: F1"
+sin_hooks "$D" "criterio con párrafo colado
+
+Ref: F1"
+espera falla "validar_historial rechaza el criterio con párrafo tras blanco colado con --no-verify" "continuación" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia f3 cc4; printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\n\n- C2: resta devuelve a-b.\n\n\n## Set de oro\n\nTexto del set en la columna 1.\n' > "$D/docs/encuadre.md"; trazabilidad "$D" "$C1_PEND
+| C2 | «resta» | I2 | pendiente | |" "" ""
+espera pasa "blancos antes del siguiente criterio, del encabezado o de un párrafo en la columna 1 pasan el doctor" "" -- en "$D" sh scripts/check_docs.sh
+rama_cierre() {  # rama_cierre <dir>: la rama cierra en F5; la principal cambia el README. Deja HEAD en la principal.
+  RAMA0=$(en "$1" git rev-parse --abbrev-ref HEAD)
+  en "$1" git checkout -q -b cierre-rama; fase "$1" F5 "— «ninguno»"
+  commitea "$1" "cierre
+
+Ref: F5" || die "no pude cerrar la rama en F5"
+  en "$1" git checkout -q "$RAMA0"; printf '\nnota\n' >> "$1/README.md"
+  commitea "$1" "readme
+
+Ref: F1" || die "no pude cambiar la principal"
+}
+copia cierre mg1; rama_cierre "$D"
+espera falla "merge limpio que lleva estado.md a F5 sin Ref: F5 se rechaza (el recibo del conjunto es de otro árbol)" "entrar a la Fase 5" -- en "$D" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit cierre-rama
+en "$D" git merge --abort >/dev/null 2>&1 || true
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-edit cierre-rama || die "no pude colar el merge del cierre"
+espera falla "validar_historial rechaza ese merge colado con --no-verify" "entrar a la Fase 5" -- en "$D" sh scripts/pruebas/validar_historial.sh "HEAD~1..HEAD"
+copia cierre mg2; rama_cierre "$D"
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-commit cierre-rama >/dev/null 2>&1 || die "no pude preparar el merge con recibo"
+recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica; en "$D" git add -A
+espera pasa "merge que integra el cierre con Ref: F5 y recibo del conjunto sobre el árbol integrado se acepta" "" -- en "$D" git -c core.hooksPath=.githooks commit -q -m "integra el cierre
+
+Ref: F5"
+copia cierre mg3; RAMA0=$(en "$D" git rev-parse --abbrev-ref HEAD); en "$D" git checkout -q -b notas; printf -- '- nota de la rama\n' >> "$D/docs/MEMORIA.md"
+commitea "$D" "nota
+
+Ref: F1" || die "no pude preparar la rama de notas"
+en "$D" git checkout -q "$RAMA0"; printf '\nnota\n' >> "$D/README.md"; commitea "$D" "readme
+
+Ref: F1" || die "no pude cambiar la principal (mg3)"
+espera pasa "merge limpio que no entra a F5 ni pierde hallazgos sigue aceptándose sin trailer" "" -- en "$D" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit notas
+
 echo "== El avance queda a la vista: casilla del plan y estado.md en el commit Ref: I<n>"
 # recibo_bruto con la huella del índice: un recibo vigente que NO pasa por cierra_inc.
 copia f3 av1; printf '\ndef resta(a, b):\n    return a - b\n' >> "$D/app.py"; printf -- '- Cerrado I2.\n' >> "$D/docs/estado.md"
@@ -232,7 +397,7 @@ Ref: I2"
 
 echo "== Código sin Ref: I<n>"
 copia f3 b1; printf 'def resta(a, b):\n    return a - b\n' >> "$D/app.py"
-trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | resuelto | 2026-10-19 10:00 · abc1234 |'
+trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | resuelto | 2026-10-19 10:00 · app.py:1 |'
 espera falla "Cierra: solo con código se rechaza" "sin 'Ref: I<n>'" -- commitea "$D" "corrige
 
 Cierra: R-I1.1"
@@ -241,7 +406,7 @@ espera falla "Ref: F1 con código se rechaza" "sin 'Ref: I<n>'" -- commitea "$D"
 
 Ref: F1"
 copia f3 b3; printf 'def resta(a, b):\n    return a - b\n' >> "$D/app.py"
-trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | resuelto | 2026-10-19 10:00 · abc1234 |'
+trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | resuelto | 2026-10-19 10:00 · app.py:1 |'
 recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
 espera pasa "Ref: I2 + Cierra: con recibo vigente se acepta" "" -- commitea "$D" "I2 «resta»
 
@@ -310,14 +475,14 @@ espera falla "Ref: I2 con R-S2.1 abierto se rechaza" "R-S2.1" -- commitea "$D" "
 
 Ref: I2"
 copia f3 c3; printf 'x = 1\n' >> "$D/app.py"
-trazabilidad "$D" "$C1_PEND" "" '| R-I2.1 | «sin-prueba» | I2 | C1 | falta prueba | resuelto | 2026-10-19 10:00 · abc1234 |
+trazabilidad "$D" "$C1_PEND" "" '| R-I2.1 | «sin-prueba» | I2 | C1 | falta prueba | resuelto | 2026-10-19 10:00 · app.py:1 |
 | R-I3.1 | «otro» | I3 | C1 | de otro incremento | abierto | — |'
 recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
 espera pasa "Ref: I2 con R-I2.1 resuelto y R-I3.1 (ajeno) abierto se acepta" "" -- commitea "$D" "I2
 
 Ref: I2"
 copia f3 c4; printf 'x = 1\n' >> "$D/app.py"
-trazabilidad "$D" "$C1_PEND" "" "" '- `R-I2.1 «sin-prueba» · verificado 2026-10-19 · commit abc1234`'
+trazabilidad "$D" "$C1_PEND" "" "" "- \`R-I2.1 «sin-prueba» · verificado 2026-10-19 · commit $(en "$D" git rev-parse --short HEAD)\`"
 recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
 espera pasa "Cierra: sobre un hallazgo ya compactado al Histórico (verificado) se acepta" "" -- commitea "$D" "I2
 
@@ -447,6 +612,11 @@ tres_criterios() {  # tres_criterios <dir>: C1..C3 construidos (I1, I2, I3) y C4
 | C2 | «resta» | I2 | pendiente | |
 | C3 | «multiplica» | I3 | pendiente | |
 | C4 | «divide» | I4 | pendiente | |" "" ""
+  # Criterios nuevos ⇒ contrato revisado nuevo: recibo del revisor funcional y commit Ref: F2.
+  recibo "$1" revisor-funcional encuadre F2 PASA 0
+  commitea "$1" "criterios C2..C4
+
+Ref: F2" || die "no pude revisar los criterios de tres_criterios"
 }
 copia f3-tres h12; tres_criterios "$D"
 recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1,C2,C3 excluye=C4 componentes=app
@@ -538,11 +708,12 @@ done
 
 echo "== Familias de conjunto e Histórico"
 copia f3 f1; trazabilidad "$D" "$C1_PEND" "" '| R-SF4.1 | «composicion» | F4 | C1 | fuga entre módulos | abierto | — |
-| R-F4.1 | «ensamblado» | F4 | C1 | orden de arranque | resuelto | 2026-10-19 10:00 · abc1234 |'
+| R-F4.1 | «ensamblado» | F4 | C1 | orden de arranque | resuelto | 2026-10-19 10:00 · app.py:1 |'
 espera pasa "R-SF4.1 y R-F4.1 con Incr. F4 son filas válidas para el doctor" "" -- commitea "$D" "registra hallazgos del conjunto
 
 Ref: F1"
-trazabilidad "$D" "$C1_VERIF" "" '| R-SF4.1 | «composicion» | F4 | C1 | fuga entre módulos | abierto | — |'
+trazabilidad "$D" "$C1_VERIF" "" '| R-SF4.1 | «composicion» | F4 | C1 | fuga entre módulos | abierto | — |
+| R-F4.1 | «ensamblado» | F4 | C1 | orden de arranque | resuelto | 2026-10-19 10:00 · app.py:1 |'
 fase "$D" F4 "— «ninguno»"; printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — (satisface: C1)\n' > "$D/docs/plan.md"
 recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
 espera falla "R-SF4.1 abierto bloquea el cierre (Ref: F4)" "abierto" -- commitea "$D" "validación
@@ -553,18 +724,22 @@ recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
 espera falla "entrada del Histórico con sangría y sin verificado no se vuelve invisible: cierre rechazado" "Histórico sin|sangría" -- commitea "$D" "cierre
 
 Ref: F5"
-copia f3 f3; trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «fantasma» | I1 | C999 | protege un criterio que no existe | resuelto | 2026-10-19 10:00 · abc1234 |'
+copia f3 f3; trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «fantasma» | I1 | C999 | protege un criterio que no existe | resuelto | 2026-10-19 10:00 · app.py:1 |'
 espera falla "hallazgo cuya columna Criterio nombra C999 (inexistente) se rechaza" "C999, que no está definido" -- commitea "$D" "docs
 
 Ref: F1"
-copia f3 f4; trazabilidad "$D" "$C1_PEND" "" '| R-S1.1 | «inyeccion» | I1 | CWE-89 | categoría, no un C<n> | resuelto | 2026-10-19 10:00 · abc1234 |'
+copia f3 f4; trazabilidad "$D" "$C1_PEND" "" '| R-S1.1 | «inyeccion» | I1 | CWE-89 | categoría, no un C<n> | resuelto | 2026-10-19 10:00 · app.py:1 |'
 espera pasa "hallazgo de seguridad con categoría CWE en Criterio se acepta" "" -- commitea "$D" "docs
 
 Ref: F1"
 
 echo "== Cierre: criterios, IDs, alcance funcional"
 copia cierre z1; printf '# Encuadre\n\n- Objetivo: sumar\n' > "$D/docs/encuadre.md"
-trazabilidad "$D" "" "" ""
+trazabilidad "$D" "" "" '| R-I1.1 | «sin-prueba» | I1 | general | falta prueba | verificado | 2026-10-19 10:00 · app.py:1 |'
+recibo "$D" revisor-funcional encuadre F2 PASA 0
+commitea "$D" "encuadre sin criterios
+
+Ref: F2" || die "no pude preparar el encuadre sin criterios"
 recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
 espera falla "cierre sin ningún criterio se rechaza" "ningún criterio" -- commitea "$D" "cierre
 
@@ -630,7 +805,7 @@ recibo "$D" revisor-funcional encuadre reentrada:C999 PASA 0
 espera falla "F2 con recibo de reentrada:C999 (criterio inexistente) se rechaza" "C999 no está definido" -- commitea "$D" "reentrada
 
 Ref: F2"
-copia plantilla z9; cp -R "$W/etapas/f2/docs" "$D/"; cp "$W/etapas/f2/AGENTS.md" "$D/AGENTS.md"; cp "$W/etapas/f2/scripts/check.sh" "$D/scripts/check.sh"
+copia f3 z9; printf -- '- nota\n' >> "$D/docs/MEMORIA.md"
 recibo "$D" revisor-funcional encuadre reentrada:C1 PASA 0
 espera pasa "F2 con recibo de reentrada:C1 (criterio existente) se acepta" "" -- commitea "$D" "reentrada
 

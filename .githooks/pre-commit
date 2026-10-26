@@ -52,20 +52,81 @@ fase_hist=$(sh scripts/check_docs.sh fase-historica HEAD 2>/dev/null)
   || { echo "✗ pre-commit: scripts/check_docs.sh falló sobre el índice (rastro documental)." >&2; exit 1; }
 
 # 4) Lint + formato + tests del stack (scripts/check.sh, salida obligatoria del diseño;
-#    debe tolerar la suite de tests aún vacía). Corre sobre el árbol de trabajo, que por
-#    (2) coincide con el índice en todo archivo rastreado. Con el proyecto INICIADO
-#    (docs/estado.md en F2..F5, o HEAD ya lo estaba) su ausencia bloquea; antes, avisa.
+#    debe tolerar la suite de tests aún vacía). Con el proyecto INICIADO (docs/estado.md en
+#    F2..F5, o HEAD ya lo estaba) su ausencia bloquea; antes, avisa.
+#    Corre sobre una INSTANTÁNEA de lo que se commitea, no sobre el árbol de trabajo: un archivo
+#    ignorado o sin stagear no puede sostener la suite. La instantánea es un repositorio git
+#    temporal PROPIO (clon compartido sin checkout + un commit local del árbol candidato): HEAD,
+#    índice y archivos son el candidato, y una suite que crea etiquetas o cambia la configuración
+#    solo toca ese repositorio (comparte objetos por alternates; no es aislamiento del sistema de
+#    archivos). Lo que la suite necesita y no se versiona (p. ej. el entorno virtual) se DECLARA en
+#    docs/convenciones.md, tabla «| Ruta | Propósito | Cómo se reproduce |»: carpeta existente,
+#    ignorada por git y sin archivos versionados; se enlaza en la instantánea. Una entrada que
+#    apunta al árbol original (instalación editable: .pth, __editable__, direct_url.json, enlaces de
+#    node_modules hacia el repositorio) se rechaza: la suite ejecutaría código que no se commitea;
+#    esa detección es por patrones conocidos, no exhaustiva.
 fase=$(grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' "$tmp/docs/estado.md" 2>/dev/null | grep -oE 'F[1-5]' | head -1)
 case "${fase_prev:-$fase_hist}" in F2|F3|F4|F5) fase="${fase_prev:-$fase_hist}" ;; esac
-if [ -f scripts/check.sh ]; then
-  sh scripts/check.sh || { echo "✗ pre-commit: scripts/check.sh falló (lint/formato/tests)." >&2; exit 1; }
-  # 5) Lo probado tiene que ser lo guardado TAMBIÉN después de la suite: un formatter
-  #    con auto-fix o un test que escribe un fixture dejarían en el árbol algo distinto
-  #    de lo que va al commit. Se compara otra vez y, si cambió, se rechaza.
-  if ! git diff --quiet; then
-    echo "✗ pre-commit: scripts/check.sh modificó archivos rastreados después de la comparación:" >&2
-    git diff --name-only | sed 's/^/    /' >&2
-    echo "  Lo que se commitea no es lo que se probó. Stagea los cambios (git add -u) y repite el commit." >&2
+if [ -f "$tmp/scripts/check.sh" ]; then
+  REPO=$(cd "$(git rev-parse --show-toplevel)" && pwd -P)
+  # git exporta al hook variables locales (GIT_DIR, GIT_INDEX_FILE… absolutas en un worktree
+  # enlazado): todo lo dirigido al temporal, la suite incluida, corre SIN ellas, o actuaría sobre el
+  # repositorio original.
+  LIMPIA=$(git rev-parse --local-env-vars | sed 's/^/-u /' | tr '\n' ' ')
+  snap=$(mktemp -d 2>/dev/null || mktemp -d -t suite); snap=$(cd "$snap" && pwd -P)
+  trap 'rm -rf "$tmp" "$snap"' EXIT INT TERM
+  arbol=$(git write-tree) || { echo "✗ pre-commit: no pude escribir el árbol del índice." >&2; exit 1; }
+  env $LIMPIA git clone -q --shared --no-checkout "$REPO" "$snap/r" 2>/dev/null \
+    || { echo "✗ pre-commit: no pude crear el repositorio temporal de la suite." >&2; exit 1; }
+  padre=$(git rev-parse --verify -q HEAD 2>/dev/null || true)
+  cand=$(GIT_AUTHOR_NAME=suite GIT_AUTHOR_EMAIL=suite@local GIT_COMMITTER_NAME=suite GIT_COMMITTER_EMAIL=suite@local \
+         env $LIMPIA git -C "$snap/r" commit-tree "$arbol" ${padre:+-p "$padre"} -m "candidato (instantánea del pre-commit)") \
+    && env $LIMPIA git -C "$snap/r" -c core.hooksPath=/dev/null reset -q --hard "$cand" \
+    || { echo "✗ pre-commit: no pude preparar la instantánea del candidato." >&2; exit 1; }
+  # Entradas externas declaradas (solo carpetas ignoradas, existentes, sin versionados).
+  externas=$(git show :docs/convenciones.md 2>/dev/null | awk -F'|' '
+    /^[ \t]*\| *Ruta *\| *Propósito *\| *Cómo se reproduce *\|/ { t=1; next }
+    t && /^[ \t]*\|[- |]+$/ { next }
+    t && /^[ \t]*\|/ { r=$2; gsub(/[ `]/, "", r); if (r != "") print r; next }
+    t { t=0 }')
+  for e in $externas; do
+    case "$e" in /*|*..*) echo "✗ pre-commit: entrada externa «${e}»: ruta relativa al repositorio y sin «..»." >&2; exit 1 ;; esac
+    { [ -d "$e" ] && [ ! -L "$e" ]; } || { echo "✗ pre-commit: entrada externa «${e}» no es una carpeta existente del árbol de trabajo (un archivo suelto no se declara: se versiona)." >&2; exit 1; }
+    git check-ignore -q "$e" || { echo "✗ pre-commit: entrada externa «${e}» no está ignorada por git: lo que no se ignora se versiona." >&2; exit 1; }
+    [ -z "$(git ls-files -- "$e" | head -1)" ] || { echo "✗ pre-commit: entrada externa «${e}» contiene archivos versionados." >&2; exit 1; }
+    ed=$(grep -rlsF "$REPO" "$e" --include='*.pth' --include='__editable__*' --include='direct_url.json' 2>/dev/null | head -1)
+    [ -z "$ed" ] || { echo "✗ pre-commit: entrada externa «${e}» apunta al árbol original ($ed): una instalación editable ejecutaría código que no se commitea. Instálala no editable o desde la instantánea." >&2; exit 1; }
+    en=$(find "$e" -maxdepth 3 -type l 2>/dev/null | while IFS= read -r l; do
+      r=$(readlink "$l"); case "$r" in (/*) ;; (*) r="$(dirname "$l")/$r" ;; esac
+      t="$(cd "$(dirname "$r")" 2>/dev/null && pwd -P)/$(basename "$r")"
+      case "$t/" in ("$REPO/$e/"*) ;; ("$REPO/"*) echo "$l"; break ;; esac
+    done)
+    [ -z "$en" ] || { echo "✗ pre-commit: entrada externa «${e}» tiene un enlace hacia el árbol original ($en)." >&2; exit 1; }
+    mkdir -p "$snap/r/$(dirname "$e")" && ln -s "$REPO/$e" "$snap/r/$e"
+  done
+  ( cd "$snap/r" && env $LIMPIA sh scripts/check.sh ) || { echo "✗ pre-commit: scripts/check.sh falló (lint/formato/tests) sobre la instantánea de lo que se commitea." >&2; exit 1; }
+  # 5) Lo probado tiene que ser lo guardado TAMBIÉN después de la suite: un formatter con auto-fix o
+  #    un test que escribe un fixture dejarían en la instantánea algo distinto del candidato. Se
+  #    compara por CONTENIDO y MODO (no por fecha) cada archivo del índice, y el árbol de trabajo real.
+  #    Rutas delimitadas por NUL (sin la representación entre comillas de git); un nombre con salto
+  #    de línea no se puede recorrer con seguridad y se rechaza.
+  if [ "$(git ls-files -z | tr -cd '\n' | wc -c | tr -d ' ')" -gt 0 ]; then
+    echo "✗ pre-commit: hay un archivo versionado con un salto de línea en su nombre; renómbralo." >&2; exit 1
+  fi
+  difs=$(git ls-files -s -z | tr '\0' '\n' | while IFS= read -r linea; do
+    modo=${linea%% *}; resto=${linea#* }; blob=${resto%% *}; ruta=${linea#*	}
+    f="$snap/r/$ruta"
+    if [ ! -e "$f" ] && [ ! -L "$f" ]; then echo "$ruta (borrado)"; continue; fi
+    if [ "$modo" = 120000 ]; then [ -L "$f" ] && [ "$(printf '%s' "$(readlink "$f")" | git hash-object --stdin)" = "$blob" ] || echo "$ruta (enlace)"; continue; fi
+    { [ -f "$f" ] && [ ! -L "$f" ]; } || { echo "$ruta (tipo: ya no es un archivo regular)"; continue; }
+    [ "$(git hash-object -- "$f")" = "$blob" ] || { echo "$ruta (contenido)"; continue; }
+    if [ -x "$f" ]; then m=100755; else m=100644; fi
+    [ "$m" = "$modo" ] || echo "$ruta (modo)"
+  done)
+  if [ -n "$difs" ] || ! git diff --quiet; then
+    echo "✗ pre-commit: scripts/check.sh modificó archivos rastreados (en la instantánea o en el árbol de trabajo):" >&2
+    { printf '%s\n' "$difs"; git diff --name-only; } | grep . | sed 's/^/    /' >&2
+    echo "  Lo que se commitea no es lo que se probó: la suite no puede reescribir archivos versionados." >&2
     exit 1
   fi
 else

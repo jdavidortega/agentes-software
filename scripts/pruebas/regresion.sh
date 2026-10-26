@@ -33,7 +33,7 @@ espera() {
   TOTAL=$((TOTAL+1)); out=$("$@" 2>&1); rc=$?
   if [ "$modo" = falla ]; then ok=$([ $rc -ne 0 ] && echo 1 || echo 0); else ok=$([ $rc -eq 0 ] && echo 1 || echo 0); fi
   if [ "$ok" = 1 ] && [ -n "$patron" ] && ! printf '%s' "$out" | grep -qE "$patron"; then ok=0; fi
-  if [ "$ok" = 1 ]; then echo "  ok    $nombre"; else echo "  FALLO $nombre (esperaba $modo${patron:+ con «$patron»}; rc=$rc)"; MAL=$((MAL+1)); FALLIDOS="$FALLIDOS
+  if [ "$ok" = 1 ]; then echo "  ok    $nombre"; else echo "  FALLO $nombre (esperaba $modo${patron:+ con «${patron}»}; rc=$rc)"; MAL=$((MAL+1)); FALLIDOS="$FALLIDOS
     - $nombre"; fi
   [ "$VERBOSE" = 1 ] || [ "$ok" = 0 ] && printf '%s\n' "$out" | sed 's/^/        | /' | head -12
   return 0
@@ -595,6 +595,82 @@ incompleto "$D" juez-codigo incremento I3 PASA 0 seguridad=no-aplica; sin_hooks 
 
 Ref: F1"
 espera falla "tras ese merge, un recibo incompleto colado lo rechaza el replay" "sin modalidad=" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+
+echo "== Suite sobre una instantánea de lo que se commitea (repositorio git temporal propio)"
+suite_es() { printf '#!/bin/sh\n%s\n' "$2" > "$1/scripts/check.sh"; sin_hooks "$1" "suite (preparación)
+
+Ref: F1" || die "no pude preparar la suite"; }
+externa() { printf '\n| Ruta | Propósito | Cómo se reproduce |\n|------|-----------|-------------------|\n| %s | prueba | regresión |\n' "$2" >> "$1/docs/convenciones.md"; }
+nota_f1() { printf -- '- nota %s\n' "$2" >> "$1/docs/MEMORIA.md"; commitea "$1" "nota
+
+Ref: F1"; }
+copia f3 su1; suite_es "$D" 'python3 app.py || exit 1'
+printf 'local_dep.py\n' >> "$D/.gitignore"; printf 'VALOR = 3\n' > "$D/local_dep.py"; printf 'from local_dep import VALOR\nassert VALOR == 3\n' >> "$D/app.py"
+recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "la suite no se sostiene con un archivo ignorado que no se commitea (corre en la instantánea)" "sobre la instantánea" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 su2; suite_es "$D" 'PYTHONPATH=deps python3 app.py || exit 1'
+mkdir -p "$D/deps"; printf 'VALOR = 3\n' > "$D/deps/local_dep.py"; printf 'deps/\n' >> "$D/.gitignore"; externa "$D" deps
+printf 'from local_dep import VALOR\nassert VALOR == 3\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera pasa "una carpeta ignorada DECLARADA como entrada externa sostiene la suite" "" -- commitea "$D" "I2
+
+Ref: I2"
+copia f3 su3; printf 'local_dep.py\n' >> "$D/.gitignore"; printf 'VALOR = 3\n' > "$D/local_dep.py"; externa "$D" local_dep.py
+espera falla "declarar un archivo suelto como entrada externa se rechaza" "no es una carpeta" -- nota_f1 "$D" 3
+copia f3 su4; externa "$D" docs
+espera falla "declarar una carpeta versionada como entrada externa se rechaza" "no está ignorada" -- nota_f1 "$D" 4
+copia f3 su5; suite_es "$D" 'printf x >> README.md; touch -r docs/plan.md README.md'
+espera falla "una suite que reescribe un archivo versionado (restaurando su fecha) se rechaza" "README.md \(contenido\)" -- nota_f1 "$D" 5
+copia f3 su6; suite_es "$D" 'chmod +x README.md'
+espera falla "una suite que cambia el modo de un archivo versionado se rechaza" "README.md \(modo\)" -- nota_f1 "$D" 6
+copia f3 su7; suite_es "$D" 'rm -f README.md'
+espera falla "una suite que borra un archivo versionado se rechaza" "README.md \(borrado\)" -- nota_f1 "$D" 7
+copia f3 su8; suite_es "$D" 'mkdir -p __pycache__ && echo x > __pycache__/a.pyc && echo y > salida-suite.txt'
+espera pasa "una suite que solo escribe archivos no versionados se acepta" "" -- nota_f1 "$D" 8
+copia f3 su9; suite_es "$D" 'git tag suite-t && git config user.name intruso-suite'
+espera pasa "una suite que crea una etiqueta y cambia la config de git se acepta (solo toca su repositorio)" "" -- nota_f1 "$D" 9
+espera falla "... y la etiqueta no aparece en el repositorio original" "" -- en "$D" git rev-parse -q --verify refs/tags/suite-t
+espera pasa "... y la configuración del original no cambia" "" -- sh -c "[ \"\$(git -C '$D' config user.name)\" != intruso-suite ]"
+copia f3 su10; suite_es "$D" 'grep -q "cambio staged" README.md && git show HEAD:README.md | cmp -s - README.md && [ -z "$(git status --porcelain --untracked-files=no)" ]'
+printf '\ncambio staged\n' >> "$D/README.md"
+espera pasa "en la instantánea, HEAD, índice y archivos son el candidato (README cambiado y staged)" "" -- nota_f1 "$D" 10
+copia f3 su11; mkdir -p "$D/deps"; printf '%s\n' "$(cd "$D" && pwd -P)" > "$D/deps/editable.pth"; printf 'deps/\n' >> "$D/.gitignore"; externa "$D" deps
+espera falla "una entrada externa con una instalación editable hacia el repositorio se rechaza" "apunta al árbol original" -- nota_f1 "$D" 11
+copia f3 su12; mkdir -p "$D/node_modules" "$D/docs/paq"; printf 'x\n' > "$D/docs/paq/i.md"; ln -s "$(cd "$D" && pwd -P)/docs/paq" "$D/node_modules/p"; printf 'node_modules/\n' >> "$D/.gitignore"; externa "$D" node_modules
+espera falla "una entrada externa con un enlace hacia el repositorio se rechaza" "enlace hacia el árbol original" -- nota_f1 "$D" 12
+# Segunda pasada de T2: worktree enlazado (variables locales de git), nombres especiales, cambio de tipo.
+estado_original() { printf '%s %s %s\n' "$(en "$1" git rev-parse HEAD)" "$(en "$1" git config user.name || echo -)" "$(en "$1" git tag | tr '\n' ',')"; }
+copia f3 wt1; suite_es "$D" 'git tag suite-wt && git config user.name intruso-wt'; ANTES_WT=$(estado_original "$D")
+en "$D" git worktree add -q --detach "$W/wt1-arbol" || die "no pude crear el worktree"
+printf -- '- nota\n' >> "$W/wt1-arbol/docs/MEMORIA.md"
+espera pasa "worktree enlazado: el commit con una suite que etiqueta y configura se acepta" "" -- commitea "$W/wt1-arbol" "nota
+
+Ref: F1"
+espera pasa "... y HEAD, configuración y etiquetas del repositorio original no cambian" "" -- sh -c "[ \"\$1\" = \"\$(cd \"\$2\" && printf '%s %s %s\\n' \"\$(git rev-parse HEAD)\" \"\$(git config user.name || echo -)\" \"\$(git tag | tr '\\n' ',')\")\" ]" sh "$ANTES_WT" "$D"
+copia f3 wt2; suite_es "$D" 'git tag suite-wt2; git config user.name intruso-wt2; exit 1'; ANTES_WT=$(estado_original "$D")
+en "$D" git worktree add -q --detach "$W/wt2-arbol" || die "no pude crear el worktree (2)"
+printf -- '- nota\n' >> "$W/wt2-arbol/docs/MEMORIA.md"
+espera falla "worktree enlazado: una suite que falla rechaza el commit" "falló" -- commitea "$W/wt2-arbol" "nota
+
+Ref: F1"
+espera pasa "... y aun así el repositorio original queda intacto (HEAD, config, etiquetas)" "" -- sh -c "[ \"\$1\" = \"\$(cd \"\$2\" && printf '%s %s %s\\n' \"\$(git rev-parse HEAD)\" \"\$(git config user.name || echo -)\" \"\$(git tag | tr '\\n' ',')\")\" ]" sh "$ANTES_WT" "$D"
+copia f3 un1; printf 'x\n' > "$D/docs/año.txt"; printf 'y\n' > "$D/docs/con espacio.md"
+espera pasa "nombres Unicode y con espacios no producen falsos rechazos" "" -- nota_f1 "$D" un1
+copia f3 un2; printf 'x\n' > "$D/docs/año.txt"; nota_f1 "$D" prep >/dev/null 2>&1 || die "no pude preparar el nombre Unicode"
+suite_es "$D" 'printf z >> docs/año.txt'
+espera falla "una suite que reescribe un archivo con nombre Unicode se rechaza" "año.txt \(contenido\)" -- nota_f1 "$D" un2
+copia f3 ti1; suite_es "$D" 'cp README.md copia-readme && rm README.md && ln -s copia-readme README.md'
+espera falla "una suite que sustituye un archivo regular por un enlace idéntico se rechaza" "README.md \(tipo" -- nota_f1 "$D" ti1
+copia f3 ti2; ln -s plan.md "$D/docs/enlace.md"
+espera pasa "un enlace versionado sin cambios no se rechaza" "" -- nota_f1 "$D" ti2
+N="$W/primer"; rm -rf "$N"; mkdir -p "$N"; ( cd "$W/etapas/plantilla" && tar cf - --exclude ./.git . ) | ( cd "$N" && tar xf - )
+printf '#!/bin/sh\ngit ls-files --error-unmatch README.md >/dev/null && [ -z "$(git status --porcelain --untracked-files=no)" ]\n' > "$N/scripts/check.sh"
+en "$N" git init -q; en "$N" git config core.hooksPath .githooks; chmod +x "$N"/.githooks/*; en "$N" git add -A
+for x in .githooks/pre-commit .githooks/commit-msg; do en "$N" git update-index --chmod=+x "$x"; done
+espera pasa "primer commit del repositorio (sin HEAD): la suite corre en la instantánea" "" -- commitea "$N" "Encuadre inicial
+
+Ref: F1"
 
 echo "== El avance queda a la vista: casilla del plan y estado.md en el commit Ref: I<n>"
 # recibo_bruto con la huella del índice: un recibo vigente que NO pasa por cierra_inc.

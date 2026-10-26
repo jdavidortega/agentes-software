@@ -29,7 +29,13 @@ Verificados contra la doc oficial actual de cada herramienta. -->
   F2 o posterior, su ausencia **bloquea** el commit (antes, solo avisa). Un solo worker o
   un máximo fijo y timeouts (§Recursos). Debe **tolerar la suite de tests vacía** (p. ej. `pytest` sale con código 5 sin tests;
   `jest` necesita `--passWithNoTests`): si no, bloquea los commits del arranque (`Ref: F2`)
-  cuando aún no hay código. Con el primer test, falla de verdad.
+  cuando aún no hay código. Con el primer test, falla de verdad. El `pre-commit` la corre en una
+  **instantánea** de lo que se commitea (repositorio git temporal propio): un archivo ignorado o sin
+  stagear no la sostiene. Lo que necesite sin versionarse (p. ej. el entorno virtual) se declara
+  abajo: carpeta existente e ignorada, sin instalaciones editables que apunten al repositorio.
+
+  | Ruta | Propósito | Cómo se reproduce |
+  |------|-----------|-------------------|
 - **`scripts/huella.sh`** — dos huellas: **vigencia** (lo revisable: todo salvo los
   registros `revisiones.log`, `revisiones/` (evidencia), `trazabilidad.md`, `estado.md`, `MEMORIA.md`), que el revisor
   pone en su recibo y `commit-msg` exige igual a la del índice en `Ref: I<n>`, `hito`, `F2`,

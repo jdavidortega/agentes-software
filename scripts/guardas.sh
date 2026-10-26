@@ -32,12 +32,12 @@ B="$1"; C="$2"
 FAIL=0
 fail() { echo "✗ guardas: $1" >&2; FAIL=1; }
 if [ "$C" = "INDICE" ]; then
-  nombres() { git diff --cached --name-only --diff-filter=d "$B"; }   # quitar un .env es la corrección, no la falta
+  nombres() { git -c core.quotePath=false diff --cached --name-only --diff-filter=d "$B"; }   # quitar un .env es la corrección, no la falta
   diff_mas() { git diff --cached "$B" -- . ':(exclude).githooks'; }
   tiene_c() { git ls-files --error-unmatch "$1" >/dev/null 2>&1; }
   blob_c() { git show ":$1" 2>/dev/null; }
 else
-  nombres() { git diff --name-only --diff-filter=d "$B" "$C"; }
+  nombres() { git -c core.quotePath=false diff --name-only --diff-filter=d "$B" "$C"; }
   diff_mas() { git diff "$B" "$C" -- . ':(exclude).githooks'; }
   tiene_c() { git cat-file -e "$C:$1" 2>/dev/null; }
   blob_c() { git show "$C:$1" 2>/dev/null; }

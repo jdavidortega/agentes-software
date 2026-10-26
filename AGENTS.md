@@ -301,7 +301,7 @@ solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo u
   stagear en archivos rastreados** (lo que se verifica tiene que ser lo que se versiona);
   corre **`scripts/check_docs.sh`** sobre una exportación del **índice** (contrato por fase:
   archivos obligatorios, `C#`/`I#` únicos y existentes, ADRs referenciados, frontmatter
-  válido); y corre `scripts/check.sh` (lint + formato + tests), **obligatorio desde la
+  válido); y corre `scripts/check.sh` (lint + formato + tests) sobre una instantánea de lo que se commitea, **obligatorio desde la
   Fase 2**: ningún commit con el estilo roto o tests en rojo. Ambos scripts se invocan con
   intérprete explícito; su ausencia es fallo.
 - **Al inicio de cada sesión** el agente corre `sh scripts/check_docs.sh`: con ello

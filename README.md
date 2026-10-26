@@ -349,7 +349,10 @@ git config core.hooksPath .githooks
   `scripts/check_docs.sh` sobre una **exportación del índice** (contrato documental por
   fase: archivos obligatorios, `C#` e `I#` únicos y existentes, ADRs referenciados,
   frontmatter válido, hooks activos); y corre `scripts/check.sh` (lint + formato + tests;
-  lo creas en el diseño), **obligatorio desde la Fase 2**. Los scripts se invocan con
+  lo creas en el diseño), **obligatorio desde la Fase 2**, sobre una **instantánea** de lo que se
+  commitea con su propio repositorio git temporal (un archivo ignorado no sostiene la suite; lo
+  no versionado que necesite, como el entorno virtual, se declara en `docs/convenciones.md`), y
+  rechaza que la suite cambie el contenido, el modo o la existencia de un archivo versionado. Los scripts se invocan con
   intérprete explícito: su ausencia es fallo, no aviso.
 - **`commit-msg`** — valida **todos** los trailers contra una gramática cerrada
   (`Ref: F1|F2|F4|F5`, `Ref: I<n>` que existe en `plan.md`, `Ref: hito:I<a>-I<b>`,

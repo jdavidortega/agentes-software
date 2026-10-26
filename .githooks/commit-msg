@@ -54,12 +54,12 @@ if [ -n "${REV:-}" ]; then
   BASE=$(git rev-parse --verify -q "$REV^" 2>/dev/null || git hash-object -t tree /dev/null)
   idx() { git show "$REV:$1" 2>/dev/null; }
   HUELLA=$(sh scripts/huella.sh commit "$REV" 2>/dev/null)
-  cambios=$(git diff --name-only "$BASE" "$REV")
+  cambios=$(git -c core.quotePath=false diff --name-only "$BASE" "$REV")
 else
   BASE=$(git rev-parse --verify -q HEAD 2>/dev/null || git hash-object -t tree /dev/null)
   idx() { git show ":$1" 2>/dev/null || cat "$1" 2>/dev/null; }
   HUELLA=$(sh scripts/huella.sh indice 2>/dev/null)
-  cambios=$(git diff --cached --name-only "$BASE")
+  cambios=$(git -c core.quotePath=false diff --cached --name-only "$BASE")
 fi
 # ¿BASE es un commit (hay historial) o el árbol vacío?
 HAY_HISTORIAL=0; git rev-parse --verify -q "$BASE^{commit}" >/dev/null 2>&1 && HAY_HISTORIAL=1
@@ -111,7 +111,7 @@ if [ "$(printf '%s\n' $padres | grep -c .)" -ge 2 ]; then
   [ -n "$limpio" ] && [ "$limpio" = "$cand" ] && MERGE_LIMPIO=1
   if [ "$MERGE_LIMPIO" -eq 1 ]; then :; elif [ -n "$limpio" ]; then
     # Lo que el merge añade por su cuenta es la diferencia con la fusión automática.
-    cambios=$(git diff --name-only "$limpio" "$cand")
+    cambios=$(git -c core.quotePath=false diff --name-only "$limpio" "$cand")
     MERGE_SUCIO=$(printf '%s\n' "$cambios" | head -3 | tr '\n' ' ')
   else
     MERGE_SUCIO="(fusión con conflictos o de más de dos padres: todo su contenido cuenta)"
@@ -119,7 +119,7 @@ if [ "$(printf '%s\n' $padres | grep -c .)" -ge 2 ]; then
 fi
 
 trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
-[ -n "$trailers" ] || [ -z "$MERGE_SUCIO" ] || fail "el merge cambia contenido respecto de la fusión automática de sus padres ($MERGE_SUCIO…): una resolución de conflictos o un archivo añadido al fusionar es contenido nuevo; commitéalo con su trailer (y 'Ref: I<n>' con recibo si toca código), o deja el merge limpio."
+[ -n "$trailers" ] || [ -z "$MERGE_SUCIO" ] || fail "el merge cambia contenido respecto de la fusión automática de sus padres (${MERGE_SUCIO}…): una resolución de conflictos o un archivo añadido al fusionar es contenido nuevo; commitéalo con su trailer (y 'Ref: I<n>' con recibo si toca código), o deja el merge limpio."
 [ -n "$trailers" ] || [ -n "$MERGE_SUCIO" ] || [ "$MERGE_LIMPIO" -eq 1 ] || fail "falta el trailer de enlace. Usa 'Ref: F1|F2|F4|F5', 'Ref: I3', 'Ref: hito:I1-I3', o 'Cierra: R-I3.1' / 'R-S3.1' / 'R-F4.1' / 'R-SF4.1' / 'R-E.1' (docs/convenciones.md §Git)."
 [ -n "$HUELLA" ] || fail "no pude calcular la huella (scripts/huella.sh)."
 

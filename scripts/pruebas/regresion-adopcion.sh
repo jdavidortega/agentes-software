@@ -544,6 +544,45 @@ espera falla "adoptado: (cd <D> && …); escritura relativa se juzga fuera" "tou
 espera pasa "adoptado (control): (cd <D> && touch interno); touch <D>/x pasa" "" -- grA "experimentos $GA" "(cd $GA && touch interno); touch $GA/x"
 rm -f "$GI/.git/revision-modalidad"
 
+echo "== adoptado: la suite corre sobre una instantánea de lo que se commitea"
+suite_es() { printf '#!/bin/sh\n%s\n' "$2" > "$1/scripts/check.sh"; sin_hooks "$1" "suite (preparación)
+
+Ref: F1" || die "no pude preparar la suite adoptada"; }
+nota_f1() { printf -- '- nota %s\n' "$2" >> "$1/docs/MEMORIA.md"; commitea "$1" "nota
+
+Ref: F1"; }
+copia adoptado-f3 as1; suite_es "$D" 'python3 app.py || exit 1'
+printf 'local_dep.py\n' >> "$D/.gitignore"; printf 'VALOR = 3\n' > "$D/local_dep.py"; printf 'from local_dep import VALOR\nassert VALOR == 3\n' >> "$D/app.py"
+recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "adoptado: un archivo ignorado que no se commitea no sostiene la suite" "sobre la instantánea" -- commitea "$D" "I2
+
+Ref: I2"
+copia adoptado-f3 as2; suite_es "$D" 'PYTHONPATH=deps python3 app.py || exit 1'
+mkdir -p "$D/deps"; printf 'VALOR = 3\n' > "$D/deps/local_dep.py"; printf 'deps/\n' >> "$D/.gitignore"
+printf '\n| Ruta | Propósito | Cómo se reproduce |\n|---|---|---|\n| deps | dependencias locales | copia manual |\n' >> "$D/docs/convenciones.md"
+printf 'from local_dep import VALOR\nassert VALOR == 3\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera pasa "adoptado: la entrada externa declarada sostiene la suite" "" -- commitea "$D" "I2
+
+Ref: I2"
+copia adoptado-f3 as3; suite_es "$D" 'printf x >> README.md; touch -r app.py README.md'
+espera falla "adoptado: una suite que reescribe un versionado (fecha restaurada) se rechaza" "README.md \(contenido\)" -- nota_f1 "$D" 3
+copia adoptado-f3 as4; suite_es "$D" 'git tag suite-t && git config user.name intruso-suite'
+espera pasa "adoptado: etiqueta y config en la suite solo tocan el repositorio temporal" "" -- nota_f1 "$D" 4
+espera falla "adoptado: ... la etiqueta no aparece en el original" "" -- en "$D" git rev-parse -q --verify refs/tags/suite-t
+
+copia adoptado-f3 aw1; suite_es "$D" 'git tag suite-wt && git config user.name intruso-wt'
+ANTES_AW="$(en "$D" git rev-parse HEAD) $(en "$D" git config user.name || echo -) $(en "$D" git tag | tr '\n' ',')"
+en "$D" git worktree add -q --detach "$W/aw1-arbol" || die "no pude crear el worktree adoptado"
+printf -- '- nota\n' >> "$W/aw1-arbol/docs/MEMORIA.md"
+espera pasa "adoptado: commit desde un worktree enlazado con una suite que etiqueta y configura" "" -- commitea "$W/aw1-arbol" "nota
+
+Ref: F1"
+espera pasa "adoptado: ... el repositorio original queda intacto" "" -- sh -c "[ \"\$1\" = \"\$(cd \"\$2\" && echo \"\$(git rev-parse HEAD) \$(git config user.name || echo -) \$(git tag | tr '\\n' ',')\")\" ]" sh "$ANTES_AW" "$D"
+copia adoptado-f3 au1; printf 'x\n' > "$D/docs/año.txt"
+espera pasa "adoptado: un nombre Unicode no produce un falso rechazo" "" -- nota_f1 "$D" au1
+copia adoptado-f3 at1; suite_es "$D" 'cp README.md c && rm README.md && ln -s c README.md'
+espera falla "adoptado: sustituir un archivo regular por un enlace se rechaza" "README.md \(tipo" -- nota_f1 "$D" at1
+
 echo
 echo "regresion-adopcion: $((TOTAL-MAL))/$TOTAL casos en verde"
 if [ "$MAL" -gt 0 ]; then echo "FALLARON:$FALLIDOS"; exit 1; fi

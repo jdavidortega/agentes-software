@@ -164,7 +164,10 @@ inventario de paquetes describe el entorno observado; no prueba que pueda recons
   código preexistente se decide en la Fase 2 con la línea base.
   `check.sh` corre con el intérprete y las dependencias **del proyecto** (su entorno
   virtual, por ejemplo); con otro intérprete falla en rojo, y es lo correcto: el pre-commit lo
-  ejecuta en cada commit.
+  ejecuta en cada commit, sobre una instantánea de lo que se commitea. Por eso el entorno virtual
+  (u otra carpeta no versionada que la suite necesite) se **declara** en la tabla de entradas
+  externas de `docs/convenciones.md` §Comandos clave, con cómo se reproduce; una instalación
+  editable del propio proyecto no se admite (ejecutaría el árbol original, no lo que se commitea).
 - `git config core.hooksPath .githooks` (tras resolver la convivencia del paso D),
   `git add -A` y `sh scripts/check_docs.sh` hasta PASA. El doctor lee el índice: antes de
   añadir los archivos los reporta como hooks sin bit ejecutable.

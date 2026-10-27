@@ -1188,6 +1188,21 @@ copia f3 y17; yaml_desc "$D" '"\t"'
 espera falla "description de agente cuyo escape decodifica a un tabulador se rechaza" "juez-codigo.md: description vacía, en blanco" -- commitea "$D" "docs
 
 Ref: F1"
+skill_clave() {  # skill_clave <dir> <l\u00ednea>: a\u00f1ade una l\u00ednea al frontmatter de una skill (tras description)
+  python3 - "$1/.claude/skills/revision-critica/SKILL.md" "$2" <<'EOF'
+import re,sys
+p,l=sys.argv[1:]; s=open(p).read()
+s=re.sub(r'^(description: .*)$', lambda m: m.group(1)+'\n'+l, s, count=1, flags=re.M); open(p,'w').write(s)
+EOF
+}
+copia f3 y19; skill_clave "$D" 'disable-model-invocation: true'; skill_clave "$D" 'argument-hint: "[--update (default) | --create]"'
+espera pasa "skill con disable-model-invocation y argument-hint (claves de Claude Code) se acepta" "" -- commitea "$D" "docs
+
+Ref: F1"
+copia f3 y20; skill_clave "$D" 'clave-inventada: x'
+espera falla "skill con una clave de frontmatter desconocida se rechaza" "claves desconocidas: clave-inventada" -- commitea "$D" "docs
+
+Ref: F1"
 copia f3 y18; skill_desc "$D" '"Revisa \"todo\" con \u00e9nfasis\tantes del commit"'
 espera pasa "description con palabras y escapes válidos se acepta" "" -- commitea "$D" "docs
 

@@ -440,7 +440,8 @@ if [ -d .claude/skills ]; then
     if ! has "$f"; then err ".claude/skills/$name/ no tiene SKILL.md (una skill es una carpeta con SKILL.md)"; continue; fi
     echo "$name" | grep -qE '^[a-z0-9][a-z0-9-]{0,63}$' \
       || err ".claude/skills/$name: el nombre debe ser minúsculas, números y guiones (≤64 chars)"
-    check_frontmatter "$f" 'name|description|allowed-tools' || continue
+    # Claves de frontmatter de skills de Claude Code que un proyecto adoptado ya puede usar.
+    check_frontmatter "$f" 'name|description|allowed-tools|argument-hint|disable-model-invocation|user-invocable|model' || continue
     fm="$FM"
     fm_name=$(valor_yaml "$fm" name)
     [ "$fm_name" = "$name" ] || err "$f: name '$fm_name' no coincide con la carpeta '$name'"

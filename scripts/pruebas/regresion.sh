@@ -1361,10 +1361,10 @@ printf 'experimentos %s/aut\n' "$GW" > "$GW/.git/revision-modalidad"
 espera pasa "revisor en experimentos: escribir en el directorio autorizado pasa" "" -- gr juez-conjunto "python3 x.py > $GW/aut/out.txt"
 espera falla "revisor en experimentos: escribir fuera del directorio autorizado se rechaza" "solo en $GW/aut" -- gr juez-conjunto 'cp a /tmp/b'
 # Cada escritura se juzga por su destino: nombrar el directorio autorizado en OTRO tramo no autoriza
-# (caso reproducido en la medición: canario en la misma línea que el doctor con TMPDIR=<autorizado>).
-espera falla "experimentos: canario solo se rechaza" "touch → $GW/.git/canario" -- gr revisor-funcional "touch $GW/.git/canario"
-espera falla "experimentos: canario seguido del doctor con TMPDIR autorizado se rechaza" "touch → $GW/.git/canario" -- gr revisor-funcional "touch $GW/.git/canario; echo rc=\$?; TMPDIR=$GW/aut sh scripts/check_docs.sh"
-espera falla "experimentos: doctor con TMPDIR autorizado seguido del canario se rechaza" "touch → $GW/.git/canario" -- gr revisor-funcional "TMPDIR=$GW/aut sh scripts/check_docs.sh && touch $GW/.git/canario"
+# (caso reproducido en la medición: prueba de bloqueo en la misma línea que el doctor con TMPDIR=<autorizado>).
+espera falla "experimentos: prueba de bloqueo sola se rechaza" "touch → $GW/.git/prueba-de-bloqueo" -- gr revisor-funcional "touch $GW/.git/prueba-de-bloqueo"
+espera falla "experimentos: prueba de bloqueo seguida del doctor con TMPDIR autorizado se rechaza" "touch → $GW/.git/prueba-de-bloqueo" -- gr revisor-funcional "touch $GW/.git/prueba-de-bloqueo; echo rc=\$?; TMPDIR=$GW/aut sh scripts/check_docs.sh"
+espera falla "experimentos: doctor con TMPDIR autorizado seguido de la prueba de bloqueo se rechaza" "touch → $GW/.git/prueba-de-bloqueo" -- gr revisor-funcional "TMPDIR=$GW/aut sh scripts/check_docs.sh && touch $GW/.git/prueba-de-bloqueo"
 espera pasa "experimentos: el doctor con TMPDIR autorizado pasa" "" -- gr revisor-funcional "TMPDIR=$GW/aut sh scripts/check_docs.sh"
 espera pasa "experimentos: cd al autorizado y escrituras relativas pasan" "" -- gr juez-conjunto "cd $GW/aut && mkdir -p d && touch d/f && git init -q"
 espera falla "experimentos: cd fuera y escritura relativa se rechaza" "touch → $GW/f" -- gr juez-conjunto "cd $GW && touch f"

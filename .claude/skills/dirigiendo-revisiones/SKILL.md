@@ -31,7 +31,7 @@ allowed-tools: Read, Grep, Glob, Bash
    El filtro la lee de `.git/revision-modalidad` del **proyecto de la sesión**
    (`$CLAUDE_PROJECT_DIR`), no del repositorio revisado: si son distintos (p. ej. el principal
    revisa otro repositorio desde la sesión de la plantilla), escríbela en el de la sesión y
-   decláralo en el informe. El rechazo del canario muestra qué archivo se leyó.
+   decláralo en el informe. El rechazo de la prueba de bloqueo muestra qué archivo se leyó.
    - **lectura** (por defecto): el revisor no escribe en ningún sitio. Borra
      `.git/revision-modalidad` o escribe en él `lectura`.
    - **experimentos** (reproducir, sabotear, correr algo que genera archivos):
@@ -51,8 +51,8 @@ allowed-tools: Read, Grep, Glob, Bash
    (`git diff <base>..HEAD` o árbol de trabajo) y los archivos. **No** le resumas tu
    solución ni le adelantes conclusiones. Dile la **modalidad** con su regla literal: «no
    escribas en ningún sitio, tampoco en directorios temporales» o «escribe solo en `<D>`»; y
-   pídele, como primer comando y **solo** (en un comando propio, sin nada más en la línea), el
-   **canario** `touch .git/canario-revisor`: si el filtro preventivo está activo debe rechazarse
+   pídele, como primer comando y **solo** (en un comando propio, sin nada más en la línea), la
+   **prueba de bloqueo** `touch .git/prueba-de-bloqueo`: si el filtro preventivo está activo debe rechazarse
    (en experimentos también, porque su destino no está en `<D>`). Es inocuo si llega a
    ejecutarse: solo crea un archivo vacío que el principal busca y borra (paso 6).
 5. Pídele el reporte con el **formato exacto** y dentro del **presupuesto**: Veredicto ·
@@ -60,8 +60,8 @@ allowed-tools: Read, Grep, Glob, Bash
    cada una) · Preguntas · Cobertura y limitaciones (seguridad) · Obstáculos («ninguno»
    si no hubo) · **Recibo** (la línea para `docs/revisiones.log`, con la huella que él
    mismo calculó con `sh scripts/huella.sh`, y `modalidad=`, `filtro=` y `aislamiento=`: la
-   modalidad y el aislamiento que le diste, y `filtro=comprobado` solo si su canario fue
-   rechazado. En experimentos, si conserva evidencia, la deja en `<D>/evidencia/` y añade
+   modalidad y el aislamiento que le diste, y `filtro=comprobado` solo si su prueba de bloqueo
+   fue rechazada. En experimentos, si conserva evidencia, la deja en `<D>/evidencia/` y añade
    `evidencia=docs/revisiones/<alcance>-<rol>-<AAAAMMDDTHHMMZ>@<h>` con
    `h=$(sh scripts/huella.sh evidencia <D>/evidencia)`. Gramática: `scripts/recibos.sh`). **Sin narrativa**: un reporte de revisión
    cabe en ~40 líneas salvo que haya muchos bloqueantes; lo que no decide no se escribe
@@ -78,7 +78,7 @@ allowed-tools: Read, Grep, Glob, Bash
    `.git/revision-modalidad`. Si el recibo trae `evidencia=docs/revisiones/<id>@<h>`, copia
    `<D>/evidencia/` **tal cual** a `docs/revisiones/<id>/` (fuera de la huella de vigencia; su
    propia huella `<h>` la ata al recibo: el `pre-commit` y el replay rechazan que no coincida, que
-   falte o que cambie después). Si existe `.git/canario-revisor`, el filtro **no** estaba activo:
+   falte o que cambie después). Si existe `.git/prueba-de-bloqueo`, el filtro **no** estaba activo:
    bórralo y la revisión no vale con `filtro=comprobado`: repítela o que el recibo diga
    `filtro=desactivado`.
 7. **Registra tal cual, sin editar:** la línea del recibo al final de
@@ -87,7 +87,7 @@ allowed-tools: Read, Grep, Glob, Bash
    fuera de la huella, igual que `estado.md` y `MEMORIA.md`: registrarlos no invalida el
    recibo.
 8. **La modalidad queda en el recibo** (`modalidad=lectura|experimentos`,
-   `filtro=comprobado|desactivado|sin-verificar` —comprobado: el canario fue rechazado—,
+   `filtro=comprobado|desactivado|sin-verificar` —comprobado: la prueba de bloqueo fue rechazada—,
    `aislamiento=ninguno|sandbox-configurado|sandbox-verificado`, ver §Modalidades): es lo
    **declarado**, no prueba que el aislamiento se aplicara; eso lo sostienen la evidencia y los
    controles efectivos. El informe al gate añade directorio autorizado, comprobaciones (huellas,
@@ -125,7 +125,7 @@ allowed-tools: Read, Grep, Glob, Bash
   rechaza, y lo que no sabe interpretar (`$( )`, comillas invertidas, `<<`, `eval`, `xargs`, `-c`,
   `find -exec`) junto a una escritura, también. **Sigue siendo una heurística, no una frontera:** no ve lo que escribe un programa
   lanzado desde el comando (python, git, un script). Solo corre si el proyecto aceptó la
-  confianza de la carpeta; por eso se **comprueba** con el canario, no se presume.
+  confianza de la carpeta; por eso se **comprueba** con la prueba de bloqueo, no se presume.
 - **Directorio autorizado** (experimentos): **delimita la autorización**; sin una restricción
   efectiva, no impide escribir fuera.
 - **Sandbox de Bash** (opcional por proyecto, decisión con ADR): la

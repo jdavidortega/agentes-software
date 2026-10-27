@@ -196,6 +196,38 @@ aparece una vez porque es una pieza. El detalle de cada actividad —precondicio
 validadores PASA/FALLA y gates— está en `docs/arranque.md` (Fases 1–2) y en
 `AGENTS.md` §2 (Fases 3–5 y reentrada); no se duplica aquí.
 
+### Diagrama para un proyecto existente
+
+Con código que ya funciona, el método no empieza construyendo: primero entiende y protege lo
+que hay. Mismas fases, roles y hooks; cambia qué produce cada fase.
+
+```mermaid
+flowchart TD
+    P0["Paso 0 · Adopcion<br/>instala el metodo sin tocar el producto<br/>Base del metodo = ultimo commit previo<br/>linea base del entorno y de la suite"]
+    G0{"Gate<br/>Paso 0"}
+    F1["Fase 1 · Reconocimiento<br/>el sistema tal como esta, leido del codigo<br/>afirmaciones marcadas: observado · inferido · comprobado<br/>C# = comportamiento que ya existe y se conserva (3 a 8)<br/>set de oro producido por la version actual<br/>lo preexistente queda en Linea base: no se exige"]
+    G1{"Gate<br/>Fase 1"}
+    F2["Fase 2 · Diagnostico y plan<br/>jueces de linea base: conjunto + seguridad<br/>diagnostico priorizado: clase · valoracion · decision<br/>plan: PROTECCION obligatoria (cada C# verificable)<br/>+ MEJORAS opcionales, con linea de corte"]
+    G2{"Gate Fase 2<br/>la persona elige la ruta"}
+    PR["Fase 3 · Proteccion<br/>primer cambio del repositorio con juez<br/>sabotaje de pruebas existentes · pruebas nuevas<br/>caracterizacion de lo que hoy hace mal"]
+    ME["Fase 3 · Mejoras aprobadas<br/>incrementos con juez, por riesgo"]
+    F45["Fases 4 y 5 · Validacion y cierre<br/>linea base verificada"]
+    R["Reentrada<br/>funcionalidad nueva y mejoras del backlog<br/>por el ciclo normal"]
+    B["Verificacion bloqueada<br/>(sin red, dependencias, servicio externo)<br/>C# pendientes · set de oro candidato<br/>el plan empieza por habilitarla"]
+
+    P0 --> G0 --> F1 -->|"revisor funcional<br/>modo adopcion"| G1 --> F2 -->|"revisor funcional<br/>modo adopcion"| G2
+    F1 -.->|"si no se puede ejecutar"| B -.-> F2
+    G2 -->|"proteger y cerrar<br/>(recomendado)"| PR --> F45
+    G2 -->|"mejorar ahora"| PR
+    PR -.-> ME --> F45
+    F45 --> R
+```
+
+Hasta el gate de la Fase 2 nada del producto cambia. Primero se entiende y se protege lo que ya
+funciona; las mejoras van después y por riesgo. El detalle de cada paso, sus validadores y sus
+gates está en `docs/arranque-existente.md`; la instalación, en «En un proyecto que ya existe y
+funciona», arriba.
+
 ## Definiciones
 
 Glosario de los términos y siglas que usa la metodología (y el diagrama):

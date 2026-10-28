@@ -81,7 +81,10 @@ allowed-tools: Read, Grep, Glob, Bash
    falte o que cambie después). Si existe `.git/prueba-de-bloqueo`, el filtro **no** estaba activo:
    bórralo y la revisión no vale con `filtro=comprobado`: repítela o que el recibo diga
    `filtro=desactivado`.
-7. **Registra tal cual, sin editar:** la línea del recibo al final de
+7. **Registra tal cual, sin editar:** el revisor genera la línea con `sh scripts/recibos.sh
+   linea …` (él declara veredicto, bloqueantes, autoría y modalidad; la herramienta pone la fecha
+   de **emisión** y la huella, y la valida). Si llega inválida, la reemite el revisor; el principal
+   nunca la corrige ni reescribe recibos ya registrados. Va al final de
    `docs/revisiones.log` (append; nunca se compacta) y las filas de hallazgos en
    `docs/trazabilidad.md` (numeración que continúa, incluido el Histórico). Ambos están
    fuera de la huella, igual que `estado.md` y `MEMORIA.md`: registrarlos no invalida el
@@ -162,7 +165,12 @@ allowed-tools: Read, Grep, Glob, Bash
   requiere— con la huella de ese commit, más la síntesis de `MEMORIA.md`), hecho después
   de los commits `Ref: I` que cubre. Un recibo de hito suelto en el log no cuenta para el
   contador; solo el commit. Gramática de `cubre=`/`excluye=`/`componentes=`: cabecera de
-  `scripts/recibos.sh` §HITO.
+  `scripts/recibos.sh` §HITO. **Corrección de un hito** (sus bloqueantes `R-F4.n` cambian
+  código): se **reabre** el incremento del rango cuyo código cambia (`Ref: I<k>`, juez de código
+  sobre la corrección, `Cierra: R-F4.n`, `estado.md` regenerado); un incremento nuevo no sirve,
+  sería el cuarto sin hito. El recibo del hito se pide al final, sobre el contenido definitivo:
+  juez de código, después juez de conjunto, y nada revisable cambia tras su PASA. Puede ir en
+  commits separados o en uno con ambos trailers.
 - **Un incremento no cierra con sus hallazgos abiertos:** `Ref: I<n>` se rechaza mientras
   algún `R-I<n>.*` o `R-S<n>.*` siga `abierto`; `resuelto` (con su mutación escrita) basta
   para el commit, `verificado` es condición de salida de la fase. Y el código solo entra

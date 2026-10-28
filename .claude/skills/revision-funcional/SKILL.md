@@ -30,7 +30,8 @@ al encuadre ni justificarle sus elecciones; su valor está en que no hereda tu f
 > ADR en `docs/decisiones.md`. Revisa los vacíos previos en `docs/trazabilidad.md`.
 > Sigue el protocolo de `AGENTS.md` §9 y entrega el reporte con su formato exacto
 > (Veredicto · Vacíos `R-E.n` con filas listas · Sugerencias · Preguntas · Obstáculos ·
-> Recibo para `docs/revisiones.log` con tu `sh scripts/huella.sh`). No escribas en ningún
+> Recibo generado con `sh scripts/recibos.sh linea …`: tú declaras veredicto, bloqueantes,
+> ejecutor y modalidad; la herramienta pone fecha y huella). No escribas en ningún
 > archivo ni uses la red: todo va en el reporte.
 
 ## Insumos (el contexto en que se apoya)

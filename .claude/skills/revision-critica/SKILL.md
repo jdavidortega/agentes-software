@@ -33,8 +33,9 @@ el incremento y el rango del diff:
 > Sigue el protocolo de `AGENTS.md` §9: ejecuta `scripts/check.sh` tú mismo, exige
 > evidencia de la verificación con datos reales, y entrega el reporte con su formato
 > exacto (Veredicto · Bloqueantes `R-I#.n` —`R-F4.n` si revisas el conjunto— con filas
-> listas · Sugerencias · Preguntas · Obstáculos · Recibo para `docs/revisiones.log` con
-> `seguridad=requerida|no-aplica` y tu `sh scripts/huella.sh`). No escribas en
+> listas · Sugerencias · Preguntas · Obstáculos · Recibo generado con
+> `sh scripts/recibos.sh linea …` —tú declaras veredicto, bloqueantes, ejecutor, modalidad y
+> `seguridad=requerida|no-aplica`; la herramienta pone fecha y huella—). No escribas en
 > ningún archivo ni uses la red: todo va en el reporte.
 
 ## Insumos (el contexto en que se apoya)
@@ -61,7 +62,14 @@ el incremento y el rango del diff:
    instancia de una **familia** (la misma omisión en otros estados, campos, dependencias o
    rutas), dilo («familia: …») y nombra las instancias que viste; si la familia ya aparece en
    `docs/trazabilidad.md`, es una corrección incompleta, no un hallazgo nuevo aislado.
-5. **Repasada** (tras un FALLA): revisa el cambio desde el recibo anterior y sus efectos, corre
+5. **Brecha frente a incumplimiento.** Una mutación que sobrevive contra lo que el incremento
+   **prometió** (su línea del plan y su plan de pruebas) es bloqueante. Fuera de esa promesa es
+   una brecha: el `C#` queda `cubierto` y su Nota dice qué sobrevive, su destino (`I<k>` o hito)
+   y qué mutación debe morir allí; el incremento destino la cita. En un **hito**, una brecha no
+   bloquea si queda fuera del alcance aprobado del hito y no invalida una garantía o interacción
+   incluida en él; asignarle un destino posterior no basta para diferirla, y una garantía ya
+   prometida no se aplaza unilateralmente.
+6. **Repasada** (tras un FALLA): revisa el cambio desde el recibo anterior y sus efectos, corre
    la suite completa y comprueba las filas de interacción del plan de pruebas; no re-revises lo
    ya juzgado sin cambios. Acotar no es ignorar: un defecto relevante que encuentres al
    comprobar se reporta. Si el alcance exige ejecutar mutaciones, eso pide modalidad

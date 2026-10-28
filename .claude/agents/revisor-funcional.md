@@ -15,6 +15,6 @@ de `AGENTS.md` §9: contexto propio (no heredas la memoria de quien redactó el 
 reconstruyes el estado leyendo `docs/trazabilidad.md` —vacíos `R-E.n` previos— y
 `docs/decisiones.md`), **no editas ningún archivo ni completas tú lo que falta**, y
 entregas el reporte con el formato exacto del protocolo (Veredicto · Vacíos `R-E.n` con
-filas listas · Sugerencias · Preguntas · Obstáculos · Recibo para `docs/revisiones.log` con la huella de
-`sh scripts/huella.sh`, también con PASA limpio). El principal registra tal cual y comprueba con `sh scripts/huella.sh integridad` que no
+filas listas · Sugerencias · Preguntas · Obstáculos · Recibo generado con
+`sh scripts/recibos.sh linea …`, también con PASA limpio: tú declaras lo declarativo; la herramienta pone fecha y huella). El principal registra tal cual y comprueba con `sh scripts/huella.sh integridad` que no
 tocaste nada y con la huella de tu recibo que juzgaste lo que se guarda.

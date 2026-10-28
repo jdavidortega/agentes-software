@@ -896,6 +896,101 @@ recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1 ex
 espera falla "hito con C1 a la vez en cubre= y excluye= se rechaza" "a la vez en cubre" -- commitea "$D" "hito
 
 Ref: hito:I1-I3"
+# Ronda 12 (C1): corrección de código pedida por un hito. Ruta documentada: reabrir un
+# incremento del rango (Ref: I<k>) y pedir el hito al final, en commits separados o en uno.
+hito_falla() {  # deja registrado el FALLA del hito con su bloqueante R-F4.1 abierto
+  trazabilidad "$1" "$C1_PEND" "" '| R-F4.1 | «hito» | F4 | C1 | interacción sin prueba | abierto | — |'
+  recibo "$1" juez-conjunto hito hito:I1-I3 FALLA 1 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
+  sin_hooks "$1" "registra el FALLA del hito"
+}
+corrige_hito() {  # código corregido, fila resuelta con su referencia y estado.md regenerado
+  printf 'assert suma(2, 3) == 5\n' >> "$1/app.py"; printf -- '- Corrección del hito (R-F4.1) en I3.\n' >> "$1/docs/estado.md"
+  trazabilidad "$1" "$C1_PEND" "" '| R-F4.1 | «hito» | F4 | C1 | interacción sin prueba | resuelto | app.py:5 |'
+}
+copia f3-tres hc1; hito_falla "$D"; corrige_hito "$D"; recibo "$D" juez-codigo incremento I4 PASA 0 seguridad=no-aplica
+espera falla "corrección de hito como incremento nuevo: sería el cuarto sin hito" "obligatorio antes de cerrar el cuarto" -- commitea "$D" "I4 corrige el hito
+
+Ref: I4
+Cierra: R-F4.1"
+copia f3-tres hc2; hito_falla "$D"; corrige_hito "$D"; recibo "$D" juez-codigo incremento I3 PASA 0 seguridad=no-aplica
+espera pasa "corrección de hito: reabrir I3 con juez de código y Cierra" "" -- commitea "$D" "I3 corrige el hito
+
+Ref: I3
+Cierra: R-F4.1"
+recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
+espera pasa "corrección de hito: después, el hito sobre el contenido definitivo" "" -- commitea "$D" "hito I1-I3
+
+Ref: hito:I1-I3"
+copia f3-tres hc3; hito_falla "$D"; corrige_hito "$D"
+recibo "$D" juez-codigo incremento I3 PASA 0 seguridad=no-aplica; recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
+espera pasa "corrección de hito: reapertura y hito en un mismo commit" "" -- commitea "$D" "I3 y hito
+
+Ref: I3
+Ref: hito:I1-I3
+Cierra: R-F4.1"
+copia f3-tres hc4; hito_falla "$D"; corrige_hito "$D"
+recibo "$D" juez-codigo incremento I3 PASA 0 seguridad=no-aplica; recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1 excluye=ninguno componentes=app
+printf 'assert suma(1, 1) == 2\n' >> "$D/app.py"
+espera falla "corrección de hito: un cambio revisable tras el PASA caduca los recibos" "huella" -- commitea "$D" "I3 y hito
+
+Ref: I3
+Ref: hito:I1-I3
+Cierra: R-F4.1"
+
+# Ronda 12 (C3): el revisor GENERA su recibo; la herramienta pone fecha y huella, valida y no escribe.
+copia f3 rl; G="modalidad=lectura filtro=comprobado aislamiento=ninguno"
+linea() { en "$D" sh scripts/recibos.sh linea "$@"; }
+L0=$(wc -c < "$D/docs/revisiones.log")
+espera pasa "recibos linea: genera una línea válida con fecha de emisión y la huella de vigencia" "^fecha=20[0-9-]+T[0-9:]+Z rol=juez-codigo .* huella=$(en "$D" sh scripts/huella.sh)$" -- linea rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica ejecutor=juez-codigo $G
+espera pasa "recibos linea: no escribe el registro" "" -- sh -c "[ \$(wc -c < '$D/docs/revisiones.log') -eq $L0 ]"
+espera falla "recibos linea: sin ejecutor= no inventa autoría" "falta ejecutor=" -- linea rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica $G
+espera falla "recibos linea: sin veredicto= no inventa el veredicto" "falta veredicto=" -- linea rol=juez-codigo tipo=incremento alcance=I2 bloqueantes=0 seguridad=no-aplica ejecutor=x $G
+espera falla "recibos linea: fecha= declarada se rechaza (la pone la herramienta)" "lo calcula la herramienta" -- linea fecha=2026-01-01 rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica ejecutor=x $G
+espera falla "recibos linea: huella= declarada se rechaza" "lo calcula la herramienta" -- linea huella=000000000000 rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica ejecutor=x $G
+espera falla "recibos linea: valida con la gramática (tipo inventado)" "tipo desconocido" -- linea rol=revisor-funcional tipo=funcional alcance=F2 veredicto=PASA bloqueantes=0 ejecutor=x $G
+espera falla "recibos linea: valida con la gramática (PASA con bloqueantes)" "PASA exige bloqueantes=0" -- linea rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=1 seguridad=no-aplica ejecutor=x $G
+printf 'y2 = 2\n' >> "$D/app.py"; cierra_inc "$D" I2
+espera pasa "recibos linea: la línea generada, registrada tal cual, cierra el incremento" "" -- sh -c "cd '$D' && git add -A && sh scripts/recibos.sh linea rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica ejecutor=juez-codigo $G >> docs/revisiones.log && git add -A && git -c core.hooksPath=.githooks commit -q -m 'I2
+
+Ref: I2'"
+
+# Ronda 12 (C3, revisión del evaluador): la huella del árbol de trabajo (vigencia e integridad) se
+# calcula SIN ESCRIBIR (ni temporales, ni índice, ni objetos en .git) y coincide con el cálculo
+# por índice temporal + write-tree que sustituye. Lo usa recibos.sh linea en modalidad lectura.
+huella_vieja() {  # huella_vieja <dir> [integridad]: el cálculo anterior (escribe objetos en .git)
+  ( cd "$1" && t=$(mktemp) && cp "$(git rev-parse --git-path index)" "$t" 2>/dev/null
+    GIT_INDEX_FILE="$t" git add -A >/dev/null 2>&1; tr=$(GIT_INDEX_FILE="$t" git write-tree); rm -f "$t"
+    ex='	docs/((revisiones\.log|trazabilidad\.md|estado\.md|MEMORIA\.md)$|revisiones/)'; [ "${2:-}" = integridad ] && ex='^$'
+    git ls-tree -r "$tr" | grep -vE "$ex" | git hash-object --stdin | cut -c1-12 )
+}
+HV="$W/huella-eq"; mkdir -p "$HV/docs" "$HV/sub" "$HV/scripts"; en "$HV" git init -q
+cp "$RAIZ/scripts/huella.sh" "$RAIZ/scripts/recibos.sh" "$HV/scripts/"
+printf 'a\n' > "$HV/a.txt"; printf 'b\n' > "$HV/b.txt"; printf 'x\n' > "$HV/docs/estado.md"; printf '*.log\n' > "$HV/.gitignore"
+printf 'crlf.txt text eol=crlf\n' > "$HV/.gitattributes"; printf 'l1\nl2\n' > "$HV/crlf.txt"
+en "$HV" git add -A && en "$HV" git -c core.hooksPath=/dev/null commit -q -m base || die "no pude preparar la huella"
+printf 'a2\n' > "$HV/a.txt"; rm "$HV/b.txt"; printf 'n\n' > "$HV/año nuevo.md"; printf 'q\n' > "$HV/con \"comillas\".txt"
+printf 'c\n' > "$HV/\"inicio.txt"; printf 'm\n' > "$HV/ñ\"mezcla\\é.txt"; printf 'l\n' > "$HV/$(printf 'salto\nlinea.txt')"  # comilla inicial (--stdin-paths la desentrecomilla), no ASCII + comilla + barra, salto de línea
+printf '#!/bin/sh\n' > "$HV/sub/run.sh"; chmod +x "$HV/sub/run.sh"; ln -s a.txt "$HV/enlace"; printf 'i\n' > "$HV/x.log"; printf 'y\n' > "$HV/docs/estado.md"; printf 'r1\nr2 de otro tamaño\n' > "$HV/crlf.txt"  # mismo tamaño en el mismo segundo engañaría al cálculo ANTERIOR (racy git)
+espera pasa "huella sin escrituras = cálculo anterior (modificado, borrado, nuevo, ñ, comillas, comilla inicial, salto de línea, ejecutable, enlace, ignorado, registro, filtro)" "" -- sh -c "[ \"\$(cd '$HV' && sh scripts/huella.sh)\" = '$(huella_vieja "$HV")' ]"
+espera pasa "huella de integridad sin escrituras = cálculo anterior" "" -- sh -c "[ \"\$(cd '$HV' && sh scripts/huella.sh integridad)\" = '$(huella_vieja "$HV" integridad)' ]"
+espera pasa "huella sin escrituras con core.quotePath=false = cálculo anterior" "" -- sh -c "[ \"\$(cd '$HV' && GIT_CONFIG_PARAMETERS=\"'core.quotePath'='false'\" sh scripts/huella.sh)\" = '$(GIT_CONFIG_PARAMETERS="'core.quotePath'='false'" huella_vieja "$HV")' ]"
+en "$HV" git config core.fileMode false; chmod -x "$HV/sub/run.sh"
+espera pasa "huella sin escrituras con core.fileMode=false = cálculo anterior" "" -- sh -c "[ \"\$(cd '$HV' && sh scripts/huella.sh)\" = '$(huella_vieja "$HV")' ]"
+en "$HV" git config core.fileMode true; chmod +x "$HV/sub/run.sh"
+foto_git() { ( cd "$1" && find .git -type f | LC_ALL=C sort | while IFS= read -r f; do printf '%s %s\n' "$f" "$(cksum < "$f")"; done | cksum ); }
+HT="$W/huella-tmp"; mkdir -p "$HT"; G0=$(foto_git "$HV")
+python3 -c 'import time; time.sleep(1.05)'; touch "$W/huella-marca"; python3 -c 'import time; time.sleep(1.05)'
+( cd "$HV" && TMPDIR="$HT" sh scripts/recibos.sh linea rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica ejecutor=x modalidad=lectura filtro=comprobado aislamiento=ninguno >/dev/null \
+  && TMPDIR="$HT" sh scripts/huella.sh >/dev/null && TMPDIR="$HT" sh scripts/huella.sh integridad >/dev/null ) || die "no pude correr el generador sobre la huella"
+espera pasa "generador y huella: .git idéntico (índice y objetos) tras correrlos" "" -- sh -c "[ '$G0' = '$(foto_git "$HV")' ] && [ -z \"\$(find '$HV/.git' -newer '$W/huella-marca' | head -1)\" ]"
+espera pasa "generador y huella: ningún temporal en TMPDIR" "" -- sh -c "[ -z \"\$(ls -A '$HT')\" ]"
+huella_vieja "$HV" >/dev/null
+espera falla "control: el cálculo anterior SÍ escribe objetos en .git (la prueba lo detecta)" "" -- sh -c "[ -z \"\$(find '$HV/.git/objects' -type f -newer '$W/huella-marca' | head -1)\" ]"
+espera pasa "huella sin filtros de git configurados: sin aviso" "" -- sh -c "[ -z \"\$(cd '$HV' && sh scripts/huella.sh 2>&1 >/dev/null)\" ]"
+en "$HV" git config filter.propio.clean cat
+espera pasa "huella con un filtro clean configurado: avisa que no certifica lectura estricta" "no certifica lectura estricta" -- sh -c "cd '$HV' && sh scripts/huella.sh 2>&1 >/dev/null"
+en "$HV" git config --unset filter.propio.clean
+
 tres_criterios() {  # tres_criterios <dir>: C1..C3 construidos (I1, I2, I3) y C4 futuro (I4, sin commit)
   printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: suma devuelve a+b.\n- C2: resta devuelve a-b.\n- C3: multiplica devuelve a*b.\n- C4: divide devuelve a/b.\n' > "$1/docs/encuadre.md"
   trazabilidad "$1" "$C1_PEND
@@ -1262,6 +1357,38 @@ espera falla "--commit con ';' se rechaza antes de ejecutar nada" "does not name
 espera falla "... y no deja el marcador (nada se ejecutó)" "" -- test -e "$S/audit_marker.txt"
 espera falla "--commit que empieza por '-' (opción de git) se rechaza" "does not name a valid commit" -- en "$S" python3 -I "$SAB" helper.json "--commit=--output=x"
 espera pasa "--commit HEAD sigue funcionando: copia del commit y el aserto real muere (DIES)" "copy from commit HEAD" -- en "$S" python3 -I "$SAB" helper.json --commit HEAD
+# Ronda 12 (C4): firmas de pytest sin depender de pytest (salida sintética), comillas en --suite,
+# etiquetas del resumen y entradas externas declaradas con ejecución real (python3).
+S2="$W/sab2"; mkdir -p "$S2/scripts" "$S2/docs"; en "$S2" git init -q
+printf 'VALUE = 1\n' > "$S2/cfg.py"
+printf '[{"label":"cfg","file":"cfg.py","before":"VALUE = 1","after":"VALUE = 2"}]\n' > "$S2/m.json"
+printf '[{"label":"perdida","file":"cfg.py","before":"NO ESTA","after":"x"}]\n' > "$S2/perdida.json"
+pytest_falso() {  # pytest_falso <líneas de salida tras el rojo>: suite que imprime eso si cfg cambió
+  { printf '#!/bin/sh\npython3 -c "import cfg,sys; sys.exit(cfg.VALUE != 1)" && exit 0\n'; printf "printf '%%s\\\\n' %s\nexit 1\n" "$1"; } > "$S2/scripts/check.sh"
+}
+pytest_falso "'_____ test_raise _____' 'E       Failed: DID NOT RAISE <class ValueError>' 'FAILED tests/test_x.py::test_raise - Failed: DID NOT RAISE <class ValueError>'"
+espera pasa "pytest: «Failed: DID NOT RAISE» en el resumen es un aserto fallido: DIES" "DIES" -- en "$S2" python3 -I "$SAB" m.json
+pytest_falso "'_____ test_raise _____' 'E       Failed: DID NOT RAISE <class ValueError>' 'FAILED tests/test_x.py::test_raise'"
+espera pasa "pytest: resumen truncado sin causa, la línea E «DID NOT RAISE» acredita: DIES" "DIES" -- en "$S2" python3 -I "$SAB" m.json
+pytest_falso "'_____ test_x _____' 'E       Failed: fixture no disponible' 'FAILED tests/test_x.py::test_x - Failed: fixture no disponible'"
+espera falla "pytest: otro «Failed:» (pytest.fail) no se generaliza: UNVERIFIED" "UNVERIFIED" -- en "$S2" python3 -I "$SAB" m.json
+pytest_falso "'ERROR tests/test_x.py - ModuleNotFoundError: No module named x' 'E   ModuleNotFoundError: No module named x'"
+espera falla "pytest: error de colección/importación no acredita: INVALID o UNVERIFIED" "INVALID|UNVERIFIED" -- en "$S2" python3 -I "$SAB" m.json
+espera falla "resumen: lo no verificado figura como aplicado sin veredicto válido (exit 2)" "applied, no valid verdict" -- en "$S2" python3 -I "$SAB" m.json
+espera falla "resumen: un ancla perdida figura como no aplicada (exit 2)" "not applied \(stale or unsafe spec" -- en "$S2" python3 -I "$SAB" perdida.json
+printf 'import sys, cfg\nassert sys.argv[1:] == ["dos palabras"], sys.argv\nassert cfg.VALUE == 1, "VALUE cambió"\n' > "$S2/args.py"
+espera pasa "--suite con argumento entrecomillado llega entero (ejecución real): DIES" "DIES" -- en "$S2" python3 -I "$SAB" m.json --suite 'python3 args.py "dos palabras"'
+espera falla "--suite con comillas sin cerrar se rechaza sin ejecutar" "cannot be split" -- en "$S2" python3 -I "$SAB" m.json --suite 'python3 args.py "dos'
+mkdir -p "$S2/.venv/bin"; printf '#!/bin/sh\nexec python3 "$@"\n' > "$S2/.venv/bin/py"; chmod +x "$S2/.venv/bin/py"
+printf '.venv/\n__pycache__/\n' > "$S2/.gitignore"
+printf '# Convenciones\n\n| Ruta | Propósito | Cómo se reproduce |\n|------|-----------|-------------------|\n| .venv/ | intérprete | envoltorio |\n' > "$S2/docs/convenciones.md"
+printf 'import cfg\nassert cfg.VALUE == 1, "VALUE cambió"\n' > "$S2/app.py"
+printf '#!/bin/sh\n.venv/bin/py app.py\n' > "$S2/scripts/check.sh"
+espera pasa "entrada externa declarada (.venv, excluido de la copia): se enlaza y el intérprete externo corre el código MUTADO: DIES" "DIES" -- en "$S2" python3 -I "$SAB" m.json
+mkdir -p "$S2/.venv/lib"; printf '%s\n' "$(cd "$S2" && pwd -P)" > "$S2/.venv/lib/__editable__.app.pth"
+espera falla "entrada externa con instalación editable hacia el original se rechaza" "points at the original tree" -- en "$S2" python3 -I "$SAB" m.json
+rm "$S2/.venv/lib/__editable__.app.pth"; printf '__pycache__/\n' > "$S2/.gitignore"
+espera falla "entrada externa declarada que git no ignora se rechaza" "is not ignored by git" -- en "$S2" python3 -I "$SAB" m.json
 
 echo "== Recorrido F1→F5 y validación del historial"
 R="$W/recorrido"; cp -R "$Z" "$R"
@@ -1365,6 +1492,7 @@ gr() {  # gr <agente> <comando>: corre el hook con la entrada JSON del evento Pr
 espera falla "revisor en lectura: rm se rechaza" "filtro preventivo" -- gr revisor-funcional 'rm -rf docs'
 espera falla "revisor en lectura: redirección a un archivo se rechaza" "filtro preventivo" -- gr juez-codigo 'echo x > /tmp/salida.txt'
 espera falla "revisor en lectura: git commit se rechaza" "filtro preventivo" -- gr juez-conjunto 'git commit -m x'
+espera pasa "revisor en lectura: generar su recibo (recibos.sh linea, no escribe) se permite" "" -- gr juez-codigo 'sh scripts/recibos.sh linea rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica ejecutor=juez-codigo modalidad=lectura filtro=comprobado aislamiento=ninguno'
 espera falla "revisor en lectura: sed -i se rechaza" "filtro preventivo" -- gr juez-seguridad "sed -i '' s/a/b/ f"
 espera pasa "revisor en lectura: la suite y las lecturas pasan" "" -- gr revisor-funcional 'sh scripts/check.sh 2>&1 | tail -3 && git log --oneline -3 > /dev/null'
 espera pasa "revisor en lectura: un patrón entre comillas es una lectura" "" -- gr revisor-funcional 'grep -rn "a > b; rm -rf x" docs'

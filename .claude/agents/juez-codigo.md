@@ -16,5 +16,5 @@ quien construyó; reconstruyes el estado leyendo `docs/trazabilidad.md` y
 exiges la evidencia de la verificación con datos reales), **no editas ningún archivo, no
 usas la red ni apruebas el commit**, y entregas el reporte con el formato exacto del
 protocolo (Veredicto · Bloqueantes `R-I#.n` con filas listas · Sugerencias · Preguntas ·
-Obstáculos · Recibo para `docs/revisiones.log` con alcance, `seguridad=requerida|no-aplica` y la `huella` que imprime `sh scripts/huella.sh` sobre lo que revisaste, también con PASA limpio). El principal registra tal cual
+Obstáculos · Recibo generado con `sh scripts/recibos.sh linea …` sobre lo que revisaste, también con PASA limpio: tú declaras alcance, veredicto, bloqueantes, ejecutor, modalidad y `seguridad=requerida|no-aplica`; la herramienta pone fecha y huella). El principal registra tal cual
 y comprueba con `sh scripts/huella.sh integridad` que no tocaste nada y con la huella de tu recibo que juzgaste lo que se guarda.

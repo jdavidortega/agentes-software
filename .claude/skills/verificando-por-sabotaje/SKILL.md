@@ -51,7 +51,7 @@ allowed-tools: Read, Grep, Glob, Bash
    mutante no compila o no importa: la suite se puso roja **por la razón equivocada**, no
    porque un test detectara el comportamiento), `TIMEOUT` y `UNVERIFIED` (la suite se puso
    roja pero su salida **no trae la firma de un aserto fallido** —`AssertionError`, `FAILED
-   test…`, `not ok`, `Expected:`…—: un `exit 1` mudo, un parser que rechaza el mutante o
+   test…`, `not ok`, `Expected:`, el `Failed: DID NOT RAISE` de `pytest.raises`…—: un `exit 1` mudo, un parser que rechaza el mutante o
    un traceback genérico (`RuntimeError` de un helper, un error de preparación) no
    acreditan nada, porque no dicen que una prueba comprobó el comportamiento; cuenta la
    **causa terminal**, no el código fuente que el traceback cita: `assert helper()` en una
@@ -92,6 +92,10 @@ allowed-tools: Read, Grep, Glob, Bash
   niega a mutar a través de un enlace simbólico o de una ruta que salga de la copia; si
   escribes el tuyo, verifica el `cwd` antes de mutar. Y una instrucción de sabotaje sin
   decir **dónde** es una instrucción incompleta.
+- **Entradas externas.** Las carpetas declaradas en la tabla de entradas externas de
+  `docs/convenciones.md` (p. ej. el entorno virtual) se **enlazan** en cada copia, con las mismas
+  reglas del `pre-commit`: ignoradas, sin versionados, sin instalación editable ni enlaces hacia el
+  árbol original (ejecutarían código sin mutar). `--suite` se parte respetando comillas, sin shell.
 - **RAM: una suite a la vez.** La copia excluye dependencias, builds y todo `.env*`
   (salvo `.env.example`) y se niega por encima de `--max-mb` (500 por defecto; `--force`
   si sabes por qué). Las mutaciones corren en serie con pistas de un solo worker en el

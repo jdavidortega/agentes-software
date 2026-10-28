@@ -92,6 +92,8 @@ de un requerimiento tiene que poder hacerse leyendo, no descifrando.
   sobre lo ensamblado, síntesis de `docs/MEMORIA.md` §Lo crítico y mutation testing informativo si
   hay camino crítico. **Al pedir o registrar el recibo del hito**, la gramática de `cubre=`,
   `excluye=`, `componentes=` y del rango está en la cabecera de `scripts/recibos.sh` §HITO.
+  **Si el hito exige corregir código**, se reabre un incremento del rango: ruta en
+  `.claude/skills/dirigiendo-revisiones/SKILL.md` §Notas.
 - **Plan:** un incremento es `- [ ] I<n> «alias» — …` (o `- [x]`); la casilla pasa a `[x]` al
   cerrar **cada** incremento (el `commit-msg` lo exige) y al cierre ningún `- [ ]` queda fuera del
   backlog. Gramática completa (comentarios, cercos, formas rechazadas): `scripts/check_docs.sh`,

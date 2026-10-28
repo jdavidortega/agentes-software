@@ -4,6 +4,15 @@
 #
 #   sh scripts/recibos.sh validar [archivo]                → 0 si TODAS las líneas son válidas;
 #                                                            1 y los motivos en stderr si no
+#   sh scripts/recibos.sh linea rol=… tipo=… alcance=… veredicto=… bloqueantes=… ejecutor=…
+#        modalidad=… filtro=… aislamiento=… [seguridad=…] [cubre=… excluye=… componentes=…] [evidencia=…]
+#                                                          → GENERA el recibo y lo imprime; no escribe nada.
+#                                                            Lo declarativo lo da el revisor (veredicto,
+#                                                            bloqueantes, autoría, modalidad); la herramienta
+#                                                            pone fecha= (emisión, reloj UTC) y huella= (VIGENCIA
+#                                                            del árbol de trabajo: `sh scripts/huella.sh`, lo
+#                                                            revisado) y valida con esta misma gramática. El
+#                                                            principal registra la línea sin alterarla.
 #   sh scripts/recibos.sh ultimo <rol> <tipo> <alcance> [archivo]
 #                                                          → imprime la ÚLTIMA línea válida que
 #                                                            coincide (alcance exacto, o prefijo
@@ -55,13 +64,32 @@ MODE="${1:-validar}"
 case "$MODE" in
   validar) FILE="${2:-docs/revisiones.log}"; PREVIO="${3:-}" ;;
   ultimo)  R="$2"; T="$3"; A="$4"; FILE="${5:-docs/revisiones.log}"; PREVIO="${6:-}" ;;
-  *) echo "recibos.sh: modo desconocido '$MODE' (validar | ultimo)" >&2; exit 2 ;;
+  linea)
+    shift; LINEA=""
+    for c in "$@"; do
+      case "$c" in
+        fecha=*|huella=*) echo "recibos.sh linea: ${c%%=*}= lo calcula la herramienta (emisión y vigencia); no se declara" >&2; exit 2 ;;
+        *[[:space:]]*|'') echo "recibos.sh linea: cada campo es un argumento clave=valor sin blancos: '$c'" >&2; exit 2 ;;
+      esac
+      LINEA="$LINEA $c"
+    done
+    for k in rol tipo alcance veredicto bloqueantes ejecutor modalidad filtro aislamiento; do
+      case " $LINEA " in *" $k="*) ;; *) echo "recibos.sh linea: falta $k= (lo declara el revisor; la herramienta no lo inventa)" >&2; exit 2 ;; esac
+    done
+    H=$(sh "$(dirname "$0")/huella.sh") || { echo "recibos.sh linea: no pude calcular la huella (sh scripts/huella.sh)" >&2; exit 2; }
+    LINEA="fecha=$(date -u +%Y-%m-%dT%H:%MZ)$LINEA huella=$H"
+    # Se valida con el MISMO parser, como si fuera un recibo posterior al marcador; nada va a disco.
+    printf '# contrato-recibos: 2\n%s\n' "$LINEA" | sh "$0" validar - || exit 1
+    printf '%s\n' "$LINEA"; exit 0 ;;
+  *) echo "recibos.sh: modo desconocido '$MODE' (validar | ultimo | linea)" >&2; exit 2 ;;
 esac
-[ -f "$FILE" ] || exit 0
+# «-» lee de la entrada estándar (lo usa el modo linea; nunca escribe un temporal).
+if [ "$FILE" = - ]; then CONTENIDO=$(cat); else [ -f "$FILE" ] || exit 0; fi
+fuente() { if [ "$FILE" = - ]; then printf '%s\n' "$CONTENIDO"; else cat "$FILE"; fi; }
 
 # ¿Tiene el registro marcador? Se sabe ANTES de leer: un recibo previo al marcador es histórico.
-HM=$(grep -c '^# contrato-recibos: 2\([[:space:]].*\)\{0,1\}$' "$FILE")
-awk -v mode="$MODE" -v R="${R:-}" -v T="${T:-}" -v A="${A:-}" -v hm="$HM" -v previo="$([ "$PREVIO" = previo ] && echo 1)" '
+HM=$(fuente | grep -c '^# contrato-recibos: 2\([[:space:]].*\)\{0,1\}$')
+fuente | awk -v mode="$MODE" -v R="${R:-}" -v T="${T:-}" -v A="${A:-}" -v hm="$HM" -v previo="$([ "$PREVIO" = previo ] && echo 1)" '
 function bad(msg) { print "  ✗ recibos: línea " NR ": " msg " → " substr($0,1,80) > "/dev/stderr"; fail=1; return 0 }
 function fecha_valida(d,   y, m, dd, mx) {
   if (d !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9](T[0-9][0-9]:[0-9][0-9](:[0-9][0-9])?Z?)?$/) return 0
@@ -125,4 +153,4 @@ END {
   if (mode=="validar") exit fail ? 1 : 0
   if (fail) exit 1              # un registro inválido no entrega ningún recibo
   if (last!="") print last
-}' "$FILE"
+}' -

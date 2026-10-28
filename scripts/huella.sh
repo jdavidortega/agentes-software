@@ -10,9 +10,11 @@
 # son contenido que el revisor juzga; la bitácora narrativa del incremento se escribe
 # ANTES de pedir la revisión (AGENTS.md §9).
 #
-#   sh scripts/huella.sh              → VIGENCIA: árbol de trabajo sin registros (lo que ve el revisor)
+#   sh scripts/huella.sh              → VIGENCIA: árbol de trabajo sin registros (lo que ve el revisor);
+#                                       git no escribe nada (ni temporales, ni índice, ni objetos en .git);
+#                                       un filtro clean/process configurado sí corre (se avisa)
 #   sh scripts/huella.sh indice       → VIGENCIA sobre el ÍNDICE (lo que va al commit; commit-msg)
-#   sh scripts/huella.sh integridad   → INTEGRIDAD: árbol COMPLETO, registros incluidos. El
+#   sh scripts/huella.sh integridad   → INTEGRIDAD: árbol COMPLETO, registros incluidos; sin escrituras. El
 #                                       principal la toma antes y después de cada revisor: si
 #                                       cambia, el revisor escribió algo (en lo que sea).
 #   sh scripts/huella.sh commit <sha> → VIGENCIA del árbol de ese commit (el commit-msg la usa
@@ -53,10 +55,76 @@ if [ "$MODE" = "indice" ]; then
 elif [ "$MODE" = "commit" ]; then
   tree=$(git rev-parse --verify "${2:?huella: falta el commit}^{tree}" 2>/dev/null) || { echo "huella: commit desconocido $2" >&2; exit 2; }
 else
-  tmp=$(mktemp 2>/dev/null || mktemp -t huella); trap 'rm -f "$tmp"' EXIT INT TERM
-  real=$(git rev-parse --git-path index)
-  [ -f "$real" ] && cp "$real" "$tmp"
-  GIT_INDEX_FILE="$tmp" git add -A >/dev/null 2>&1 || exit 2
-  tree=$(GIT_INDEX_FILE="$tmp" git write-tree) || exit 2
+  # Árbol de trabajo (vigencia o integridad) SIN ESCRIBIR NADA: ni temporales, ni índice, ni objetos
+  # en .git. Reproduce línea a línea lo que daría `git add -A` + `git write-tree` + `git ls-tree -r`
+  # (modo, tipo, blob con los filtros de git vía `hash-object` sin -w, rutas con las comillas de
+  # core.quotePath), así la huella es la misma que la del índice cuando el índice está al día. Lo usan
+  # el revisor en modalidad lectura (recibos.sh linea) y el principal antes y después de él.
+  # LÍMITE: git no escribe, pero un filtro clean/process configurado (git-lfs, uno propio) es un
+  # programa que corre al hashear y puede escribir; con filtros así no se certifica lectura estricta.
+  filtros=$(git config --get-regexp '^filter\..*\.(clean|process)$' 2>/dev/null | cut -d' ' -f1 | tr '\n' ' ')
+  [ -z "$filtros" ] || echo "huella: aviso: filtros de git configurados (${filtros% }); sus programas corren al calcular y pueden escribir: la huella no certifica lectura estricta" >&2
+  lineas=$(python3 -I - <<'PY'
+import os, stat, subprocess, sys, hashlib
+def git(*a, inp=None):
+    return subprocess.run(["git", *a], input=inp, capture_output=True, check=True).stdout
+def flag(name, default):
+    r = subprocess.run(["git", "config", "--bool", name], capture_output=True, text=True)
+    return default if r.returncode else r.stdout.strip() == "true"
+root = git("rev-parse", "--show-toplevel").decode().rstrip("\n")
+os.chdir(root)
+quote_path, file_mode = flag("core.quotePath", True), flag("core.fileMode", True)
+index = {}
+for rec in git("ls-files", "-z", "-s").split(b"\0"):
+    if rec:
+        meta, path = rec.split(b"\t", 1)
+        mode, sha, _ = meta.split(b" ")
+        index[path] = (mode.decode(), sha.decode())
+paths = sorted({p.rstrip(b"/") for p in git("ls-files", "-z", "-c", "-o", "--exclude-standard").split(b"\0") if p})
+ESC = {7: b"a", 8: b"b", 9: b"t", 10: b"n", 11: b"v", 12: b"f", 13: b"r", 34: b'"', 92: b"\\"}
+def cquote(p, always=False, high=True):
+    # Comillas al estilo C de git, en BYTES (nunca se reinterpreta un byte como otro carácter).
+    if not always and not any(c < 32 or c in (34, 92, 127) or (high and c >= 128) for c in p):
+        return p
+    out = bytearray(b'"')
+    for c in p:
+        if c in ESC: out += b"\\" + ESC[c]
+        elif c < 32 or c == 127 or (high and c >= 128): out += b"\\%03o" % c
+        else: out.append(c)
+    return bytes(out + b'"')
+rows, regular = [], []
+for p in paths:
+    try:
+        st = os.lstat(p)
+    except FileNotFoundError:
+        continue  # borrado del árbol: git add -A lo retira
+    if stat.S_ISLNK(st.st_mode):
+        data = os.readlink(p)
+        rows.append([p, "120000", "blob", hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()])
+    elif stat.S_ISDIR(st.st_mode):
+        r = subprocess.run(["git", "-C", p, "rev-parse", "--verify", "-q", "HEAD"], capture_output=True, text=True)
+        sha = r.stdout.strip() or index.get(p, ("", ""))[1]
+        if sha:
+            rows.append([p, "160000", "commit", sha])
+    elif stat.S_ISREG(st.st_mode):
+        if file_mode:
+            mode = "100755" if st.st_mode & 0o100 else "100644"
+        else:
+            mode = index[p][0] if index.get(p, ("",))[0] in ("100644", "100755") else "100644"
+        row = [p, mode, "blob", None]
+        rows.append(row); regular.append(row)
+if regular:
+    # Todas las rutas entre comillas: --stdin-paths desentrecomilla toda línea que empieza por '"'.
+    shas = git("hash-object", "--stdin-paths", inp=b"".join(cquote(r[0], always=True) + b"\n" for r in regular)).split()
+    if len(shas) != len(regular):
+        sys.exit("huella: hash-object no devolvió un blob por archivo")
+    for row, sha in zip(regular, shas):
+        row[3] = sha.decode()
+for p, mode, typ, sha in rows:
+    sys.stdout.buffer.write(f"{mode} {typ} {sha}\t".encode() + cquote(p, high=quote_path) + b"\n")
+PY
+) || exit 2
+  { [ -z "$lineas" ] || printf '%s\n' "$lineas"; } | grep -vE "$EXCL" | git hash-object --stdin | cut -c1-12
+  exit 0
 fi
 git ls-tree -r "$tree" | grep -vE "$EXCL" | git hash-object --stdin | cut -c1-12

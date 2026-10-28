@@ -66,6 +66,7 @@ import fnmatch
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -81,6 +82,9 @@ ENVIRONMENT = {
     "CARGO_BUILD_JOBS": "1",
     "MAKEFLAGS": "-j1",
     "GOFLAGS": "-p=1",
+    # Readability only: a wide terminal keeps runner summaries whole in the evidence (pytest cuts
+    # `FAILED x::t - ...` at the width). Classification never depends on it (it reads `E` lines).
+    "COLUMNS": "200",
 }
 IGNORED = (
     ".venv", "venv", ".git", "__pycache__", "*.pyc", ".pytest_cache", ".ruff_cache",
@@ -216,7 +220,7 @@ def pytest_terminal_assertion(lines: list[str]) -> bool:
     cause; without a summary, each test section counts only after its last chaining line."""
     summary = [l for l in lines if re.match(r"^FAILED \S+::\S+ - ", l)]
     if summary:
-        return any(re.match(r"^FAILED \S+::\S+ - (assert\b|AssertionError)", l) for l in summary)
+        return any(re.match(r"^FAILED \S+::\S+ - (assert\b|AssertionError|Failed: DID NOT RAISE\b)", l) for l in summary)
     sections, part = [], []
     for line in lines:
         if re.match(r"^_{3,} .* _{3,}$", line) and part:
@@ -226,7 +230,7 @@ def pytest_terminal_assertion(lines: list[str]) -> bool:
     sections.append(part)
     for section in sections:
         cut = max((i for i, l in enumerate(section) if any(c in l for c in CHAINED)), default=-1)
-        if any(re.match(r"^E\s+(assert\b|AssertionError)", l) for l in section[cut + 1:]):
+        if any(re.match(r"^E\s+(assert\b|AssertionError|Failed: DID NOT RAISE\b)", l) for l in section[cut + 1:]):
             return True
     return False
 
@@ -353,6 +357,78 @@ def plant(tree: Path, root: Path, commit: str | None) -> list[str]:
     return []
 
 
+TABLE_HEADER = re.compile(r"^\s*\|\s*Ruta\s*\|\s*Propósito\s*\|\s*Cómo se reproduce\s*\|")
+EDITABLE_MARKERS = ("direct_url.json",)
+
+
+def declared_externals(root: Path) -> list[str]:
+    """Folders declared in docs/convenciones.md (table `| Ruta | Propósito | Cómo se reproduce |`),
+    the same table the pre-commit reads: ignored folders the suite needs (a virtualenv)."""
+    conv = root / "docs" / "convenciones.md"
+    if not conv.is_file():
+        return []
+    rows, inside = [], False
+    for line in conv.read_text(encoding="utf-8", errors="replace").splitlines():
+        if TABLE_HEADER.match(line):
+            inside = True
+            continue
+        if inside and re.match(r"^\s*\|[- |]+$", line):
+            continue
+        if inside and line.lstrip().startswith("|"):
+            cell = line.split("|")[1].replace("`", "").strip()
+            if cell:
+                rows.append(cell)
+            continue
+        inside = False
+    return rows
+
+
+def external_problem(root: Path, entry: str) -> str | None:
+    """Why a declared external folder may NOT be shared with the copies, or None. Same rules as
+    the pre-commit: relative, ignored, nothing versioned, and nothing that runs the ORIGINAL tree
+    (an editable install or a link into it would test intact code while the copy is mutated)."""
+    if entry.startswith("/") or ".." in Path(entry).parts:
+        return "must be a path relative to the repository, without '..'"
+    folder = root / entry
+    if not folder.is_dir() or folder.is_symlink():
+        return "is not an existing folder of the working tree"
+    if subprocess.run(["git", "check-ignore", "-q", entry], cwd=root).returncode != 0:
+        return "is not ignored by git (what is not ignored is versioned)"
+    tracked = subprocess.run(["git", "ls-files", "--", entry], cwd=root, capture_output=True, text=True).stdout
+    if tracked.strip():
+        return "contains versioned files"
+    real, own = str(root.resolve()), str(folder.resolve())
+    for directory, _, files in os.walk(folder):  # every depth, like the pre-commit's grep -r
+        for name in files:
+            if name.endswith(".pth") or name.startswith("__editable__") or name in EDITABLE_MARKERS:
+                text = (Path(directory) / name).read_text(encoding="utf-8", errors="replace")
+                if real in text:
+                    return f"points at the original tree ({Path(directory) / name}): an editable install runs unmutated code"
+    for directory, dirs, files in os.walk(folder):  # links: three levels, like the pre-commit's find
+        if len(Path(directory).relative_to(folder).parts) >= 3:
+            dirs[:] = []
+        for name in dirs + files:
+            link = Path(directory) / name
+            if link.is_symlink():
+                target = str(link.resolve())
+                inside_repo = target == real or target.startswith(real + os.sep)
+                if inside_repo and not (target == own or target.startswith(own + os.sep)):
+                    return f"has a link into the original tree ({link})"
+    return None
+
+
+def link_externals(tree: Path, root: Path, entries: list[str]) -> None:
+    """Share each declared external folder with a copy as a link to the original (never copied)."""
+    for entry in entries:
+        target = tree / entry
+        if target.is_symlink() or target.is_file():
+            target.unlink()
+        elif target.exists():
+            shutil.rmtree(target)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.symlink_to(root / entry)
+
+
 def resolve_commit(root: Path, commit: str) -> str | None:
     """The full SHA that `commit` names, or None. Validated with git BEFORE anything runs:
     the value is data, never shell (a `--commit` with `;` used to execute in the source repo)."""
@@ -415,7 +491,22 @@ def main() -> int:
         if not all(k in m and isinstance(m[k], str) and m[k] for k in ("label", "file", "before", "after")):
             print(f"malformed mutation (needs label/file/before/after): {m}", file=sys.stderr)
             return 2
-    command = arguments.suite.split()
+    try:
+        # Quoted arguments stay whole; no shell, no eval: the list goes straight to subprocess.
+        command = shlex.split(arguments.suite)
+    except ValueError as exc:
+        print(f"--suite cannot be split into arguments ({exc}): check its quotes", file=sys.stderr)
+        return 2
+    if not command:
+        print("--suite is empty", file=sys.stderr)
+        return 2
+    first = command[0]
+    externals = declared_externals(root)
+    for entry in externals:
+        problem = external_problem(root, entry)
+        if problem:
+            print(f"external input {entry!r} declared in docs/convenciones.md {problem}", file=sys.stderr)
+            return 2
     # A relative PATH in the command (`./gate.sh`, `scripts/run`) is resolved AFTER the copy
     # exists (below): inside the copy when the file is part of the project, so a mutation of
     # the suite script itself is the one that runs; against the root only when the copy does
@@ -442,10 +533,13 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as temporary:
         tree = Path(temporary) / "tree"
         pruned = plant(tree, root, sha)
+        link_externals(tree, root, externals)
+        if externals:
+            print("external inputs linked into every copy (docs/convenciones.md): " + ", ".join(externals))
         if "/" in command[0] and not Path(command[0]).is_absolute():
             if not (tree / command[0]).is_file():
                 command[0] = str(root / command[0])
-                print(f"suite command {arguments.suite.split()[0]} is not in the copy: using the original tree's")
+                print(f"suite command {first} is not in the copy: using the original tree's")
         if arguments.commit:
             size, files = measure(tree)
             mb = size / 1_000_000
@@ -467,7 +561,7 @@ def main() -> int:
         origin = f"commit {arguments.commit}" if arguments.commit else "the working tree"
         print(f"base green over {origin}")
 
-        died, survived, invalid = [], [], []
+        died, survived, invalid, unapplied = [], [], [], []
         base = tree
         for index, mutation in enumerate(mutations):
             label = mutation["label"]
@@ -480,11 +574,12 @@ def main() -> int:
             # the same second, and the mutant would "survive" without ever running (measured).
             tree = Path(temporary) / f"mut{index}"
             shutil.copytree(base, tree, symlinks=True, ignore=shutil.ignore_patterns(*IGNORED))
+            link_externals(tree, root, externals)
             path = contained(tree, mutation["file"])
             if path is None:
                 kind = "ESCAPES " if (tree / mutation["file"]).is_symlink() else "MISSING "
                 print(f"  {kind} {label}: {mutation['file']} (not a regular file inside the copy)")
-                invalid.append(label)
+                unapplied.append(label)
                 shutil.rmtree(tree, ignore_errors=True)
                 continue
             original = path.read_text(encoding="utf-8")
@@ -492,7 +587,7 @@ def main() -> int:
                 # A stale anchor is a different problem from a guarantee that does not hold,
                 # and it is never a kill.
                 print(f"  ANCHOR LOST {label}: {mutation['file']}")
-                invalid.append(label)
+                unapplied.append(label)
                 shutil.rmtree(tree, ignore_errors=True)
                 continue
             path.write_text(original.replace(mutation["before"], mutation["after"], 1), encoding="utf-8")
@@ -532,13 +627,16 @@ def main() -> int:
             print(f"  DIES     {label} -- {run.tail(2)}")
             died.append(label)
 
-    print(f"\napplied {len(died) + len(survived)}/{len(mutations)}: {len(died)} die, {len(survived)} survive; "
-          f"{len(invalid)} not applied, invalid or unverified"
+    print(f"\napplied {len(died) + len(survived) + len(invalid)}/{len(mutations)}: {len(died)} die, "
+          f"{len(survived)} survive, {len(invalid)} without a valid verdict; {len(unapplied)} not applied"
           + (" [kills accepted on exit code alone: --trust-exit-code]" if arguments.trust_exit_code else ""))
     if survived:
         print("guarantees no test protects: " + ", ".join(survived))
+    if unapplied:
+        print("not applied (stale or unsafe spec, fix it): " + ", ".join(unapplied))
     if invalid:
-        print("not applied (stale or unsafe spec, fix it): " + ", ".join(invalid))
+        print("applied, no valid verdict (invalid mutant, timeout or no assertion signature): " + ", ".join(invalid))
+    if unapplied or invalid:
         return 2
     return 1 if survived else 0
 

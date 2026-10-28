@@ -56,7 +56,8 @@ que está bien protegido—, rellenando el incremento y el rango del diff:
 > escáneres de solo lectura disponibles. Sigue el protocolo de `AGENTS.md` §9 y entrega
 > el reporte con su formato exacto (Veredicto · Bloqueantes `R-S#.n` con severidad,
 > confianza y remediación y filas listas · Sugerencias · Cobertura y limitaciones ·
-> Obstáculos · Recibo para `docs/revisiones.log` con tu `sh scripts/huella.sh`). No escribas
+> Obstáculos · Recibo generado con `sh scripts/recibos.sh linea …`: tú declaras veredicto,
+> bloqueantes, ejecutor y modalidad; la herramienta pone fecha y huella). No escribas
 > en ningún archivo, no uses la red ni
 > ataques ningún sistema vivo: todo va en el reporte.
 

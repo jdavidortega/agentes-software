@@ -110,6 +110,21 @@ espera pasa "vista previa: CLAUDE.md marcado como autodescubrimiento" "autodescu
 espera pasa "vista previa: las herramientas de la plantilla se excluyen deliberadamente" "Excluido deliberadamente: .*scripts/adoptar\\.sh" -- adoptar "$P" vista-previa "$E"
 espera pasa "vista previa no escribe nada" "" -- sh -c "[ -z \"\$(git -C '$E' status --porcelain)\" ]"
 
+echo "== adoptar.sh: git por separado y lo previo antes de la primera copia"
+mkdir -p "$W/sin-commits"; en "$W/sin-commits" git init -q; printf 'print(1)\n' > "$W/sin-commits/app.py"
+espera pasa "sin commits: inspeccionar sigue disponible y lo informa" "commit actual: +sin commits" -- adoptar "$P" inspeccionar "$W/sin-commits"
+espera pasa "sin commits: la vista previa sigue disponible y dice qué falta antes de copiar" "Antes de la primera copia.*: 2" -- adoptar "$P" vista-previa "$W/sin-commits"
+espera falla "sin commits: copiar se rechaza" "no se puede separar de la instalación" -- adoptar "$P" copiar "$W/sin-commits"
+espera pasa "sin commits: el rechazo no escribe nada" "" -- sh -c "[ \"\$(ls -A '$W/sin-commits' | tr '\n' ' ')\" = '.git app.py ' ]"
+espera pasa "sin remoto: el trabajo local sigue" "remoto: +ninguno \(el trabajo local sigue" -- adoptar "$P" inspeccionar "$W/sin-commits"
+espera pasa "publicar se informa como decisión, no como dato" "publicar: +decisión de la persona" -- adoptar "$P" inspeccionar "$W/sin-commits"
+copia existente g1; printf 'cambio local\n' >> "$D/app.py"
+espera falla "cambios sin commitear: copiar se rechaza" "cambio\(s\) sin commitear" -- adoptar "$P" copiar "$D"
+espera pasa "cambios sin commitear: la inspección no cuenta un bloqueo" "Bloqueos: 0" -- adoptar "$P" inspeccionar "$D"
+copia existente g2; en "$D" git remote add origin "https://usuario:secreto@ejemplo.invalid/r.git"
+espera pasa "remoto: se informa solo el nombre" "remoto: +origin$" -- adoptar "$P" inspeccionar "$D"
+espera pasa "remoto: la URL con credenciales no se imprime" "" -- sh -c "! sh '$P/scripts/adoptar.sh' inspeccionar '$D' | grep -q secreto"
+
 echo "== adoptar.sh: copia"
 copia existente c1
 espera pasa "copiar: crea el manifiesto" "Manifiesto creado" -- adoptar "$P" copiar "$D"

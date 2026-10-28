@@ -105,9 +105,12 @@ proyecto ignora. Con bloqueos no se sigue: se resuelven con la persona. Una ruta
 tapa una regla amplia del proyecto (p. ej. `*.log` sobre `docs/revisiones.log`) se resuelve con una
 **negación precisa** que propone `adoptar.sh gitignore` (paso D): muestra su efecto y solo se aplica con
 `--aplicar`, como integración explícita. Si lo excluido es la carpeta, una negación no la rescata y el
-bloqueo se resuelve con la persona. Con cambios
-pendientes en el proyecto, se pide commitearlos o apartarlos antes: la instalación tiene
-que poder distinguirse de ellos.
+bloqueo se resuelve con la persona. Git se informa punto por punto (identidad, rama, remoto
+solo por nombre, commit actual, cambios pendientes, hooks) y se pregunta solo lo que falte;
+publicar es una decisión de la persona, no un dato, y sin remoto el trabajo sigue en local. Un
+proyecto **sin commits** o con **cambios sin commitear** no bloquea la inspección ni la vista
+previa, pero la **primera copia** lo rechaza: lo previo se commitea (será la base) o se aparta,
+para que la instalación pueda distinguirse de ello.
 
 **B. Vista previa** (no escribe).
 `sh scripts/adoptar.sh vista-previa <ruta>` lista archivo por archivo: qué se copiaría,

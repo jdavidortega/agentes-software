@@ -15,6 +15,9 @@
 # - Conjunto distribuible CERRADO por nombre ($CONJUNTO); su contenido se enumera con git. Un archivo
 #   nuevo en la raíz de la plantilla no entra solo. README.md, .gitignore y mejoras/ quedan fuera a
 #   propósito: el README del proyecto manda, .gitignore tiene su modo, mejoras/ es local.
+# - La PRIMERA copia exige un commit base y ningún cambio sin commitear (la instalación debe
+#   distinguirse de lo previo); inspeccionar y vista-previa lo informan sin bloquear. Git se informa
+#   por separado; del remoto, solo el nombre.
 # - Antes de escribir se bloquea: un enlace simbólico en CUALQUIER componente de una ruta destino (se
 #   escribiría fuera del repositorio) y una ruta que el destino ignora con la semántica de git.
 # - El manifiesto registra lo instalado con su hash y no se modifica NUNCA (tampoco antes del commit
@@ -150,6 +153,23 @@ $f"
 fi
 
 HOOKS_PATH=$(git -C "$DESTINO" config core.hooksPath 2>/dev/null || echo "sin configurar")
+# Git por separado: cada dato se informa solo; se pregunta lo que falte. Del remoto, solo el nombre
+# (una URL puede llevar credenciales). Publicar es una decisión de la persona, no un dato.
+NOMBRE=$(git -C "$DESTINO" config user.name 2>/dev/null || true); CORREO=$(git -C "$DESTINO" config user.email 2>/dev/null || true)
+if [ -n "$NOMBRE" ] && [ -n "$CORREO" ]; then IDENTIDAD="$NOMBRE <$CORREO>"; else IDENTIDAD="FALTA (git config user.name y user.email)"; fi
+RAMA=$(git -C "$DESTINO" symbolic-ref --short -q HEAD 2>/dev/null || echo "HEAD separado (sin rama)")
+REMOTOS=$(git -C "$DESTINO" remote 2>/dev/null | tr '\n' ' ' | sed 's/ $//')
+[ -n "$REMOTOS" ] || REMOTOS="ninguno (el trabajo local sigue; publicar no aplica mientras no haya uno)"
+BASE_SHA=$(git -C "$DESTINO" rev-parse --short --verify -q HEAD 2>/dev/null || true)
+CAMBIOS=$(git -C "$DESTINO" status --porcelain 2>/dev/null | grep -c . || true)
+# Antes de la PRIMERA copia, lo previo tiene que poder separarse de la instalación: un commit base y
+# ningún cambio sin commitear. No es un bloqueo de la inspección: inspeccionar y vista-previa siguen.
+PREVIAS=""
+if [ ! -f "$DESTINO/$MANIFIESTO" ]; then
+  [ -n "$BASE_SHA" ] || PREVIAS="sin commits: haz un commit con el estado actual del proyecto (será la Base del método)"
+  [ "$CAMBIOS" -eq 0 ] || PREVIAS="$PREVIAS
+$CAMBIOS cambio(s) sin commitear: commitéalos o apártalos (git stash -u) para que no se mezclen con la instalación"
+fi
 HOOKS_PROPIOS=$(ls "$DESTINO/.git/hooks" 2>/dev/null | grep -v '\.sample$' | tr '\n' ' ' || true)
 PENDIENTES="README.md: se conserva el del proyecto; se verifica contra el código en la Fase 1
 .gitignore: entradas del método con «sh scripts/adoptar.sh gitignore <destino> --aplicar»"
@@ -177,8 +197,13 @@ seccion() {  # seccion <título> <lista>
 
 inspeccionar() {
   echo "== Inspección de $DESTINO"
-  echo "commit actual:        $(git -C "$DESTINO" rev-parse --short HEAD 2>/dev/null || echo 'sin commits')"
-  echo "cambios pendientes:   $(git -C "$DESTINO" status --porcelain | grep -c . || true)"
+  echo "-- Git (cada punto por separado; se pregunta solo lo que falte)"
+  echo "identidad:            $IDENTIDAD"
+  echo "rama:                 $RAMA"
+  echo "remoto:               $REMOTOS"
+  echo "publicar:             decisión de la persona, en su momento; no se deduce de la configuración"
+  echo "commit actual:        ${BASE_SHA:-sin commits}"
+  echo "cambios pendientes:   $CAMBIOS"
   echo "core.hooksPath:       $HOOKS_PATH"
   echo "hooks en .git/hooks:  ${HOOKS_PROPIOS:-ninguno}"
   for f in README.md CLAUDE.md AGENTS.md .claude .githooks scripts docs contexto .github .editorconfig; do
@@ -196,7 +221,12 @@ inspeccionar() {
     duro=$(lista "$BLOQ_IGNORADO" | while IFS= read -r p; do printf '%s\n' "$neg" | grep -qxF -- "$p" || printf '%s\n' "$p"; done)
     [ -z "$(lista "$duro")" ] || seccion "de ellos, con una carpeta padre excluida (una negación no los rescata; se resuelve con la persona)" "$duro"
   fi
+  antes_de_copiar
   [ "$BLOQUEOS" -eq 0 ]
+}
+antes_de_copiar() {
+  [ -n "$(lista "$PREVIAS")" ] || return 0
+  seccion "Antes de la primera copia (copiar lo exige; inspeccionar y vista-previa no)" "$PREVIAS"
 }
 informe() {
   seccion "Se copiaría (ausente en el destino)" "$COPIAR"
@@ -214,6 +244,7 @@ vista_previa() {
   echo "== Vista previa de adopción en $DESTINO (no escribe nada)"
   informe
   echo "-- Pendiente de integración a mano (Paso D):"; printf '%s\n' "$PENDIENTES" | sed 's/^/   /'
+  antes_de_copiar
 }
 manifiesto() {
   echo "# Adopción del método — manifiesto de instalación"
@@ -262,6 +293,7 @@ log_actualizaciones() {
 copiar() {
   [ "$BLOQUEOS" -eq 0 ] || { inspeccionar >&2 || true; fallo "hay $BLOQUEOS bloqueo(s): resuélvelos antes de copiar"; }
   instalado=0; [ ! -f "$DESTINO/$MANIFIESTO" ] || instalado=1
+  [ -z "$(lista "$PREVIAS")" ] || { antes_de_copiar >&2; fallo "lo previo del proyecto no se puede separar de la instalación: resuélvelo antes de la primera copia"; }
   n=0; fecha=$(date -u +'%Y-%m-%d %H:%M')
   for f in $(lista "$COPIAR"); do
     [ -e "$DESTINO/$f" ] && continue   # defensa: nunca sobre un existente

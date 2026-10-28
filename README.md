@@ -73,24 +73,31 @@ cada pieza está en «Cómo está armado el sistema» y en el glosario de «Defi
 cualquier archivo con el mismo nombre. La copia la hace un script de la plantilla que
 **solo añade lo que falta** y nunca sobreescribe.
 
-1. **Prepara el proyecto.** Árbol limpio (`git status` sin cambios) y una rama local para
-   probar: `git switch -c adopcion-metodo`. Nada se publica hasta que tú lo decidas.
+1. **Prepara el proyecto.** Necesita al menos un commit con su estado actual y ningún cambio
+   sin commitear: ese commit separa tu código de lo que trae el método (será la «Base del
+   método»). Si el repositorio aún no tiene commits, revisa que no entre ningún secreto y haz
+   uno: `git add -A && git commit -m "Estado antes de adoptar el método"`. Después, una rama
+   local para probar: `git switch -c adopcion-metodo`. Nada se publica hasta que tú lo
+   decidas; sin remoto, todo sigue en local.
 2. **Mira qué pasaría, sin escribir nada.** Desde la carpeta de la plantilla, con la ruta
    de la **raíz** del proyecto:
 
    ```sh
    cd /ruta/a/agente-software
-   sh scripts/adoptar.sh inspeccionar /ruta/al/proyecto   # estado del proyecto y bloqueos
+   sh scripts/adoptar.sh inspeccionar /ruta/al/proyecto   # estado del proyecto, Git punto por punto y bloqueos
    sh scripts/adoptar.sh vista-previa /ruta/al/proyecto   # qué se copia, qué choca, qué se excluye
    ```
 
-3. **Copia.** `sh scripts/adoptar.sh copiar /ruta/al/proyecto`. Puedes repetirlo: si no
-   cambió nada, no escribe nada.
+3. **Copia.** `sh scripts/adoptar.sh copiar /ruta/al/proyecto` escribe en el proyecto los
+   archivos del método que faltan y crea `contexto/adopcion.md`, la lista de lo instalado.
+   No hace commit: el commit de instalación lo hace el agente en el paso 4. La primera copia
+   se rechaza si el proyecto no tiene commits o tiene cambios sin commitear (paso 1).
+   Repetirla es seguro: si nada cambió, no escribe nada.
 4. **Pídele al agente, abierto en el proyecto: «arranca sobre proyecto existente».**
    Ejecuta `docs/arranque-existente.md`: te propone cómo integrar cada choque, el
    `.gitignore` (`adoptar.sh gitignore`) y los secretos versionados, registra el entorno,
-   activa los hooks y hace el commit de instalación. Después entiende el sistema y lo
-   protege con pruebas **antes** de proponer cualquier cambio.
+   activa los hooks y hace el commit de instalación. Después entiende el sistema y protege
+   lo que tu trabajo necesita **antes** de cambiar nada.
 
 Qué pasa con lo que el proyecto ya tiene:
 

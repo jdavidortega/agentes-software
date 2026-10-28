@@ -100,7 +100,16 @@ allowed-tools: Read, Grep, Glob, Bash
    Obstáculos: comandos, flags, workarounds. Su promoción a `docs/convenciones.md` va en el **siguiente** incremento,
    porque `convenciones.md` sí es contenido revisado y cambiarlo ahora invalidaría el
    recibo.
-9. Con **FALLA**: resuelve los bloqueantes como subtareas, deja en cada fila la mutación
+9. Con **FALLA**: antes de corregir, evalúa por cada bloqueante si es una instancia de una
+   **familia** (la misma omisión en otros estados, campos, dependencias o rutas). Si lo es, corrige
+   la familia: busca las demás instancias y la fila nombra la familia y dónde se buscó. Si la
+   familia ya había aparecido, la corrección es estructural (tabla o contrato compartido del plan
+   de pruebas, `probando-con-datos-reales` regla 9), no otro caso suelto. La **repasada** se pide
+   acotada al cambio desde el recibo anterior y a sus efectos (quién lo llama, qué datos comparte),
+   **más** la suite completa y las filas de interacción del incremento: lo ya juzgado sin cambios
+   no se vuelve a revisar, pero las regresiones sí se comprueban, y el revisor reporta cualquier
+   defecto relevante que encuentre al hacerlo.
+   Resuelve los bloqueantes como subtareas, deja en cada fila la mutación
    que ahora muere (`verificando-por-sabotaje`) con una **referencia que resuelve** (ruta
    `archivo:línea` de la prueba o mutación, o commit; el `commit-msg` la comprueba), marca
    `resuelto`, y vuelve al paso 1: la

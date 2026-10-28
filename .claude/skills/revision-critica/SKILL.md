@@ -57,7 +57,15 @@ el incremento y el rango del diff:
 4. Entrega el reporte en el **formato del protocolo** (`AGENTS.md` §9). Los bloqueantes
    llevan ID `R-I<incr>.<n>` (incremento) o `R-F4.<n>` (conjunto) y el criterio `C#` que
    protegen; cada uno es una subtarea accionable. El principal registra, resuelve y el
-   paso a `verificado` sigue la regla escalonada de `AGENTS.md` §2.
+   paso a `verificado` sigue la regla escalonada de `AGENTS.md` §2. Si un bloqueante es una
+   instancia de una **familia** (la misma omisión en otros estados, campos, dependencias o
+   rutas), dilo («familia: …») y nombra las instancias que viste; si la familia ya aparece en
+   `docs/trazabilidad.md`, es una corrección incompleta, no un hallazgo nuevo aislado.
+5. **Repasada** (tras un FALLA): revisa el cambio desde el recibo anterior y sus efectos, corre
+   la suite completa y comprueba las filas de interacción del plan de pruebas; no re-revises lo
+   ya juzgado sin cambios. Acotar no es ignorar: un defecto relevante que encuentres al
+   comprobar se reporta. Si el alcance exige ejecutar mutaciones, eso pide modalidad
+   experimentos; en lectura, dilo como pendiente.
 
 ## Rúbrica (dimensiones)
 

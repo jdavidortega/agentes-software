@@ -56,12 +56,22 @@ description: "Estrategia de pruebas del proyecto: el camino principal siempre en
    sobrevivientes en el camino crítico se registran como hallazgos del juez** (test
    decorativo o comportamiento sin proteger). Sin umbral duro de arranque: se
    calibra tras 2–3 proyectos; hoy el reporte informa y el juez decide.
+9. **La forma del comportamiento, antes de implementar (cuando la tiene).** Si el incremento
+   combina estados, fuentes o precedencias, o varios componentes comparten un dato, el plan de
+   pruebas lo enumera **antes** de escribir código: una **tabla de decisión** corta (una fila por
+   condición o precedencia que cambia el comportamiento, aunque dos filas compartan salida —p. ej.
+   dos errores del SDK que terminan en la misma respuesta—; no el producto cartesiano) y,
+   entre componentes, un **contrato compartido** (presencia frente a contenido, vacío, nulo, y
+   las clases de error que cada dependencia puede lanzar, comprobadas en su SDK). Cada fila tiene
+   su prueba o su razón para no tenerla. Un comportamiento simple no la necesita. Origen: hallazgos
+   que eran variantes de una misma tabla de estados aparecieron uno por revisión.
 
 ## Pasos
 
 1. **Diseño:** escribe el **plan de pruebas** en `docs/plan.md` (por incremento: flujo
    end-to-end por criterio, unitarios justificados, set de oro automatizable / manual,
-   cómo se graba/fixturea el servicio externo del camino principal).
+   cómo se graba/fixturea el servicio externo del camino principal, y la tabla o el contrato
+   de la regla 9 cuando el comportamiento lo requiere).
 2. **Por incremento:** escribe primero el test de flujo del criterio que cubre;
    añade unitarios donde el flujo no llega; verifica que cada test falla si rompes
    el comportamiento (rómpelo a propósito una vez).

@@ -64,7 +64,8 @@ al encuadre ni justificarle sus elecciones; su valor está en que no hereda tu f
 El revisor **no rellena nada**. Para cada vacío, **indica con precisión qué falta** y
 pide a la persona una de dos cosas (lo gestiona el agente principal, no el revisor):
 
-- **Escribir el dato faltante** directamente en la sección correspondiente del `.md`, o
+- **Darlo en el chat**: el principal lo escribe en la sección que corresponde (si la persona
+  prefiere escribirlo ella misma, se le indica dónde), o
 - **Agregar un documento** que lo aporte: la persona indica el **nombre del archivo** y
   lo deja en `contexto/` (el agente principal lo tipifica y lo anota en el manifiesto).
 - Si el vacío es una **decisión con opciones** (p. ej. stack abierto), se resuelve con
@@ -136,14 +137,17 @@ documenta, no se decide). Lo propio del revisor en este modo:
   garantía declarada verificada depende de él; solo una **elección** exige ADR `propuesta`.
 - **Decisiones:** ADR retrospectivos con evidencia, explicación confirmada o hipótesis; no se
   juzgan como decisiones nuevas.
+- **Alcance proporcional** (ruta de trabajo elegido): contrasta con el código que el mapa del área
+  afectada incluya lo que depende del cambio y aquello con lo que interactúa; una dependencia o
+  interacción omitida, o un `C#` `conserva` que solo cubre lo que se edita, es vacío.
 
 **Alcance Fase 2 (diagnóstico y plan):** la rúbrica es el **validador de la Fase 2** del mismo
 guion, ítem por ítem, más la **síntesis contra sus fuentes**: cada fila del diagnóstico se
 contrasta con el encuadre y con los informes de línea base (`contexto/exploracion/linea-base-*.md`);
 un hallazgo relevante omitido, un duplicado sin consolidar, una discrepancia sin justificar o un
 incremento que no protege un `C#` ni trata un hallazgo son vacíos. Sustituye a la rúbrica de
-arriba en lo que esta exija distinto (los `C#` describen lo vigente; el plan no se deriva de
-criterios nuevos).
+arriba en lo que esta exija distinto (los `C#` `conserva` describen lo vigente; solo los `nuevo`
+de la ruta de trabajo elegido originan construcción).
 
 ## Notas / trampas
 

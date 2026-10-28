@@ -397,6 +397,45 @@ espera pasa "adoptado: merge que integra el cierre con Ref: F5 y recibo sobre el
 
 Ref: F5"
 
+echo "== adoptado: ruta de trabajo elegido (un criterio que se conserva, uno nuevo, el resto fuera)"
+# El doctor exige al cierre solo los C# del encuadre: lo declarado fuera del alcance del ciclo no
+# bloquea, y un C# del ciclo sin verificar sí. Sin hooks nuevos: es el contrato actual.
+copia instalado tr; T="$D"; siembra_f2 "$T"
+printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: [conserva] app.py termina sin error.\n- C2: [nuevo] nuevo.py imprime «hola».\n\n## Set de oro\n\n- ejecutar app.py: sin salida, código 0\n- ejecutar nuevo.py: imprime «hola» (salida esperada acordada)\n\n## Fuera del alcance de este ciclo\n\n- El runbook docs/despliegue.md: sin verificar (no lo toca el trabajo elegido).\n' > "$T/docs/encuadre.md"
+printf '# Plan\n\n## Incrementos\n\n- [ ] I1 «protege-app» — protección (satisface: C1)\n- [ ] I2 «construye-hola» — construcción (satisface: C2)\n' > "$T/docs/plan.md"
+trazabilidad "$T" '| C1 | «arranca» | I1 | pendiente | |
+| C2 | «hola» | I2 | pendiente | |' "" ""
+fase "$T" F2; recibo "$T" revisor-funcional encuadre F2 PASA 0
+commitea "$T" "Plan: trabajo elegido
+
+Ref: F2" || die "no pude preparar el plan de trabajo elegido"
+fase "$T" F3; printf 'assert 2 + 2 == 4\n' >> "$T/app.py"; recibo "$T" juez-codigo incremento I1 PASA 0 seguridad=no-aplica
+commitea "$T" "I1
+
+Ref: I1" || die "no pude cerrar I1 de trabajo elegido"
+printf 'print("hola")\n' > "$T/nuevo.py"; recibo "$T" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+commitea "$T" "I2
+
+Ref: I2" || die "no pude cerrar I2 de trabajo elegido"
+rm -rf "$W/etapas/elegido-f3"; cp -R "$T" "$W/etapas/elegido-f3"
+trazabilidad "$T" '| C1 | «arranca» | I1 | verificado | |
+| C2 | «hola» | I2 | verificado | |' "" ""
+fase "$T" F4; recibo "$T" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+espera pasa "trabajo elegido: F4 cierra con sus dos C# verificados y lo demás declarado fuera" "" -- commitea "$T" "validación
+
+Ref: F4"
+fase "$T" F5
+espera pasa "trabajo elegido: F5 cierra el ciclo" "" -- commitea "$T" "cierre
+
+Ref: F5"
+copia elegido-f3 tr2
+trazabilidad "$D" '| C1 | «arranca» | I1 | verificado | |
+| C2 | «hola» | I2 | cubierto | |' "" ""
+fase "$D" F4; recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+espera falla "trabajo elegido: el C# nuevo sin verificar bloquea F4" "C2 no está en Estado 'verificado'" -- commitea "$D" "validación
+
+Ref: F4"
+
 echo "== adoptado: contrato de recibos y evidencia tras la instalación"
 espera pasa "la instalación trae el marcador una sola vez en docs/revisiones.log" "" -- sh -c "[ \"\$(grep -c '^# contrato-recibos: 2' '$W/etapas/instalado/docs/revisiones.log')\" -eq 1 ]"
 incompleto() { MODALIDAD=""; recibo "$@"; unset MODALIDAD; }

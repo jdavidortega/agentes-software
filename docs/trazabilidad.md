@@ -16,7 +16,7 @@
   **aquí** (columna Alias, único lugar); el de los `I#`, junto al incremento en
   `docs/plan.md`. Se cita siempre `ID «alias»`.
 - **Vacíos del revisor funcional (arranque):** `R-E.<n>` (p. ej. `R-E.1`); se registran
-  al cerrar el arranque y se cierran (la persona llena el hueco) antes del gate de diseño.
+  al cerrar el arranque y se cierran (la persona da el dato y el principal lo registra) antes del gate de diseño.
 - **Hallazgos del juez (ejecución):** `R-I<incremento>.<n>` (p. ej. `R-I3.1`).
 - **Hallazgos del juez de seguridad:** `R-S<incremento>.<n>` (p. ej. `R-S3.1`) por
   incremento, y **`R-SF4.<n>`** sobre el conjunto (hito o Fase 4), para que `R-S4.1` nunca

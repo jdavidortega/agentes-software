@@ -164,7 +164,9 @@ clasificación por aspecto (no por ticket) y la revalidación de la Fase 4 si to
 ## 3. Cuándo DETENERTE y preguntar
 
 Antes de hacer cualquiera de estas cosas, **párate y pide aprobación explícita**.
-No las generalices: una aprobación es por acción, no permanente.
+No las generalices: una aprobación es por acción, no permanente, y cubre solo lo que se
+preguntó: «continúa» no autoriza lo que no estaba en la pregunta (p. ej. publicar), que nadie
+objete no es aprobar y «no sé» es incertidumbre, no un dato negativo.
 
 - Agregar una nueva dependencia o librería.
 - Introducir una abstracción nueva (capa, patrón, framework).

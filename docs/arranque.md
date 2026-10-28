@@ -92,6 +92,10 @@ agente **se detiene** y pide resolverla.
 
 ## Transversal (durante todo el arranque)
 
+- **Inspecciona antes de preguntar.** Lo que el repositorio, `contexto/` o la conversación ya
+  dicen no se pregunta, y una prioridad ya expresada se cita, no se vuelve a pedir. Se pregunta
+  solo lo que falta para la siguiente decisión. La persona responde en el chat; los documentos
+  los escribe el agente.
 - **Hallazgo ≠ decisión.** Un **hallazgo** es un hecho observado (p. ej. "el prototipo
   no implementa el filtro de frescura"); se **registra ya** donde informa
   (`docs/encuadre.md`), porque es un dato, no requiere que nadie decida. Una
@@ -235,9 +239,9 @@ Transversal). Es barato y evita rediseñar en plena ejecución.
 Con la ingesta hecha, ya tienes un **borrador de `docs/encuadre.md` derivado de las
 entradas de `contexto/`**. El encuadre **no parte de cero**: es revisar ese borrador
 con la persona y **cerrar los huecos**. Marca cada dato como `[de contexto/]`,
-`[inferido]` o `[FALTA]`, y para cada `[FALTA]` ofrécele elegir el modo: **(a)** tú
-le preguntas **una cosa a la vez** y diligencias tú, o **(b)** le entregas esa
-sección para que la llene y luego la revisas. No avanzas de una sección sin su
+`[inferido]` o `[FALTA]`, y cada `[FALTA]` se lo preguntas en el chat, **una cosa a la
+vez**, y lo diligencias tú; solo si la persona prefiere escribir una sección ella misma, se
+la entregas y luego la revisas. No avanzas de una sección sin su
 contenido.
 
 Hay partes del encuadre que las entradas rara vez traen completas —**criterios de
@@ -350,8 +354,9 @@ fuente** (`contexto/`, incluida la tabla de §Entradas y salidas) y verifica que
 estén resueltos.
 
 El revisor **reporta, no escribe**. Si encuentra un vacío, **indica qué falta** y se
-aplica el protocolo de vacíos del skill: la persona lo **escribe** en el `.md` o
-**agrega un documento** (con nombre indicado, en `contexto/`); el principal **valida si ya está** y, de estarlo, re-pasa
+aplica el protocolo de vacíos del skill: la persona lo **da en el chat** y el principal lo
+registra en el `.md` (o lo escribe ella misma si lo prefiere), o **agrega un documento** (con
+nombre indicado, en `contexto/`); el principal **valida si ya está** y, de estarlo, re-pasa
 el revisor sobre la parte afectada (no se re-corre todo). **No se avanza con vacíos
 abiertos.**
 

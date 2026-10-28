@@ -38,7 +38,7 @@ puede comprobar cada respuesta y no solo que la pasada ocurrió.
 
 ## Contrato de adopción
 
-Ocho cláusulas que no se negocian en cada proyecto; si una no puede cumplirse, se dice y
+Nueve cláusulas que no se negocian en cada proyecto; si una no puede cumplirse, se dice y
 se decide con la persona antes de seguir.
 
 1. **Fuente.** El repositorio es la entrada. `contexto/` lleva el brief de adopción y el
@@ -59,15 +59,37 @@ se decide con la persona antes de seguir.
 5. **Base del método.** `docs/convenciones.md` declara el último commit previo a la adopción
    (`- **Base del método:** <sha>`). El replay del historial excluye lo anterior y valida
    el commit de instalación y todo lo posterior.
-6. **Qué se protege.** Los criterios `C#` describen comportamiento observable que **ya
-   existe y debe conservarse** (de 3 a 8). Cada uno tiene una prueba que demuestra la
-   garantía o una brecha nombrada. Una prueba cuenta por lo que ejecuta, no por su nombre.
-7. **Qué basta para cerrar el ciclo de adopción.** Cada `C#` verificado, los límites
-   conocidos escritos como no-objetivos y las mejoras en el backlog ordenadas por impacto.
-   No se corrige nada en este ciclo salvo que rompa un `C#` vigente o impida ejecutar o
-   verificar con seguridad, y lo decide la persona.
+6. **Qué se protege.** Cada `C#` se marca en el encuadre como **conserva** (comportamiento
+   observable que ya existe y debe conservarse, o el comportamiento documentado o acordado que
+   una corrección restaura) o **nuevo** (capacidad por construir, solo en la ruta de trabajo
+   elegido, cláusula 9): `- C2: [nuevo] …`. Cada `conserva` tiene una prueba que demuestra la
+   garantía o una brecha nombrada; una prueba cuenta por lo que ejecuta, no por su nombre. Un
+   `nuevo` se aprueba como alcance, no como algo que ya funciona: queda `pendiente` hasta que su
+   incremento lo verifique.
+7. **Qué basta para cerrar el ciclo de adopción.** Cada `C#` del ciclo verificado, los límites
+   conocidos escritos como no-objetivos, lo observado fuera del alcance del ciclo declarado con su
+   estado real y las mejoras en el backlog ordenadas por impacto. Diagnosticar no obliga a
+   corregir: no se corrige nada salvo que rompa un `C#` vigente, impida ejecutar o verificar con
+   seguridad o lo exija el trabajo elegido, y lo decide la persona. Toda condición previa dice qué
+   trabajo del ciclo habilita.
 8. **Entorno que funciona.** Se registra antes de tocar nada: si después algo falla, se
    sabe contra qué comparar.
+9. **Ruta del ciclo.** La persona dice qué quiere conseguir; el agente propone la ruta en la
+   Fase 1, cuando ya conoce el área afectada, y el gate de la Fase 1 la confirma.
+   - **Protección general:** los `C#` (de 3 a 8, todos `conserva`) cubren el comportamiento
+     observable del sistema; lo nuevo entra después por reentrada, o antes como mejora aprobada.
+   - **Trabajo elegido con protección proporcional:** una capacidad nueva o una corrección
+     concreta. Los `C#` del ciclo (al menos uno) son los `nuevo` de una capacidad o, en una
+     corrección, el `conserva` que el defecto incumple (con la prueba que lo demuestra en rojo o su
+     brecha), más los `conserva` de lo que el cambio **afecta**: el área tocada, lo que depende de
+     ella y aquello con lo que interactúa (consumidores, datos o configuración compartidos, orden
+     de ejecución). No basta con lo que se edita. El resto de lo observado va a `docs/encuadre.md` §Fuera del alcance de este
+     ciclo con su estado real (qué prueba lo cubre, sin verificar o brecha); no es `C#` y no se
+     declara verificado.
+   **La elección de ruta vale solo en la primera adopción**, cuando aún no hay `C#` acordados. Con criterios ya acordados,
+   el trabajo nuevo sigue la reentrada vigente (`AGENTS.md` §2): ningún `C#` se retira ni se
+   renumera para facilitar el cierre. Cerrar un ciclo con criterios históricos pendientes que no
+   aplican al trabajo actual no está resuelto en esta guía.
 
 ## Paso 0 · Adopción (instalar el método sin tocar el producto)
 
@@ -131,9 +153,11 @@ que el proyecto ya modificó no se sustituye: es una integración manual con la 
   Actions; en otro CI se copian sus comandos (`docs/convenciones.md` §Git).
 
 **E. Brief de adopción.** Un archivo corto en `contexto/` (p. ej. `contexto/brief-adopcion.md`)
-con lo que el repositorio no dice: por qué se adopta el método, qué requerimientos o
-mejoras se esperan después, quién opera el sistema y qué está prohibido tocar. Si la
-persona lo dice en el chat, se captura ahí. Fila en el manifiesto de `contexto/README.md`.
+con lo que el repositorio no dice: por qué se adopta el método, **qué trabajo se prioriza**
+(protección general, una capacidad nueva o una corrección concreta: base de la ruta, cláusula 9),
+quién opera el sistema y qué está prohibido tocar. La persona responde en el chat y el agente lo
+escribe; lo que el repositorio o la conversación ya dicen no se pregunta. Fila en el manifiesto de
+`contexto/README.md`.
 
 **F. Línea base del entorno** (`contexto/exploracion/entorno-base.md`).
 Versión del lenguaje, dependencias **instaladas** (no solo declaradas), comando de pruebas
@@ -211,7 +235,9 @@ pendiente de integrar, cómo está la suite, y que lo siguiente es **entender el
 
 Produce `docs/encuadre.md` con **el sistema tal como está**, corto y referenciando lo que ya
 está escrito, más `docs/convenciones.md` y `docs/decisiones.md`. Se lee el código entero
-que toca cada capacidad; lo que se afirma, se cita.
+que toca cada capacidad; lo que se afirma, se cita. Con la ruta de trabajo elegido (cláusula 9)
+propuesta, las actividades 1, 3 y 4 se hacen sobre el área afectada; el resto del sistema queda al
+nivel de la actividad 2.
 
 **Marcas de origen** (sustituyen a las del arranque normal). Para afirmaciones sobre el
 sistema, tres, y no se mezclan:
@@ -302,9 +328,12 @@ la adopción sin la autorización puntual de la persona (`AGENTS.md` §3).
    interrupción y **reentrega** · cambio de fecha o zona horaria (claves diarias, ventanas).
    En cada camino: qué ve **cada consumidor** (p. ej. el estado de la cola frente al de negocio).
    El README se verifica contra el código y cada desfase es un hallazgo (cláusula 3).
-4. **Criterios vigentes y mapa de protección.** Un `C#` por comportamiento observable que
-   debe conservarse, y **todo estado terminal** que el sistema expone tiene un `C#` o queda
-   declarado fuera. Set de oro con **referencia producida por la versión actual** (no por un
+4. **Ruta, criterios y mapa de protección.** La ruta propuesta (cláusula 9) y, si es de
+   trabajo elegido, el mapa del área afectada: cada dependencia e interacción citada
+   `archivo:línea`. Un `C#` `conserva` por comportamiento observable que debe conservarse en el
+   alcance, y **todo estado terminal** que ese alcance expone tiene un `C#` o queda declarado
+   fuera. Un `C#` `nuevo` por capacidad pedida, citando el brief, con su par del set de oro como
+   **salida esperada acordada**. Set de oro de los `conserva` con **referencia producida por la versión actual** (no por un
    análisis previo cuya procedencia no se conoce), con **los pares necesarios para representar
    salidas y caminos materialmente distintos** (cinco es una referencia, no una garantía de
    suficiencia). Toda **cifra** del set de oro se **deriva del artefacto persistido** con una
@@ -335,11 +364,16 @@ la adopción sin la autorización puntual de la persona (`AGENTS.md` §3).
   causa, garantías pendientes y condición.
 - [ ] La lista de caminos de la actividad 3 está completa: cada camino con su contrato o con
   «no aplica» justificado.
-- [ ] Hay entre 3 y 8 `C#`; cada estado terminal expuesto tiene `C#` o está declarado fuera;
-  cada `C#` tiene una prueba que lo ejecuta de verdad o una brecha nombrada, y cita
-  `archivo:línea`. Con la verificación bloqueada, cada `C#` está en `pendiente` con la nota
+- [ ] La ruta está propuesta; en la de trabajo elegido, el mapa del área afectada cita sus
+  dependencias e interacciones y §Fuera del alcance de este ciclo da el estado real de lo demás.
+- [ ] Cada `C#` está marcado `conserva` o `nuevo`: de 3 a 8 en protección general, al menos uno
+  en trabajo elegido. Cada estado terminal del alcance tiene `C#` o está declarado fuera; cada
+  `conserva` tiene una prueba que lo ejecuta de verdad o una brecha nombrada, y cita
+  `archivo:línea`; cada `nuevo` cita el brief y está `pendiente`; el `conserva` que una corrección
+  restaura cita el defecto y la prueba que lo demuestra en rojo, o su brecha. Con la verificación bloqueada, cada `C#` está en `pendiente` con la nota
   «verificación dinámica bloqueada: <causa>».
-- [ ] Cada par del set de oro tiene procedencia y referencia persistida (o reproducción
+- [ ] Cada par del set de oro tiene procedencia y referencia persistida (la de un `nuevo`: salida
+  esperada acordada con la persona) (o reproducción
   declarada limitada, o referencia **candidata** con su fuente si la ejecución está
   bloqueada); sus cifras se derivan del artefacto persistido.
 - [ ] Ninguna inferencia lleva la marca de observación ni de ejecución; cada `inferido` dice
@@ -350,6 +384,8 @@ la adopción sin la autorización puntual de la persona (`AGENTS.md` §3).
   probar, aplicar un cambio; estilo) y conserva las reglas de la plantilla.
 - [ ] Cada `[pendiente]` con impacto y quién lo confirma.
 - [ ] Revisor funcional en PASA y pasada de coherencia respondida y anotada en `docs/estado.md`.
+
+**Gate de la Fase 1:** la persona confirma el encuadre y la **ruta del ciclo** con sus criterios.
 
 **Evidencia de las revisiones sin recibo.** La gramática de `docs/revisiones.log` solo admite recibos
 desde la Fase 2 (`scripts/recibos.sh`); la revisión de la Fase 1 y las pasadas de línea base no dejan
@@ -396,12 +432,12 @@ tomada de un informe se **reverifica** en el código antes de llevar la marca `o
 correcta. Una corrección **factual** del encuadre (una fila de contratos, un hallazgo) se hace con
 nota en el diagnóstico; si cambia un `C#` o el set de oro, es **reentrada** (ADR, revisor, gate).
 
-**3. Plan** (`docs/plan.md`), en dos bloques separados. **Con la verificación bloqueada**, el
+**3. Plan** (`docs/plan.md`), en bloques separados. **Con la verificación bloqueada**, el
 plan es **condicionado**: su primer incremento es **habilitar la verificación** (la condición de
 la Fase 1, sin tocar el producto: caché, entorno, acceso) y los de protección que necesitan ejecutar
 dependen de él (cada `I#` dice si depende; uno que no lo necesita puede ir antes); el
 plan no afirma que el sistema funciona, y los `C#` siguen `sin verificar` hasta ejecutarse.
-- **Protección (obligatoria y mínima):** lo necesario para que **cada `C#` vigente quede
+- **Protección (obligatoria y mínima):** lo necesario para que **cada `C#` `conserva` quede
   verificable**. Un `C#` cubierto por pruebas existentes va a un incremento de **verificación por
   sabotaje** (`.claude/skills/verificando-por-sabotaje/SKILL.md`): demuestra que la prueba protege
   la garantía, sin tocar el producto. Un `C#` con brecha va a un incremento que escribe la prueba
@@ -409,8 +445,11 @@ plan no afirma que el sistema funciona, y los `C#` siguen `sin verificar` hasta 
   comportamiento observado **con limitación conocida** (un hallazgo) se marca como
   **caracterización**, citando el hallazgo: protege lo que hay hoy sin convertir el defecto en
   obligación; cambiarlo después exige actualizar el contrato (`C#` o ADR) en ese mismo incremento.
+- **Construcción o corrección (solo en trabajo elegido):** los incrementos que implementan
+  cada `nuevo` o restauran el `conserva` que motiva la corrección, después de la protección de lo
+  que afectan; siguen la Definición de Hecho normal.
 - **Mejora (opcional):** cada incremento dice qué riesgo trata y **por qué ahora** y no después.
-Cada `I#` lleva alias e indica el `C#` que protege o el hallazgo que trata. **Línea de corte:**
+Cada `I#` lleva alias e indica el `C#` que protege o construye, o el hallazgo que trata. **Línea de corte:**
 separa la **protección necesaria por criterio** (lo que hace verificable cada `C#`, nace de sus brechas)
 de las **mejoras seleccionadas por riesgo** (nacen de filas del diagnóstico), y explica qué queda fuera y
 por qué puede esperar. Plan de pruebas por incremento
@@ -434,8 +473,10 @@ la **síntesis contra sus fuentes** (encuadre e informes de línea base).
   representativos) y decisión; los diferidos dicen por qué pueden esperar y los descartados, por qué.
 - [ ] Toda discrepancia con un informe consta en la columna de su valoración, con justificación y
   fuente; las contradicciones con el encuadre se resolvieron contra el código.
-- [ ] Bloque de protección mínimo: cada `C#` con un incremento (verificación por sabotaje o
-  prueba nueva) en `docs/trazabilidad.md`; ningún incremento de protección sin `C#`.
+- [ ] Bloque de protección mínimo: cada `C#` `conserva` con un incremento (verificación por
+  sabotaje o prueba nueva) y cada `nuevo` o `conserva` incumplido con su incremento de construcción o corrección, en
+  `docs/trazabilidad.md`; ningún incremento de protección sin `C#`. En trabajo elegido, cada
+  dependencia o interacción del mapa queda protegida o declarada fuera con su razón.
 - [ ] Mejoras separadas, cada una con el riesgo que trata y por qué ahora; línea de corte escrita. Una
   mejora condicional tiene **un solo disparador**, idéntico en el diagnóstico, el plan, la línea de corte
   y el backlog; vive en el **backlog** y el plan la cita sin contarla como seleccionada.
@@ -448,6 +489,10 @@ la **síntesis contra sus fuentes** (encuadre e informes de línea base).
 - [ ] Nada del producto cambió (`git diff <base>..HEAD` sobre el código).
 - [ ] Revisor funcional en PASA y pasada de coherencia respondida y anotada en `docs/estado.md`.
 
-**Gate de la Fase 2:** la persona elige la ruta: **mejorar ahora** (protección + mejoras
-aprobadas) o **proteger, cerrar el ciclo y seguir con funcionalidad nueva** por reentrada
-(recomendado: cerrar deja una línea base verificada antes de cambiar nada).
+**Gate de la Fase 2:** la persona aprueba el plan de la ruta confirmada en la Fase 1; la ruta no
+se vuelve a preguntar. Si el diagnóstico encontró una dependencia o interacción que cambia de forma
+material el alcance, el coste o el riesgo, el gate presenta esa diferencia (qué se añade o cambia y
+por qué) y pide confirmar el ajuste; un `C#` nuevo entra al encuadre antes del commit `Ref: F2` y
+pasa por el revisor. En protección general, la persona decide además si incluye mejoras ahora o
+cierra y sigue con funcionalidad nueva por reentrada (recomendado: cerrar deja una línea base
+verificada antes de cambiar nada).

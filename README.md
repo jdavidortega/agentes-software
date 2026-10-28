@@ -199,32 +199,36 @@ validadores PASA/FALLA y gates— está en `docs/arranque.md` (Fases 1–2) y en
 ### Diagrama para un proyecto existente
 
 Con código que ya funciona, el método no empieza construyendo: primero entiende y protege lo
-que hay. Mismas fases, roles y hooks; cambia qué produce cada fase.
+que el ciclo necesita conservar. En la primera adopción la persona elige el trabajo: protección
+general o un trabajo concreto (una capacidad nueva o una corrección) con protección proporcional. Mismas fases, roles
+y hooks; cambia qué produce cada fase.
 
 ```mermaid
 flowchart TD
     P0["Paso 0 · Adopcion<br/>instala el metodo sin tocar el producto<br/>Base del metodo = ultimo commit previo<br/>linea base del entorno y de la suite"]
     G0{"Gate<br/>Paso 0"}
-    F1["Fase 1 · Reconocimiento<br/>el sistema tal como esta, leido del codigo<br/>afirmaciones marcadas: observado · inferido · comprobado<br/>C# = comportamiento que ya existe y se conserva (3 a 8)<br/>set de oro producido por la version actual<br/>lo preexistente queda en Linea base: no se exige"]
-    G1{"Gate<br/>Fase 1"}
-    F2["Fase 2 · Diagnostico y plan<br/>jueces de linea base: conjunto + seguridad<br/>diagnostico priorizado: clase · valoracion · decision<br/>plan: PROTECCION obligatoria (cada C# verificable)<br/>+ MEJORAS opcionales, con linea de corte"]
-    G2{"Gate Fase 2<br/>la persona elige la ruta"}
+    F1["Fase 1 · Reconocimiento<br/>el sistema tal como esta, leido del codigo<br/>afirmaciones marcadas: observado · inferido · comprobado<br/>ruta del ciclo: proteccion general o trabajo elegido<br/>C# conserva: lo que existe y el ciclo afecta<br/>C# nuevo: la capacidad pedida, aun pendiente<br/>set de oro: lo vigente, producido por la version actual<br/>lo nuevo, salida esperada acordada<br/>lo preexistente queda en Linea base: no se exige"]
+    G1{"Gate Fase 1<br/>confirma la ruta"}
+    F2["Fase 2 · Diagnostico y plan<br/>jueces de linea base: conjunto + seguridad<br/>diagnostico priorizado: clase · valoracion · decision<br/>plan: PROTECCION de cada C# conserva<br/>+ CONSTRUCCION o CORRECCION del trabajo elegido<br/>+ MEJORAS opcionales, con linea de corte"]
+    G2{"Gate Fase 2<br/>aprueba el plan"}
     PR["Fase 3 · Proteccion<br/>primer cambio del repositorio con juez<br/>sabotaje de pruebas existentes · pruebas nuevas<br/>caracterizacion de lo que hoy hace mal"]
+    CO["Fase 3 · Trabajo elegido<br/>construye lo nuevo o corrige el defecto, con juez"]
     ME["Fase 3 · Mejoras aprobadas<br/>incrementos con juez, por riesgo"]
-    F45["Fases 4 y 5 · Validacion y cierre<br/>linea base verificada"]
+    F45["Fases 4 y 5 · Validacion y cierre<br/>criterios del ciclo verificados"]
     R["Reentrada<br/>funcionalidad nueva y mejoras del backlog<br/>por el ciclo normal"]
     B["Verificacion bloqueada<br/>(sin red, dependencias, servicio externo)<br/>C# pendientes · set de oro candidato<br/>el plan empieza por habilitarla"]
 
     P0 --> G0 --> F1 -->|"revisor funcional<br/>modo adopcion"| G1 --> F2 -->|"revisor funcional<br/>modo adopcion"| G2
     F1 -.->|"si no se puede ejecutar"| B -.-> F2
-    G2 -->|"proteger y cerrar<br/>(recomendado)"| PR --> F45
-    G2 -->|"mejorar ahora"| PR
-    PR -.-> ME --> F45
+    G2 --> PR
+    PR -->|"proteccion general:<br/>cerrar (recomendado)"| F45
+    PR -.->|"mejoras aprobadas"| ME --> F45
+    PR -->|"trabajo elegido"| CO --> F45
     F45 --> R
 ```
 
-Hasta el gate de la Fase 2 nada del producto cambia. Primero se entiende y se protege lo que ya
-funciona; las mejoras van después y por riesgo. El detalle de cada paso, sus validadores y sus
+Hasta el gate de la Fase 2 nada del producto cambia. Primero se entiende y se protege lo que el
+ciclo conserva; lo nuevo y las mejoras van después. Diagnosticar no obliga a corregir. El detalle de cada paso, sus validadores y sus
 gates está en `docs/arranque-existente.md`; la instalación, en «En un proyecto que ya existe y
 funciona», arriba.
 

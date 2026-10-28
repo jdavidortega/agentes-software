@@ -85,7 +85,9 @@ de un requerimiento tiene que poder hacerse leyendo, no descifrando.
   errores de "propagación documental".
 - **`estado.md` en cada parada:** además de los cierres, se regenera al terminar una
   sesión, al dejar un gate pendiente o al quedar bloqueado, con la sección «Pendiente»
-  en frases completas. Es lo único que se escribe fuera de los momentos fijos.
+  en frases completas. Es lo único que se escribe fuera de los momentos fijos. Regenerar
+  es comprobar cada afirmación contra su fuente, retirar lo cerrado y conservar lo pendiente
+  vigente aunque sea de una fase anterior (reglas en la cabecera de `docs/estado.md`).
 - **Hito:** tres incrementos cerrados desde el último hito, o antes de un despliegue. Es un
   commit `Ref: hito:I<a>-I<b>` con recibo del juez de conjunto (y de seguridad si la requiere);
   el `commit-msg` rechaza el cuarto incremento sin él. En cada hito: pasada del juez de conjunto
@@ -113,8 +115,9 @@ de un requerimiento tiene que poder hacerse leyendo, no descifrando.
 - **Señal de poda adicional:** un documento vivo con más de ~2 páginas de contenido
   operativo se compacta en el siguiente cierre, sin esperar la fase.
 - **Consumo por rebanada:** al cierre de cada incremento y de cada fase, una línea en
-  `docs/MEMORIA.md` §Consumo con `python3 scripts/consumo.py` (formato y qué hacer si falla:
-  `dirigiendo-revisiones` paso 8b). La retro de F5 la evalúa: detecta sobredimensionamiento.
+  `docs/MEMORIA.md` §Consumo con `python3 scripts/consumo.py` (formato, fuente, cobertura y qué
+  hacer si falla: `dirigiendo-revisiones` paso 8b). La retro de F5 la evalúa: detecta
+  sobredimensionamiento. Solo se comparan cifras de la misma fuente y el mismo campo.
 - **Presupuesto de escritura (la ventana de contexto es finita y la calidad cae antes
   de llenarla):** todo lo que el agente escribe lo volverá a leer él mismo, muchas veces,
   en sesiones futuras. Topes que se respetan salvo razón escrita: reporte de revisión

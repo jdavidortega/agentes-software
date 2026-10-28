@@ -970,7 +970,7 @@ printf 'crlf.txt text eol=crlf\n' > "$HV/.gitattributes"; printf 'l1\nl2\n' > "$
 en "$HV" git add -A && en "$HV" git -c core.hooksPath=/dev/null commit -q -m base || die "no pude preparar la huella"
 printf 'a2\n' > "$HV/a.txt"; rm "$HV/b.txt"; printf 'n\n' > "$HV/año nuevo.md"; printf 'q\n' > "$HV/con \"comillas\".txt"
 printf 'c\n' > "$HV/\"inicio.txt"; printf 'm\n' > "$HV/ñ\"mezcla\\é.txt"; printf 'l\n' > "$HV/$(printf 'salto\nlinea.txt')"  # comilla inicial (--stdin-paths la desentrecomilla), no ASCII + comilla + barra, salto de línea
-printf '#!/bin/sh\n' > "$HV/sub/run.sh"; chmod +x "$HV/sub/run.sh"; ln -s a.txt "$HV/enlace"; printf 'i\n' > "$HV/x.log"; printf 'y\n' > "$HV/docs/estado.md"; printf 'r1\nr2 de otro tamaño\n' > "$HV/crlf.txt"  # mismo tamaño en el mismo segundo engañaría al cálculo ANTERIOR (racy git)
+printf '#!/bin/sh\n' > "$HV/sub/run.sh"; chmod +x "$HV/sub/run.sh"; ln -s a.txt "$HV/enlace"; printf 'i\n' > "$HV/x.log"; printf 'y2\n' > "$HV/docs/estado.md"; printf 'r1\nr2 de otro tamaño\n' > "$HV/crlf.txt"  # estado.md y crlf.txt cambian de tamaño: con igual tamaño en el mismo segundo el cálculo ANTERIOR reusa el blob viejo (racy git)
 espera pasa "huella sin escrituras = cálculo anterior (modificado, borrado, nuevo, ñ, comillas, comilla inicial, salto de línea, ejecutable, enlace, ignorado, registro, filtro)" "" -- sh -c "[ \"\$(cd '$HV' && sh scripts/huella.sh)\" = '$(huella_vieja "$HV")' ]"
 espera pasa "huella de integridad sin escrituras = cálculo anterior" "" -- sh -c "[ \"\$(cd '$HV' && sh scripts/huella.sh integridad)\" = '$(huella_vieja "$HV" integridad)' ]"
 espera pasa "huella sin escrituras con core.quotePath=false = cálculo anterior" "" -- sh -c "[ \"\$(cd '$HV' && GIT_CONFIG_PARAMETERS=\"'core.quotePath'='false'\" sh scripts/huella.sh)\" = '$(GIT_CONFIG_PARAMETERS="'core.quotePath'='false'" huella_vieja "$HV")' ]"
@@ -1611,6 +1611,28 @@ espera pasa "buscar: repetir no escribe" "" -- test "$(cksum < "$BR")" = "$h_ant
 espera falla "buscar: repetir de una entrada con error se rechaza" "no hay resultado que reproducir" -- bus repetir --registro "$BR" B-4
 sed 's/^- coincidencias: src\/a.rs:1, src\/a.rs:3$/- coincidencias: src\/a.rs:1/; s/^- líneas coincidentes: 2 (archivos: 1)$/- líneas coincidentes: 1 (archivos: 1)/' "$BR" > "$W/buscar-alterado.md"
 espera falla "buscar: repetir detecta un resultado que no reproduce" "B-1 NO reproduce" -- bus repetir --registro "$W/buscar-alterado.md" B-1
+
+echo "== Consumo: atribución por origen (transcripts sintéticos)"
+# Ronda 12 (C6): principal y subagentes solo cuando la estructura lo permite; lo ambiguo queda sin
+# atribuir; un mensaje repetido cuenta una vez; la suma es un subtotal medido, no un total.
+msg() {  # msg <id> <salida> [campos extra JSON]: una línea assistant con usage
+  printf '{"type":"assistant","requestId":"r%s",%s"message":{"id":"m%s","model":"modelo-x","usage":{"input_tokens":1,"cache_creation_input_tokens":10,"cache_read_input_tokens":100,"output_tokens":%s}}}\n' "$1" "${3:-}" "$1" "$2"
+}
+CP=python3; CS="$RAIZ/scripts/consumo.py"; K="$W/consumo"
+mkdir -p "$K/solo" "$K/sub/s1/subagents" "$K/amb/s1/otra" "$K/dup/s1/subagents"
+{ msg 1 5 '"isSidechain":false,'; msg 2 7 '"isSidechain":false,'; } > "$K/solo/s1.jsonl"
+espera pasa "consumo: solo principal (sin anidados) se atribuye al principal y avisa que no vio subagentes" "principal 2, subagentes 0, sin atribuir 0.*NO está aquí|NO está aquí.*principal 2, subagentes 0, sin atribuir 0" -- sh -c "$CP '$CS' --dir '$K/solo' 2>&1 | tr '\n' ' '"
+msg 1 5 '"isSidechain":false,' > "$K/sub/s1.jsonl"; msg 3 11 '"isSidechain":true,"agentId":"a1",' > "$K/sub/s1/subagents/agent-a1.jsonl"
+espera pasa "consumo: subagente anidado (subagents/, isSidechain, agentId) se atribuye a subagentes" "principal 1, subagentes 1, sin atribuir 0" -- $CP "$CS" --dir "$K/sub"
+espera pasa "consumo: el subtotal medido suma ambos orígenes sin duplicar (salida 5+11)" "^subtotal medido +2 +20 +200 +16$" -- $CP "$CS" --dir "$K/sub"
+{ msg 1 5; msg 2 7 '"isSidechain":true,"agentId":"a9",'; } > "$K/amb/s1.jsonl"; msg 3 11 '"isSidechain":true,"agentId":"a1",' > "$K/amb/s1/otra/agent-a1.jsonl"
+espera pasa "consumo: datos incompletos o ambiguos quedan sin atribuir, con aviso (no se fuerzan)" "principal 0, subagentes 0, sin atribuir 3.*hay llamadas sin atribuir|hay llamadas sin atribuir.*principal 0, subagentes 0, sin atribuir 3" -- sh -c "$CP '$CS' --dir '$K/amb' 2>&1 | tr '\n' ' '"
+{ msg 1 5 '"isSidechain":false,'; msg 1 5 '"isSidechain":false,'; } > "$K/dup/s1.jsonl"
+{ msg 2 7 '"isSidechain":true,"agentId":"a1",'; msg 2 7 '"isSidechain":true,"agentId":"a1",'; msg 1 5 '"isSidechain":true,"agentId":"a1",'; } > "$K/dup/s1/subagents/agent-a1.jsonl"
+espera pasa "consumo: mensaje repetido cuenta una vez; si aparece en dos orígenes queda sin atribuir" "2 llamadas: principal 0, subagentes 1, sin atribuir 1" -- $CP "$CS" --dir "$K/dup"
+espera pasa "consumo: --json conserva los campos anteriores y añade por_origen sin cambiar por_modelo" "" -- sh -c "$CP '$CS' --dir '$K/sub' --json | $CP -I -c 'import json,sys; d=json.load(sys.stdin); assert {\"dir\",\"archivos\",\"archivos_anidados\",\"llamadas\",\"por_modelo\"} <= set(d); assert d[\"por_modelo\"][\"modelo-x\"][\"output_tokens\"] == 16 and d[\"llamadas\"] == 2; assert d[\"por_origen\"][\"subagentes\"][\"modelo-x\"][\"output_tokens\"] == 11; assert d[\"llamadas_por_origen\"] == {\"principal\": 1, \"subagentes\": 1, \"sin_atribuir\": 0}'"
+mkdir -p "$K/vacio"; printf '{"type":"user"}\n' > "$K/vacio/s1.jsonl"
+espera falla "consumo: sin mensajes con usage falla en voz alta (nunca ceros que parezcan respuesta)" "0 mensajes con usage" -- $CP "$CS" --dir "$K/vacio"
 
 echo
 echo "regresion: $((TOTAL-MAL))/$TOTAL casos en verde"

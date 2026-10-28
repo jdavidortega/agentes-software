@@ -97,9 +97,17 @@ allowed-tools: Read, Grep, Glob, Bash
    inventario) y **límites**; sin aislamiento verificado: «no se garantiza la ausencia de
    escrituras fuera del repositorio». No va a la bitácora (`plan.md` está en la huella).
 8b. **Rutea los obstáculos a `docs/MEMORIA.md`** (sección «Operativa») y la línea de
-   consumo a `MEMORIA.md` §Consumo: `python3 scripts/consumo.py` (acumulado por modelo desde los
-   transcripts locales) y una línea `Consumo I5 «alias»: +X entrada / +Y salida (acum X'/Y')`,
-   delta contra la anterior; si el script falla, regístralo con `/usage` y anota el hallazgo.
+   consumo a `MEMORIA.md` §Consumo: `python3 scripts/consumo.py` (acumulado por modelo y por
+   origen desde los transcripts locales) y una línea, delta contra la anterior de la misma fuente:
+   `Consumo I5 «alias» [ejecución|revisión|corrección|mantenimiento de controles]: fuente=consumo.py;
+   principal +E entrada / +CE caché-esc / +CL caché-lect / +S salida; subagentes …; sin atribuir …;
+   cobertura: <qué no está medido>`. El propósito lo declara quien registra (el script no lo
+   sabe). Cada cifra nombra su campo: los de caché van aparte y nunca se suma «tokens» a secas.
+   Si falta una parte (otro cliente, sesión perdida, subagentes no vistos) la suma es un
+   **subtotal medido**, rotulado así, nunca un total. **Una fuente por línea:** no se suman ni se
+   comparan cifras de fuentes distintas (transcripts, `/usage`, el resumen del cliente al terminar
+   un subagente) sin haber comprobado que cuentan lo mismo. Tokens no son coste. Si el script
+   falla: `fuente=/usage` o `fuente=no medido`, y anota el hallazgo.
    Obstáculos: comandos, flags, workarounds. Su promoción a `docs/convenciones.md` va en el **siguiente** incremento,
    porque `convenciones.md` sí es contenido revisado y cambiarlo ahora invalidaría el
    recibo.

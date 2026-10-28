@@ -8,9 +8,12 @@ Usage:
 
 Reads every *.jsonl under ~/.claude/projects/<slug-of-cwd>/ RECURSIVELY (main thread,
 sidechains, and subagent transcripts, which live in nested directories such as
-<session>/subagents/), deduplicates messages, and sums usage per model. The report states
-how many files were read at the top level and how many in nested directories, so a run
-that saw no subagent files says so instead of looking complete.
+<session>/subagents/), deduplicates messages, and sums usage per model and per origin:
+principal, subagentes, or sin_atribuir when the structure does not say (see origin()).
+The report states how many files were read at the top level and how many in nested
+directories, so a run that saw no subagent files says so instead of looking complete.
+Its sum is a MEASURED SUBTOTAL of these transcripts, not a complete total, and tokens are
+not cost.
 Record ONE line in docs/MEMORIA.md, section "Consumo", at each increment/phase close
 (see docs/convenciones.md, "Contexto por sesion y compactacion"; MEMORIA.md is outside
 the review fingerprint, plan.md is not); the delta against the previous line is that
@@ -65,14 +68,28 @@ def find_transcript_dir(cwd: Path) -> Path:
     )
 
 
-def collect(directory: Path) -> tuple[dict, int, int, int]:
-    per_model: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
-    seen: set[tuple] = set()
-    calls = 0
+ORIGINS = ("principal", "subagentes", "sin_atribuir")
+
+
+def origin(fp: Path, directory: Path, entry: dict) -> str:
+    """Attribute an entry only when the transcript structure says so; anything else is ambiguous.
+
+    principal:  top-level <session>.jsonl, isSidechain explicitly false, no agentId.
+    subagentes: <session>/subagents/*.jsonl, isSidechain explicitly true, with agentId.
+    """
+    if fp.parent == directory and entry.get("isSidechain") is False and "agentId" not in entry:
+        return "principal"
+    if fp.parent.name == "subagents" and entry.get("isSidechain") is True and entry.get("agentId"):
+        return "subagentes"
+    return "sin_atribuir"
+
+
+def collect(directory: Path) -> tuple[dict, dict, dict, int, int, int]:
     files = sorted(directory.rglob("*.jsonl"))
     nested = sum(1 for f in files if f.parent != directory)
     if not files:
         sys.exit(f"{directory} no tiene archivos .jsonl")
+    records: dict[tuple, list] = {}  # key -> [model, amounts, origin]
     for fp in files:
         with open(fp, encoding="utf-8") as fh:
             for line in fh:
@@ -86,24 +103,32 @@ def collect(directory: Path) -> tuple[dict, int, int, int]:
                 usage = message.get("usage")
                 if not isinstance(usage, dict):
                     continue
-                key = (message.get("id"), entry.get("requestId")) if message.get("id") else (entry.get("uuid"),)
-                if key in seen:  # resumed/compacted sessions repeat messages
-                    continue
-                seen.add(key)
                 model = message.get("model") or "desconocido"
                 amounts = {f: usage.get(f) for f, _ in USAGE_FIELDS}
                 if model == "<synthetic>" or not any(isinstance(v, int) and v for v in amounts.values()):
                     continue  # harness-internal rows carry no real usage
-                calls += 1
-                for field, _ in USAGE_FIELDS:
-                    if isinstance(amounts[field], int):
-                        per_model[model][field] += amounts[field]
-    if calls == 0:
+                key = (message.get("id"), entry.get("requestId")) if message.get("id") else (entry.get("uuid"),)
+                where = origin(fp, directory, entry)
+                if key in records:  # resumed/compacted sessions repeat messages: counted once
+                    if records[key][2] != where:
+                        records[key][2] = "sin_atribuir"  # seen in two places: not attributable
+                    continue
+                records[key] = [model, amounts, where]
+    if not records:
         sys.exit(
             f"0 mensajes con usage en {directory} — el formato interno pudo cambiar; "
             "verifica con /usage dentro de Claude Code y ajusta este script."
         )
-    return per_model, calls, len(files), nested
+    per_model: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    per_origin: dict[str, dict] = {o: defaultdict(lambda: defaultdict(int)) for o in ORIGINS}
+    calls_origin = dict.fromkeys(ORIGINS, 0)
+    for model, amounts, where in records.values():
+        calls_origin[where] += 1
+        for field, _ in USAGE_FIELDS:
+            if isinstance(amounts[field], int):
+                per_model[model][field] += amounts[field]
+                per_origin[where][model][field] += amounts[field]
+    return per_model, per_origin, calls_origin, len(records), len(files), nested
 
 
 def main() -> int:
@@ -115,29 +140,35 @@ def main() -> int:
     directory = args.dir if args.dir else find_transcript_dir(Path.cwd())
     if not directory.is_dir():
         sys.exit(f"{directory} no existe")
-    per_model, calls, n_files, nested = collect(directory)
+    per_model, per_origin, calls_origin, calls, n_files, nested = collect(directory)
 
     if args.json:
+        # por_modelo, llamadas, archivos y archivos_anidados conservan su significado anterior
+        # (todo lo medido); por_origen y llamadas_por_origen se añaden.
         print(json.dumps({"dir": str(directory), "archivos": n_files, "archivos_anidados": nested,
-                          "llamadas": calls, "por_modelo": per_model}, indent=1, sort_keys=True))
+                          "llamadas": calls, "por_modelo": per_model,
+                          "por_origen": {o: per_origin[o] for o in ORIGINS if calls_origin[o]},
+                          "llamadas_por_origen": calls_origin}, indent=1, sort_keys=True))
         return 0
 
-    print(f"Consumo acumulado — {n_files} archivo(s) de transcript ({nested} en subdirectorios: "
-          f"subagentes), {calls} llamadas")
+    print(f"Consumo acumulado — {n_files} archivo(s) de transcript ({nested} en subdirectorios), "
+          f"{calls} llamadas: principal {calls_origin['principal']}, subagentes "
+          f"{calls_origin['subagentes']}, sin atribuir {calls_origin['sin_atribuir']}")
     if nested == 0:
         print("aviso: ningún transcript anidado; si hubo subagentes, su consumo NO está aquí.", file=sys.stderr)
-    header = f"{'modelo':<28}" + "".join(f"{label:>12}" for _, label in USAGE_FIELDS)
+    if calls_origin["sin_atribuir"]:
+        print("aviso: hay llamadas sin atribuir (estructura ambigua o mensaje repetido en dos orígenes); "
+              "no se reparten entre principal y subagentes.", file=sys.stderr)
+    header = f"{'origen':<14}{'modelo':<28}" + "".join(f"{label:>12}" for _, label in USAGE_FIELDS)
     print(header)
-    totals: dict[str, int] = defaultdict(int)
-    for model in sorted(per_model):
-        row = f"{model:<28}"
-        for field, _ in USAGE_FIELDS:
-            value = per_model[model][field]
-            totals[field] += value
-            row += f"{value:>12,}"
-        print(row)
-    print(f"{'TOTAL':<28}" + "".join(f"{totals[field]:>12,}" for field, _ in USAGE_FIELDS))
-    print("nota: compara sobre entrada+salida; la cache se factura aparte, con multiplicadores que dependen del modelo y del plan (consulta la tarifa vigente).")
+    for where in ORIGINS:
+        for model in sorted(per_origin[where]):
+            print(f"{where:<14}{model:<28}" + "".join(f"{per_origin[where][model][f]:>12,}" for f, _ in USAGE_FIELDS))
+    totals = {f: sum(per_model[m][f] for m in per_model) for f, _ in USAGE_FIELDS}
+    print(f"{'subtotal medido':<42}" + "".join(f"{totals[f]:>12,}" for f, _ in USAGE_FIELDS))
+    print("nota: «subtotal medido» suma solo estos transcripts; no es un total completo si alguna parte "
+          "se ejecutó fuera de ellos (otro cliente, otra máquina, sesiones borradas). Los campos de caché "
+          "van separados; tokens no son coste: el coste depende del modelo y de la tarifa vigente.")
     return 0
 
 

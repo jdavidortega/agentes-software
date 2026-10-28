@@ -83,9 +83,12 @@
 - [ ] **El lenguaje/stack usado es el de `docs/encuadre.md`** (no se coló otro por inercia).
 - [ ] No quedó código muerto, TODOs sin registrar, ni "por si acaso".
 - [ ] Las decisiones relevantes están en `docs/decisiones.md`.
-- [ ] `README.md` actualizado si el incremento cambia comportamiento, interfaz o
-  comandos (formato: `.claude/skills/escribiendo-readme/SKILL.md`); el juez lo revisa
-  como dimensión.
+- [ ] `README.md` **revisado** en lo que el incremento toca, y la línea del incremento en la
+  bitácora de `docs/plan.md` declara el resultado: `README: actualizado (<qué>)`, `README:
+  revisado, sin cambios (<por qué>)` o `README: desfase previo pendiente (<cuál>, <dónde se
+  registró>)`. Cambiarlo no es obligatorio; ningún incremento deja en él información
+  desactualizada por su cambio (formato: `.claude/skills/escribiendo-readme/SKILL.md`); el juez lo
+  revisa como dimensión.
 
 ## B. Cierre del incremento (lo hace el principal tras el PASA del juez)
 

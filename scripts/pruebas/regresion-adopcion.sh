@@ -125,6 +125,42 @@ copia existente g2; en "$D" git remote add origin "https://usuario:secreto@ejemp
 espera pasa "remoto: se informa solo el nombre" "remoto: +origin$" -- adoptar "$P" inspeccionar "$D"
 espera pasa "remoto: la URL con credenciales no se imprime" "" -- sh -c "! sh '$P/scripts/adoptar.sh' inspeccionar '$D' | grep -q secreto"
 
+echo "== adoptar.sh: inventario de ramas (solo lectura)"
+# Ronda 12 (T6): hechos de git contra el destino de integración que declara la persona; sin fetch,
+# sin escribir; squash no se detecta y lo dice; la antigüedad no decide.
+RM="$W/ramas"; mkdir -p "$RM"; git init -q -b main "$RM/d"; git init -q --bare "$RM/remoto.git"
+( cd "$RM/d" && g() { git -c user.name=a -c user.email=a@b -c core.hooksPath=/dev/null "$@"; }
+  echo a > a; git add a; g commit -qm base
+  git checkout -qb fusionada; echo f > f; git add f; g commit -qm f; git checkout -q main; g merge -q --no-ff -m m fusionada
+  git checkout -qb propia; echo p > p; git add p; g commit -qm p; git checkout -q main
+  git checkout -qb aplastada; echo s1 > s; git add s; g commit -qm s1; echo s2 >> s; g commit -qam s2
+  git checkout -q main; g merge -q --squash aplastada >/dev/null; g commit -qm squash
+  git checkout -qb rebasada; echo r > r; git add r; g commit -qm r; git checkout -q main; echo m2 > m2; git add m2; g commit -qm m2; g cherry-pick rebasada >/dev/null
+  git checkout -qb remota-sola; echo x > x; git add x; g commit -qm x
+  git checkout -q main; git checkout -qb lado; echo l > l; git add l; g commit -qm l; git checkout -q main
+  git checkout -qb con-merge; echo k > k; git add k; g commit -qm k; g merge -q --no-ff --no-commit lado; echo propio > propio; git add propio; g commit -qm "merge con contenido propio"
+  git checkout -q main; echo m3 > m3; git add m3; g commit -qm m3; g cherry-pick con-merge~1 >/dev/null; g cherry-pick lado >/dev/null
+  git checkout -qb rota; echo contenido-perdido > z; git add z; g commit -qm z; git checkout -q main; echo otro > z; git add z; g commit -qm z-main  # misma ruta: cherry debe leer el contenido
+  git remote add origin ../remoto.git; git push -q origin remota-sola main 2>/dev/null; git checkout -q main; git branch -qD remota-sola; git fetch -q origin
+  b=$(git rev-parse rota:z); rm -f ".git/objects/$(echo "$b" | cut -c1-2)/$(echo "$b" | cut -c3-)" ) || die "no pude preparar las ramas"
+espera pasa "ramas: destino no declarado se dice y no se deduce de main" "integración: +NO DECLARADO.*no se deduce de main" -- adoptar "$P" inspeccionar "$RM/d"
+espera pasa "ramas: sin destino no se calcula incorporación (ninguna fila la afirma)" "" -- sh -c "sh '$P/scripts/adoptar.sh' inspeccionar '$RM/d' | grep ' · ' | grep -v 'incorporación no calculada' | { ! grep -q .; }"
+espera pasa "ramas: destino inexistente se dice y no se calcula incorporación" "«develop» NO EXISTE" -- adoptar "$P" inspeccionar "$RM/d" develop
+espera pasa "ramas: con destino inexistente ninguna fila se da por incorporada" "" -- sh -c "! sh '$P/scripts/adoptar.sh' inspeccionar '$RM/d' develop | grep -q 'incorporada ('"
+espera pasa "ramas: fusionada con merge sale incorporada" "local +fusionada · último commit .* · incorporada \\(sin commits fuera de main\\)" -- adoptar "$P" inspeccionar "$RM/d" main
+espera pasa "ramas: con commits propios dice cuántos" "local +propia · último commit .* · 1 commit\\(s\\) fuera de main \\(si se integró por squash" -- adoptar "$P" inspeccionar "$RM/d" main
+espera pasa "ramas: integrada por squash no sale incorporada y pide contrastar PR/MR" "local +aplastada · último commit .* · 2 commit\\(s\\) fuera de main \\(si se integró por squash, git no lo ve: contrastar PR/MR\\)" -- adoptar "$P" inspeccionar "$RM/d" main
+espera pasa "ramas: integrada por cherry-pick o rebase sale equivalente por parche" "local +rebasada · último commit .* · 1 commit\\(s\\) fuera de main, equivalentes por parche" -- adoptar "$P" inspeccionar "$RM/d" main
+espera pasa "ramas: un merge con contenido propio fuera del destino no se da por equivalente (git cherry no evalúa merges)" "local +con-merge · último commit .* · 3 commit\\(s\\) fuera de main, 1 de ellos merge .*comparación incompleta; investigar" -- adoptar "$P" inspeccionar "$RM/d" main
+espera pasa "ramas: si la comparación por parche falla, no se da por equivalente" "local +rota · último commit .* · 1 commit\\(s\\) fuera de main; comparación incompleta; investigar \\(falló" -- adoptar "$P" inspeccionar "$RM/d" main
+espera pasa "ramas: una rama solo remota se inventaría" "remota origin/remota-sola · último commit .* · 1 commit\\(s\\) fuera de main" -- adoptar "$P" inspeccionar "$RM/d" main
+espera pasa "ramas: el destino puede ser una referencia remota" "integración: +origin/main$" -- adoptar "$P" inspeccionar "$RM/d" origin/main
+espera pasa "ramas: avisa que las remotas dependen del último fetch, que PR/MR no se comprobó y que la antigüedad no decide" "según el último fetch.*desactualizadas.*no comprobado.*antigüedad sola no justifica eliminar" -- sh -c "sh '$P/scripts/adoptar.sh' inspeccionar '$RM/d' main | tr '\\n' ' '"
+python3 -c 'import time; time.sleep(1.05)'; touch "$W/ramas-marca"; python3 -c 'import time; time.sleep(1.05)'
+G0=$(cd "$RM/d" && find .git -type f | LC_ALL=C sort | while IFS= read -r f; do printf '%s %s\n' "$f" "$(cksum < "$f")"; done | cksum)
+for d in "" main develop origin/main; do adoptar "$P" inspeccionar "$RM/d" $d >/dev/null 2>&1 || true; done
+espera pasa "ramas: el inventario no escribe en .git (sin fetch, sin configuración, sin ramas)" "" -- sh -c "[ '$G0' = \"\$(cd '$RM/d' && find .git -type f | LC_ALL=C sort | while IFS= read -r f; do printf '%s %s\\n' \"\$f\" \"\$(cksum < \"\$f\")\"; done | cksum)\" ] && [ -z \"\$(find '$RM/d/.git' -newer '$W/ramas-marca' | head -1)\" ]"
+
 echo "== adoptar.sh: copia"
 copia existente c1
 espera pasa "copiar: crea el manifiesto" "Manifiesto creado" -- adoptar "$P" copiar "$D"

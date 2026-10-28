@@ -92,7 +92,10 @@ el incremento y el rango del diff:
 - **Manejo de errores:** los errores se manejan de forma **explícita**; no se silencian
   excepciones (nada de `catch` vacío ni tragar errores), los fallos se propagan o se
   registran con contexto.
-- **Documentación:** interfaces públicas documentadas, completa pero concisa (ver DoD).
+- **Documentación:** interfaces públicas documentadas, completa pero concisa (ver DoD). La
+  bitácora declara el resultado de la revisión del README (actualizado, revisado sin cambios o
+  desfase previo pendiente) y el diff lo respalda: un comando, interfaz o comportamiento que cambió
+  sin su README es FALLA; un desfase previo registrado no lo es.
 - **Pruebas:** las del **plan de pruebas** del incremento (`docs/plan.md`), ni menos ni
   más: ≥1 flujo end-to-end por criterio cubierto con datos de forma real, unitarios solo
   donde el flujo no llega, herméticos, y cada uno capaz de fallar. **El exceso es

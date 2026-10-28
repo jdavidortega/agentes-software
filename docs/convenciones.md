@@ -61,11 +61,26 @@ activa, sin relleno ni adornos; una sigla se define la primera vez que aparece; 
 documentos de cara a terceros (README, ADRs, `encuadre.md`) se escriben para un lector
 **externo al proyecto**. Concreto > elegante.
 
-**El gate es un resumen ejecutivo** (≤15 líneas, `AGENTS.md` §2). Forma: «**Decidido:**
-C3 «exportar-excel»: el reporte mensual se exporta a Excel con las columnas de la vista;
-C4 …. **Cambio:** cinco líneas o el diagrama si cambió. **Se pide aprobar:** el plan de
-I3–I5; tras el OK empieza I3. **Detalle:** `docs/plan.md` §Incrementos, ADR «Exportar
-con openpyxl».» Nada de "ya terminé, ¿seguimos?".
+**El cierre (de fase, de incremento o un gate) es un resumen ejecutivo** (≤15 líneas,
+`AGENTS.md` §2), con esta forma; las actualizaciones intermedias no la usan:
+**Estado:** terminado técnicamente; pendiente de tu aprobación. **Resultado:** qué se consiguió
+y lo decidido con su enunciado («C3 «exportar-excel»: el reporte mensual se exporta a Excel con
+las columnas de la vista»); un ejemplo si ayuda. **Verificación:** qué pasó y qué no se comprobó.
+**README y rama:** el resultado de la revisión del README; integración recomendada, mantener o ya
+incorporado. **Pendiente:** decisiones y trabajo restante, por separado. **Siguiente paso:** la
+acción concreta recomendada. **Acción tuya:** la pregunta exacta («¿Apruebas I3 «exportar-excel»
+y empiezo I4?»). **Detalle:** dónde está (`docs/plan.md` §Incrementos, ADR «Exportar con openpyxl»).
+
+Todo mensaje que no es un cierre dice en qué caso está: **en curso** («Sigo trabajando; no
+necesitas responder»), **bloqueado** («Necesito X para continuar con Y») o **finalizado** («Lo
+acordado está terminado. No queda trabajo activo ni decisiones pendientes»). Con una
+autorización previa para continuar, se dice y se sigue sin pedir otra; fusionar, publicar y
+desplegar conservan la suya. Nada de "ya terminé, ¿seguimos?".
+
+**Una decisión** se plantea con problema, opciones, recomendación y consecuencia, y un ejemplo
+cuando aclara la diferencia: «Recomiendo mantener esta rama hasta probar la facturación: el
+cálculo ya pasa, pero aún no comprobamos que la factura use el importe correcto» dice más que
+«pendiente validación de integración».
 
 **Concreto también en los IDs.** `C3 «exportar-excel»`, `I5 «motor-indicadores»` o
 `R-I3.1` sirven para **referenciar entre documentos** y compactar contexto; **no** son
@@ -259,8 +274,12 @@ revertir) vive en docs/despliegue.md. -->
   un archivo que cambió; la huella y los hooks se calcularían sobre contenido viejo. El
   `pre-commit`, `huella.sh` y el doctor los rechazan; si aparecen, `git update-index
   --no-assume-unchanged / --no-skip-worktree <archivo>`.
-- **Trunk-based:** rama principal, commits pequeños y enlazados; una rama solo si la persona la
-  pide. Con **remoto compartido**, CI mínimo (se decide en el diseño): los hooks locales se
+- **Ramas:** en un proyecto nuevo, trunk-based: rama principal, commits pequeños y enlazados; una
+  rama solo si la persona la pide. En uno existente se identifica y respeta su estrategia real
+  (inventario de `adoptar.sh inspeccionar`, `docs/arranque-existente.md` paso A). Al cerrar cada
+  incremento se dice una de tres: integración recomendada ahora (destino y motivo), mantener la
+  rama (qué falta) o ya incorporado (referencia). Fusionar, publicar y borrar ramas tienen su propia
+  autorización; la antigüedad sola no justifica borrar. Con **remoto compartido**, CI mínimo (se decide en el diseño): los hooks locales se
   esquivan con `--no-verify`, el CI no. **Al montar el CI**: la política de rango de commits está en la
   cabecera de `.github/workflows/metodo.yml` y los comandos, en sus pasos (`steps`); en otro CI se
   copian ambos. Un merge limpio no lleva trailer; lo que se añade al fusionar es contenido nuevo

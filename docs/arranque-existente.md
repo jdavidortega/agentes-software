@@ -107,7 +107,15 @@ tapa una regla amplia del proyecto (p. ej. `*.log` sobre `docs/revisiones.log`) 
 `--aplicar`, como integración explícita. Si lo excluido es la carpeta, una negación no la rescata y el
 bloqueo se resuelve con la persona. Git se informa punto por punto (identidad, rama, remoto
 solo por nombre, commit actual, cambios pendientes, hooks) y se pregunta solo lo que falte;
-publicar es una decisión de la persona, no un dato, y sin remoto el trabajo sigue en local. Un
+publicar es una decisión de la persona, no un dato, y sin remoto el trabajo sigue en local.
+**Ramas:** el proyecto ya tiene una estrategia; se identifica y se respeta, sin suponer qué papel
+cumplen `main`, `dev` o `develop`. `inspeccionar <ruta> <rama-de-integración>` añade el inventario
+(solo lectura, sin fetch): por rama local y remota, fecha del último commit, commits fuera del
+destino y si git la da por incorporada; una comparación que falla o no cubre merges dice «investigar». El destino lo declara la persona; sin él, o si no existe, el inventario lo
+dice y no calcula incorporación. Las remotas reflejan el último fetch y las PR/MR no se comprueban.
+La recomendación por rama (conservar, integrar, investigar, candidata a eliminación) la da el agente
+con su evidencia: la antigüedad sola no la justifica, y una rama integrada por squash o rebase se
+contrasta con su PR/MR. Nada se borra ni se fusiona sin autorización. Un
 proyecto **sin commits** o con **cambios sin commitear** no bloquea la inspección ni la vista
 previa, pero la **primera copia** lo rechaza: lo previo se commitea (será la base) o se aparta,
 para que la instalación pueda distinguirse de ello.
@@ -212,7 +220,9 @@ inventario de paquetes describe el entorno observado; no prueba que pueda recons
   así fue). Es la evidencia del primer ítem del validador.
 - Commit con `Ref: F1`, sin tocar código del producto (el hook lo rechazaría). Comprueba
   `sh scripts/pruebas/validar_historial.sh HEAD`: debe validar solo el commit de instalación.
-- Si el remoto es compartido, trabaja en una rama y acuerda con la persona cuándo se integra.
+- Se trabaja según la estrategia de ramas del proyecto y el destino de integración acordado (paso
+  A); si el remoto es compartido y no hay estrategia, trabaja en una rama y acuerda con la persona
+  cuándo se integra.
 
 **Validador del Paso 0 (PASA/FALLA):**
 - [ ] La inspección no tiene bloqueos y la vista previa revisada consta en `docs/estado.md`.
@@ -330,7 +340,8 @@ la adopción sin la autorización puntual de la persona (`AGENTS.md` §3).
    concurrencia y locks (con y sin estado previo) · límites de tiempo (suave y duro) ·
    interrupción y **reentrega** · cambio de fecha o zona horaria (claves diarias, ventanas).
    En cada camino: qué ve **cada consumidor** (p. ej. el estado de la cola frente al de negocio).
-   El README se verifica contra el código y cada desfase es un hallazgo (cláusula 3).
+   El README se contrasta con el código, la configuración y los comandos comprobados; cada desfase
+   es un hallazgo (cláusula 3) y lo que no se ejecutó se declara como límite.
 4. **Ruta, criterios y mapa de protección.** La ruta propuesta (cláusula 9) y, si es de
    trabajo elegido, el mapa del área afectada: cada dependencia e interacción citada
    `archivo:línea`. Un `C#` `conserva` por comportamiento observable que debe conservarse en el

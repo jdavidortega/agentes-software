@@ -48,7 +48,9 @@ exige exactamente estas; una prueba fuera del plan que no proteja un criterio es
 
 <!-- Una línea por avance o ajuste. Lo que cambió respecto al plan y por qué.
 Las decisiones con alternativas van a docs/decisiones.md; aquí queda el rastro.
-La línea del incremento se escribe ANTES de pedir la revisión: este archivo forma parte
+La línea del incremento se escribe ANTES de pedir la revisión y termina con el resultado de
+la revisión del README (`README: actualizado | revisado, sin cambios | desfase previo
+pendiente`, con su motivo; docs/definicion-de-hecho.md): este archivo forma parte
 del contenido que el revisor juzga (arquitectura, contratos, plan de pruebas, bitácora).
 Los RECIBOS de las revisiones NO van aquí: van a docs/revisiones.log (una línea
 estructurada por pasada, append-only; AGENTS.md §9), que el commit-msg lee y que la

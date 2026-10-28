@@ -84,7 +84,7 @@ cualquier archivo con el mismo nombre. La copia la hace un script de la plantill
 
    ```sh
    cd /ruta/a/agente-software
-   sh scripts/adoptar.sh inspeccionar /ruta/al/proyecto   # estado del proyecto, Git punto por punto y bloqueos
+   sh scripts/adoptar.sh inspeccionar /ruta/al/proyecto [rama-de-integración]   # estado, Git punto por punto, bloqueos e inventario de ramas
    sh scripts/adoptar.sh vista-previa /ruta/al/proyecto   # qué se copia, qué choca, qué se excluye
    ```
 

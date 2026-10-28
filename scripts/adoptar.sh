@@ -2,7 +2,8 @@
 # Instala el método en un proyecto que YA EXISTE sin tocar nada de lo que ya tiene.
 # Guion: docs/arranque-existente.md (Paso 0). Se corre DESDE LA PLANTILLA.
 #
-#   sh scripts/adoptar.sh inspeccionar <destino>           solo lectura: estado del destino y bloqueos
+#   sh scripts/adoptar.sh inspeccionar <destino> [rama]    solo lectura: estado del destino, bloqueos e inventario
+#                                                          de ramas contra la rama de integración declarada
 #   sh scripts/adoptar.sh vista-previa <destino>           qué copiaría, qué colisiona, qué se excluye; no escribe
 #   sh scripts/adoptar.sh copiar <destino> [motivo]        copia SOLO lo ausente; crea contexto/adopcion.md una vez;
 #                                                          tras la instalación, anota cada adición en el log de actualizaciones
@@ -18,6 +19,9 @@
 # - La PRIMERA copia exige un commit base y ningún cambio sin commitear (la instalación debe
 #   distinguirse de lo previo); inspeccionar y vista-previa lo informan sin bloquear. Git se informa
 #   por separado; del remoto, solo el nombre.
+# - El inventario de ramas solo LEE (sin fetch, sin tocar configuración ni ramas): hechos de git
+#   contra el destino de integración que declara la persona; no lo deduce de main/dev/develop. La
+#   recomendación por rama (conservar, integrar, investigar, candidata a eliminación) la da el agente.
 # - Antes de escribir se bloquea: un enlace simbólico en CUALQUIER componente de una ruta destino (se
 #   escribiría fuera del repositorio) y una ruta que el destino ignora con la semántica de git.
 # - El manifiesto registra lo instalado con su hash y no se modifica NUNCA (tampoco antes del commit
@@ -58,7 +62,7 @@ ARCHIVOS=$(git -C "$PLANTILLA" ls-files -- $CONJUNTO | grep -vxF "$(printf '%s\n
 printf '%s\n' "$ARCHIVOS" | grep -q '[[:space:]]' && fallo "una ruta del conjunto tiene espacios; no se admite"
 PLANTILLA_COMMIT=$(git -C "$PLANTILLA" rev-parse HEAD 2>/dev/null || echo "sin-commits")
 # shellcheck disable=SC2086
-PLANTILLA_LIMPIA=$([ -z "$(git -C "$PLANTILLA" status --porcelain -- $CONJUNTO)" ] && echo sí || echo no)
+PLANTILLA_LIMPIA=$([ -z "$(git -C "$PLANTILLA" --no-optional-locks status --porcelain -- $CONJUNTO)" ] && echo sí || echo no)
 
 lista() { printf '%s\n' "$1" | sed '/^$/d'; }
 cuenta() { lista "$1" | grep -c . || true; }
@@ -161,7 +165,7 @@ RAMA=$(git -C "$DESTINO" symbolic-ref --short -q HEAD 2>/dev/null || echo "HEAD 
 REMOTOS=$(git -C "$DESTINO" remote 2>/dev/null | tr '\n' ' ' | sed 's/ $//')
 [ -n "$REMOTOS" ] || REMOTOS="ninguno (el trabajo local sigue; publicar no aplica mientras no haya uno)"
 BASE_SHA=$(git -C "$DESTINO" rev-parse --short --verify -q HEAD 2>/dev/null || true)
-CAMBIOS=$(git -C "$DESTINO" status --porcelain 2>/dev/null | grep -c . || true)
+CAMBIOS=$(git -C "$DESTINO" --no-optional-locks status --porcelain 2>/dev/null | grep -c . || true)
 # Antes de la PRIMERA copia, lo previo tiene que poder separarse de la instalación: un commit base y
 # ningún cambio sin commitear. No es un bloqueo de la inspección: inspeccionar y vista-previa siguen.
 PREVIAS=""
@@ -205,6 +209,7 @@ inspeccionar() {
   echo "commit actual:        ${BASE_SHA:-sin commits}"
   echo "cambios pendientes:   $CAMBIOS"
   echo "core.hooksPath:       $HOOKS_PATH"
+  ramas
   echo "hooks en .git/hooks:  ${HOOKS_PROPIOS:-ninguno}"
   for f in README.md CLAUDE.md AGENTS.md .claude .githooks scripts docs contexto .github .editorconfig; do
     printf '%-22s%s\n' "$f:" "$([ -e "$DESTINO/$f" ] && echo existe || echo ausente)"
@@ -223,6 +228,45 @@ inspeccionar() {
   fi
   antes_de_copiar
   [ "$BLOQUEOS" -eq 0 ]
+}
+# Inventario de ramas (solo lectura). Por rama: fecha del último commit y, si hay destino de integración
+# declarado y existe, commits no incorporados y si git la da por incorporada. Integrada por squash
+# no se detecta con git; por rebase/cherry-pick puede salir «equivalente por parche».
+ramas() {
+  dest=""; dest_txt="NO DECLARADO: pásalo como tercer argumento (inspeccionar <destino> <rama>); no se deduce de main, dev ni develop"
+  if [ -n "$BANDERA" ]; then
+    for r in "refs/heads/$BANDERA" "refs/remotes/$BANDERA"; do
+      if git -C "$DESTINO" rev-parse --verify -q "$r^{commit}" >/dev/null 2>&1; then dest=$r; break; fi
+    done
+    if [ -n "$dest" ]; then dest_txt="$BANDERA"; else dest_txt="«${BANDERA}» NO EXISTE (ni rama local ni referencia remota): no se calcula incorporación"; fi
+  fi
+  fh="$(git -C "$DESTINO" rev-parse --git-path FETCH_HEAD 2>/dev/null)"; case "$fh" in /*) ;; *) fh="$DESTINO/$fh" ;; esac
+  ultimo=$( [ -f "$fh" ] && date -r "$fh" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "sin registro")
+  echo "-- Ramas (solo lectura; sin fetch)"
+  echo "integración:          $dest_txt"
+  echo "remotas:              según el último fetch ($ultimo); pueden estar desactualizadas"
+  echo "PR/MR:                no comprobado (sin red); contrastar antes de recomendar eliminar o integrar"
+  git -C "$DESTINO" for-each-ref --format='%(refname)|%(refname:short)|%(committerdate:short)' refs/heads refs/remotes |
+  while IFS='|' read -r ref corto fecha; do
+    case "$ref" in refs/remotes/*/HEAD) continue ;; esac
+    tipo=local; case "$ref" in refs/remotes/*) tipo=remota ;; esac
+    if [ -z "$dest" ]; then estado="incorporación no calculada (sin destino válido)"
+    elif [ "$ref" = "$dest" ]; then estado="es el destino de integración"
+    else
+      # Equivalencia por parche solo si la comparación terminó bien y no hay merges fuera del destino
+      # (git cherry no evalúa merges: uno puede traer contenido propio). Lo demás: investigar.
+      if ! n=$(git -C "$DESTINO" rev-list --count "$dest..$ref" 2>/dev/null); then estado="comparación incompleta; investigar (no se pudieron contar los commits)"
+      elif [ "$n" = 0 ]; then estado="incorporada (sin commits fuera de $BANDERA)"
+      elif ! m=$(git -C "$DESTINO" rev-list --merges --count "$dest..$ref" 2>/dev/null) || ! c=$(git -C "$DESTINO" cherry "$dest" "$ref" 2>/dev/null); then
+        estado="$n commit(s) fuera de $BANDERA; comparación incompleta; investigar (falló la comparación por parche)"
+      elif printf '%s\n' "$c" | grep -q '^+'; then estado="$n commit(s) fuera de $BANDERA (si se integró por squash, git no lo ve: contrastar PR/MR)"
+      elif [ "$m" -gt 0 ]; then estado="$n commit(s) fuera de $BANDERA, $m de ellos merge (git cherry no los evalúa); comparación incompleta; investigar"
+      else estado="$n commit(s) fuera de $BANDERA, equivalentes por parche (posible rebase o cherry-pick): contrastar PR/MR"
+      fi
+    fi
+    printf '   %-6s %s · último commit %s · %s\n' "$tipo" "$corto" "$fecha" "$estado"
+  done
+  echo "nota:                 la antigüedad sola no justifica eliminar; la recomendación por rama la da el agente con su evidencia"
 }
 antes_de_copiar() {
   [ -n "$(lista "$PREVIAS")" ] || return 0

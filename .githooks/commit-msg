@@ -126,7 +126,7 @@ trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
 # Rutas que un commit puede tocar SIN `Ref: I<n>`: el rastro documental, las entradas, las
 # notas locales, la instrumentación del método (hooks, scripts de la plantilla, agentes y
 # skills) y la configuración del repositorio. Ampliarla es una decisión (ADR), no un atajo.
-SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents|\.githooks|\.github|scripts/pruebas)/|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check_docs\.sh|scripts/adoptar\.sh|scripts/buscar\.sh|scripts/huella\.sh|scripts/recibos\.sh|scripts/trazabilidad\.sh|scripts/guardas\.sh|scripts/consumo\.py|scripts/check\.sh)$|(^|/)\.env\.example$'
+SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents|\.githooks|\.github|scripts/pruebas)/|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check_docs\.sh|scripts/adoptar\.sh|scripts/buscar\.sh|scripts/huella\.sh|scripts/recibos\.sh|scripts/trazabilidad\.sh|scripts/guardas\.sh|scripts/consumo\.py|scripts/suite\.py|scripts/check\.sh)$|(^|/)\.env\.example$'
 # Un .env.example (plantilla sin valores) en cualquier carpeta es configuración, como en guardas.sh.
 # Quitar un .env versionado es la corrección de un secreto, no código: no exige `Ref: I<n>`.
 en_candidato() { if [ -n "${cand:-}" ]; then git cat-file -e "$cand:$1" 2>/dev/null; else git ls-files --error-unmatch -- "$1" >/dev/null 2>&1; fi; }

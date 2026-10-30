@@ -16,12 +16,14 @@
 # cierre), así ningún caso contamina a otro.
 VERBOSE=0; [ "${1:-}" = "-v" ] && VERBOSE=1
 RAIZ=$(cd "$(dirname "$0")/../.." && pwd)
-W=$(mktemp -d 2>/dev/null || mktemp -d -t regresion); trap 'rm -rf "$W"' EXIT INT TERM
+W=$(mktemp -d 2>/dev/null || mktemp -d -t regresion)
+# Al salir, además de borrar $W, termina los PID que un caso dejó anotados en $W/pids (si falló).
+trap 'find "$W/pids" -type f 2>/dev/null | while IFS= read -r f; do kill -9 "$(cat "$f")" 2>/dev/null; done; rm -rf "$W"' EXIT INT TERM
 export GIT_AUTHOR_NAME=regresion GIT_AUTHOR_EMAIL=regresion@local
 export GIT_COMMITTER_NAME=regresion GIT_COMMITTER_EMAIL=regresion@local
 export GIT_CONFIG_GLOBAL="$W/gitconfig" GIT_CONFIG_SYSTEM=/dev/null   # sin config del usuario
 : > "$W/gitconfig"; git config --file "$W/gitconfig" --add safe.directory "*"
-unset FASE_PREVIA REV
+unset FASE_PREVIA REV SUITE_ID SUITE_REGISTRO SUITE_PLAZO SUITE_ENVUELTO SUITE_INFORME
 TOTAL=0; MAL=0; FALLIDOS=""
 SAB="$RAIZ/.claude/skills/verificando-por-sabotaje/scripts/sabotear.py"
 
@@ -671,6 +673,86 @@ for x in .githooks/pre-commit .githooks/commit-msg; do en "$N" git update-index 
 espera pasa "primer commit del repositorio (sin HEAD): la suite corre en la instantánea" "" -- commitea "$N" "Encuadre inicial
 
 Ref: F1"
+
+echo "== Suite vigilada en el pre-commit (arranque protegido de check.sh sobre la instantánea)"
+# El bloque, tal cual de docs/convenciones.md; los temporales de estos casos (instantánea, carpeta de
+# la ejecución) van a $W/tmpd: TMPDIR explícito, que el pre-commit respeta con su plantilla de mktemp.
+BLOQUE=$(awk '/^# --- suite vigilada/{f=1} f{print} /^# --- fin suite vigilada/{exit}' "$RAIZ/docs/convenciones.md")
+mkdir -p "$W/tmpd" "$W/pids" "$W/bin"
+cat > "$W/bin/ps" <<EOF
+#!/bin/sh
+$(command -v ps) "\$@"; rc=\$?
+[ "\$1" = -A ] && [ -f "$W/fantasma" ] && echo "99999 \$(cat "$W/fantasma") S Thu Oct 29 10:00:00 2026 fantasma"
+exit \$rc
+EOF
+chmod +x "$W/bin/ps"   # ps de prueba: con $W/fantasma lista un miembro que sobrevive a KILL (simulado)
+vigilada() {  # vigilada <dir> <plazo> <cuerpo>: check.sh = bloque + cuerpo; plazo en convenciones
+  { grep -v 'Plazo de la suite:' "$1/docs/convenciones.md"; printf '\n- **Plazo de la suite:** %s s\n' "$2"; } > "$1/conv.tmp" && mv "$1/conv.tmp" "$1/docs/convenciones.md"
+  suite_es "$1" "$BLOQUE
+$3"
+}
+con_tmp() { ( export TMPDIR="$W/tmpd" PATH="$W/bin:$PATH"; "$@" ); }
+# acotado <seg> cmd...: si la garantía se rompe y el commit se cuelga, el caso FALLA (124) en vez de colgar.
+acotado() { python3 -c '
+import subprocess, sys
+p = subprocess.Popen(sys.argv[2:], start_new_session=True)
+try:
+    sys.exit(p.wait(timeout=int(sys.argv[1])))
+except subprocess.TimeoutExpired:
+    import os, signal; os.killpg(p.pid, signal.SIGKILL); p.wait(); print("acotado: no terminó", file=sys.stderr); sys.exit(124)
+' "$@"; }
+registro_de() { python3 -c 'import json,glob,sys; r=sorted((json.load(open(p)) for p in glob.glob(sys.argv[1]+"/.git/suite-runs/*.json")), key=lambda x: x["inicio"]); print(r[-1]["estado"], r[-1]["dir"], r[-1].get("incompleta","")) if r else print("sin-registro")' "$1"; }
+copia f3 sv1; vigilada "$D" 20 'echo "cuerpo en $(pwd -P)"; python3 app.py || exit 1'
+espera pasa "check.sh con el bloque: el pre-commit lo corre vigilado y el commit pasa" "cuerpo en /.*/tmpd/precommit-snap\." -- con_tmp nota_f1 "$D" sv1
+espera pasa "... registrado en el repositorio REAL (no en la instantánea), aprobado, sobre la instantánea" "^aprobada /.*/tmpd/precommit-snap\.[^/]*/r $" -- registro_de "$D"
+espera pasa "... y el pre-commit no deja temporales propios (instantánea ni exportación)" "^0$" -- sh -c 'ls -d "$1"/precommit* 2>/dev/null | wc -l | tr -d " "' _ "$W/tmpd"
+P="$W/pids/sv2"; mkdir -p "$P"
+copia f3 sv2; vigilada "$D" 2 "sleep 300 & echo \$! > '$P/nieto'; echo \$\$ > '$P/lider'; trap '' TERM; echo arranco; while :; do sleep 1; done"
+T0=$(date +%s)
+espera falla "suite colgada en el pre-commit: el commit se rechaza al vencer el plazo, nombrando la causa" "EXCEDIÓ su plazo.*No es un fallo de pruebas" -- acotado 40 sh -c 'cd "$1" && export TMPDIR="$2" PATH="$3:$PATH" && printf -- "- nota sv2\n" >> docs/MEMORIA.md && git add -A && git -c core.hooksPath=.githooks commit -q -m "nota
+
+Ref: F1"' _ "$D" "$W/tmpd" "$W/bin"
+espera pasa "... en menos de 20 s" "" -- test $(( $(date +%s) - T0 )) -lt 20
+espera falla "... sin el líder vivo" "" -- kill -0 "$(cat "$P/lider" 2>/dev/null)"
+espera falla "... ni el nieto" "" -- kill -0 "$(cat "$P/nieto" 2>/dev/null)"
+espera pasa "... el registro del repositorio real la da por excedida" "^excedida " -- registro_de "$D"
+copia f3 sv3; vigilada "$D" 20 "[ -e '$W/sv3-hecho' ] || { : > '$W/sv3-hecho'; echo \$\$ > '$W/fantasma'; }; python3 app.py || exit 1"
+espera falla "superviviente a KILL (simulado) en el pre-commit: rechaza por terminación incompleta" "quedaron procesos suyos vivos" -- con_tmp nota_f1 "$D" sv3a
+espera pasa "... el registro sigue abierto e incompleto" "^abierta .* aprobada$" -- registro_de "$D"
+espera pasa "... y su instantánea (directorio de trabajo de los procesos vivos) se conserva con sus archivos" "" -- test -f "$(registro_de "$D" | cut -d' ' -f2)/scripts/check.sh"
+espera falla "... el siguiente commit se rechaza: hay otra ejecución abierta" "otra ejecución de la suite abierta" -- con_tmp nota_f1 "$D" sv3b
+rm -f "$W/fantasma"
+espera pasa "... ido el superviviente, el siguiente commit la recupera y pasa" "recupero la ejecución" -- con_tmp nota_f1 "$D" sv3c
+# sv4: se interrumpe el hook (muere el lanzador) con el guardián aún activo: la instantánea no se borra.
+P="$W/pids/sv4"; mkdir -p "$P"
+copia f3 sv4; vigilada "$D" 60 "echo \$\$ > '$P/lider'; while :; do sleep 1; done"
+acotado 40 sh -c 'cd "$1" && export TMPDIR="$2" PATH="$3:$PATH" && printf -- "- nota sv4\n" >> docs/MEMORIA.md && git add -A && git -c core.hooksPath=.githooks commit -q -m "nota
+
+Ref: F1"' _ "$D" "$W/tmpd" "$W/bin" > "$P/salida" 2>&1 &
+bg=$!
+abierta_de() { python3 -c 'import json,glob,sys; r=[json.load(open(p)) for p in glob.glob(sys.argv[1]+"/.git/suite-runs/*.json")]; print(*next(([x["lanzador"], x["id"]] for x in r if x["estado"] == "abierta" and x.get("guardia")), []))' "$1"; }
+n=0; until [ -s "$P/lider" ] && [ -n "$(abierta_de "$D")" ]; do n=$((n+1)); [ $n -lt 150 ] || break; sleep 0.2; done
+ab=$(abierta_de "$D"); lz=${ab%% *}; sid=${ab#* }; kill -9 "${lz:-0}" 2>/dev/null; wait $bg
+espera pasa "hook interrumpido con la ejecución activa: avisa que conserva la instantánea" "conservo la instantánea .*precommit-snap\..*${sid:-sin-id}" -- cat "$P/salida"
+espera pasa "... el registro la sigue dando por abierta, vinculada a la instantánea" "^abierta /.*/tmpd/precommit-snap\.[^/]*/r $" -- registro_de "$D"
+espera pasa "... y la instantánea sigue presente con sus archivos" "" -- test -f "$(registro_de "$D" | cut -d' ' -f2)/scripts/check.sh"
+espera pasa "... terminarla después es posible y no deja vivo al líder" "" -- en "$D" python3 scripts/suite.py terminar "${sid:-sin-id}"
+espera falla "... (líder muerto)" "" -- kill -0 "$(cat "$P/lider" 2>/dev/null)"
+# sv5/sv6: la suite corre y se cierra, pero al salir el hook no puede leer el registro (dañado o sin
+# permiso de lectura, provocado por el cuerpo al final): la ausencia de abiertas no está demostrada.
+copia f3 sv5; vigilada "$D" 20 "python3 app.py || exit 1; echo '{roto' > '$D/.git/suite-runs/zz.json'"
+espera pasa "registro dañado al salir: el commit pasa, pero la instantánea se conserva y se avisa" "conservo la instantánea .*registro ilegible" -- con_tmp nota_f1 "$D" sv5
+copia f3 sv7; vigilada "$D" 20 "python3 app.py || exit 1; echo '{\"id\": \"x\", \"dir\": \"/x\", \"inicio\": 1}' > '$D/.git/suite-runs/zz.json'"
+espera pasa "registro sin «estado» al salir: no autoriza el borrado; la instantánea se conserva y se avisa" "conservo la instantánea .*registro ilegible o dañado" -- con_tmp nota_f1 "$D" sv7
+mkdir -p "$W/sin-lectura"; chmod 300 "$W/sin-lectura"
+if ls "$W/sin-lectura" >/dev/null 2>&1; then
+  echo "  (no aplica: este entorno lista carpetas sin permiso de lectura; registro inaccesible sin probar)"
+else
+  copia f3 sv6; vigilada "$D" 20 "python3 app.py || exit 1; chmod 300 '$D/.git/suite-runs'"
+  espera pasa "registro que no se puede listar al salir: la instantánea se conserva y se avisa" "conservo la instantánea .*registro ilegible" -- con_tmp nota_f1 "$D" sv6
+  chmod 700 "$D/.git/suite-runs"
+fi
+chmod 700 "$W/sin-lectura"
 
 echo "== El avance queda a la vista: casilla del plan y estado.md en el commit Ref: I<n>"
 # recibo_bruto con la huella del índice: un recibo vigente que NO pasa por cierra_inc.

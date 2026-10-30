@@ -36,6 +36,27 @@ Verificados contra la doc oficial actual de cada herramienta. -->
 
   | Ruta | Propósito | Cómo se reproduce |
   |------|-----------|-------------------|
+- **Plazo de la suite:** 600 s
+  Fuente única del plazo de `scripts/check.sh` en todos sus recorridos (directo, `pre-commit`,
+  sabotaje); `SUITE_PLAZO` o `--plazo`/`--timeout` lo sobrescriben de forma explícita. 600 s es un
+  valor inicial: ajústalo con la duración medida de la suite. Unas tres veces lo habitual orienta,
+  no garantiza. Al vencer, la ejecución se termina entera (`scripts/suite.py`, §Recursos).
+- **Arranque protegido de `scripts/check.sh`:** sus primeras líneas, tras el `#!/bin/sh`, son este
+  bloque, sin cambios. Lo corre siempre bajo `scripts/suite.py` (plazo, una ejecución a la vez,
+  grupo de procesos terminado al vencer), también cuando se invoca a mano o desde otra carpeta;
+  dentro de la ejecución se salta, y un `check.sh` lanzado desde dentro de otro se rechaza (75).
+
+```sh
+# --- suite vigilada: no la quites (docs/convenciones.md §Comandos clave) ---
+SUITE_RAIZ=$(cd "$(dirname "$0")/.." && pwd -P)
+if [ "${SUITE_ENVUELTO:-}" != 1 ] || [ -z "${SUITE_ID:-}" ]; then
+  exec env SUITE_ENVUELTO=1 python3 "$SUITE_RAIZ/scripts/suite.py" correr --dir "$SUITE_RAIZ" \
+    ${SUITE_INFORME:+--informe "$SUITE_INFORME"} -- sh "$SUITE_RAIZ/scripts/check.sh" "$@"
+fi
+unset SUITE_ENVUELTO
+# --- fin suite vigilada ---
+```
+
 - **`scripts/huella.sh`** — huella de **vigencia** (lo revisable; va en el recibo y el
   `commit-msg` la exige igual a la del índice) e **integridad** (árbol completo; el principal la
   toma antes y después de cada revisor). Qué excluye y sus modos: cabecera del script.

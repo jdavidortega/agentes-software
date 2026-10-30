@@ -16,7 +16,8 @@ Guarantees:
   its record is closed and its temp folder deleted. Recovery needs PROOF of absence: if `ps` fails
   ("no pude comprobarlo" is not "no existe"), nothing is recovered, signalled or deleted.
 - DEADLINE, ALWAYS: a single mode. At 80 % the launcher warns; at 100 % the guard ends the run
-  (exit 124, state excedida). The deadline is mandatory: --plazo or SUITE_PLAZO.
+  (exit 124, state excedida). The deadline is mandatory: --plazo, else SUITE_PLAZO, else the project's
+  single source, the line «- **Plazo de la suite:** N s» of docs/convenciones.md in --dir.
 - DETACHED GUARD: the suite runs under a guard in its own session, so the deadline holds even if
   the launcher dies (an assistant's tool timing out, the editor closing). The suite leads its own
   process group. The guard detects its exit WITHOUT reaping it (waitid WNOWAIT): while the leader
@@ -42,6 +43,7 @@ import argparse
 import fcntl
 import json
 import os
+import re
 import secrets
 import shutil
 import signal
@@ -53,6 +55,7 @@ import time
 from pathlib import Path
 
 OPEN = "abierta"
+STATES = {OPEN, "aprobada", "fallida", "excedida", "terminada", "interrumpida"}
 EXIT_EXCEEDED, EXIT_STOPPED, EXIT_BLOCKED = 124, 130, 75
 LOG_MAX = int(os.environ.get("SUITE_LOG_MAX", "2000000"))
 KEEP_CLOSED = 10
@@ -221,12 +224,19 @@ def update(reg: Path, rid: str, **changes) -> dict:
 
 
 def records(reg: Path) -> list[dict]:
+    """Every record. A registry that cannot be listed or read, or a damaged record, is Unverifiable:
+    never an empty registry (glob would return [] in silence on an unlistable folder)."""
     found = []
-    for p in reg.glob("*.json"):
-        try:
-            found.append(json.loads(p.read_text()))
-        except (OSError, ValueError):
-            pass
+    try:
+        for p in reg.iterdir():
+            if p.name.endswith(".json"):
+                rec = json.loads(p.read_text())
+                if (not isinstance(rec, dict) or not {"id", "estado", "inicio", "dir"} <= rec.keys()
+                        or rec["estado"] not in STATES):
+                    raise ValueError(f"{p.name}: registro dañado")
+                found.append(rec)
+    except (OSError, ValueError) as exc:
+        raise Unverifiable(f"registro {reg} ilegible o dañado: {exc}") from exc
     return sorted(found, key=lambda r: r["inicio"])
 
 
@@ -309,7 +319,11 @@ def close(reg: Path, rid: str, state: str, rc: int | None, **extra) -> dict:
 
 
 def prune(reg: Path) -> None:
-    closed = sorted((r for r in records(reg) if r["estado"] != OPEN), key=lambda r: r.get("fin") or 0)
+    try:
+        found = records(reg)
+    except Unverifiable:
+        return  # nothing is deleted on an unreadable registry
+    closed = sorted((r for r in found if r["estado"] != OPEN), key=lambda r: r.get("fin") or 0)
     for rec in closed[:-KEEP_CLOSED]:
         folder = owned_folder(rec)
         if folder:
@@ -476,6 +490,26 @@ def report(path: str | None, rid: str, state: str, rc) -> None:
         Path(path).write_text(f"id={rid} estado={state} rc={'' if rc is None else rc}\n")
 
 
+DEADLINE_LINE = re.compile(r"^\s*-\s*\*\*Plazo de la suite:\*\*\s*(\S+?)\s*s\b", re.MULTILINE)
+
+
+def deadline_of(given: str | None, workdir: Path) -> int:
+    """--plazo, else SUITE_PLAZO, else the project's single source: docs/convenciones.md of --dir."""
+    for source, value in (("--plazo", given), ("SUITE_PLAZO", os.environ.get("SUITE_PLAZO"))):
+        if value:
+            if not value.isdigit() or int(value) <= 0:
+                die(f"plazo inválido en {source} ({value!r}): segundos enteros positivos")
+            return int(value)
+    try:
+        found = DEADLINE_LINE.search((workdir / "docs" / "convenciones.md").read_text())
+    except OSError:
+        found = None
+    if found and found.group(1).isdigit() and int(found.group(1)) > 0:
+        return int(found.group(1))
+    die("falta el plazo (obligatorio): --plazo SEG, SUITE_PLAZO o la línea «- **Plazo de la suite:** N s» "
+        f"de docs/convenciones.md §Comandos clave (en {workdir})")
+
+
 def run(args) -> int:
     if os.environ.get("SUITE_ID"):
         report(args.informe, os.environ["SUITE_ID"], "anidada", None)
@@ -484,17 +518,20 @@ def run(args) -> int:
     command = args.comando[1:] if args.comando[:1] == ["--"] else args.comando
     if not command:
         die("falta el comando: correr --plazo SEG -- <comando...>")
-    deadline = args.plazo or os.environ.get("SUITE_PLAZO")
-    if not deadline or not str(deadline).isdigit() or int(deadline) <= 0:
-        die("falta el plazo (obligatorio): --plazo SEG o SUITE_PLAZO, en segundos enteros")
     workdir = Path(args.dir or ".").resolve()
     if not workdir.is_dir():
         die(f"--dir no es una carpeta: {workdir}")
+    deadline = deadline_of(args.plazo, workdir)
     reg = registry(workdir)
     rid = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()) + "-" + secrets.token_hex(2)
     with Lock(reg):
         busy = []
-        for rec in records(reg):
+        try:
+            found = records(reg)
+        except Unverifiable:
+            report(args.informe, rid, "no-comprobable", None)
+            raise
+        for rec in found:
             if rec["estado"] != OPEN:
                 continue
             if situation(rec) == "abandonada":
@@ -614,7 +651,7 @@ def main() -> int:
     try:
         return action(args)
     except Unverifiable as exc:
-        die(f"no pude consultar los procesos ({exc}): sin esa evidencia no lanzo, termino ni limpio nada", EXIT_BLOCKED)
+        die(f"no pude comprobarlo ({exc}): sin esa evidencia no lanzo, termino ni limpio nada", EXIT_BLOCKED)
 
 
 def action(args) -> int:

@@ -41,7 +41,8 @@ if ! git ls-files --error-unmatch scripts/check_docs.sh >/dev/null 2>&1; then
   echo "✗ pre-commit: scripts/check_docs.sh no está versionado. Viene con la plantilla; sin él no hay control del rastro." >&2
   exit 1
 fi
-tmp=$(mktemp -d 2>/dev/null || mktemp -d -t precommit)
+# Plantilla explícita: en macOS `mktemp -d` sin ella ignora TMPDIR y deja tmp.* en otra carpeta.
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/precommit.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT INT TERM
 git checkout-index -a --prefix="$tmp/" || { echo "✗ pre-commit: no pude exportar el índice." >&2; exit 1; }
 #    La fase que HEAD ya declaraba viaja con la exportación (sin .git no se puede leer):
@@ -73,8 +74,36 @@ if [ -f "$tmp/scripts/check.sh" ]; then
   # enlazado): todo lo dirigido al temporal, la suite incluida, corre SIN ellas, o actuaría sobre el
   # repositorio original.
   LIMPIA=$(git rev-parse --local-env-vars | sed 's/^/-u /' | tr '\n' ' ')
-  snap=$(mktemp -d 2>/dev/null || mktemp -d -t suite); snap=$(cd "$snap" && pwd -P)
-  trap 'rm -rf "$tmp" "$snap"' EXIT INT TERM
+  snap=$(mktemp -d "${TMPDIR:-/tmp}/precommit-snap.XXXXXX"); snap=$(cd "$snap" && pwd -P)
+  # La instantánea es el directorio de trabajo de la suite: se borra solo si el registro DEMUESTRA
+  # que ninguna ejecución sobre ella sigue abierta (terminación incompleta, guardián aún activo).
+  # Si alguna sigue abierta o no puede leerse el registro, se conserva y se informa; el campo «dir»
+  # del registro la vincula a su ejecución. Una señal al hook sigue el mismo camino (vía EXIT).
+  sreg=${SUITE_REGISTRO:-$(cd "$(git rev-parse --git-common-dir)" && pwd -P)/suite-runs}
+  limpiar() {
+    rm -rf "$tmp"
+    ab=$(python3 -I -c '
+import json, sys
+from pathlib import Path
+reg, d = Path(sys.argv[1]), sys.argv[2]
+ESTADOS = {"abierta", "aprobada", "fallida", "excedida", "terminada", "interrumpida"}
+# iterdir, no glob: glob devuelve vacío en silencio si el directorio no se puede listar. Solo un
+# registro que no existe (ninguna ejecución lanzada) prueba «ninguna abierta».
+for f in (reg.iterdir() if reg.exists() else []):
+    if not f.name.endswith(".json"):
+        continue
+    r = json.loads(f.read_text())
+    # Sin sus campos o con un estado desconocido, el registro no demuestra nada: se conserva.
+    if not isinstance(r, dict) or not {"id", "estado", "inicio", "dir"} <= r.keys() or r["estado"] not in ESTADOS:
+        sys.exit(f"{f.name}: registro dañado")
+    if r.get("dir") == d and r.get("estado") == "abierta":
+        print(r["id"])
+' "$sreg" "$snap/r" 2>/dev/null) || ab="(registro ilegible o dañado)"
+    if [ -z "$ab" ]; then rm -rf "$snap"; return; fi
+    echo "⚠ pre-commit: conservo la instantánea $snap: la ejecución $(echo $ab) sigue abierta o no pude comprobarlo, y es su directorio de trabajo. Bórrala cuando python3 scripts/suite.py estado la dé por cerrada." >&2
+  }
+  trap limpiar EXIT
+  trap 'exit 130' INT TERM
   arbol=$(git write-tree) || { echo "✗ pre-commit: no pude escribir el árbol del índice." >&2; exit 1; }
   env $LIMPIA git clone -q --shared --no-checkout "$REPO" "$snap/r" 2>/dev/null \
     || { echo "✗ pre-commit: no pude crear el repositorio temporal de la suite." >&2; exit 1; }
@@ -104,7 +133,22 @@ if [ -f "$tmp/scripts/check.sh" ]; then
     [ -z "$en" ] || { echo "✗ pre-commit: entrada externa «${e}» tiene un enlace hacia el árbol original ($en)." >&2; exit 1; }
     mkdir -p "$snap/r/$(dirname "$e")" && ln -s "$REPO/$e" "$snap/r/$e"
   done
-  ( cd "$snap/r" && env $LIMPIA sh scripts/check.sh ) || { echo "✗ pre-commit: scripts/check.sh falló (lint/formato/tests) sobre la instantánea de lo que se commitea." >&2; exit 1; }
+  # La instantánea tiene su propio .git: el registro de ejecuciones (scripts/suite.py) es el del
+  # repositorio REAL, compartido con el uso directo y el sabotaje (una suite a la vez). El informe
+  # distingue el fallo de pruebas del plazo vencido, el bloqueo y la terminación incompleta.
+  inf="$snap/informe-suite"
+  ( cd "$snap/r" && env $LIMPIA SUITE_REGISTRO="$sreg" SUITE_INFORME="$inf" sh scripts/check.sh ) || {
+    sid=$(sed -n 's/^id=\([^ ]*\).*/\1/p' "$inf" 2>/dev/null)
+    case "$(sed -n 's/.* estado=\([^ ]*\).*/\1/p' "$inf" 2>/dev/null)" in
+      excedida) m="scripts/check.sh EXCEDIÓ su plazo (ejecución $sid) y se terminó su grupo de procesos. No es un fallo de pruebas sino de tiempo, y no cuenta como aprobada: mira su última salida (python3 scripts/suite.py estado $sid) e identifica qué se colgó antes de subir el plazo (docs/convenciones.md §Comandos clave)." ;;
+      bloqueada) m="hay otra ejecución de la suite abierta y no se lanzó otra. Consulta: python3 scripts/suite.py estado --abiertas" ;;
+      incompleta) m="la suite terminó (ejecución $sid) pero quedaron procesos suyos vivos: el registro sigue abierto y bloquea nuevas ejecuciones. Revisa: python3 scripts/suite.py estado $sid" ;;
+      interrumpida|terminada) m="la ejecución $sid de la suite se interrumpió antes de terminar; no cuenta como aprobada." ;;
+      no-comprobable) m="no pude leer el registro de ejecuciones ($sreg) o consultar los procesos: sin esa evidencia no se demuestra que no haya otra abierta, y no se lanzó la suite." ;;
+      anidada) m="el commit se lanzó desde dentro de otra ejecución de la suite; hazlo fuera de ella." ;;
+      *) m="scripts/check.sh falló (lint/formato/tests) sobre la instantánea de lo que se commitea." ;;
+    esac
+    echo "✗ pre-commit: $m" >&2; exit 1; }
   # 5) Lo probado tiene que ser lo guardado TAMBIÉN después de la suite: un formatter con auto-fix o
   #    un test que escribe un fixture dejarían en la instantánea algo distinto del candidato. Se
   #    compara por CONTENIDO y MODO (no por fecha) cada archivo del índice, y el árbol de trabajo real.

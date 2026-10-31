@@ -36,6 +36,17 @@ Every `DIES` keeps the tail of the suite output as evidence of *why* it went red
 Exit codes: 0 = every mutation was applied, valid and died; 1 = at least one survived;
 2 = at least one could not be applied or was invalid (fix the spec; never read 2 as a pass).
 
+Every suite run is WATCHED (scripts/suite.py of --root, never the copy's: a mutation of the
+copy must not disarm its own guard). Its guardian owns the deadline -- `--timeout` if given,
+else the project's common one (SUITE_PLAZO, or the «Plazo de la suite» line of
+docs/convenciones.md) -- and ends the whole process group when it expires: that run is a
+`TIMEOUT`, never a kill. The record goes to the real repository's registry (SUITE_REGISTRO), so
+the sabotage, the pre-commit and a direct run never overlap. If the guardian does not close the
+run in time, a bounded backup asks it to end (`terminar`) and waits a bounded margin. Whenever a
+run stays open, incomplete or unverifiable -- or the registry blocks, or the call is nested --
+the WHOLE sabotage stops (exit 2): no further mutant starts, and the copy and the record stay
+for inspection (`python3 scripts/suite.py estado <id>`).
+
 Resources: the copy skips dependency and build directories and every `.env*` except
 `.env.example` (recursively); it refuses trees above `--max-mb` (default 500) unless
 `--force`; mutations run strictly one at a time with single-worker hints in the environment
@@ -62,6 +73,7 @@ negatives by verifying a commit that did not have the fixes yet.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import fnmatch
 import json
 import os
@@ -71,6 +83,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import importlib.util
 import time
 from pathlib import Path
 
@@ -259,21 +272,159 @@ def assertion_evidence(output: str, pattern: str) -> bool:
     return re.search(pattern, text, re.MULTILINE) is not None
 
 
-def suite(tree: Path, command: list[str], timeout: int) -> Run:
-    """Run the suite in `tree`. A crash or a timeout counts as red, with its output kept."""
+# The guardian ends the group at the deadline and waits 2 x GRACE (5 s) for it to die; past this
+# margin the backup steps in, and gets ONE deadline for `terminar` and for the launcher to return.
+# The launcher must register its run within IDENTIFY_WITHIN (it may wait up to 30 s for the registry
+# lock). SABOTAJE_RESPALDO="<after>,<wait>,<identify>" shortens them, for the tests of the backup itself.
+BACKUP_AFTER, BACKUP_WAIT, IDENTIFY_WITHIN = (
+    int(x) for x in os.environ.get("SABOTAJE_RESPALDO", "30,40,45").split(","))
+CLOSED = ("aprobada", "fallida", "excedida", "terminada", "interrumpida")
+NOTHING_LAUNCHED = ("bloqueada", "anidada", "no-comprobable")
+
+
+class Stop(Exception):
+    """A run is open, incomplete or unverifiable, or none could start: nothing more may run."""
+
+
+class Watch:
+    """Runs the suite under scripts/suite.py of the REAL repository and tracks the run in flight."""
+
+    def __init__(self, root: Path, work: Path, deadline: int | None) -> None:
+        self.script = root / "scripts" / "suite.py"
+        self.work, self.deadline, self.count = work, deadline, 0
+        self.pending: str | None = None  # a run not yet proven closed: its id, or "?" when unidentified
+        spec = importlib.util.spec_from_file_location("suite_vigilada", self.script)
+        self.module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.module)
+        reg = os.environ.get("SUITE_REGISTRO")
+        if not reg:
+            out = subprocess.run(["git", "-C", str(root), "rev-parse", "--git-common-dir"], capture_output=True, text=True)
+            if out.returncode:
+                raise Stop(f"{root} is not a git repository and SUITE_REGISTRO is unset: no registry for the runs")
+            reg = str((root / out.stdout.strip()).resolve() / "suite-runs")
+        self.reg = Path(reg)
+        self.env = {**os.environ, **ENVIRONMENT, "SUITE_ENVUELTO": "1", "SUITE_REGISTRO": str(self.reg)}
+
+    def how(self, rid: str) -> str:
+        return (f"inspect: python3 {self.script} estado {rid}   |   end it: python3 {self.script} terminar {rid}"
+                f"   (the copy stays in {self.work})")
+
+    def launched_by(self, pid: int, since: float) -> list[dict] | None:
+        """Records created by our launcher `pid` since this run started; None if the registry cannot be read.
+        While the child is unreaped its pid cannot be reused; the record is saved before its guard starts."""
+        try:
+            found = self.module.records(self.reg)
+        except self.module.Unverifiable:
+            return None
+        return [r for r in found if r.get("lanzador") == pid and r["inicio"] >= since - 1]
+
+    def identify(self, pid: int, since: float) -> dict | None:
+        mine = [r for r in self.launched_by(pid, since) or [] if r["estado"] == self.module.OPEN]
+        return mine[0] if len(mine) == 1 else None
+
+    def proven_closed(self, rid: str) -> bool:
+        try:
+            rec = self.module.load(self.reg, rid)
+        except (OSError, ValueError):
+            return False
+        return rec.get("estado") in CLOSED and not rec.get("incompleta")
+
+    def backup(self, proc: subprocess.Popen, rid: str, tree: Path) -> None:
+        """The guardian did not close the run in time: ask it to end, and wait a bounded margin."""
+        print(f"  backup: run {rid} still open {BACKUP_AFTER}s past its deadline; asking it to end", flush=True)
+        limit = time.time() + BACKUP_WAIT  # one deadline for both steps, never one each
+        try:
+            subprocess.run([sys.executable, "-I", str(self.script), "terminar", rid, "--dir", str(tree)],
+                           env=self.env, capture_output=True, timeout=BACKUP_WAIT)
+        except subprocess.TimeoutExpired:
+            pass
+        try:
+            proc.wait(timeout=max(0.0, limit - time.time()))
+        except subprocess.TimeoutExpired:
+            pass
+        if not self.proven_closed(rid):
+            raise Stop(f"run {rid} is still open, incomplete or unverifiable after the backup; " + self.how(rid))
+        if proc.poll() is None:
+            proc.kill()  # only a follower now: the run is closed
+            proc.wait()
+
+    def unidentified(self, proc: subprocess.Popen, since: float) -> None:
+        """The launcher is alive but its run is not identified: without that identity no group is
+        signalled, and the copy stays (the launcher may still start a run inside it)."""
+        mine = self.launched_by(proc.pid, since)
+        why = ("the registry could not be checked" if mine is None
+               else "it registered no run" if not mine else "its run is not the single open one")
+        raise Stop(f"launcher {proc.pid} still alive {IDENTIFY_WITHIN}s after starting and {why}; nothing was "
+                   f"signalled. Check it (ps -p {proc.pid}; python3 {self.script} estado --abiertas); "
+                   f"the copy stays in {self.work}")
+
+    def run(self, tree: Path, command: list[str]) -> Run:
+        self.count += 1
+        report, log = self.work / f"informe-{self.count}", self.work / f"salida-{self.count}"
+        wrapped = [sys.executable, "-I", str(self.script), "correr", "--dir", str(tree), "--informe", str(report),
+                   *(["--plazo", str(self.deadline)] if self.deadline else []), "--", *command]
+        since = time.time()
+        self.pending, rec, backed_up = "?", None, False
+        with open(log, "wb") as sink:
+            proc = subprocess.Popen(wrapped, cwd=tree, stdout=sink, stderr=subprocess.STDOUT, env=self.env)
+            try:
+                while proc.poll() is None:
+                    if rec is None:
+                        rec = self.identify(proc.pid, since)
+                        if rec:
+                            self.pending = rec["id"]
+                        elif time.time() > since + IDENTIFY_WITHIN:
+                            self.unidentified(proc, since)
+                    if rec and time.time() > rec["inicio"] + rec["plazo"] + BACKUP_AFTER:
+                        self.backup(proc, rec["id"], tree)  # returns only once the run is proven closed
+                        backed_up = True
+                        break
+                    time.sleep(0.1)
+            except KeyboardInterrupt:
+                # The launcher got the same signal and ends its run; wait for it, bounded.
+                try:
+                    proc.wait(timeout=BACKUP_WAIT)
+                except subprocess.TimeoutExpired:
+                    raise Stop("interrupted while the run was still ending; "
+                               + (self.how(rec["id"]) if rec else f"the copy stays in {self.work}"))
+        output = log.read_text(encoding="utf-8", errors="replace")
+        if backed_up:
+            self.pending = None
+            return Run(False, True, output + f"\nbackup: run {rec['id']} ended past its deadline\n")
+        fields = dict(f.split("=", 1) for f in report.read_text().split() if "=" in f) if report.exists() else {}
+        rid, state = fields.get("id", self.pending), fields.get("estado")
+        if state in NOTHING_LAUNCHED:
+            self.pending = None  # nothing of ours started
+            why = {"bloqueada": f"another run is open (python3 {self.script} estado --abiertas)",
+                   "anidada": "called from inside another suite run",
+                   "no-comprobable": "the registry or the processes could not be checked"}[state]
+            raise Stop(f"the suite did not start: {why}")
+        if state not in CLOSED or rid == "?" or not self.proven_closed(rid):
+            if state is None and rid == "?":
+                tail = " | ".join(output.strip().splitlines()[-2:])
+                if self.launched_by(proc.pid, since) == []:
+                    self.pending = None  # provably nothing of ours was created
+                    raise Stop(f"the watched suite did not start ({tail})")
+                raise Stop(f"the watched suite gave no report and its run could not be ruled out ({tail}); "
+                           f"the copy stays in {self.work}")
+            raise Stop(f"run {rid} ended as {state or 'unknown'} without being provably closed; " + self.how(rid))
+        self.pending = None
+        if state in ("terminada", "interrumpida"):
+            raise Stop(f"run {rid} was {state}: the sabotage stops (no further mutant starts)")
+        return Run(state == "aprobada", state == "excedida", output)
+
+
+@contextlib.contextmanager
+def workspace(watch: Watch):
+    """The copies live here; it is deleted only when no run of ours is left unproven."""
     try:
-        done = subprocess.run(
-            command,
-            cwd=tree,
-            capture_output=True,
-            timeout=timeout,
-            env={**os.environ, **ENVIRONMENT},
-        )
-    except subprocess.TimeoutExpired as exc:
-        out = (exc.stdout or b"").decode("utf-8", "replace") + (exc.stderr or b"").decode("utf-8", "replace")
-        return Run(False, True, out)
-    out = done.stdout.decode("utf-8", "replace") + done.stderr.decode("utf-8", "replace")
-    return Run(done.returncode == 0, False, out)
+        yield str(watch.work)
+    finally:
+        if watch.pending is None:
+            shutil.rmtree(watch.work, ignore_errors=True)
+        else:
+            print(f"kept {watch.work}: run {watch.pending} is not proven closed (it may be its working directory)",
+                  file=sys.stderr)
 
 
 def looks_invalid(run: Run) -> str | None:
@@ -466,7 +617,8 @@ def main() -> int:
         help="command that must go red; run from inside the copy (default: the "
         "project's scripts/check.sh; pass your stack's test command if it differs)",
     )
-    parser.add_argument("--timeout", type=int, default=300)
+    parser.add_argument("--timeout", type=int, default=None,
+                        help="deadline of each suite run in seconds (overrides the project's common one)")
     parser.add_argument(
         "--kill-pattern",
         default=KILL_PATTERN,
@@ -530,102 +682,118 @@ def main() -> int:
             )
             return 2
 
-    with tempfile.TemporaryDirectory() as temporary:
-        tree = Path(temporary) / "tree"
-        pruned = plant(tree, root, sha)
-        link_externals(tree, root, externals)
-        if externals:
-            print("external inputs linked into every copy (docs/convenciones.md): " + ", ".join(externals))
-        if "/" in command[0] and not Path(command[0]).is_absolute():
-            if not (tree / command[0]).is_file():
-                command[0] = str(root / command[0])
-                print(f"suite command {first} is not in the copy: using the original tree's")
-        if arguments.commit:
-            size, files = measure(tree)
-            mb = size / 1_000_000
-            print(f"copy from commit {arguments.commit}: {files} files, {mb:.0f} MB after pruning")
-            secrets = [p for p in pruned if is_secret(Path(p).name)]
-            if secrets:
-                print(f"  WARNING the commit versions secret files (removed from the copy): {', '.join(secrets)}")
-            if mb > arguments.max_mb and not arguments.force:
-                print(
-                    f"refusing: the commit tree is {mb:.0f} MB (> --max-mb {arguments.max_mb}) even after pruning; pass --force",
-                    file=sys.stderr,
-                )
-                return 2
-        base = suite(tree, command, arguments.timeout)
-        if not base.green:
-            print("the suite is not green before mutating: every result would be noise", file=sys.stderr)
-            print("  " + base.tail(), file=sys.stderr)
-            return 2
-        origin = f"commit {arguments.commit}" if arguments.commit else "the working tree"
-        print(f"base green over {origin}")
-
-        died, survived, invalid, unapplied = [], [], [], []
-        base = tree
-        for index, mutation in enumerate(mutations):
-            label = mutation["label"]
-            # Each mutation runs on a FRESH copy of the green base: a test that fails can leave
-            # fixtures, caches or state behind, and that residue must never become the reason the
-            # next mutant "dies" (measured: an equivalent mutant read as DIES after another one).
-            # The green run leaves bytecode and build caches in the base (`python3 -I` ignores
-            # PYTHONDONTWRITEBYTECODE); they never travel into a mutant: a cache keyed on
-            # size+mtime would serve the ORIGINAL code for a same-size mutation written within
-            # the same second, and the mutant would "survive" without ever running (measured).
-            tree = Path(temporary) / f"mut{index}"
-            shutil.copytree(base, tree, symlinks=True, ignore=shutil.ignore_patterns(*IGNORED))
+    if not (root / "scripts" / "suite.py").is_file():
+        print(f"{root / 'scripts' / 'suite.py'} is missing: every suite run is watched by it (deadline, one at a "
+              "time); the method template ships it", file=sys.stderr)
+        return 2
+    work = Path(tempfile.mkdtemp(prefix="sabotaje-"))
+    try:
+        watch = Watch(root, work, arguments.timeout)
+    except Stop as exc:
+        shutil.rmtree(work, ignore_errors=True)
+        print(f"STOPPED: {exc}", file=sys.stderr)
+        return 2
+    died, survived, invalid, unapplied = [], [], [], []
+    stopped, current = None, "the base run"
+    try:
+        with workspace(watch) as temporary:
+            tree = Path(temporary) / "tree"
+            pruned = plant(tree, root, sha)
             link_externals(tree, root, externals)
-            path = contained(tree, mutation["file"])
-            if path is None:
-                kind = "ESCAPES " if (tree / mutation["file"]).is_symlink() else "MISSING "
-                print(f"  {kind} {label}: {mutation['file']} (not a regular file inside the copy)")
-                unapplied.append(label)
-                shutil.rmtree(tree, ignore_errors=True)
-                continue
-            original = path.read_text(encoding="utf-8")
-            if mutation["before"] not in original:
-                # A stale anchor is a different problem from a guarantee that does not hold,
-                # and it is never a kill.
-                print(f"  ANCHOR LOST {label}: {mutation['file']}")
-                unapplied.append(label)
-                shutil.rmtree(tree, ignore_errors=True)
-                continue
-            path.write_text(original.replace(mutation["before"], mutation["after"], 1), encoding="utf-8")
-            # And the mutant's mtime moves forward by 2 s, so any incremental tool that keys on
-            # mtime sees a changed file even on a filesystem with 1 s resolution.
-            stamp = max(path.stat().st_mtime, time.time()) + 2
-            os.utime(path, (stamp, stamp))
-            try:
+            if externals:
+                print("external inputs linked into every copy (docs/convenciones.md): " + ", ".join(externals))
+            if "/" in command[0] and not Path(command[0]).is_absolute():
+                if not (tree / command[0]).is_file():
+                    command[0] = str(root / command[0])
+                    print(f"suite command {first} is not in the copy: using the original tree's")
+            if arguments.commit:
+                size, files = measure(tree)
+                mb = size / 1_000_000
+                print(f"copy from commit {arguments.commit}: {files} files, {mb:.0f} MB after pruning")
+                secrets = [p for p in pruned if is_secret(Path(p).name)]
+                if secrets:
+                    print(f"  WARNING the commit versions secret files (removed from the copy): {', '.join(secrets)}")
+                if mb > arguments.max_mb and not arguments.force:
+                    print(
+                        f"refusing: the commit tree is {mb:.0f} MB (> --max-mb {arguments.max_mb}) even after pruning; pass --force",
+                        file=sys.stderr,
+                    )
+                    return 2
+            base = watch.run(tree, command)
+            if not base.green:
+                print("the suite is not green before mutating: every result would be noise", file=sys.stderr)
+                print("  " + base.tail(), file=sys.stderr)
+                return 2
+            origin = f"commit {arguments.commit}" if arguments.commit else "the working tree"
+            print(f"base green over {origin}")
+
+            base = tree
+            for index, mutation in enumerate(mutations):
+                label = current = mutation["label"]
+                # Each mutation runs on a FRESH copy of the green base: a test that fails can leave
+                # fixtures, caches or state behind, and that residue must never become the reason the
+                # next mutant "dies" (measured: an equivalent mutant read as DIES after another one).
+                # The green run leaves bytecode and build caches in the base (`python3 -I` ignores
+                # PYTHONDONTWRITEBYTECODE); they never travel into a mutant: a cache keyed on
+                # size+mtime would serve the ORIGINAL code for a same-size mutation written within
+                # the same second, and the mutant would "survive" without ever running (measured).
+                tree = Path(temporary) / f"mut{index}"
+                shutil.copytree(base, tree, symlinks=True, ignore=shutil.ignore_patterns(*IGNORED))
+                link_externals(tree, root, externals)
+                path = contained(tree, mutation["file"])
+                if path is None:
+                    kind = "ESCAPES " if (tree / mutation["file"]).is_symlink() else "MISSING "
+                    print(f"  {kind} {label}: {mutation['file']} (not a regular file inside the copy)")
+                    unapplied.append(label)
+                    shutil.rmtree(tree, ignore_errors=True)
+                    continue
+                original = path.read_text(encoding="utf-8")
+                if mutation["before"] not in original:
+                    # A stale anchor is a different problem from a guarantee that does not hold,
+                    # and it is never a kill.
+                    print(f"  ANCHOR LOST {label}: {mutation['file']}")
+                    unapplied.append(label)
+                    shutil.rmtree(tree, ignore_errors=True)
+                    continue
+                path.write_text(original.replace(mutation["before"], mutation["after"], 1), encoding="utf-8")
+                # And the mutant's mtime moves forward by 2 s, so any incremental tool that keys on
+                # mtime sees a changed file even on a filesystem with 1 s resolution.
+                stamp = max(path.stat().st_mtime, time.time()) + 2
+                os.utime(path, (stamp, stamp))
                 error = compiles(path)
-                run = None if error else suite(tree, command, arguments.timeout)
-            finally:
-                shutil.rmtree(tree, ignore_errors=True)  # the copy is disposable; the base stays clean
-            if error:
-                # The mutant never ran: a red suite here would say nothing about behavior.
-                print(f"  INVALID  {label}: mutant does not compile ({error})")
-                invalid.append(label)
-                continue
-            if run.green:
-                print(f"  SURVIVES {label}")
-                survived.append(label)
-                continue
-            if run.timed_out:
-                print(f"  TIMEOUT  {label}: the suite exceeded {arguments.timeout}s; not a detection ({run.tail(1)})")
-                invalid.append(label)
-                continue
-            reason = looks_invalid(run)
-            if reason:
-                print(f"  INVALID  {label}: red for the wrong reason ({reason}) -- {run.tail(2)}")
-                invalid.append(label)
-                continue
-            if not arguments.trust_exit_code and not assertion_evidence(run.output, arguments.kill_pattern):
-                # Red, but nothing says a test asserted anything: the behavior may never have run.
-                print(f"  UNVERIFIED {label}: red without a failed-assertion signature; not a kill "
-                      f"(pass --kill-pattern for this stack, or --trust-exit-code deliberately) -- {run.tail(2)}")
-                invalid.append(label)
-                continue
-            print(f"  DIES     {label} -- {run.tail(2)}")
-            died.append(label)
+                run = None if error else watch.run(tree, command)
+                # The copy is disposable once its run is proven closed (a Stop skips this and keeps it).
+                shutil.rmtree(tree, ignore_errors=True)
+                if error:
+                    # The mutant never ran: a red suite here would say nothing about behavior.
+                    print(f"  INVALID  {label}: mutant does not compile ({error})")
+                    invalid.append(label)
+                    continue
+                if run.green:
+                    print(f"  SURVIVES {label}")
+                    survived.append(label)
+                    continue
+                if run.timed_out:
+                    print(f"  TIMEOUT  {label}: the watched suite exceeded its deadline and its process group was "
+                          f"ended; not a detection ({run.tail(1)})")
+                    invalid.append(label)
+                    continue
+                reason = looks_invalid(run)
+                if reason:
+                    print(f"  INVALID  {label}: red for the wrong reason ({reason}) -- {run.tail(2)}")
+                    invalid.append(label)
+                    continue
+                if not arguments.trust_exit_code and not assertion_evidence(run.output, arguments.kill_pattern):
+                    # Red, but nothing says a test asserted anything: the behavior may never have run.
+                    print(f"  UNVERIFIED {label}: red without a failed-assertion signature; not a kill "
+                          f"(pass --kill-pattern for this stack, or --trust-exit-code deliberately) -- {run.tail(2)}")
+                    invalid.append(label)
+                    continue
+                print(f"  DIES     {label} -- {run.tail(2)}")
+                died.append(label)
+
+    except Stop as exc:
+        stopped = f"during {current}: {exc}"
 
     print(f"\napplied {len(died) + len(survived) + len(invalid)}/{len(mutations)}: {len(died)} die, "
           f"{len(survived)} survive, {len(invalid)} without a valid verdict; {len(unapplied)} not applied"
@@ -636,6 +804,9 @@ def main() -> int:
         print("not applied (stale or unsafe spec, fix it): " + ", ".join(unapplied))
     if invalid:
         print("applied, no valid verdict (invalid mutant, timeout or no assertion signature): " + ", ".join(invalid))
+    if stopped:
+        print(f"STOPPED, no further mutant started: {stopped}")
+        return 2
     if unapplied or invalid:
         return 2
     return 1 if survived else 0

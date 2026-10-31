@@ -1390,7 +1390,8 @@ espera pasa "comillas y escapes válidos se aceptan" "" -- commitea "$D" "docs
 Ref: F1"
 
 echo "== Arnés de sabotaje"
-S="$W/sab"; mkdir -p "$S/scripts"; en "$S" git init -q
+S="$W/sab"; mkdir -p "$S/scripts" "$S/docs"; en "$S" git init -q
+cp "$RAIZ/scripts/suite.py" "$S/scripts/"; printf -- '- **Plazo de la suite:** 60 s\n' > "$S/docs/convenciones.md"
 printf '#!/bin/sh\nif [ -f gate.sh ]; then\n  exit 0\nfi\necho "FAIL: gate"\nexit 1\n' > "$S/gate.sh"; chmod +x "$S/gate.sh"
 printf '#!/bin/sh\nsh ./gate.sh\n' > "$S/scripts/check.sh"
 printf '[{"label":"sin-fi","file":"gate.sh","before":"fi\\n","after":"\\n"}]\n' > "$S/sin_fi.json"
@@ -1441,7 +1442,8 @@ espera falla "--commit que empieza por '-' (opción de git) se rechaza" "does no
 espera pasa "--commit HEAD sigue funcionando: copia del commit y el aserto real muere (DIES)" "copy from commit HEAD" -- en "$S" python3 -I "$SAB" helper.json --commit HEAD
 # Ronda 12 (C4): firmas de pytest sin depender de pytest (salida sintética), comillas en --suite,
 # etiquetas del resumen y entradas externas declaradas con ejecución real (python3).
-S2="$W/sab2"; mkdir -p "$S2/scripts" "$S2/docs"; en "$S2" git init -q
+S2="$W/sab2"; mkdir -p "$S2/scripts" "$S2/docs"; en "$S2" git init -q; cp "$RAIZ/scripts/suite.py" "$S2/scripts/"
+printf -- '- **Plazo de la suite:** 60 s\n' > "$S2/docs/convenciones.md"
 printf 'VALUE = 1\n' > "$S2/cfg.py"
 printf '[{"label":"cfg","file":"cfg.py","before":"VALUE = 1","after":"VALUE = 2"}]\n' > "$S2/m.json"
 printf '[{"label":"perdida","file":"cfg.py","before":"NO ESTA","after":"x"}]\n' > "$S2/perdida.json"
@@ -1463,7 +1465,7 @@ espera pasa "--suite con argumento entrecomillado llega entero (ejecución real)
 espera falla "--suite con comillas sin cerrar se rechaza sin ejecutar" "cannot be split" -- en "$S2" python3 -I "$SAB" m.json --suite 'python3 args.py "dos'
 mkdir -p "$S2/.venv/bin"; printf '#!/bin/sh\nexec python3 "$@"\n' > "$S2/.venv/bin/py"; chmod +x "$S2/.venv/bin/py"
 printf '.venv/\n__pycache__/\n' > "$S2/.gitignore"
-printf '# Convenciones\n\n| Ruta | Propósito | Cómo se reproduce |\n|------|-----------|-------------------|\n| .venv/ | intérprete | envoltorio |\n' > "$S2/docs/convenciones.md"
+printf '# Convenciones\n\n- **Plazo de la suite:** 60 s\n\n| Ruta | Propósito | Cómo se reproduce |\n|------|-----------|-------------------|\n| .venv/ | intérprete | envoltorio |\n' > "$S2/docs/convenciones.md"
 printf 'import cfg\nassert cfg.VALUE == 1, "VALUE cambió"\n' > "$S2/app.py"
 printf '#!/bin/sh\n.venv/bin/py app.py\n' > "$S2/scripts/check.sh"
 espera pasa "entrada externa declarada (.venv, excluido de la copia): se enlaza y el intérprete externo corre el código MUTADO: DIES" "DIES" -- en "$S2" python3 -I "$SAB" m.json
@@ -1471,6 +1473,101 @@ mkdir -p "$S2/.venv/lib"; printf '%s\n' "$(cd "$S2" && pwd -P)" > "$S2/.venv/lib
 espera falla "entrada externa con instalación editable hacia el original se rechaza" "points at the original tree" -- en "$S2" python3 -I "$SAB" m.json
 rm "$S2/.venv/lib/__editable__.app.pth"; printf '__pycache__/\n' > "$S2/.gitignore"
 espera falla "entrada externa declarada que git no ignora se rechaza" "is not ignored by git" -- en "$S2" python3 -I "$SAB" m.json
+
+echo "== Sabotaje vigilado: cada corrida bajo scripts/suite.py del repositorio real (plazo, una a la vez)"
+# $W/bin/ps es el ps de prueba de la sección del pre-commit: con $W/fantasma lista un miembro que
+# sobrevive a KILL (SIMULADO). Las copias del sabotaje van a $W/tmpd-sab para ver qué conserva.
+SV="$W/sabv"; mkdir -p "$SV/scripts" "$SV/docs" "$W/tmpd-sab" "$W/pids/sabv"; en "$SV" git init -q
+cp "$RAIZ/scripts/suite.py" "$SV/scripts/"; printf -- '- **Plazo de la suite:** 20 s\n' > "$SV/docs/convenciones.md"
+printf 'VALUE = 1\n' > "$SV/cfg.py"; printf '#!/bin/sh\npython3 app.py || exit 1\n' > "$SV/scripts/check.sh"
+printf '[{"label":"cfg","file":"cfg.py","before":"VALUE = 1","after":"VALUE = 2"}]\n' > "$SV/m.json"
+printf '[{"label":"uno","file":"cfg.py","before":"VALUE = 1","after":"VALUE = 2"},{"label":"dos","file":"cfg.py","before":"VALUE = 1","after":"VALUE = 3"}]\n' > "$SV/m2.json"
+app_sv() { printf 'import cfg, glob, json, os, signal, subprocess, time\nREG = "%s"\nif cfg.VALUE != 1:\n%s\nassert cfg.VALUE == 1, "VALUE cambió"\n' "$SV/.git/suite-runs" "$1" > "$SV/app.py"; }
+abierta_sv='    x = [json.load(open(p)) for p in glob.glob(REG + "/*.json")]; x = [r for r in x if r["estado"] == "abierta"][0]'
+sabv() { ( cd "$SV" && export TMPDIR="$W/tmpd-sab" PATH="$W/bin:$PATH"; python3 -I "$SAB" "$@" ); }
+ultimo_sv() { python3 -c 'import json,glob,sys; r=sorted((json.load(open(p)) for p in glob.glob(sys.argv[1]+"/*.json")), key=lambda x: x["inicio"]); print(r[-1]["estado"], r[-1]["plazo"], r[-1].get("incompleta",""), r[-1]["comando"][-1]) if r else print("sin-registro")' "$SV/.git/suite-runs"; }
+copias_sv() { ls -d "$W/tmpd-sab"/sabotaje-* 2>/dev/null | wc -l | tr -d ' '; }
+app_sv '    pass'
+espera pasa "sabotaje normal: la corrida va vigilada y el aserto acredita (DIES)" "DIES" -- sabv m.json
+espera pasa "... registrada en el repositorio real con el plazo común de convenciones (20 s)" "^fallida 20 " -- ultimo_sv
+espera pasa "... y no deja copias" "^0$" -- copias_sv
+sabv m.json --timeout 7 > /dev/null 2>&1
+espera pasa "--timeout sobrescribe el plazo común" "^fallida 7 " -- ultimo_sv
+P="$W/pids/sabv"
+app_sv "    open('$P/nieto', 'w').write(str(subprocess.Popen(['sleep', '300']).pid)); open('$P/lider', 'w').write(str(os.getpid())); signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    while True: time.sleep(1)"
+T0=$(date +%s)
+espera falla "mutante que cuelga la suite: TIMEOUT, nunca DIES (exit 2)" "TIMEOUT .*exceeded its deadline" -- sabv m.json --timeout 3
+espera pasa "... en menos de 20 s" "" -- test $(( $(date +%s) - T0 )) -lt 20
+espera falla "... sin el líder vivo" "" -- kill -0 "$(cat "$P/lider" 2>/dev/null)"
+espera falla "... ni su hijo" "" -- kill -0 "$(cat "$P/nieto" 2>/dev/null)"
+espera pasa "... el registro la da por excedida" "^excedida 3 " -- ultimo_sv
+espera pasa "... y no deja copias" "^0$" -- copias_sv
+app_sv "    [ os.path.exists('$W/sabv-hecho') or open('$W/sabv-hecho', 'w') and open('$W/fantasma', 'w').write(str(os.getpgid(0))) ]"
+espera falla "superviviente a KILL (simulado): el sabotaje entero se detiene, sin empezar el siguiente mutante" "STOPPED, no further mutant started: during uno: run .* ended as incompleta" -- sabv m2.json
+espera pasa "... el registro sigue abierto e incompleto (bloquea)" "^abierta 20 fallida " -- ultimo_sv
+espera pasa "... y la copia se conserva (es su directorio de trabajo)" "^1$" -- copias_sv
+espera falla "... otro sabotaje no lanza nada: hay una abierta" "the suite did not start: another run is open" -- sabv m.json
+espera pasa "... (sin dejar otra copia)" "^1$" -- copias_sv
+rm -f "$W/fantasma"
+espera pasa "... ido el superviviente, el siguiente la recupera y sigue (DIES)" "DIES" -- sabv m.json
+rm -rf "$W/tmpd-sab"/sabotaje-*   # la copia conservada: su ejecución ya está cerrada (limpieza automática: bloque 3)
+app_sv '    pass'
+anidado() { ( export SUITE_ID=x; sabv "$@" ); }
+espera falla "sabotaje lanzado desde dentro de otra ejecución: se detiene sin lanzar nada" "the suite did not start: called from inside another suite run" -- anidado m.json
+grep -v 'Plazo de la suite' "$SV/docs/convenciones.md" > "$SV/c.tmp"; mv "$SV/c.tmp" "$SV/docs/convenciones.md"
+espera falla "sin plazo común ni --timeout: se detiene explicando qué falta" "falta el plazo" -- sabv m.json
+espera pasa "... y como no lanzó nada (sin registro suyo), no conserva copias" "^0$" -- copias_sv
+printf -- '- **Plazo de la suite:** 20 s\n' > "$SV/docs/convenciones.md"
+# Respaldo: el guardián no cierra a tiempo (congelado con SIGSTOP). SABOTAJE_RESPALDO acorta sus márgenes.
+app_sv "$abierta_sv
+    open('$P/guardia', 'w').write(str(x['guardia'])); os.kill(x['guardia'], signal.SIGSTOP); time.sleep(300)"
+# acotado: si el respaldo faltara, el caso FALLA en vez de colgar la suite. Márgenes 3 s tras el
+# plazo, 8 s de espera única para terminar + lanzador, 4 s para identificar la ejecución.
+respaldo() { acotado 90 sh -c 'cd "$1" && export TMPDIR="$2" PATH="$3:$PATH" SABOTAJE_RESPALDO=3,8,4 && shift 3 && python3 -I "$0" "$@"' "$SAB" "$SV" "$W/tmpd-sab" "$W/bin" "$@"; }
+T0=$(date +%s)
+espera falla "respaldo: el guardián no cerró a tiempo y terminar no lo logra: el sabotaje se detiene y conserva" "STOPPED.*still open, incomplete or unverifiable after the backup" -- respaldo m2.json --timeout 2
+# plazo 2 + 3 + UNA espera de 8 = 13 s más el arranque; dos esperas consecutivas llegarían a 21.
+espera pasa "... con una sola espera acotada para terminar y lanzador (menos de 18 s)" "" -- test $(( $(date +%s) - T0 )) -lt 18
+espera pasa "... la copia se conserva" "^1$" -- copias_sv
+kill -CONT "$(cat "$P/guardia" 2>/dev/null)" 2>/dev/null
+n=0; until [ "$(ultimo_sv | cut -d' ' -f1)" != abierta ] || [ $n -ge 60 ]; do n=$((n+1)); sleep 0.5; done
+espera pasa "... (al reanudarse, el guardián la cierra)" "^terminada " -- ultimo_sv
+rm -rf "$W/tmpd-sab"/sabotaje-*
+app_sv "$abierta_sv
+    os.kill(x['lanzador'], signal.SIGSTOP); os.kill(x['guardia'], signal.SIGKILL); open('$P/lider2', 'w').write(str(os.getpid())); time.sleep(300)"
+espera falla "respaldo: sin guardián ni lanzador que respondan, terminar cierra la ejecución: TIMEOUT, no DIES" "TIMEOUT .*backup: run .* ended past its deadline" -- respaldo m.json --timeout 2
+espera falla "... sin el líder vivo" "" -- kill -0 "$(cat "$P/lider2" 2>/dev/null)"
+espera pasa "... y sin copias" "^0$" -- copias_sv
+# Lanzador vivo que no registra su ejecución (atascado antes del registro): no hay identidad, así que
+# no se señala nada; el sabotaje se detiene al vencer el margen de identificación y conserva la copia.
+cp "$SV/scripts/suite.py" "$SV/suite.orig"
+python3 - "$SV/scripts/suite.py" <<'PY'
+import sys
+p = sys.argv[1]; t = open(p).read()
+t = t.replace("def run(args) -> int:\n", "def run(args) -> int:\n    open(os.environ['SV_LANZADOR'], 'w').write(str(os.getpid())); time.sleep(300)\n", 1)
+open(p, "w").write(t)
+PY
+export SV_LANZADOR="$P/lanzador"
+T0=$(date +%s)
+espera falla "lanzador sin registro: el sabotaje se detiene al vencer el margen de identificación" "STOPPED.*launcher [0-9]* still alive 4s after starting and it registered no run; nothing was signalled" -- respaldo m.json
+espera pasa "... acotado (menos de 15 s)" "" -- test $(( $(date +%s) - T0 )) -lt 15
+espera pasa "... no señala al lanzador (sigue vivo)" "" -- kill -0 "$(cat "$P/lanzador" 2>/dev/null)"
+espera pasa "... y conserva la copia (el lanzador aún podría usarla)" "^1$" -- copias_sv
+kill "$(cat "$P/lanzador" 2>/dev/null)" 2>/dev/null; rm -rf "$W/tmpd-sab"/sabotaje-*
+echo '{roto' > "$SV/.git/suite-runs/zz.json"
+espera falla "lanzador vivo con el registro no comprobable: se detiene sin señalar nada" "STOPPED.*launcher [0-9]* still alive 4s after starting and the registry could not be checked; nothing was signalled" -- respaldo m.json
+espera pasa "... no señala al lanzador (sigue vivo)" "" -- kill -0 "$(cat "$P/lanzador" 2>/dev/null)"
+espera pasa "... y conserva la copia" "^1$" -- copias_sv
+kill "$(cat "$P/lanzador" 2>/dev/null)" 2>/dev/null; rm -rf "$W/tmpd-sab"/sabotaje-* "$SV/.git/suite-runs/zz.json"
+unset SV_LANZADOR; mv "$SV/suite.orig" "$SV/scripts/suite.py"
+# El vigilante es el scripts/suite.py del repositorio real: mutar el de la copia no lo desarma.
+printf '[{"label":"vigilante","file":"scripts/suite.py","before":"deadline = deadline_of(args.plazo, workdir)","after":"deadline = 10 ** 6  # SABOTEADO"}]\n' > "$SV/vig.json"
+app_sv "    pass" ; printf 'import time\nif "SABOTEADO" in open("scripts/suite.py").read():\n    while True: time.sleep(1)\n' > "$SV/app.py"
+vig() { acotado 60 sh -c 'cd "$1" && TMPDIR="$2" PATH="$3:$PATH" python3 -I "$4" vig.json --timeout 3' _ "$SV" "$W/tmpd-sab" "$W/bin" "$SAB"; }
+espera falla "mutar el suite.py de la copia no desarma el plazo: TIMEOUT a los 3 s" "TIMEOUT  vigilante" -- vig
+SN="$W/sab-sin"; mkdir -p "$SN/scripts"; en "$SN" git init -q; printf 'VALUE = 1\n' > "$SN/cfg.py"; cp "$SV/m.json" "$SN/"
+espera falla "proyecto sin scripts/suite.py: el sabotaje no corre sin vigilante" "scripts/suite.py is missing" -- en "$SN" python3 -I "$SAB" m.json
 
 echo "== Recorrido F1→F5 y validación del historial"
 R="$W/recorrido"; cp -R "$Z" "$R"

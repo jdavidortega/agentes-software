@@ -28,12 +28,14 @@ limpia() {
 }
 trap limpia EXIT INT TERM
 mkdir -p "$W/pids" "$W/bin"
-# ps de prueba: delega en el real salvo dos interruptores. $W/ps-falla → ps falla (consulta imposible);
+# ps de prueba: delega en el real salvo tres interruptores. $W/ps-falla → ps falla (consulta imposible);
+# $W/ps-cuelga → ps no responde (debe vencer su límite y contar como consulta imposible);
 # $W/fantasma con un PGID → `ps -A` lista además un miembro de ese grupo que sobrevive a KILL (no se
 # puede fabricar uno real: KILL no se ignora; solo un proceso bloqueado en el kernel sobrevive).
 cat > "$W/bin/ps" <<EOF
 #!/bin/sh
 [ -f "$W/ps-falla" ] && { echo "ps: fallo simulado" >&2; exit 1; }
+[ -f "$W/ps-cuelga" ] && exec sleep 300
 $(command -v ps) "\$@"; rc=\$?
 [ "\$1" = -A ] && [ -f "$W/fantasma" ] && echo "99999 \$(cat "$W/fantasma") S Thu Oct 29 10:00:00 2026 fantasma"
 exit \$rc
@@ -206,6 +208,10 @@ kill -9 "$(campo "$ID" guardia)" $LAN; kill -9 -"$(campo "$ID" grupo)"; wait $LA
 : > "$W/ps-falla"
 espera pasa "abandonada con ps fallando: estado dice no comprobable, no abandonada" "ps falló\): su ausencia no está demostrada" -- sh -c 'cd "$1" && python3 "$2" estado "$3"' _ "$R" "$SU" "$ID"
 espera falla "... una nueva ejecución no la recupera: se bloquea (75)" "no comprobable" -- corre --plazo 20 -- true
+rm -f "$W/ps-falla"; : > "$W/ps-cuelga"; T0=$(date +%s)
+espera pasa "ps que no responde: vence su límite y estado dice no comprobable (no espera para siempre)" "ausencia no está demostrada" -- sh -c 'cd "$1" && python3 "$2" estado "$3"' _ "$R" "$SU" "$ID"
+espera pasa "... en menos de 30 s" "" -- test $(( $(date +%s) - T0 )) -lt 30
+rm -f "$W/ps-cuelga"; : > "$W/ps-falla"
 espera falla "... terminar se niega" "no termino nada" -- sh -c 'cd "$1" && python3 "$2" terminar "$3"' _ "$R" "$SU" "$ID"
 espera pasa "... el registro sigue abierto y los temporales intactos" "" -- sh -c '[ "$(cd / && python3 -c "import json,sys;print(json.load(open(sys.argv[1]))[\"estado\"])" "$1")" = abierta ] && test -d "$2/tmp"' _ "$REG/$ID.json" "$CARP"
 repo q2

@@ -17,6 +17,7 @@
 VERBOSE=0; [ "${1:-}" = "-v" ] && VERBOSE=1
 RAIZ=$(cd "$(dirname "$0")/../.." && pwd)
 W=$(mktemp -d 2>/dev/null || mktemp -d -t regresion)
+exec 3>&2   # acotado deja su foto de procesos aquí: fuera de la salida que espera captura y recorta
 # Al salir, además de borrar $W, termina los PID que un caso dejó anotados en $W/pids (si falló).
 trap 'find "$W/pids" -type f 2>/dev/null | while IFS= read -r f; do kill -9 "$(cat "$f")" 2>/dev/null; done; rm -rf "$W"' EXIT INT TERM
 export GIT_AUTHOR_NAME=regresion GIT_AUTHOR_EMAIL=regresion@local
@@ -691,19 +692,37 @@ vigilada() {  # vigilada <dir> <plazo> <cuerpo>: check.sh = bloque + cuerpo; pla
   suite_es "$1" "$BLOQUE
 $3"
 }
-con_tmp() { ( export TMPDIR="$W/tmpd" PATH="$W/bin:$PATH"; "$@" ); }
 # acotado <seg> cmd...: si la garantía se rompe y el commit se cuelga, el caso FALLA (124) en vez de colgar.
+# Antes de matar su grupo, deja en el fd 3 (stderr de la suite) la foto de los procesos de ese grupo y de
+# los que nombran $W (guardianes y suites en otra sesión): es la evidencia de QUÉ se colgó.
 acotado() { python3 -c '
-import subprocess, sys
-p = subprocess.Popen(sys.argv[2:], start_new_session=True)
+import os, signal, subprocess, sys
+w, secs, cmd = sys.argv[1], int(sys.argv[2]), sys.argv[3:]
+p = subprocess.Popen(cmd, start_new_session=True)
 try:
-    sys.exit(p.wait(timeout=int(sys.argv[1])))
+    sys.exit(p.wait(timeout=secs))
 except subprocess.TimeoutExpired:
-    import os, signal; os.killpg(p.pid, signal.SIGKILL); p.wait(); print("acotado: no terminó", file=sys.stderr); sys.exit(124)
-' "$@"; }
+    try:
+        ps = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,pgid=,stat=,etime=,command="], capture_output=True,
+                            text=True, timeout=10).stdout.splitlines()
+        foto = [l for l in ps if l.split()[2] == str(p.pid) or w in l]
+    except Exception as exc:
+        foto = [f"(sin foto: {exc})"]
+    try:
+        with os.fdopen(3, "w") as f3:
+            print(f"acotado: no terminó en {secs}s: {cmd[:3]}; procesos (pid ppid pgid stat etime command):", file=f3)
+            print("\n".join("    " + l[:300] for l in foto), file=f3)
+    except OSError:
+        pass
+    os.killpg(p.pid, signal.SIGKILL); p.wait(); print("acotado: no terminó", file=sys.stderr); sys.exit(124)
+' "$W" "$@"; }
+# nota_acotada <dir> <nombre>: nota_f1 con el commit acotado, TMPDIR y ps de prueba (casos sv*).
+nota_acotada() { acotado 90 sh -c 'cd "$1" && export TMPDIR="$2" PATH="$3:$PATH" && printf -- "- nota %s\n" "$4" >> docs/MEMORIA.md && git add -A && git -c core.hooksPath=.githooks commit -q -m "nota
+
+Ref: F1"' _ "$1" "$W/tmpd" "$W/bin" "$2"; }
 registro_de() { python3 -c 'import json,glob,sys; r=sorted((json.load(open(p)) for p in glob.glob(sys.argv[1]+"/.git/suite-runs/*.json")), key=lambda x: x["inicio"]); print(r[-1]["estado"], r[-1]["dir"], r[-1].get("incompleta","")) if r else print("sin-registro")' "$1"; }
 copia f3 sv1; vigilada "$D" 20 'echo "cuerpo en $(pwd -P)"; python3 app.py || exit 1'
-espera pasa "check.sh con el bloque: el pre-commit lo corre vigilado y el commit pasa" "cuerpo en /.*/tmpd/precommit-snap\." -- con_tmp nota_f1 "$D" sv1
+espera pasa "check.sh con el bloque: el pre-commit lo corre vigilado y el commit pasa" "cuerpo en /.*/tmpd/precommit-snap\." -- nota_acotada "$D" sv1
 espera pasa "... registrado en el repositorio REAL (no en la instantánea), aprobado, sobre la instantánea" "^aprobada /.*/tmpd/precommit-snap\.[^/]*/r $" -- registro_de "$D"
 espera pasa "... y el pre-commit no deja temporales propios (instantánea ni exportación)" "^0$" -- sh -c 'ls -d "$1"/precommit* 2>/dev/null | wc -l | tr -d " "' _ "$W/tmpd"
 P="$W/pids/sv2"; mkdir -p "$P"
@@ -717,12 +736,12 @@ espera falla "... sin el líder vivo" "" -- kill -0 "$(cat "$P/lider" 2>/dev/nul
 espera falla "... ni el nieto" "" -- kill -0 "$(cat "$P/nieto" 2>/dev/null)"
 espera pasa "... el registro del repositorio real la da por excedida" "^excedida " -- registro_de "$D"
 copia f3 sv3; vigilada "$D" 20 "[ -e '$W/sv3-hecho' ] || { : > '$W/sv3-hecho'; echo \$\$ > '$W/fantasma'; }; python3 app.py || exit 1"
-espera falla "superviviente a KILL (simulado) en el pre-commit: rechaza por terminación incompleta" "quedaron procesos suyos vivos" -- con_tmp nota_f1 "$D" sv3a
+espera falla "superviviente a KILL (simulado) en el pre-commit: rechaza por terminación incompleta" "quedaron procesos suyos vivos" -- nota_acotada "$D" sv3a
 espera pasa "... el registro sigue abierto e incompleto" "^abierta .* aprobada$" -- registro_de "$D"
 espera pasa "... y su instantánea (directorio de trabajo de los procesos vivos) se conserva con sus archivos" "" -- test -f "$(registro_de "$D" | cut -d' ' -f2)/scripts/check.sh"
-espera falla "... el siguiente commit se rechaza: hay otra ejecución abierta" "otra ejecución de la suite abierta" -- con_tmp nota_f1 "$D" sv3b
+espera falla "... el siguiente commit se rechaza: hay otra ejecución abierta" "otra ejecución de la suite abierta" -- nota_acotada "$D" sv3b
 rm -f "$W/fantasma"
-espera pasa "... ido el superviviente, el siguiente commit la recupera y pasa" "recupero la ejecución" -- con_tmp nota_f1 "$D" sv3c
+espera pasa "... ido el superviviente, el siguiente commit la recupera y pasa" "recupero la ejecución" -- nota_acotada "$D" sv3c
 # sv4: se interrumpe el hook (muere el lanzador) con el guardián aún activo: la instantánea no se borra.
 P="$W/pids/sv4"; mkdir -p "$P"
 copia f3 sv4; vigilada "$D" 60 "echo \$\$ > '$P/lider'; while :; do sleep 1; done"
@@ -741,15 +760,15 @@ espera falla "... (líder muerto)" "" -- kill -0 "$(cat "$P/lider" 2>/dev/null)"
 # sv5/sv6: la suite corre y se cierra, pero al salir el hook no puede leer el registro (dañado o sin
 # permiso de lectura, provocado por el cuerpo al final): la ausencia de abiertas no está demostrada.
 copia f3 sv5; vigilada "$D" 20 "python3 app.py || exit 1; echo '{roto' > '$D/.git/suite-runs/zz.json'"
-espera pasa "registro dañado al salir: el commit pasa, pero la instantánea se conserva y se avisa" "conservo la instantánea .*registro ilegible" -- con_tmp nota_f1 "$D" sv5
+espera pasa "registro dañado al salir: el commit pasa, pero la instantánea se conserva y se avisa" "conservo la instantánea .*registro ilegible" -- nota_acotada "$D" sv5
 copia f3 sv7; vigilada "$D" 20 "python3 app.py || exit 1; echo '{\"id\": \"x\", \"dir\": \"/x\", \"inicio\": 1}' > '$D/.git/suite-runs/zz.json'"
-espera pasa "registro sin «estado» al salir: no autoriza el borrado; la instantánea se conserva y se avisa" "conservo la instantánea .*registro ilegible o dañado" -- con_tmp nota_f1 "$D" sv7
+espera pasa "registro sin «estado» al salir: no autoriza el borrado; la instantánea se conserva y se avisa" "conservo la instantánea .*registro ilegible o dañado" -- nota_acotada "$D" sv7
 mkdir -p "$W/sin-lectura"; chmod 300 "$W/sin-lectura"
 if ls "$W/sin-lectura" >/dev/null 2>&1; then
   echo "  (no aplica: este entorno lista carpetas sin permiso de lectura; registro inaccesible sin probar)"
 else
   copia f3 sv6; vigilada "$D" 20 "python3 app.py || exit 1; chmod 300 '$D/.git/suite-runs'"
-  espera pasa "registro que no se puede listar al salir: la instantánea se conserva y se avisa" "conservo la instantánea .*registro ilegible" -- con_tmp nota_f1 "$D" sv6
+  espera pasa "registro que no se puede listar al salir: la instantánea se conserva y se avisa" "conservo la instantánea .*registro ilegible" -- nota_acotada "$D" sv6
   chmod 700 "$D/.git/suite-runs"
 fi
 chmod 700 "$W/sin-lectura"
@@ -1484,7 +1503,7 @@ printf '[{"label":"cfg","file":"cfg.py","before":"VALUE = 1","after":"VALUE = 2"
 printf '[{"label":"uno","file":"cfg.py","before":"VALUE = 1","after":"VALUE = 2"},{"label":"dos","file":"cfg.py","before":"VALUE = 1","after":"VALUE = 3"}]\n' > "$SV/m2.json"
 app_sv() { printf 'import cfg, glob, json, os, signal, subprocess, time\nREG = "%s"\nif cfg.VALUE != 1:\n%s\nassert cfg.VALUE == 1, "VALUE cambió"\n' "$SV/.git/suite-runs" "$1" > "$SV/app.py"; }
 abierta_sv='    x = [json.load(open(p)) for p in glob.glob(REG + "/*.json")]; x = [r for r in x if r["estado"] == "abierta"][0]'
-sabv() { ( cd "$SV" && export TMPDIR="$W/tmpd-sab" PATH="$W/bin:$PATH"; python3 -I "$SAB" "$@" ); }
+sabv() { acotado 90 sh -c 'cd "$1" && export TMPDIR="$2" PATH="$3:$PATH" && shift 3 && python3 -I "$0" "$@"' "$SAB" "$SV" "$W/tmpd-sab" "$W/bin" "$@"; }
 ultimo_sv() { python3 -c 'import json,glob,sys; r=sorted((json.load(open(p)) for p in glob.glob(sys.argv[1]+"/*.json")), key=lambda x: x["inicio"]); print(r[-1]["estado"], r[-1]["plazo"], r[-1].get("incompleta",""), r[-1]["comando"][-1]) if r else print("sin-registro")' "$SV/.git/suite-runs"; }
 copias_sv() { ls -d "$W/tmpd-sab"/sabotaje-* 2>/dev/null | wc -l | tr -d ' '; }
 app_sv '    pass'

@@ -61,6 +61,7 @@ LOG_MAX = int(os.environ.get("SUITE_LOG_MAX", "2000000"))
 KEEP_CLOSED = 10
 WARN_AT = 0.8
 GRACE = 5.0
+PS_TIMEOUT = 10  # a ps that does not answer is a query that failed: no comprobable, never a wait
 
 
 def say(msg: str) -> None:
@@ -79,7 +80,9 @@ class Unverifiable(Exception):
 
 def ps(*args: str) -> str:
     try:
-        out = subprocess.run(["ps", *args], capture_output=True, text=True)
+        out = subprocess.run(["ps", *args], capture_output=True, text=True, timeout=PS_TIMEOUT)
+    except subprocess.TimeoutExpired as exc:
+        raise Unverifiable(f"ps {' '.join(args)}: no respondió en {PS_TIMEOUT}s") from exc
     except OSError as exc:
         raise Unverifiable(f"ps: {exc}") from exc
     if out.returncode or not out.stdout.strip():  # every query here names a process that should exist

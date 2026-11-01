@@ -42,7 +42,11 @@ allowed-tools: Read, Grep, Glob, Bash
    es **experimentos**, y el revisor la corre con `TMPDIR="$D"` delante para que sus temporales
    caigan en el directorio autorizado. El filtro reconoce el directorio solo si el comando lo
    **nombra literalmente**: una variable (`> "$X/out"`) se rechaza aunque apunte a él. Dilo en
-   el prompt; es un límite conocido del filtro, no un error del revisor.
+   el prompt; es un límite conocido del filtro, no un error del revisor. `scripts/check.sh` corre
+   bajo `scripts/suite.py`: sus temporales caen bajo `TMPDIR` (por eso va con `TMPDIR="$D"`), pero su
+   registro va a `<git common dir>/suite-runs`, fuera del árbol y de las huellas. Es una escritura
+   autorizada en una ubicación declarada; tras la revisión, `python3 scripts/suite.py estado
+   --abiertas` no debe mostrar nada suyo.
 
 ## Invocación
 

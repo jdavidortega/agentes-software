@@ -116,7 +116,7 @@ esac
 for f in AGENTS.md README.md contexto/README.md docs/estado.md docs/encuadre.md \
          docs/plan.md docs/trazabilidad.md docs/decisiones.md docs/convenciones.md \
          docs/definicion-de-hecho.md docs/despliegue.md docs/MEMORIA.md docs/revisiones.log \
-         scripts/check_docs.sh scripts/huella.sh scripts/recibos.sh scripts/trazabilidad.sh \
+         scripts/check_docs.sh scripts/huella.sh scripts/recibos.sh scripts/trazabilidad.sh scripts/suite.py \
          .githooks/pre-commit .githooks/commit-msg \
          .claude/skills/dirigiendo-revisiones/SKILL.md .claude/skills/revision-funcional/SKILL.md \
          .claude/skills/revision-critica/SKILL.md .claude/skills/revision-seguridad/SKILL.md \
@@ -134,6 +134,80 @@ fi
 # --- 0a) Contrato por fase: scripts/check.sh es salida del diseño, existe desde el cierre de F2.
 if [ "$INICIADO" -eq 1 ]; then
   has scripts/check.sh || err "falta scripts/check.sh (lint+formato+tests; salida obligatoria del diseño, F2)"
+fi
+
+# --- 0a') Suite vigilada (docs/convenciones.md §Comandos clave): desde F2, scripts/check.sh empieza
+#     por el bloque que la corre bajo scripts/suite.py, y el plazo común está declarado. El bloque se
+#     PRUEBA aislado: en un proyecto temporal mínimo (copia de suite.py + un check.sh ficticio = el
+#     bloque + un eco del identificador), con registro propio, sin las SUITE_* heredadas y con un
+#     límite propio (no depende del envoltorio que comprueba). El cuerpo real nunca se ejecuta.
+#     La posición se comprueba como texto: antes del bloque solo caben shebang, comentarios y blancos.
+INICIO_BLOQUE='# --- suite vigilada'
+FIN_BLOQUE='# --- fin suite vigilada ---'
+if [ "$INICIADO" -eq 1 ] && has scripts/check.sh && has scripts/suite.py; then
+  grep -qE '^- \*\*Plazo de la suite:\*\* [0-9]+ s' docs/convenciones.md \
+    || err "docs/convenciones.md no declara el plazo común de la suite («- **Plazo de la suite:** N s», §Comandos clave)"
+  antes=$(awk -v m="$INICIO_BLOQUE" 'index($0, m) == 1 { print "ok"; exit } /^[ \t]*(#|$)/ { next } { print "codigo"; exit }' scripts/check.sh)
+  bloque=$(awk -v a="$INICIO_BLOQUE" -v b="$FIN_BLOQUE" 'index($0, a) == 1 { f = 1 } f { print } f && $0 == b { exit }' scripts/check.sh)
+  if [ "$antes" != ok ] || [ "$(printf '%s\n' "$bloque" | tail -1)" != "$FIN_BLOQUE" ]; then
+    err "scripts/check.sh no EMPIEZA por el bloque de la suite vigilada (de «${INICIO_BLOQUE}» a «${FIN_BLOQUE}», docs/convenciones.md §Comandos clave): sin él, la suite corre sin plazo ni registro"
+  else
+    aisl=$(mktemp -d "${TMPDIR:-/tmp}/check-docs-suite.XXXXXX") && mkdir -p "$aisl/p/scripts" "$aisl/p/docs" \
+      && cp scripts/suite.py "$aisl/p/scripts/suite.py" \
+      && printf -- '- **Plazo de la suite:** 30 s\n' > "$aisl/p/docs/convenciones.md" \
+      && { printf '#!/bin/sh\n%s\n' "$bloque"; printf 'echo "vigilada:${SUITE_ID:-}"\n'; } > "$aisl/p/scripts/check.sh" \
+      || err "no pude preparar el proyecto temporal para probar el bloque de la suite vigilada"
+    r=$(python3 -I -c '
+import json, os, re, signal, subprocess, sys
+d = sys.argv[1]
+env = {k: v for k, v in os.environ.items() if not k.startswith("SUITE_")}
+env["SUITE_REGISTRO"] = os.path.join(d, "reg")
+def corre(extra):
+    p = subprocess.Popen(["sh", os.path.join(d, "p/scripts/check.sh")], cwd=os.path.join(d, "p"), env={**env, **extra},
+                         stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
+    try:
+        out, _ = p.communicate(timeout=60)
+    except subprocess.TimeoutExpired:
+        os.killpg(p.pid, signal.SIGKILL); p.wait()
+        sys.exit("no terminó en 60 s")
+    return p.returncode, out.decode(errors="replace")
+rc, out = corre({})
+m = re.search(r"^vigilada:([0-9A-Za-z-]+)$", out, re.M)
+if rc != 0 or not m:
+    sys.exit(f"no corrió vigilado (rc={rc}; sin «vigilada:<id>»): {out.strip()[-300:]}")
+reg = os.path.join(d, "reg", m.group(1) + ".json")
+try:
+    rec = json.load(open(reg))
+except (OSError, ValueError) as exc:
+    sys.exit(f"el registro de la ejecución {m.group(1)} no se puede leer o está dañado: {exc}")
+if not isinstance(rec, dict) or rec.get("estado") != "aprobada":
+    sys.exit(f"la ejecución {m.group(1)} no quedó registrada como aprobada en el registro temporal")
+rc, out = corre({"SUITE_ID": "externa"})
+if rc != 75 or "vigilada:" in out:
+    sys.exit(f"una llamada anidada no se rechazó (rc={rc}): {out.strip()[-300:]}")
+' "$aisl" 2>&1) || err "el bloque de la suite vigilada no funciona aislado: $r"
+    # Borrarla exige DEMOSTRAR que no quedó nada abierto: lo decide el parser de suite.py (JSON validado;
+    # registro dañado o ilegible = no comprobable), nunca una búsqueda de texto.
+    abiertas=$(cd "$aisl" && env -u SUITE_ID SUITE_REGISTRO="$aisl/reg" python3 -I "$aisl/p/scripts/suite.py" estado --abiertas 2>&1)
+    ec=$?
+    if [ "$ec" -ne 0 ]; then
+      err "no pude comprobar el registro temporal de la prueba aislada (salida $ec: $abiertas); conservo $aisl para inspeccionarlo"
+    elif [ -n "$abiertas" ]; then
+      err "la prueba aislada dejó una ejecución abierta ($abiertas); conservo $aisl para inspeccionarla"
+    else
+      rm -rf "$aisl"
+    fi
+  fi
+fi
+
+# --- 0a'') Al inicio de sesión (dentro del repo): ejecuciones abiertas o carpetas propias que siguen
+#     conservadas se AVISAN (no fallan): son lo primero que se revisa antes de lanzar otra suite.
+if has scripts/suite.py && git rev-parse --git-dir >/dev/null 2>&1 && [ -d "$(git rev-parse --git-common-dir)/suite-runs" ]; then
+  if pend=$(python3 -I scripts/suite.py estado --abiertas 2>&1); then
+    [ -z "$pend" ] || printf '⚠ check_docs: hay ejecuciones de la suite abiertas o carpetas propias conservadas (python3 scripts/suite.py estado):\n%s\n' "$pend" >&2
+  else
+    printf '⚠ check_docs: no pude leer el registro de la suite: %s\n' "$pend" >&2
+  fi
 fi
 
 # --- 0b) Instalación: siempre que haya repo, en cualquier fase y modo (V01). En la

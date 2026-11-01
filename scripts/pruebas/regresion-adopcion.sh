@@ -20,7 +20,9 @@ export GIT_COMMITTER_NAME=regresion GIT_COMMITTER_EMAIL=regresion@local
 export GIT_CONFIG_GLOBAL="$W/gitconfig" GIT_CONFIG_SYSTEM=/dev/null
 : > "$W/gitconfig"; git config --file "$W/gitconfig" --add safe.directory "*"
 git config --file "$W/gitconfig" init.defaultBranch main
-unset FASE_PREVIA FASE_HISTORICA REV
+unset FASE_PREVIA FASE_HISTORICA REV SUITE_ID SUITE_REGISTRO SUITE_PLAZO SUITE_ENVUELTO SUITE_INFORME SUITE_PROPIA
+# Desde F2 todo check.sh empieza por el bloque de la suite vigilada (check_docs lo exige y lo prueba).
+BLOQUE=$(awk '/^# --- suite vigilada/{f=1} f{print} /^# --- fin suite vigilada/{exit}' "$RAIZ/docs/convenciones.md")
 TOTAL=0; MAL=0; FALLIDOS=""
 
 # --- utilidades (mismo contrato que regresion.sh) ----------------------------------------
@@ -339,7 +341,8 @@ siembra_f2() {  # documentos mínimos de un plan aprobado sobre el proyecto adop
   printf '# Plan\n\n## Incrementos\n\n- [ ] I1 «caracteriza» — prueba de caracterización (satisface: C1)\n- [ ] I2 «protege» — (satisface: C1)\n' > "$1/docs/plan.md"
   printf '# Decisiones\n\n(ninguna todavía)\n' > "$1/docs/decisiones.md"
   trazabilidad "$1" "$C1A" "" ""
-  printf '#!/bin/sh\npython3 -I app.py || exit 1\nexit 0\n' > "$1/scripts/check.sh"
+  printf '#!/bin/sh\n%s\npython3 -I app.py || exit 1\nexit 0\n' "$BLOQUE" > "$1/scripts/check.sh"
+  grep -q 'Plazo de la suite' "$1/docs/convenciones.md" 2>/dev/null || printf -- '- **Plazo de la suite:** 60 s\n' >> "$1/docs/convenciones.md"
 }
 copia instalado af; A="$D"; siembra_f2 "$A"; fase "$A" F2; recibo "$A" revisor-funcional encuadre F2 PASA 0
 commitea "$A" "Plan de adopción
@@ -635,7 +638,7 @@ espera pasa "adoptado (control): (cd <D> && touch interno); touch <D>/x pasa" ""
 rm -f "$GI/.git/revision-modalidad"
 
 echo "== adoptado: la suite corre sobre una instantánea de lo que se commitea"
-suite_es() { printf '#!/bin/sh\n%s\n' "$2" > "$1/scripts/check.sh"; sin_hooks "$1" "suite (preparación)
+suite_es() { printf '#!/bin/sh\n%s\n%s\n' "$BLOQUE" "$2" > "$1/scripts/check.sh"; sin_hooks "$1" "suite (preparación)
 
 Ref: F1" || die "no pude preparar la suite adoptada"; }
 nota_f1() { printf -- '- nota %s\n' "$2" >> "$1/docs/MEMORIA.md"; commitea "$1" "nota

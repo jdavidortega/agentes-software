@@ -45,6 +45,11 @@ Verificados contra la doc oficial actual de cada herramienta. -->
   bloque, sin cambios. Lo corre siempre bajo `scripts/suite.py` (plazo, una ejecución a la vez,
   grupo de procesos terminado al vencer), también cuando se invoca a mano o desde otra carpeta;
   dentro de la ejecución se salta, y un `check.sh` lanzado desde dentro de otro se rechaza (75).
+  Desde F2, `check_docs.sh` lo exige **al principio** (antes solo shebang, comentarios o blancos) y lo
+  **prueba aislado**: en un proyecto temporal con una copia de `suite.py` y un `check.sh` ficticio (el
+  bloque + un eco del identificador), con registro propio, sin las `SUITE_*` heredadas y con un límite
+  propio de 60 s; comprueba que corre vigilado y que una llamada anidada se rechaza. El cuerpo real de
+  `check.sh` nunca se ejecuta en esa prueba.
 
 ```sh
 # --- suite vigilada: no la quites (docs/convenciones.md §Comandos clave) ---
@@ -199,6 +204,16 @@ máquina**. Las reglas son duras, no preferencias:
 - **Copias del árbol** (sabotaje) sin dependencias ni builds (`node_modules`, `.venv`,
   `dist`, `target`…) y con tope de tamaño (`--max-mb`); si el proyecto necesita las
   dependencias dentro de la copia, se declara en el plan de pruebas con su costo.
+- **Ejecuciones vigiladas y carpetas propias** (`scripts/suite.py`): toda corrida de la suite queda
+  registrada en `<git common dir>/suite-runs`. Una ejecución que no se pudo cerrar de forma comprobada
+  (abierta, incompleta, no comprobable) **bloquea** la siguiente hasta resolverse: `python3
+  scripts/suite.py estado --abiertas` la explica y `terminar <id>` la cierra cuando su pertenencia es
+  demostrable. Las carpetas temporales donde corre la suite (la instantánea del `pre-commit`, la copia
+  del sabotaje) se **reclaman** recién creadas; si hay que conservarlas, `suite.py` las **recupera
+  sola** (al empezar la siguiente ejecución, o con `recuperar`) cuando su dueño y sus lanzadores
+  terminaron, ninguna ejecución sigue abierta en ellas y siguen siendo la misma carpeta. Lo que no
+  puede resolver con certeza lo conserva y lo explica en `estado`; nada se borra por su nombre.
+  `check_docs.sh` avisa al inicio de sesión de lo que siga abierto o conservado.
 - **Antes de un trabajo pesado** (suite completa, mutation testing, varios subagentes),
   el agente mira la memoria disponible y, si está justa, lo dice y degrada (en serie,
   menos workers) en lugar de lanzar y esperar.

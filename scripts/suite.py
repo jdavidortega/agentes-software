@@ -4,6 +4,11 @@
     python3 scripts/suite.py correr --plazo SEG [--dir D] [--informe F] -- <command...>
     python3 scripts/suite.py estado [<id>] [--abiertas]
     python3 scripts/suite.py terminar <id>
+    python3 scripts/suite.py reclamar <carpeta> --dueno PID     (prints the token for SUITE_PROPIA)
+    python3 scripts/suite.py anunciar <token>                   (before starting a launcher in it)
+    python3 scripts/suite.py sumar <token> --pid PID            (records that launcher's identity)
+    python3 scripts/suite.py soltar <token>                     (the owner is done: recover it if proven safe)
+    python3 scripts/suite.py recuperar
 
 Guarantees:
 - REGISTRY: each run leaves a record (id, command, start, deadline, launcher, guard, process group,
@@ -34,6 +39,20 @@ Guarantees:
   under $HOME, container volumes. The log (SUITE_LOG_MAX bytes, two rotating halves) stays local; the last 10 closed
   runs keep theirs and older ones are pruned, only folders whose name proves they belong to it.
 
+- OWN FOLDERS, RECOVERED: a caller that runs the suite inside a temp folder it created (the pre-commit
+  snapshot, the sabotage workspace) CLAIMS it first, while it is still empty: `reclamar` writes a mark
+  inside it and a claim (<token>.propia) in the registry with the folder's identity (device, inode)
+  and its owner (pid and start time). The root of the repository, its ancestors, $HOME, the registry
+  and anything inside a git repository are refused. A launcher with SUITE_PROPIA=<token> adds itself
+  to the claim before creating its run (a claim already recovered makes it refuse). The PARENT does not
+  rely on that: it announces each launch before starting it (`anunciar`) and, when it can, records the
+  child's identity right after; an announced launch with no identity recorded keeps the folder as not
+  verifiable, since its launcher may be alive and stuck before registering. The folder is
+  deleted (at the start of `correr`, or with `recuperar`) only when the owner and every launcher of
+  the claim are provably gone, no open run has its directory inside it, and it is still the same
+  folder (not a link, same device and inode, its mark intact). Anything uncertain keeps it, and
+  `estado` says why. A folder without a claim is never touched: nothing is swept by name.
+
 Exit: 0 aprobada; the suite's code if fallida; 124 excedida; 130 terminada/interrumpida;
 75 blocked (another run open, nested call, unprovable ownership, incomplete ending); 2 usage. --informe writes
 `id= estado= rc=` so a caller never confuses those codes with the suite's own.
@@ -47,6 +66,7 @@ import re
 import secrets
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -243,6 +263,199 @@ def records(reg: Path) -> list[dict]:
     return sorted(found, key=lambda r: r["inicio"])
 
 
+# --- own folders (claims) -------------------------------------------------------------------
+MARK = ".suite-propia"
+CLAIM_FIELDS = {"token", "carpeta", "dueno", "dueno_inicio", "dev", "ino", "procesos", "arrancando"}
+
+
+def claim_path(reg: Path, token: str) -> Path:
+    if not re.fullmatch(r"[0-9A-Za-z-]+", token):
+        die(f"token de carpeta propia inválido: {token!r}")
+    return reg / f"{token}.propia"
+
+
+def claims(reg: Path) -> list[dict]:
+    """Every claim; unreadable or damaged ones are Unverifiable, like records()."""
+    found = []
+    try:
+        for p in reg.iterdir():
+            if p.name.endswith(".propia"):
+                c = json.loads(p.read_text())
+                if not isinstance(c, dict) or not CLAIM_FIELDS <= c.keys():
+                    raise ValueError(f"{p.name}: reclamación dañada")
+                found.append(c)
+    except (OSError, ValueError) as exc:
+        raise Unverifiable(f"carpetas propias de {reg} ilegibles o dañadas: {exc}") from exc
+    return found
+
+
+def save_claim(reg: Path, c: dict) -> None:
+    tmp = reg / f".{c['token']}.{os.getpid()}.tmp"
+    tmp.write_text(json.dumps(c, ensure_ascii=False, indent=1))
+    os.replace(tmp, claim_path(reg, c["token"]))
+
+
+def inside(path: str, folder: str) -> bool:
+    return path == folder or path.startswith(folder.rstrip("/") + "/")
+
+
+def claim(reg: Path, folder: str, owner: int) -> str:
+    """Claim an EMPTY temp folder just created by `owner` as disposable; returns its token."""
+    f = os.path.abspath(folder)
+    try:
+        st = os.lstat(f)
+    except OSError as exc:
+        die(f"no puedo reclamar {f}: {exc}")
+    if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):
+        die(f"no reclamo {f}: no es una carpeta (o es un enlace)")
+    real = str(Path(f).resolve())
+    near = [Path("/"), Path.home(), reg, Path.cwd()]
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    if not top.returncode:
+        near.append(Path(top.stdout.strip()))
+    for x in near:
+        if inside(str(x.resolve()), real):
+            die(f"no reclamo {real}: es {x} o la contiene")
+    git = subprocess.run(["git", "-C", real, "rev-parse", "--is-inside-work-tree", "--is-inside-git-dir"],
+                         capture_output=True, text=True)
+    if "true" in git.stdout:
+        die(f"no reclamo {real}: está dentro de un repositorio git")
+    if any(Path(real).iterdir()):
+        die(f"no reclamo {real}: no está vacía (solo se reclama una carpeta recién creada)")
+    start = started(owner)
+    if not start:
+        die(f"no reclamo {real}: el dueño (pid {owner}) no está vivo")
+    token = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()) + "-" + secrets.token_hex(4)
+    (Path(real) / MARK).write_text(token)
+    st = os.lstat(real)
+    with Lock(reg):
+        save_claim(reg, {"token": token, "carpeta": real, "dueno": owner, "dueno_inicio": start,
+                         "dev": st.st_dev, "ino": st.st_ino, "procesos": [], "arrancando": 0,
+                         "creada": time.time()})
+    return token
+
+
+def load_claim(reg: Path, token: str) -> dict:
+    try:
+        return json.loads(claim_path(reg, token).read_text())
+    except FileNotFoundError:
+        die(f"la carpeta propia {token} no está reclamada en {reg} (¿ya recuperada?): no lanzo nada en ella")
+    except (OSError, ValueError) as exc:
+        raise Unverifiable(f"reclamación {token}: {exc}") from exc
+
+
+def add_process(c: dict, pid: int, start: str) -> None:
+    """Record a launcher's identity once; the first record of a launch settles one announced start."""
+    if [pid, start] not in c["procesos"]:
+        c["procesos"].append([pid, start])
+        c["arrancando"] = max(0, c["arrancando"] - 1)
+
+
+def announce(reg: Path, token: str) -> None:
+    """Called by the PARENT before it starts a launcher: until the launcher's identity is recorded, the
+    folder is kept as not verifiable (the launcher could be alive and stuck before registering)."""
+    with Lock(reg):
+        c = load_claim(reg, token)
+        c["arrancando"] += 1
+        save_claim(reg, c)
+
+
+def add_launcher(reg: Path, token: str, pid: int) -> None:
+    """Called by the PARENT right after starting a launcher, without relying on the child to register.
+    A launcher proven gone settles its start; an unverifiable one leaves it announced (kept)."""
+    with Lock(reg):
+        c = load_claim(reg, token)
+        start = started(pid)
+        if start:
+            add_process(c, pid, start)
+        else:
+            c["arrancando"] = max(0, c["arrancando"] - 1)
+        save_claim(reg, c)
+
+
+def release(reg: Path, token: str) -> str | None:
+    """The OWNER is done with its folder: it stops counting as alive and the folder goes through the
+    same recovery as any other (launchers, announced launches, open runs, identity). Returns why it is
+    kept, or None once deleted. A missing claim proves nothing about the folder: it is kept."""
+    with Lock(reg):
+        if not claim_path(reg, token).exists():
+            return f"su reclamación {token} no está en el registro: no puedo demostrar que se pueda borrar"
+        c = load_claim(reg, token)
+        c["dueno"] = 0
+        save_claim(reg, c)
+        kept = dict(recover_folders(reg))
+    return kept.get(c["carpeta"]) or kept.get("(todas)")
+
+
+def join_claim(reg: Path, token: str, workdir: Path, me: str | None) -> None:
+    """The launcher adds itself to its claim (under the lock) before creating its run."""
+    c = load_claim(reg, token)
+    if not inside(str(workdir), c["carpeta"]):
+        die(f"--dir {workdir} no está dentro de la carpeta propia {c['carpeta']} ({token})")
+    if not me:
+        raise Unverifiable("no pude registrar el lanzador en su carpeta propia (hora de inicio desconocida)")
+    add_process(c, os.getpid(), me)
+    save_claim(reg, c)
+
+
+def pending(c: dict, recs: list[dict]) -> str | None:
+    """Why the claimed folder must stay, or None when deleting it is proven safe."""
+    f = c["carpeta"]
+    for r in recs:
+        if r["estado"] == OPEN and inside(r["dir"], f):
+            return f"la ejecución {r['id']} sigue abierta en ella"
+    try:
+        if same(c["dueno"], c["dueno_inicio"]):
+            return f"su dueño (pid {c['dueno']}) sigue vivo"
+        for pid, start in c["procesos"]:
+            if same(pid, start):
+                return f"su lanzador (pid {pid}) sigue vivo"
+    except Unverifiable as exc:
+        return f"no comprobable ({exc})"
+    try:
+        st = os.lstat(f)
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        return f"no comprobable ({exc})"
+    if c["arrancando"]:
+        return (f"no comprobable ({c['arrancando']} lanzamiento(s) sin identidad registrada: su lanzador "
+                "pudo quedar vivo antes de registrarse)")
+    if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode) or (st.st_dev, st.st_ino) != (c["dev"], c["ino"]):
+        return "sustituida: ya no es la carpeta reclamada (enlace, otro tipo u otro inodo)"
+    try:
+        mark = (Path(f) / MARK).read_text()
+    except OSError:
+        return "sin su marca de propiedad"
+    return None if mark == c["token"] else "su marca de propiedad no coincide"
+
+
+def recover_folders(reg: Path) -> list[tuple[str, str]]:
+    """Delete the claimed folders proven disposable; returns the kept ones as (folder, reason)."""
+    kept = []
+    with Lock(reg):
+        try:
+            recs, cs = records(reg), claims(reg)
+        except Unverifiable as exc:
+            return [("(todas)", f"no comprobable ({exc})")]
+        for c in cs:
+            why = pending(c, recs)
+            if why:
+                kept.append((c["carpeta"], why))
+                continue
+            if os.path.lexists(c["carpeta"]):
+                failed = []
+                hook = {"onexc" if sys.version_info >= (3, 12) else "onerror": lambda *a: failed.append(a[1])}
+                shutil.rmtree(c["carpeta"], **hook)
+                if failed:
+                    kept.append((c["carpeta"], f"no pude borrarla del todo: {failed[0]}"))
+                    continue
+                say(f"recupero la carpeta propia {c['carpeta']}: su dueño y sus lanzadores terminaron y "
+                    "ninguna ejecución sigue abierta en ella")
+            claim_path(reg, c["token"]).unlink(missing_ok=True)
+    return kept
+
+
 def owned_folder(rec: dict) -> Path | None:
     """The run folder, only if its name proves it belongs to this run."""
     folder = Path(rec.get("carpeta") or "")
@@ -316,6 +529,8 @@ def close(reg: Path, rid: str, state: str, rc: int | None, **extra) -> dict:
         if folder:
             shutil.rmtree(folder / "tmp", ignore_errors=True)
         rec.update(estado=state, rc=rc, fin=time.time(), ultima=line, **extra)
+        if "incompleta" in rec:  # history, not a pending ending: a closed run is never incompleta
+            rec["incompleta_previa"] = rec.pop("incompleta")
         save(reg, rec)
         prune(reg)
         return rec
@@ -323,10 +538,12 @@ def close(reg: Path, rid: str, state: str, rc: int | None, **extra) -> dict:
 
 def prune(reg: Path) -> None:
     try:
-        found = records(reg)
+        found, held = records(reg), {c["token"] for c in claims(reg)}
     except Unverifiable:
         return  # nothing is deleted on an unreadable registry
-    closed = sorted((r for r in found if r["estado"] != OPEN), key=lambda r: r.get("fin") or 0)
+    # A run of a folder still claimed is evidence for its recovery: it is not pruned until then.
+    closed = sorted((r for r in found if r["estado"] != OPEN and r.get("propia") not in held),
+                    key=lambda r: r.get("fin") or 0)
     for rec in closed[:-KEEP_CLOSED]:
         folder = owned_folder(rec)
         if folder:
@@ -375,6 +592,7 @@ def guard(reg: Path, rid: str) -> None:
     rec = load(reg, rid)
     folder = Path(rec["carpeta"])
     env = dict(os.environ, SUITE_ID=rid, TMPDIR=str(folder / "tmp"), TMP=str(folder / "tmp"), TEMP=str(folder / "tmp"))
+    env.pop("SUITE_PROPIA", None)  # the claim is the caller's: the suite's own runs never join it
     log = Log(folder / "salida.log")
     try:
         proc = subprocess.Popen(rec["comando"], cwd=rec["dir"], env=env, stdin=subprocess.DEVNULL,
@@ -541,6 +759,7 @@ def run(args) -> int:
                 recover(reg, rec)
             else:
                 busy.append(rec)
+        recover_folders(reg)
         if busy:
             report(args.informe, rid, "bloqueada", None)
             say("hay otra ejecución de la suite abierta; no lanzo otra hasta que se decida qué hacer con ella:")
@@ -549,12 +768,15 @@ def run(args) -> int:
             say("consulta: python3 scripts/suite.py estado <id>   |   termina: python3 scripts/suite.py terminar <id>")
             return EXIT_BLOCKED
         me = started(os.getpid())  # before creating anything: unverifiable here leaves no trace
+        token = os.environ.get("SUITE_PROPIA")
+        if token:
+            join_claim(reg, token, workdir, me)
         folder = Path(tempfile.mkdtemp(prefix=f"suite-{rid}-"))
         (folder / "tmp").mkdir()
         (folder / "salida.log").touch()
         rec = {"id": rid, "estado": OPEN, "comando": command, "dir": str(workdir), "plazo": int(deadline),
                "inicio": time.time(), "lanzador": os.getpid(), "lanzador_inicio": me,
-               "carpeta": str(folder)}
+               "carpeta": str(folder), **({"propia": token} if token else {})}
         save(reg, rec)
         guard_proc = subprocess.Popen([sys.executable, "-I", os.path.abspath(__file__), "_guardia", str(reg), rid],
                                       start_new_session=True, stdin=subprocess.DEVNULL,
@@ -650,6 +872,22 @@ def main() -> int:
     p = sub.add_parser("terminar")
     p.add_argument("id")
     p.add_argument("--dir")
+    p = sub.add_parser("reclamar")
+    p.add_argument("carpeta")
+    p.add_argument("--dueno", type=int, required=True)
+    p.add_argument("--dir")
+    p = sub.add_parser("anunciar")
+    p.add_argument("token")
+    p.add_argument("--dir")
+    p = sub.add_parser("sumar")
+    p.add_argument("token")
+    p.add_argument("--pid", type=int, required=True)
+    p.add_argument("--dir")
+    p = sub.add_parser("soltar")
+    p.add_argument("token")
+    p.add_argument("--dir")
+    p = sub.add_parser("recuperar")
+    p.add_argument("--dir")
     args = parser.parse_args()
     try:
         return action(args)
@@ -669,6 +907,31 @@ def action(args) -> int:
             recs = [r for r in recs if r["estado"] == OPEN]
         for rec in recs:
             print(describe(rec))
+        if not args.id:
+            for c in claims(reg):
+                why = pending(c, records(reg))
+                if why or not args.abiertas:
+                    print(f"carpeta propia {c['carpeta']}: "
+                          + (f"se conserva: {why}" if why else "recuperable (se borra en el próximo `correr` o con `recuperar`)"))
+        return 0
+    if args.accion == "reclamar":
+        print(claim(reg, args.carpeta, args.dueno))
+        return 0
+    if args.accion == "anunciar":
+        announce(reg, args.token)
+        return 0
+    if args.accion == "sumar":
+        add_launcher(reg, args.token, args.pid)
+        return 0
+    if args.accion == "soltar":
+        why = release(reg, args.token)
+        if why:
+            print(why)
+        return 0
+    if args.accion == "recuperar":
+        kept = recover_folders(reg)
+        for folder, why in kept:
+            print(f"carpeta propia {folder}: se conserva: {why}")
         return 0
     if not record_path(reg, args.id).exists():
         die(f"no hay ejecución {args.id} en {reg}")

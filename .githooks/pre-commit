@@ -75,12 +75,30 @@ if [ -f "$tmp/scripts/check.sh" ]; then
   # repositorio original.
   LIMPIA=$(git rev-parse --local-env-vars | sed 's/^/-u /' | tr '\n' ' ')
   snap=$(mktemp -d "${TMPDIR:-/tmp}/precommit-snap.XXXXXX"); snap=$(cd "$snap" && pwd -P)
+  sreg=${SUITE_REGISTRO:-$(cd "$(git rev-parse --git-common-dir)" && pwd -P)/suite-runs}
+  # Recién creada y vacía, la instantánea se RECLAMA como carpeta propia de este hook: si hay que
+  # conservarla, scripts/suite.py la recupera sola cuando el hook y su ejecución hayan terminado.
+  propia=
+  if [ -f "$tmp/scripts/suite.py" ]; then
+    propia=$(env $LIMPIA SUITE_REGISTRO="$sreg" python3 -I "$tmp/scripts/suite.py" reclamar "$snap" --dueno $$) \
+      || { rm -rf "$snap"; echo "✗ pre-commit: no pude reclamar la instantánea como carpeta propia (motivo arriba); sin ese registro no se recuperaría sola." >&2; exit 1; }
+  fi
   # La instantánea es el directorio de trabajo de la suite: se borra solo si el registro DEMUESTRA
   # que ninguna ejecución sobre ella sigue abierta (terminación incompleta, guardián aún activo).
   # Si alguna sigue abierta o no puede leerse el registro, se conserva y se informa; el campo «dir»
   # del registro la vincula a su ejecución. Una señal al hook sigue el mismo camino (vía EXIT).
-  sreg=${SUITE_REGISTRO:-$(cd "$(git rev-parse --git-common-dir)" && pwd -P)/suite-runs}
   limpiar() {
+    # Reclamada, la decide suite.py con la reclamación entera (lanzadores registrados, lanzamientos
+    # anunciados sin identidad, ejecuciones abiertas, identidad de la carpeta): el hook solo se SUELTA
+    # como dueño. La falta de un .json abierto no basta: el lanzador puede no haberlo creado aún.
+    if [ -n "$propia" ]; then
+      q=$(env $LIMPIA SUITE_REGISTRO="$sreg" python3 -I "$tmp/scripts/suite.py" soltar "$propia" 2>/dev/null) \
+        || q="no pude comprobarlo (registro o reclamación ilegibles)"
+      rm -rf "$tmp"
+      [ -e "$snap" ] || return 0
+      echo "⚠ pre-commit: conservo la instantánea $snap: ${q:-sigue presente}. Está reclamada: se recupera sola cuando se pueda demostrar que nadie la usa (próximo \`correr\` o python3 scripts/suite.py recuperar); python3 scripts/suite.py estado explica por qué sigue." >&2
+      return 0
+    fi
     rm -rf "$tmp"
     ab=$(python3 -I -c '
 import json, sys
@@ -100,7 +118,7 @@ for f in (reg.iterdir() if reg.exists() else []):
         print(r["id"])
 ' "$sreg" "$snap/r" 2>/dev/null) || ab="(registro ilegible o dañado)"
     if [ -z "$ab" ]; then rm -rf "$snap"; return; fi
-    echo "⚠ pre-commit: conservo la instantánea $snap: la ejecución $(echo $ab) sigue abierta o no pude comprobarlo, y es su directorio de trabajo. Bórrala cuando python3 scripts/suite.py estado la dé por cerrada." >&2
+    echo "⚠ pre-commit: conservo la instantánea $snap: la ejecución $(echo $ab) sigue abierta o no pude comprobarlo, y es su directorio de trabajo. ${propia:+Está reclamada: se recupera sola cuando su ejecución cierre (próximo \`correr\` o python3 scripts/suite.py recuperar); }python3 scripts/suite.py estado explica por qué sigue." >&2
   }
   trap limpiar EXIT
   trap 'exit 130' INT TERM
@@ -137,7 +155,18 @@ for f in (reg.iterdir() if reg.exists() else []):
   # repositorio REAL, compartido con el uso directo y el sabotaje (una suite a la vez). El informe
   # distingue el fallo de pruebas del plazo vencido, el bloqueo y la terminación incompleta.
   inf="$snap/informe-suite"
-  ( cd "$snap/r" && env $LIMPIA SUITE_REGISTRO="$sreg" SUITE_INFORME="$inf" sh scripts/check.sh ) || {
+  # El lanzamiento se ANUNCIA en la reclamación antes de empezar, y el proceso de lanzamiento deja su
+  # identidad (pid y hora de inicio) ANTES de ejecutar check.sh; con «exec» ese pid es el mismo hasta
+  # suite.py. Si el hook muere con el lanzador atascado antes de registrarse, el anuncio conserva la
+  # instantánea (no comprobable); registrado, se conserva mientras viva y se recupera cuando termine.
+  # (En segundo plano, «&», el hook sabría el pid, pero sh lanzaría el hijo con SIGINT ignorado.)
+  lanza='exec sh scripts/check.sh'
+  if [ -n "$propia" ]; then
+    env $LIMPIA SUITE_REGISTRO="$sreg" python3 -I "$tmp/scripts/suite.py" anunciar "$propia" \
+      || { echo "✗ pre-commit: no pude anunciar el lanzamiento en la reclamación de la instantánea (motivo arriba); no lancé la suite." >&2; exit 1; }
+    lanza='python3 -I "$0" sumar "$SUITE_PROPIA" --pid $$ || echo "⚠ pre-commit: no pude registrar el lanzador; la instantánea quedará conservada (no comprobable) si el hook muere antes de cerrar." >&2; exec sh scripts/check.sh'
+  fi
+  ( cd "$snap/r" && exec env $LIMPIA SUITE_REGISTRO="$sreg" SUITE_INFORME="$inf" SUITE_PROPIA="$propia" sh -c "$lanza" "$tmp/scripts/suite.py" ) || {
     sid=$(sed -n 's/^id=\([^ ]*\).*/\1/p' "$inf" 2>/dev/null)
     case "$(sed -n 's/.* estado=\([^ ]*\).*/\1/p' "$inf" 2>/dev/null)" in
       excedida) m="scripts/check.sh EXCEDIÓ su plazo (ejecución $sid) y se terminó su grupo de procesos. No es un fallo de pruebas sino de tiempo, y no cuenta como aprobada: mira su última salida (python3 scripts/suite.py estado $sid) e identifica qué se colgó antes de subir el plazo (docs/convenciones.md §Comandos clave)." ;;

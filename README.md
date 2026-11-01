@@ -397,6 +397,14 @@ git config core.hooksPath .githooks
   no versionado que necesite, como el entorno virtual, se declara en `docs/convenciones.md`), y
   rechaza que la suite cambie el contenido, el modo o la existencia de un archivo versionado. Los scripts se invocan con
   intérprete explícito: su ausencia es fallo, no aviso.
+- **Suite vigilada (`scripts/suite.py`)** — `scripts/check.sh` empieza por un bloque que lo
+  corre siempre bajo `suite.py`: plazo común (`docs/convenciones.md`), una ejecución a la vez,
+  registro en `<git common dir>/suite-runs` y el grupo de procesos terminado al vencer; lo que no
+  cierra de forma comprobable bloquea la siguiente ejecución. Las carpetas temporales donde corre
+  (instantánea del `pre-commit`, copia del sabotaje) se reclaman al crearse y se recuperan solas
+  cuando su ejecución cerró y su dueño terminó; lo incierto se conserva y `python3 scripts/suite.py
+  estado` lo explica. Desde la Fase 2, `check_docs.sh` exige el bloque al principio y lo prueba
+  aislado, sin ejecutar el cuerpo real.
 - **`commit-msg`** — valida **todos** los trailers contra una gramática cerrada
   (`Ref: F1|F2|F4|F5`, `Ref: I<n>` que existe en `plan.md`, `Ref: hito:I<a>-I<b>`,
   `Cierra: R-E.n | R-I#.n | R-S#.n | R-F4.n | R-SF4.n` con fila en Estado

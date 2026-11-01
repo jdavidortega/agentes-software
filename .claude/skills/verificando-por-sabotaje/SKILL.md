@@ -96,6 +96,16 @@ allowed-tools: Read, Grep, Glob, Bash
   `docs/convenciones.md` (p. ej. el entorno virtual) se **enlazan** en cada copia, con las mismas
   reglas del `pre-commit`: ignoradas, sin versionados, sin instalación editable ni enlaces hacia el
   árbol original (ejecutarían código sin mutar). `--suite` se parte respetando comillas, sin shell.
+- **Cada corrida va vigilada** (`scripts/suite.py` del repositorio REAL, nunca el de la copia): la
+  base y cada mutante con el plazo común de `docs/convenciones.md` o `--timeout`. `TIMEOUT` es un
+  vencimiento (el guardián terminó el grupo; si 30 s después sigue abierta, un respaldo pide
+  `terminar` y espera, con un único margen de 40 s): nunca cuenta como detección. Si la corrida queda
+  abierta, incompleta, no comprobable, bloqueada por otra, anidada o sin identificar (el lanzador no
+  la registra en 45 s), el sabotaje **se detiene** (`STOPPED`, exit 2) sin arrancar otro mutante y
+  sin enviar señales a nada cuya identidad no conoce. La carpeta de trabajo se **reclama** antes de
+  lanzar nada: si hay que conservarla, `suite.py` la recupera sola cuando la ejecución cierre y el
+  sabotaje y sus lanzadores hayan terminado. `SABOTAJE_RESPALDO="<tras>,<espera>,<identificación>"`
+  acorta esos márgenes, solo para las pruebas del propio respaldo.
 - **RAM: una suite a la vez.** La copia excluye dependencias, builds y todo `.env*`
   (salvo `.env.example`) y se niega por encima de `--max-mb` (500 por defecto; `--force`
   si sabes por qué). Las mutaciones corren en serie con pistas de un solo worker en el

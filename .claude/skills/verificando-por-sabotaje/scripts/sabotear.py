@@ -303,11 +303,19 @@ class Watch:
                 raise Stop(f"{root} is not a git repository and SUITE_REGISTRO is unset: no registry for the runs")
             reg = str((root / out.stdout.strip()).resolve() / "suite-runs")
         self.reg = Path(reg)
-        self.env = {**os.environ, **ENVIRONMENT, "SUITE_ENVUELTO": "1", "SUITE_REGISTRO": str(self.reg)}
+        self.reg.mkdir(parents=True, exist_ok=True)
+        # The workspace is claimed while still empty, BEFORE any launcher starts: if it has to be kept,
+        # scripts/suite.py recovers it once this process and its launchers are gone.
+        try:
+            self.token = self.module.claim(self.reg, str(work), os.getpid())
+        except SystemExit as exc:
+            raise Stop(f"could not claim the workspace {work} as our own folder ({exc})") from None
+        self.env = {**os.environ, **ENVIRONMENT, "SUITE_ENVUELTO": "1", "SUITE_REGISTRO": str(self.reg),
+                    "SUITE_PROPIA": self.token}
 
     def how(self, rid: str) -> str:
         return (f"inspect: python3 {self.script} estado {rid}   |   end it: python3 {self.script} terminar {rid}"
-                f"   (the copy stays in {self.work})")
+                f"   (the copy stays in {self.work}; it is claimed, so suite.py recovers it once its run is over)")
 
     def launched_by(self, pid: int, since: float) -> list[dict] | None:
         """Records created by our launcher `pid` since this run started; None if the registry cannot be read.
@@ -365,8 +373,18 @@ class Watch:
                    *(["--plazo", str(self.deadline)] if self.deadline else []), "--", *command]
         since = time.time()
         self.pending, rec, backed_up = "?", None, False
+        # The launch is announced BEFORE starting and the child's identity recorded by us right after:
+        # the folder's recovery never depends on the child getting as far as registering itself.
+        try:
+            self.module.announce(self.reg, self.token)
+        except (SystemExit, self.module.Unverifiable) as exc:
+            raise Stop(f"could not announce the launch in our claim ({exc}); nothing was started") from None
         with open(log, "wb") as sink:
             proc = subprocess.Popen(wrapped, cwd=tree, stdout=sink, stderr=subprocess.STDOUT, env=self.env)
+            try:
+                self.module.add_launcher(self.reg, self.token, proc.pid)
+            except (SystemExit, self.module.Unverifiable):
+                pass  # the launch stays announced: the copy is kept as not verifiable, never deleted blind
             try:
                 while proc.poll() is None:
                     if rec is None:
@@ -423,8 +441,9 @@ def workspace(watch: Watch):
         if watch.pending is None:
             shutil.rmtree(watch.work, ignore_errors=True)
         else:
-            print(f"kept {watch.work}: run {watch.pending} is not proven closed (it may be its working directory)",
-                  file=sys.stderr)
+            print(f"kept {watch.work}: run {watch.pending} is not proven closed (it may be its working directory); "
+                  f"it is claimed, so suite.py recovers it once that run is over and this process is gone "
+                  f"(python3 {watch.script} estado explains why it stays)", file=sys.stderr)
 
 
 def looks_invalid(run: Run) -> str | None:

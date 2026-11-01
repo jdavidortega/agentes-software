@@ -24,7 +24,7 @@ export GIT_AUTHOR_NAME=regresion GIT_AUTHOR_EMAIL=regresion@local
 export GIT_COMMITTER_NAME=regresion GIT_COMMITTER_EMAIL=regresion@local
 export GIT_CONFIG_GLOBAL="$W/gitconfig" GIT_CONFIG_SYSTEM=/dev/null   # sin config del usuario
 : > "$W/gitconfig"; git config --file "$W/gitconfig" --add safe.directory "*"
-unset FASE_PREVIA REV SUITE_ID SUITE_REGISTRO SUITE_PLAZO SUITE_ENVUELTO SUITE_INFORME
+unset FASE_PREVIA REV SUITE_ID SUITE_REGISTRO SUITE_PLAZO SUITE_ENVUELTO SUITE_INFORME SUITE_PROPIA
 TOTAL=0; MAL=0; FALLIDOS=""
 SAB="$RAIZ/.claude/skills/verificando-por-sabotaje/scripts/sabotear.py"
 
@@ -89,7 +89,11 @@ trazabilidad() {
 }
 C1_PEND='| C1 | «suma» | I1 | pendiente | |'
 C1_VERIF='| C1 | «suma» | I1 | verificado | |'
-SUITE='#!/bin/sh
+# Desde F2 todo check.sh empieza por el bloque de la suite vigilada (check_docs lo exige y lo prueba).
+BLOQUE=$(awk '/^# --- suite vigilada/{f=1} f{print} /^# --- fin suite vigilada/{exit}' "$RAIZ/docs/convenciones.md")
+[ -n "$BLOQUE" ] || die "no encontré el bloque de la suite vigilada en docs/convenciones.md"
+SUITE="#!/bin/sh
+$BLOQUE"'
 # suite del proyecto demo: lo que diga app.py decide (un assert en rojo = commit rechazado)
 if [ -f app.py ]; then python3 -I app.py || exit 1; fi
 exit 0
@@ -122,6 +126,7 @@ else
   printf '# Plan\n\n- [ ] I1 «…» — _…_ (satisface: C_)\n' > "$B/docs/plan.md"
   trazabilidad "$B" '| C1 | «…» | I_ | pendiente / cubierto / verificado | |' '| R-E._ | «…» | _…_ | abierto | — |' '| R-I_._ | «…» | I_ | C_ | _…_ | abierto | — |' '- _(ejemplo)_ `R-I_._ «alias» · verificado AAAA-MM-DD · commit abc1234`'
   for f in decisiones convenciones definicion-de-hecho despliegue MEMORIA; do printf '# %s\n\n(sintético)\n' "$f" > "$B/docs/$f.md"; done
+  printf -- '- **Plazo de la suite:** 60 s\n' >> "$B/docs/convenciones.md"
   printf '# Registro de recibos (sintético). Las líneas que empiezan por # se ignoran.\n# contrato-recibos: 2\n' > "$B/docs/revisiones.log"
 fi
 rm -rf "$B/mejoras"
@@ -600,7 +605,7 @@ Ref: F1"
 espera falla "tras ese merge, un recibo incompleto colado lo rechaza el replay" "sin modalidad=" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
 
 echo "== Suite sobre una instantánea de lo que se commitea (repositorio git temporal propio)"
-suite_es() { printf '#!/bin/sh\n%s\n' "$2" > "$1/scripts/check.sh"; sin_hooks "$1" "suite (preparación)
+suite_es() { printf '#!/bin/sh\n%s\n%s\n' "$BLOQUE" "$2" > "$1/scripts/check.sh"; sin_hooks "$1" "suite (preparación)
 
 Ref: F1" || die "no pude preparar la suite"; }
 externa() { printf '\n| Ruta | Propósito | Cómo se reproduce |\n|------|-----------|-------------------|\n| %s | prueba | regresión |\n' "$2" >> "$1/docs/convenciones.md"; }
@@ -668,7 +673,7 @@ espera falla "una suite que sustituye un archivo regular por un enlace idéntico
 copia f3 ti2; ln -s plan.md "$D/docs/enlace.md"
 espera pasa "un enlace versionado sin cambios no se rechaza" "" -- nota_f1 "$D" ti2
 N="$W/primer"; rm -rf "$N"; mkdir -p "$N"; ( cd "$W/etapas/plantilla" && tar cf - --exclude ./.git . ) | ( cd "$N" && tar xf - )
-printf '#!/bin/sh\ngit ls-files --error-unmatch README.md >/dev/null && [ -z "$(git status --porcelain --untracked-files=no)" ]\n' > "$N/scripts/check.sh"
+printf '#!/bin/sh\n%s\ngit ls-files --error-unmatch README.md >/dev/null && [ -z "$(git status --porcelain --untracked-files=no)" ]\n' "$BLOQUE" > "$N/scripts/check.sh"
 en "$N" git init -q; en "$N" git config core.hooksPath .githooks; chmod +x "$N"/.githooks/*; en "$N" git add -A
 for x in .githooks/pre-commit .githooks/commit-msg; do en "$N" git update-index --chmod=+x "$x"; done
 espera pasa "primer commit del repositorio (sin HEAD): la suite corre en la instantánea" "" -- commitea "$N" "Encuadre inicial
@@ -678,7 +683,6 @@ Ref: F1"
 echo "== Suite vigilada en el pre-commit (arranque protegido de check.sh sobre la instantánea)"
 # El bloque, tal cual de docs/convenciones.md; los temporales de estos casos (instantánea, carpeta de
 # la ejecución) van a $W/tmpd: TMPDIR explícito, que el pre-commit respeta con su plantilla de mktemp.
-BLOQUE=$(awk '/^# --- suite vigilada/{f=1} f{print} /^# --- fin suite vigilada/{exit}' "$RAIZ/docs/convenciones.md")
 mkdir -p "$W/tmpd" "$W/pids" "$W/bin"
 cat > "$W/bin/ps" <<EOF
 #!/bin/sh
@@ -689,8 +693,7 @@ EOF
 chmod +x "$W/bin/ps"   # ps de prueba: con $W/fantasma lista un miembro que sobrevive a KILL (simulado)
 vigilada() {  # vigilada <dir> <plazo> <cuerpo>: check.sh = bloque + cuerpo; plazo en convenciones
   { grep -v 'Plazo de la suite:' "$1/docs/convenciones.md"; printf '\n- **Plazo de la suite:** %s s\n' "$2"; } > "$1/conv.tmp" && mv "$1/conv.tmp" "$1/docs/convenciones.md"
-  suite_es "$1" "$BLOQUE
-$3"
+  suite_es "$1" "$3"
 }
 # acotado <seg> cmd...: si la garantía se rompe y el commit se cuelga, el caso FALLA (124) en vez de colgar.
 # Antes de matar su grupo, deja en el fd 3 (stderr de la suite) la foto de los procesos de ese grupo y de
@@ -739,9 +742,11 @@ copia f3 sv3; vigilada "$D" 20 "[ -e '$W/sv3-hecho' ] || { : > '$W/sv3-hecho'; e
 espera falla "superviviente a KILL (simulado) en el pre-commit: rechaza por terminación incompleta" "quedaron procesos suyos vivos" -- nota_acotada "$D" sv3a
 espera pasa "... el registro sigue abierto e incompleto" "^abierta .* aprobada$" -- registro_de "$D"
 espera pasa "... y su instantánea (directorio de trabajo de los procesos vivos) se conserva con sus archivos" "" -- test -f "$(registro_de "$D" | cut -d' ' -f2)/scripts/check.sh"
+S3=$(dirname "$(registro_de "$D" | cut -d' ' -f2)")
 espera falla "... el siguiente commit se rechaza: hay otra ejecución abierta" "otra ejecución de la suite abierta" -- nota_acotada "$D" sv3b
 rm -f "$W/fantasma"
 espera pasa "... ido el superviviente, el siguiente commit la recupera y pasa" "recupero la ejecución" -- nota_acotada "$D" sv3c
+espera falla "... y recupera sola la instantánea conservada (reclamada, hook terminado, ejecución cerrada)" "" -- test -e "$S3"
 # sv4: se interrumpe el hook (muere el lanzador) con el guardián aún activo: la instantánea no se borra.
 P="$W/pids/sv4"; mkdir -p "$P"
 copia f3 sv4; vigilada "$D" 60 "echo \$\$ > '$P/lider'; while :; do sleep 1; done"
@@ -755,23 +760,167 @@ ab=$(abierta_de "$D"); lz=${ab%% *}; sid=${ab#* }; kill -9 "${lz:-0}" 2>/dev/nul
 espera pasa "hook interrumpido con la ejecución activa: avisa que conserva la instantánea" "conservo la instantánea .*precommit-snap\..*${sid:-sin-id}" -- cat "$P/salida"
 espera pasa "... el registro la sigue dando por abierta, vinculada a la instantánea" "^abierta /.*/tmpd/precommit-snap\.[^/]*/r $" -- registro_de "$D"
 espera pasa "... y la instantánea sigue presente con sus archivos" "" -- test -f "$(registro_de "$D" | cut -d' ' -f2)/scripts/check.sh"
+S4=$(dirname "$(registro_de "$D" | cut -d' ' -f2)")
 espera pasa "... terminarla después es posible y no deja vivo al líder" "" -- en "$D" python3 scripts/suite.py terminar "${sid:-sin-id}"
 espera falla "... (líder muerto)" "" -- kill -0 "$(cat "$P/lider" 2>/dev/null)"
+espera pasa "... cerrada, recuperar borra la instantánea sin intervención" "recupero la carpeta propia $S4" -- en "$D" python3 scripts/suite.py recuperar
+espera falla "... (ya no existe)" "" -- test -e "$S4"
+# sv8: el hook muere (KILL, sin trampa) con su lanzador atascado ANTES de sumarse a la reclamación: el
+# lanzamiento anunciado y la identidad dejada antes del exec conservan la instantánea mientras el
+# lanzador viva, y se recupera cuando termine. (Solo se atasca dentro de una instantánea: la prueba
+# aislada de check_docs usa el mismo suite.py y no debe colgarse.)
+P="$W/pids/sv8"; mkdir -p "$P"
+copia f3 sv8; vigilada "$D" 20 "python3 app.py || exit 1"
+python3 - "$D/scripts/suite.py" "$P/lanzador" <<'PY'
+import sys
+p, f = sys.argv[1], sys.argv[2]; t = open(p).read()
+hook = (f"    if 'precommit-snap' in os.getcwd():\n"
+        f"        open({f!r}, 'w').write(str(os.getpid())); time.sleep(300)\n")
+open(p, "w").write(t.replace("def run(args) -> int:\n", "def run(args) -> int:\n" + hook, 1))
+PY
+acotado 60 sh -c 'cd "$1" && export TMPDIR="$2" PATH="$3:$PATH" && printf -- "- nota sv8\n" >> docs/MEMORIA.md && git add -A && git -c core.hooksPath=.githooks commit -q -m "nota
+
+Ref: F1"' _ "$D" "$W/tmpd" "$W/bin" > "$P/salida" 2>&1 &
+bg=$!
+n=0; until [ -s "$P/lanzador" ] || [ $n -ge 150 ]; do n=$((n+1)); sleep 0.2; done
+lz=$(cat "$P/lanzador" 2>/dev/null); hk=$(ps -o ppid= -p "${lz:-0}" 2>/dev/null | tr -d ' ')
+kill -9 "${hk:-0}" 2>/dev/null; wait $bg
+S8=$(ls -td "$W/tmpd"/precommit-snap.* 2>/dev/null | head -1); S8=$(cd "${S8:-/sin-instantanea}" 2>/dev/null && pwd -P)
+espera pasa "hook muerto con el lanzador atascado antes de sumarse: recuperar conserva la instantánea" "carpeta propia $S8: se conserva: su lanzador \\(pid ${lz:-sin-pid}\\) sigue vivo" -- en "$D" python3 scripts/suite.py recuperar
+espera pasa "... (sigue presente)" "" -- test -d "${S8:-/sin-instantanea}/r"
+kill "${lz:-0}" 2>/dev/null; n=0; while kill -0 "${lz:-0}" 2>/dev/null && [ $n -lt 25 ]; do n=$((n+1)); sleep 0.2; done
+espera pasa "... terminado el lanzador, se recupera" "recupero la carpeta propia $S8" -- en "$D" python3 scripts/suite.py recuperar
+espera falla "... (ya no existe)" "" -- test -e "${S8:-/sin-instantanea}"
+rm -rf "$W/tmpd"/precommit.* 2>/dev/null   # la exportación del índice del hook muerto (sin su trampa)
+# sv9: la limpieza REAL del hook (su función limpiar, extraída tal cual) con la instantánea reclamada y
+# un lanzador vivo que aún no creó su ejecución (ningún .json): no basta la falta de ejecuciones abiertas.
+P="$W/pids/sv9"; mkdir -p "$P" "$W/reg-sv9" "$W/tmpd"
+LIMPIAR=$(sed -n '/^  limpiar() {/,/^  }/p' "$RAIZ/.githooks/pre-commit")
+[ -n "$LIMPIAR" ] || die "no encuentro la función limpiar del pre-commit"
+limpia_sv9() {  # limpia_sv9 <instantánea> <token>: corre limpiar() con su contexto (exportación propia)
+  mkdir -p "$W/exp-sv9/scripts" && cp "$RAIZ/scripts/suite.py" "$W/exp-sv9/scripts/"
+  env tmp="$W/exp-sv9" snap="$1" sreg="$W/reg-sv9" propia="$2" LIMPIA= sh -c "$LIMPIAR
+limpiar"
+}
+sv9() { SUITE_REGISTRO="$W/reg-sv9" python3 "$RAIZ/scripts/suite.py" "$@"; }
+sleep 300 & echo $! > "$P/dueno"
+S9=$(mktemp -d "$W/tmpd/precommit-snap.XXXXXX"); S9=$(cd "$S9" && pwd -P)
+T9=$(sv9 reclamar "$S9" --dueno "$(cat "$P/dueno")"); sv9 anunciar "$T9"; echo t > "$S9/testigo"
+sleep 300 & echo $! > "$P/lanzador"; sv9 sumar "$T9" --pid "$(cat "$P/lanzador")"
+espera pasa "limpiar() con un lanzador vivo sin ejecución registrada: conserva la instantánea y dice por qué" "conservo la instantánea $S9: su lanzador \\(pid $(cat "$P/lanzador")\\) sigue vivo" -- limpia_sv9 "$S9" "$T9"
+espera pasa "... (sigue con su testigo)" "" -- test -f "$S9/testigo"
+S9b=$(mktemp -d "$W/tmpd/precommit-snap.XXXXXX"); S9b=$(cd "$S9b" && pwd -P)
+T9b=$(sv9 reclamar "$S9b" --dueno "$(cat "$P/dueno")"); sv9 anunciar "$T9b"
+espera pasa "limpiar() con un lanzamiento anunciado sin identidad: conserva la instantánea (no comprobable)" "conservo la instantánea $S9b: no comprobable \\(1 lanzamiento" -- limpia_sv9 "$S9b" "$T9b"
+kill "$(cat "$P/lanzador")" "$(cat "$P/dueno")" 2>/dev/null; n=0; while kill -0 "$(cat "$P/lanzador")" 2>/dev/null && [ $n -lt 25 ]; do n=$((n+1)); sleep 0.2; done
+espera pasa "... terminado el lanzador, la recuperación borra la primera" "recupero la carpeta propia $S9" -- sv9 recuperar
+espera falla "... (ya no existe)" "" -- test -e "$S9"
+espera pasa "... y la segunda sigue conservada: su lanzamiento nunca tuvo identidad" "$S9b: se conserva: no comprobable" -- sv9 recuperar
+sleep 300 & echo $! > "$P/dueno"
+S9c=$(mktemp -d "$W/tmpd/precommit-snap.XXXXXX"); S9c=$(cd "$S9c" && pwd -P)
+T9c=$(sv9 reclamar "$S9c" --dueno "$(cat "$P/dueno")"); sv9 anunciar "$T9c"; sv9 sumar "$T9c" --pid "$(cat "$P/dueno")"
+kill "$(cat "$P/dueno")"; n=0; while kill -0 "$(cat "$P/dueno")" 2>/dev/null && [ $n -lt 25 ]; do n=$((n+1)); sleep 0.2; done
+o9=$(limpia_sv9 "$S9c" "$T9c" 2>&1)
+espera pasa "limpiar() con su lanzador terminado y nada abierto: borra la instantánea sin avisar" "" -- test -z "$o9"
+espera falla "... (ya no existe)" "" -- test -e "$S9c"
+rm -rf "$S9b"
+# sv9b: salida REAL del hook por TERM, que sí ejecuta su trampa. sh difiere la trampa hasta que acaba
+# el lanzador en primer plano: mientras viva, el hook no limpia nada; al acabar, limpia y la borra.
+P="$W/pids/sv9b"; mkdir -p "$P"
+copia f3 sv9b; vigilada "$D" 20 "python3 app.py || exit 1"
+python3 - "$D/scripts/suite.py" "$P/lanzador" <<'PY'
+import sys
+p, f = sys.argv[1], sys.argv[2]; t = open(p).read()
+hook = (f"    if 'precommit-snap' in os.getcwd():\n"
+        f"        open({f!r}, 'w').write(str(os.getpid())); time.sleep(300)\n")
+open(p, "w").write(t.replace("def run(args) -> int:\n", "def run(args) -> int:\n" + hook, 1))
+PY
+acotado 60 sh -c 'cd "$1" && export TMPDIR="$2" PATH="$3:$PATH" && printf -- "- nota sv9b\n" >> docs/MEMORIA.md && git add -A && git -c core.hooksPath=.githooks commit -q -m "nota
+
+Ref: F1"' _ "$D" "$W/tmpd" "$W/bin" > "$P/salida" 2>&1 &
+bg=$!
+n=0; until [ -s "$P/lanzador" ] || [ $n -ge 150 ]; do n=$((n+1)); sleep 0.2; done
+lz=$(cat "$P/lanzador" 2>/dev/null); hk=$(ps -o ppid= -p "${lz:-0}" 2>/dev/null | tr -d ' ')
+S9d=$(ls -td "$W/tmpd"/precommit-snap.* 2>/dev/null | head -1)
+kill -TERM "${hk:-0}" 2>/dev/null; sleep 2
+espera pasa "hook con TERM y su lanzador vivo: la instantánea sigue (la trampa espera al lanzador)" "" -- test -d "${S9d:-/sin-instantanea}/r"
+kill "${lz:-0}" 2>/dev/null; wait $bg
+espera pasa "... acabado el lanzador, la trampa limpia: sin ejecución ni lanzador vivo, la borra" "" -- sh -c '! test -e "$1"' _ "${S9d:-/sin-instantanea}"
+espera pasa "... y no quedó su reclamación" "^0$" -- sh -c 'ls "$1"/.git/suite-runs/*.propia 2>/dev/null | wc -l | tr -d " "' _ "$D"
 # sv5/sv6: la suite corre y se cierra, pero al salir el hook no puede leer el registro (dañado o sin
 # permiso de lectura, provocado por el cuerpo al final): la ausencia de abiertas no está demostrada.
 copia f3 sv5; vigilada "$D" 20 "python3 app.py || exit 1; echo '{roto' > '$D/.git/suite-runs/zz.json'"
-espera pasa "registro dañado al salir: el commit pasa, pero la instantánea se conserva y se avisa" "conservo la instantánea .*registro ilegible" -- nota_acotada "$D" sv5
+espera pasa "registro dañado al salir: el commit pasa, pero la instantánea se conserva y se avisa" "conservo la instantánea .*no comprobable \\(registro .*ilegible o dañado" -- nota_acotada "$D" sv5
 copia f3 sv7; vigilada "$D" 20 "python3 app.py || exit 1; echo '{\"id\": \"x\", \"dir\": \"/x\", \"inicio\": 1}' > '$D/.git/suite-runs/zz.json'"
-espera pasa "registro sin «estado» al salir: no autoriza el borrado; la instantánea se conserva y se avisa" "conservo la instantánea .*registro ilegible o dañado" -- nota_acotada "$D" sv7
+espera pasa "registro sin «estado» al salir: no autoriza el borrado; la instantánea se conserva y se avisa" "conservo la instantánea .*no comprobable \\(registro .*ilegible o dañado" -- nota_acotada "$D" sv7
 mkdir -p "$W/sin-lectura"; chmod 300 "$W/sin-lectura"
 if ls "$W/sin-lectura" >/dev/null 2>&1; then
   echo "  (no aplica: este entorno lista carpetas sin permiso de lectura; registro inaccesible sin probar)"
 else
   copia f3 sv6; vigilada "$D" 20 "python3 app.py || exit 1; chmod 300 '$D/.git/suite-runs'"
-  espera pasa "registro que no se puede listar al salir: la instantánea se conserva y se avisa" "conservo la instantánea .*registro ilegible" -- nota_acotada "$D" sv6
+  espera pasa "registro que no se puede listar al salir: la instantánea se conserva y se avisa" "conservo la instantánea .*no comprobable \\(registro .*ilegible o dañado" -- nota_acotada "$D" sv6
   chmod 700 "$D/.git/suite-runs"
 fi
 chmod 700 "$W/sin-lectura"
+
+echo "== check_docs: desde F2, check.sh empieza por el bloque vigilado y el bloque se prueba aislado"
+doc() { en "$1" sh scripts/check_docs.sh; }
+copia f3 cd0
+espera pasa "check.sh con el bloque al principio y plazo declarado: check_docs pasa" "" -- doc "$D"
+copia f3 cd1; printf '#!/bin/sh\npython3 -I app.py || exit 1\n' > "$D/scripts/check.sh"
+espera falla "check.sh sin el bloque: check_docs falla" "no EMPIEZA por el bloque de la suite vigilada" -- doc "$D"
+copia f3 cd2; { printf '#!/bin/sh\n# comentario permitido\necho antes\n%s\n' "$BLOQUE"; } > "$D/scripts/check.sh"
+espera falla "código antes del bloque: check_docs falla (la posición se comprueba como texto)" "no EMPIEZA por el bloque" -- doc "$D"
+copia f3 cd3; grep -v 'Plazo de la suite' "$D/docs/convenciones.md" > "$D/c.tmp"; mv "$D/c.tmp" "$D/docs/convenciones.md"
+espera falla "sin el plazo común en convenciones: check_docs falla" "no declara el plazo común" -- doc "$D"
+copia f3 cd4; sed 's/^  exec env SUITE_ENVUELTO=1/  : env SUITE_ENVUELTO=1/' "$D/scripts/check.sh" > "$D/c.tmp"; mv "$D/c.tmp" "$D/scripts/check.sh"
+espera falla "bloque roto (no envuelve): la prueba aislada lo detecta" "no funciona aislado: no corrió vigilado" -- doc "$D"
+copia f3 cd5; rm "$D/scripts/suite.py"
+espera falla "sin scripts/suite.py: check_docs falla" "falta scripts/suite.py" -- doc "$D"
+# El cuerpo real nunca se ejecuta: deja un testigo si corriera.
+copia f3 cd6; printf '#!/bin/sh\n%s\n: > "%s"\n' "$BLOQUE" "$W/cuerpo-real" > "$D/scripts/check.sh"
+espera pasa "la prueba aislada no ejecuta el cuerpo real de check.sh" "" -- doc "$D"
+espera falla "... (ningún testigo del cuerpo real)" "" -- test -e "$W/cuerpo-real"
+copia f3 cd7; mkdir -p "$W/otro-reg"
+espera pasa "variables SUITE_* heredadas (dentro de otra ejecución, otro registro): no alteran la prueba aislada" "" -- env SUITE_ID=fuera SUITE_REGISTRO="$W/otro-reg" SUITE_ENVUELTO=1 SUITE_PROPIA=x sh -c 'cd "$1" && sh scripts/check_docs.sh' _ "$D"
+espera pasa "... y no deja temporales propios" "^0$" -- sh -c 'ls -d "${TMPDIR:-/tmp}"/check-docs-suite.* 2>/dev/null | wc -l | tr -d " "'
+# Un bloque que deja pasar la llamada anidada (olvida el SUITE_ID heredado) no pasa la prueba aislada.
+copia f3 cd7b; awk '{ print } /^# --- suite vigilada/ { print "[ \"${SUITE_ENVUELTO:-}\" = 1 ] || unset SUITE_ID" }' "$D/scripts/check.sh" > "$D/c.tmp" && mv "$D/c.tmp" "$D/scripts/check.sh"
+espera falla "bloque que no rechaza la llamada anidada: la prueba aislada lo detecta" "una llamada anidada no se rechazó" -- doc "$D"
+# El registro temporal se lee como JSON validado (el parser de suite.py), nunca como texto. Las líneas
+# se inyectan al final del bloque (corren ya vigiladas) y escriben en el registro temporal; cada caso
+# usa su propio TMPDIR para borrar luego solo lo que conservó.
+inyecta() {  # inyecta <dir> <línea>
+  python3 - "$1/scripts/check.sh" "$2" <<'PY'
+import sys
+p, l = sys.argv[1], sys.argv[2]; t = open(p).read(); fin = "# --- fin suite vigilada ---"
+open(p, "w").write(t.replace(fin, l + "\n" + fin, 1))
+PY
+}
+COPIA_REG='import json,os,sys; r=os.environ["SUITE_REGISTRO"]; d=json.load(open(os.path.join(r, os.environ["SUITE_ID"] + ".json"))); d.update(json.loads(sys.argv[1])); open(os.path.join(r, d["id"] + ".json"), "w").write(json.dumps(d, separators=(",", ":")))'
+doc_t() { mkdir -p "$W/tmpcd-$2"; en "$1" env TMPDIR="$W/tmpcd-$2" sh scripts/check_docs.sh; }   # doc_t <dir> <caso>
+conservadas() { ls -d "$W/tmpcd-$1"/check-docs-suite.* 2>/dev/null | wc -l | tr -d ' '; }
+copia f3 cd11; inyecta "$D" "[ -z \"\${SUITE_ID:-}\" ] || python3 -c '$COPIA_REG' '{\"id\": \"compacta\"}'"
+espera falla "registro abierto en JSON compacto («\"estado\":\"abierta\"»): se detecta y la prueba aislada se conserva" "dejó una ejecución abierta \\(compacta" -- doc_t "$D" cd11
+espera pasa "... (conservada)" "^1$" -- conservadas cd11
+copia f3 cd12; inyecta "$D" "[ -z \"\${SUITE_ID:-}\" ] || echo '{roto' > \"\$SUITE_REGISTRO/zz.json\""
+espera falla "registro temporal dañado: no acredita la limpieza, se conserva" "no pude comprobar el registro temporal .*conservo" -- doc_t "$D" cd12
+espera pasa "... (conservada)" "^1$" -- conservadas cd12
+copia f3 cd13; inyecta "$D" "[ -z \"\${SUITE_ID:-}\" ] || { python3 -c '$COPIA_REG' '{\"id\": \"falsa\", \"estado\": \"fallida\", \"rc\": 1, \"nota\": \"aprobada\"}'; echo vigilada:falsa; }"
+espera falla "«aprobada» en otro campo de un registro fallido: no cuenta como aprobada" "la ejecución falsa no quedó registrada como aprobada" -- doc_t "$D" cd13
+rm -rf "$W"/tmpcd-cd1[123]
+# Límite propio: un bloque que se cuelga ANTES de llegar a suite.py no cuelga check_docs.
+copia f3 cd8; awk 'NR == 2 { print "# --- suite vigilada: colgada antes del envoltorio"; print "sleep 300" } { print }' "$D/scripts/check.sh" > "$D/c.tmp" && mv "$D/c.tmp" "$D/scripts/check.sh"
+espera falla "bloque que se cuelga fuera del envoltorio: check_docs vence su propio límite" "no terminó en 60 s" -- acotado 90 sh -c 'cd "$1" && sh scripts/check_docs.sh' _ "$D"
+# Inicio de sesión: una ejecución abierta se avisa (sin fallar).
+P="$W/pids/cd9"; mkdir -p "$P"; copia f3 cd9
+( cd "$D" && exec python3 scripts/suite.py correr --plazo 60 -- sh -c 'echo $$ > "$1/lider"; sleep 300' _ "$P" > /dev/null 2>&1 ) & bg=$!
+n=0; until [ -s "$P/lider" ] || [ $n -ge 50 ]; do n=$((n+1)); sleep 0.2; done
+espera pasa "al inicio de sesión, una ejecución abierta se avisa sin fallar" "⚠ check_docs: hay ejecuciones de la suite abiertas" -- doc "$D"
+id9=$(python3 -c 'import json,glob,sys; print(next(json.load(open(p))["id"] for p in glob.glob(sys.argv[1]+"/*.json")))' "$D/.git/suite-runs")
+en "$D" python3 scripts/suite.py terminar "$id9" > /dev/null 2>&1; wait $bg 2>/dev/null
+copia f3 cd10; printf '#!/bin/sh\npython3 -I app.py || exit 1\n' > "$D/scripts/check.sh"
+espera falla "el pre-commit rechaza un check.sh sin el bloque (check_docs sobre el índice)" "no EMPIEZA por el bloque" -- nota_acotada "$D" cd10
 
 echo "== El avance queda a la vista: casilla del plan y estado.md en el commit Ref: I<n>"
 # recibo_bruto con la huella del índice: un recibo vigente que NO pasa por cierra_inc.
@@ -1530,7 +1679,7 @@ espera falla "... otro sabotaje no lanza nada: hay una abierta" "the suite did n
 espera pasa "... (sin dejar otra copia)" "^1$" -- copias_sv
 rm -f "$W/fantasma"
 espera pasa "... ido el superviviente, el siguiente la recupera y sigue (DIES)" "DIES" -- sabv m.json
-rm -rf "$W/tmpd-sab"/sabotaje-*   # la copia conservada: su ejecución ya está cerrada (limpieza automática: bloque 3)
+espera pasa "... y recupera sola la copia conservada (reclamada antes de lanzar, dueño terminado)" "^0$" -- copias_sv
 app_sv '    pass'
 anidado() { ( export SUITE_ID=x; sabv "$@" ); }
 espera falla "sabotaje lanzado desde dentro de otra ejecución: se detiene sin lanzar nada" "the suite did not start: called from inside another suite run" -- anidado m.json
@@ -1552,7 +1701,9 @@ espera pasa "... la copia se conserva" "^1$" -- copias_sv
 kill -CONT "$(cat "$P/guardia" 2>/dev/null)" 2>/dev/null
 n=0; until [ "$(ultimo_sv | cut -d' ' -f1)" != abierta ] || [ $n -ge 60 ]; do n=$((n+1)); sleep 0.5; done
 espera pasa "... (al reanudarse, el guardián la cierra)" "^terminada " -- ultimo_sv
-rm -rf "$W/tmpd-sab"/sabotaje-*
+recupera_sv() { ( cd "$SV" && python3 scripts/suite.py recuperar >/dev/null 2>&1 ); copias_sv; }
+n=0; until [ "$(recupera_sv)" = 0 ] || [ $n -ge 20 ]; do n=$((n+1)); sleep 0.5; done   # el lanzador sale tras el cierre
+espera pasa "... cerrada y fuera su lanzador, recuperar borra la copia" "^0$" -- recupera_sv
 app_sv "$abierta_sv
     os.kill(x['lanzador'], signal.SIGSTOP); os.kill(x['guardia'], signal.SIGKILL); open('$P/lider2', 'w').write(str(os.getpid())); time.sleep(300)"
 espera falla "respaldo: sin guardián ni lanzador que respondan, terminar cierra la ejecución: TIMEOUT, no DIES" "TIMEOUT .*backup: run .* ended past its deadline" -- respaldo m.json --timeout 2
@@ -1573,12 +1724,19 @@ espera falla "lanzador sin registro: el sabotaje se detiene al vencer el margen 
 espera pasa "... acotado (menos de 15 s)" "" -- test $(( $(date +%s) - T0 )) -lt 15
 espera pasa "... no señala al lanzador (sigue vivo)" "" -- kill -0 "$(cat "$P/lanzador" 2>/dev/null)"
 espera pasa "... y conserva la copia (el lanzador aún podría usarla)" "^1$" -- copias_sv
-kill "$(cat "$P/lanzador" 2>/dev/null)" 2>/dev/null; rm -rf "$W/tmpd-sab"/sabotaje-*
+espera pasa "... con el lanzador vivo y el sabotaje terminado, recuperar la conserva: lo registró quien lo lanzó" "se conserva: su lanzador \\(pid $(cat "$P/lanzador" 2>/dev/null)\\) sigue vivo" -- en "$SV" python3 scripts/suite.py recuperar
+espera pasa "... (la copia sigue)" "^1$" -- copias_sv
+kill "$(cat "$P/lanzador" 2>/dev/null)" 2>/dev/null
+n=0; until [ "$(recupera_sv)" = 0 ] || [ $n -ge 20 ]; do n=$((n+1)); sleep 0.5; done
+espera pasa "... terminado el lanzador, recuperar borra la copia (nunca se unió él mismo a la reclamación)" "^0$" -- recupera_sv
 echo '{roto' > "$SV/.git/suite-runs/zz.json"
 espera falla "lanzador vivo con el registro no comprobable: se detiene sin señalar nada" "STOPPED.*launcher [0-9]* still alive 4s after starting and the registry could not be checked; nothing was signalled" -- respaldo m.json
 espera pasa "... no señala al lanzador (sigue vivo)" "" -- kill -0 "$(cat "$P/lanzador" 2>/dev/null)"
 espera pasa "... y conserva la copia" "^1$" -- copias_sv
-kill "$(cat "$P/lanzador" 2>/dev/null)" 2>/dev/null; rm -rf "$W/tmpd-sab"/sabotaje-* "$SV/.git/suite-runs/zz.json"
+kill "$(cat "$P/lanzador" 2>/dev/null)" 2>/dev/null
+espera pasa "... con el registro dañado, recuperar no borra nada" "^1$" -- recupera_sv
+rm -f "$SV/.git/suite-runs/zz.json"
+espera pasa "... legible de nuevo, la recupera" "^0$" -- recupera_sv
 unset SV_LANZADOR; mv "$SV/suite.orig" "$SV/scripts/suite.py"
 # El vigilante es el scripts/suite.py del repositorio real: mutar el de la copia no lo desarma.
 printf '[{"label":"vigilante","file":"scripts/suite.py","before":"deadline = deadline_of(args.plazo, workdir)","after":"deadline = 10 ** 6  # SABOTEADO"}]\n' > "$SV/vig.json"

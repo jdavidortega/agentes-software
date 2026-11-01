@@ -27,7 +27,9 @@ toca**. No se relee todo el rastro por sesión: el detalle vive
 en los documentos por rebanada y la historia, en git. **Al parar** —fin de sesión, gate
 pendiente, bloqueo—, regenera `docs/estado.md` con lo **pendiente** escrito en frases
 completas (qué falta del incremento y qué se espera de la persona): lo que no queda
-escrito al parar se pierde.
+escrito al parar se pierde. Antes, comprueba que no dejas ejecuciones de la suite abiertas
+(`python3 scripts/suite.py estado --abiertas`); si queda alguna o una carpeta conservada, anótala
+con su motivo en `docs/estado.md` (`docs/convenciones.md` §Recursos).
 
 ## 1. Qué es este proyecto
 

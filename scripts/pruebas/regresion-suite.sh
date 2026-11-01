@@ -12,7 +12,7 @@ SU="$RAIZ/scripts/suite.py"
 W=$(mktemp -d "${TMPDIR:-/tmp}/regresion-suite.XXXXXX"); W=$(cd "$W" && pwd -P)
 export GIT_CONFIG_GLOBAL="$W/gitconfig" GIT_CONFIG_SYSTEM=/dev/null; : > "$W/gitconfig"
 export GIT_AUTHOR_NAME=r GIT_AUTHOR_EMAIL=r@local GIT_COMMITTER_NAME=r GIT_COMMITTER_EMAIL=r@local
-unset SUITE_ID SUITE_REGISTRO SUITE_PLAZO SUITE_ENVUELTO SUITE_INFORME
+unset SUITE_ID SUITE_REGISTRO SUITE_PLAZO SUITE_ENVUELTO SUITE_INFORME SUITE_PROPIA
 TOTAL=0; MAL=0; FALLIDOS=""
 
 # Al salir: termina lo que los casos dejaron vivo a propósito (solo PID anotados aquí) y borra las
@@ -199,6 +199,7 @@ espera falla "terminar una huérfana con un superviviente a KILL: no la da por c
 espera pasa "... queda abierta e incompleta, con sus temporales" "" -- sh -c '[ "$(cd "$1" && python3 -c "import json,sys;r=json.load(open(sys.argv[1]));print(r[\"estado\"], r.get(\"incompleta\"))" "$2")" = "abierta terminada" ] && test -d "$3/tmp"' _ "$R" "$REG/$ID.json" "$CARP"
 rm -f "$W/fantasma"; sleep 0.3
 espera pasa "... ido el superviviente, la siguiente la recupera" "recupero la ejecución $ID" -- corre --plazo 20 -- true
+espera pasa "... cerrada, ya no está incompleta: la terminación incompleta queda como historia" "^ terminada$" -- sh -c 'echo "$1 $2"' _ "$(campo "$ID" incompleta)" "$(campo "$ID" incompleta_previa)"
 
 echo "== consulta de procesos imposible: no comprobar no es no existir"
 repo q1; P="$W/pids/q1"; mkdir -p "$P"
@@ -353,6 +354,119 @@ espera pasa "... y conserva el final de la salida" "linea 002999" -- cat "$CARP/
 repo l2
 i=0; while [ $i -lt 12 ]; do corre --plazo 20 -- true > /dev/null 2>&1; i=$((i+1)); done
 espera pasa "tras 12 ejecuciones solo quedan los 10 registros cerrados más recientes" "^10$" -- sh -c 'ls "$1"/*.json | wc -l | tr -d " "' _ "$REG"
+
+echo "== carpetas propias: se reclaman vacías y se recuperan solo con el cierre demostrado"
+# Todo sobre carpetas TESTIGO bajo $W/prop: cada una lleva un archivo «testigo» para ver si sobrevive.
+repo cp1; PR="$W/prop"; mkdir -p "$PR"; P="$W/pids/cp1"; mkdir -p "$P"
+reclama() { ( cd "$R" && python3 "$SU" reclamar "$@" ); }
+recupera() { ( cd "$R" && python3 "$SU" recuperar ); }
+dueno() { sleep 300 & echo $! > "$P/$1"; }                  # dueno <nombre>: proceso vivo hasta que se mate
+testigo() { echo t > "$1/testigo"; }
+dueno d0
+mkdir "$PR/llena"; testigo "$PR/llena"
+espera falla "no se reclama una carpeta con contenido (solo una recién creada)" "no está vacía" -- reclama "$PR/llena" --dueno "$(pid_de cp1/d0)"
+espera falla "no se reclama la raíz del repositorio" "es .* o la contiene" -- reclama "$R" --dueno "$(pid_de cp1/d0)"
+espera falla "ni un antecesor suyo" "es .* o la contiene" -- reclama "$W" --dueno "$(pid_de cp1/d0)"
+espera falla "ni el registro" "es .* o la contiene|dentro de un repositorio git" -- reclama "$REG" --dueno "$(pid_de cp1/d0)"
+mkdir "$R/dentro"
+espera falla "ni una carpeta dentro de un repositorio git" "dentro de un repositorio git" -- reclama "$R/dentro" --dueno "$(pid_de cp1/d0)"
+mkdir "$PR/destino"; ln -s "$PR/destino" "$PR/enlace"
+espera falla "ni un enlace" "no es una carpeta \\(o es un enlace\\)" -- reclama "$PR/enlace" --dueno "$(pid_de cp1/d0)"
+mkdir "$PR/huerfana"
+espera falla "ni con un dueño que no está vivo" "no está vivo" -- reclama "$PR/huerfana" --dueno 999999
+# Dueño vivo: se conserva; muerto: se recupera.
+mkdir "$PR/a"; TA=$(reclama "$PR/a" --dueno "$(pid_de cp1/d0)"); testigo "$PR/a"
+espera pasa "reclamada: marca dentro y reclamación en el registro" "" -- sh -c '[ "$(cat "$1/.suite-propia")" = "$2" ] && test -f "$3/$2.propia"' _ "$PR/a" "$TA" "$REG"
+espera pasa "con su dueño vivo, recuperar la conserva y dice por qué" "se conserva: su dueño \\(pid [0-9]+\\) sigue vivo" -- recupera
+espera pasa "... y la carpeta sigue con su testigo" "" -- test -f "$PR/a/testigo"
+espera pasa "estado --abiertas la avisa" "carpeta propia $PR/a: se conserva" -- sh -c 'cd "$1" && python3 "$2" estado --abiertas' _ "$R" "$SU"
+kill "$(pid_de cp1/d0)"; hasta 5 sh -c '! kill -0 "$1" 2>/dev/null' _ "$(pid_de cp1/d0)"
+espera pasa "muerto el dueño, recuperar la borra" "recupero la carpeta propia $PR/a" -- recupera
+espera falla "... ya no existe" "" -- test -e "$PR/a"
+espera falla "... ni su reclamación" "" -- test -e "$REG/$TA.propia"
+# Un lanzador se suma a la reclamación antes de crear su ejecución; recuperada, ya no lanza en ella.
+dueno d1; mkdir -p "$PR/b"; TB=$(reclama "$PR/b" --dueno "$(pid_de cp1/d1)"); mkdir "$PR/b/r"
+espera pasa "un lanzador con SUITE_PROPIA corre dentro de la carpeta reclamada" "aprobada" -- env SUITE_REGISTRO="$REG" SUITE_PROPIA="$TB" sh -c 'cd "$1" && python3 "$2" correr --plazo 20 --dir "$3" -- true' _ "$R" "$SU" "$PR/b/r"
+espera pasa "... su ejecución queda vinculada y el lanzador anotado en la reclamación" "^$TB 1$" -- sh -c 'echo "$1 $(python3 -c "import json,os,sys; p=sys.argv[1]; print(len(json.load(open(p))[\"procesos\"]) if os.path.exists(p) else \"sin-reclamacion\")" "$2")"' _ "$(campo "$(ultimo)" propia)" "$REG/$TB.propia"
+espera falla "un --dir fuera de la carpeta reclamada se rechaza" "no está dentro de la carpeta propia" -- env SUITE_REGISTRO="$REG" SUITE_PROPIA="$TB" sh -c 'cd "$1" && python3 "$2" correr --plazo 20 --dir "$1" -- true' _ "$R" "$SU"
+kill "$(pid_de cp1/d1)"; hasta 5 sh -c '! kill -0 "$1" 2>/dev/null' _ "$(pid_de cp1/d1)"
+espera pasa "la recuperación es automática al empezar la siguiente ejecución" "recupero la carpeta propia $PR/b" -- corre --plazo 20 -- true
+espera falla "... la carpeta ya no existe" "" -- test -e "$PR/b"
+mkdir -p "$PR/b/r"
+espera falla "un lanzador tardío con la reclamación ya recuperada no lanza nada" "no está reclamada .*no lanzo nada" -- env SUITE_REGISTRO="$REG" SUITE_PROPIA="$TB" sh -c 'cd "$1" && python3 "$2" correr --plazo 20 --dir "$3" -- true' _ "$R" "$SU" "$PR/b/r"
+rm -rf "$PR/b"
+# Lanzamiento ANUNCIADO por quien lanza: mientras no conste la identidad del lanzador, se conserva (no
+# comprobable); registrada por el padre (sin que el hijo se sume), se conserva mientras viva y se
+# recupera cuando termine.
+cuenta() { python3 -c 'import json,os,sys; p=sys.argv[1]; c=json.load(open(p)) if os.path.exists(p) else None; print(*([c["arrancando"], len(c["procesos"])] if c else ["sin-reclamacion"]))' "$1"; }  # anuncios pendientes y lanzadores
+dueno d6; mkdir "$PR/h"; TH=$(reclama "$PR/h" --dueno "$(pid_de cp1/d6)"); testigo "$PR/h"
+( cd "$R" && python3 "$SU" anunciar "$TH" )
+kill "$(pid_de cp1/d6)"; hasta 5 sh -c '! kill -0 "$1" 2>/dev/null' _ "$(pid_de cp1/d6)"
+espera pasa "lanzamiento anunciado sin identidad y dueño muerto: se conserva (no comprobable)" "$PR/h: se conserva: no comprobable \\(1 lanzamiento" -- recupera
+espera pasa "... con su testigo" "" -- test -f "$PR/h/testigo"
+sleep 300 & LH=$!
+( cd "$R" && python3 "$SU" sumar "$TH" --pid "$LH" )
+espera pasa "lanzador registrado por su padre y vivo (sin haberse sumado él): se conserva" "$PR/h: se conserva: su lanzador \\(pid $LH\\) sigue vivo" -- recupera
+espera pasa "... con su testigo" "" -- test -f "$PR/h/testigo"
+espera pasa "... y el anuncio quedó saldado por el registro" "^0 1$" -- cuenta "$REG/$TH.propia"
+kill "$LH"; wait "$LH" 2>/dev/null
+espera pasa "... terminado el lanzador, se recupera" "recupero la carpeta propia $PR/h" -- recupera
+# La misma identidad registrada dos veces (padre y luego el propio lanzador) salda UN solo anuncio.
+dueno d7; mkdir "$PR/i"; TI=$(reclama "$PR/i" --dueno "$(pid_de cp1/d7)"); mkdir "$PR/i/r"
+( cd "$R" && python3 "$SU" anunciar "$TI" && python3 "$SU" anunciar "$TI" )
+espera pasa "un lanzador registrado por su padre y sumado después por sí mismo cuenta una vez" "aprobada" -- env SUITE_REGISTRO="$REG" SUITE_PROPIA="$TI" sh -c 'cd "$1" && python3 "$2" sumar "$4" --pid $$ && exec python3 "$2" correr --plazo 20 --dir "$3" -- true' _ "$R" "$SU" "$PR/i/r" "$TI"
+espera pasa "... un anuncio sigue pendiente (el otro lanzamiento no consta)" "^1 1$" -- cuenta "$REG/$TI.propia"
+kill "$(pid_de cp1/d7)"; hasta 5 sh -c '! kill -0 "$1" 2>/dev/null' _ "$(pid_de cp1/d7)"
+espera pasa "... y por él la carpeta se conserva" "$PR/i: se conserva: no comprobable" -- recupera
+# Un anuncio pendiente no retiene una reclamación cuya carpeta ya no existe (nada que borrar).
+rm -rf "$PR/i"
+espera pasa "... borrada la carpeta por su dueño, la reclamación se cierra" "" -- sh -c 'cd "$1" && python3 "$2" recuperar && ! test -e "$3/$4.propia"' _ "$R" "$SU" "$REG" "$TI"
+# Ejecución abierta dentro (dueño ya muerto; lanzador SIN SUITE_PROPIA, fuera de «procesos»): solo la
+# ejecución abierta la sostiene, y se conserva hasta que cierre.
+dueno d2; mkdir -p "$PR/c"; TC=$(reclama "$PR/c" --dueno "$(pid_de cp1/d2)"); mkdir "$PR/c/r"; testigo "$PR/c"
+( cd "$R" && SUITE_REGISTRO="$REG" exec python3 "$SU" correr --plazo 60 --dir "$PR/c/r" -- sh -c 'echo $$ > "$1/lider"; sleep 300' _ "$P" > /dev/null 2>&1 ) & LC=$!
+hasta 10 existe "$P/lider"; IC=$(ultimo); kill "$(pid_de cp1/d2)"; hasta 5 sh -c '! kill -0 "$1" 2>/dev/null' _ "$(pid_de cp1/d2)"
+espera pasa "con una ejecución abierta dentro, se conserva aunque el dueño murió" "$PR/c: se conserva: la ejecución $IC sigue abierta" -- recupera
+espera pasa "... con su testigo" "" -- test -f "$PR/c/testigo"
+( cd "$R" && python3 "$SU" terminar "$IC" ) > /dev/null 2>&1; wait $LC 2>/dev/null; rm -f "$P/lider"
+espera pasa "cerrada la ejecución y fuera su lanzador, se recupera" "recupero la carpeta propia $PR/c" -- recupera
+# La poda conserva el registro de una ejecución cuya carpeta propia sigue pendiente.
+dueno d3; mkdir -p "$PR/d"; TD=$(reclama "$PR/d" --dueno "$(pid_de cp1/d3)"); mkdir "$PR/d/r"
+env SUITE_REGISTRO="$REG" SUITE_PROPIA="$TD" sh -c 'cd "$1" && python3 "$2" correr --plazo 20 --dir "$3" -- true' _ "$R" "$SU" "$PR/d/r" > /dev/null 2>&1; ID_D=$(ultimo)
+i=0; while [ $i -lt 12 ]; do corre --plazo 20 -- true > /dev/null 2>&1; i=$((i+1)); done
+espera pasa "tras 12 ejecuciones más, la poda conserva la ejecución de la carpeta pendiente" "" -- test -f "$REG/$ID_D.json"
+kill "$(pid_de cp1/d3)"; hasta 5 sh -c '! kill -0 "$1" 2>/dev/null' _ "$(pid_de cp1/d3)"
+corre --plazo 20 -- true > /dev/null 2>&1
+espera falla "... recuperada la carpeta, la poda ya puede quitarla" "" -- test -e "$REG/$ID_D.json"
+# Sustituida: otro inodo, un enlace o la marca cambiada → se conserva y se avisa; nada se borra.
+dueno d4; mkdir "$PR/e" "$PR/f"; TE=$(reclama "$PR/e" --dueno "$(pid_de cp1/d4)"); TF=$(reclama "$PR/f" --dueno "$(pid_de cp1/d4)")
+kill "$(pid_de cp1/d4)"; hasta 5 sh -c '! kill -0 "$1" 2>/dev/null' _ "$(pid_de cp1/d4)"
+mv "$PR/e" "$PR/e.orig"; mkdir "$PR/e"; testigo "$PR/e"; cp "$PR/e.orig/.suite-propia" "$PR/e/"
+echo otra > "$PR/f/.suite-propia"; testigo "$PR/f"
+espera pasa "otra carpeta en la misma ruta (otro inodo, misma marca): se conserva como sustituida" "$PR/e: se conserva: sustituida" -- recupera
+espera pasa "... y la marca cambiada también se conserva" "$PR/f: se conserva: su marca de propiedad no coincide" -- recupera
+espera pasa "... ninguna de las dos se borró" "" -- sh -c 'test -f "$1/e/testigo" && test -f "$1/f/testigo" && test -d "$1/e.orig"' _ "$PR"
+rm -rf "$PR/e"; ln -s "$PR/e.orig" "$PR/e"
+espera pasa "un enlace en su lugar: se conserva como sustituida (no se sigue el enlace)" "$PR/e: se conserva: sustituida" -- recupera
+espera pasa "... y el destino del enlace sigue intacto" "" -- test -f "$PR/e.orig/.suite-propia"
+rm -f "$PR/e" "$REG/$TE.propia" "$REG/$TF.propia"; rm -rf "$PR/f"
+# Incertidumbre: reclamación dañada o ps que falla → no se borra nada.
+dueno d5; mkdir "$PR/g"; TG=$(reclama "$PR/g" --dueno "$(pid_de cp1/d5)"); testigo "$PR/g"
+echo '{roto' > "$REG/zz.propia"
+espera pasa "con una reclamación dañada no se recupera nada (no comprobable)" "se conserva: no comprobable" -- recupera
+espera pasa "... la carpeta sigue" "" -- test -f "$PR/g/testigo"
+echo '{"token": "zz"}' > "$REG/zz.propia"
+espera pasa "... ni con una reclamación legible a la que le faltan campos" "se conserva: no comprobable" -- recupera
+espera pasa "... la carpeta sigue" "" -- test -f "$PR/g/testigo"
+rm -f "$REG/zz.propia"; : > "$W/ps-falla"
+espera pasa "con ps fallando (dueño vivo, su identidad no comprobable), se conserva" "$PR/g: se conserva: no comprobable" -- recupera
+espera pasa "... la carpeta sigue" "" -- test -f "$PR/g/testigo"
+rm -f "$W/ps-falla"; kill "$(pid_de cp1/d5)"; hasta 5 sh -c '! kill -0 "$1" 2>/dev/null' _ "$(pid_de cp1/d5)"
+espera pasa "comprobable de nuevo, se recupera" "recupero la carpeta propia $PR/g" -- recupera
+# Nunca por nombre: carpetas sin reclamación con nombres de las propias no se tocan.
+mkdir -p "$PR/sabotaje-x" "$PR/precommit-snap.x"; testigo "$PR/sabotaje-x"; testigo "$PR/precommit-snap.x"
+recupera > /dev/null 2>&1; corre --plazo 20 -- true > /dev/null 2>&1
+espera pasa "carpetas sin reclamación (aunque se llamen como las propias) no se tocan" "" -- sh -c 'test -f "$1/sabotaje-x/testigo" && test -f "$1/precommit-snap.x/testigo"' _ "$PR"
 
 echo
 if [ "$MAL" -eq 0 ]; then echo "regresion-suite: $TOTAL casos, todos pasan."; exit 0; fi

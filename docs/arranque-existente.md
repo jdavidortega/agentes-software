@@ -168,9 +168,15 @@ que el proyecto ya modificó no se sustituye: es una integración manual con la 
   proyecto. Su integración con la estructura del método se hace en la Fase 1, **siempre que
   el doctor lo acepte ya** (paso G); si no, se integra aquí lo mínimo para que lo acepte.
 - **Hooks y CI existentes:** si `core.hooksPath` apunta a otra carpeta o hay hooks propios
-  en `.git/hooks`, se acuerda cómo conviven **antes** de activar los del método (p. ej.
-  llamarlos desde `.githooks/`). `.github/workflows/metodo.yml` solo aplica a GitHub
+  en `.git/hooks`, se acuerda cómo conviven **antes** de activar los del método: con
+  `core.hooksPath=.githooks`, git deja de ejecutar `.git/hooks`. Un hook propio que pasa a
+  `.githooks/` es código del proyecto, no del método (los del método son `commit-msg` y
+  `pre-commit`): se integra en un commit del proyecto **anterior a la base** del paso H, que
+  no se juzga, o después con `Ref: I<n>`. `.github/workflows/metodo.yml` solo aplica a GitHub
   Actions; en otro CI se copian sus comandos (`docs/convenciones.md` §Git).
+- **Archivo propio con el nombre de un script, hook o workflow del método:** se conserva y
+  queda en «Omitidos por colisión» del manifiesto. **Defecto pendiente:** el `commit-msg` todavía
+  lo exime por su nombre, como si fuera del método; se anota en «Pendiente» del gate del Paso 0.
 
 **E. Brief de adopción.** Un archivo corto en `contexto/` (p. ej. `contexto/brief-adopcion.md`)
 con lo que el repositorio no dice: por qué se adopta el método, **qué trabajo se prioriza**

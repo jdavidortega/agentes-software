@@ -307,6 +307,62 @@ copia instalado r9; printf 'assert 2 + 2 == 4\n' >> "$D/app.py"; sin_hooks "$D" 
 Ref: F1"
 espera falla "commit posterior que toca código sin Ref: I<n>: rechazado por el replay" "código fuera del rastro" -- replay "$D" HEAD
 
+echo "== base del método: proyecto con workflows y pruebas propias"
+# Lo previo a la adopción no se juzga ni se reescribe; la instalación de la instrumentación pasa
+# con Ref: F1; después, sus workflows y pruebas propias son producto y sus documentos, rastro.
+copia existente pp; PP="$D"
+mkdir -p "$PP/.github/workflows" "$PP/scripts/pruebas"
+printf 'name: ci\non: push\n' > "$PP/.github/workflows/ci.yml"
+printf '# Cómo contribuir\n' > "$PP/.github/README.md"
+printf '#!/bin/sh\npython3 app.py\n' > "$PP/scripts/pruebas/prueba_propia.sh"
+# Un archivo propio con el nombre de uno del método: la instalación lo conserva (colisión). Que el
+# commit-msg lo siga eximiendo por su nombre es un defecto pendiente; aquí solo se prueba la instalación.
+printf '#!/bin/sh\necho suite propia\n' > "$PP/scripts/pruebas/regresion-suite.sh"; cp "$PP/scripts/pruebas/regresion-suite.sh" "$W/suite-propia.orig"
+# Un hook previo local (.git/hooks) dejaría de correr con core.hooksPath=.githooks: se integra en un
+# commit del proyecto previo a la base, que no se juzga.
+printf '#!/bin/sh\necho x >> "$(git rev-parse --git-dir)/pre-push.marca"\n' > "$PP/.git/hooks/pre-push"; chmod +x "$PP/.git/hooks/pre-push"
+mkdir -p "$PP/.githooks"; cp "$PP/.git/hooks/pre-push" "$PP/.githooks/pre-push"
+sin_hooks "$PP" "ci, guía, pruebas y hook propios"
+PREVIO_PP=$(en "$PP" git rev-parse HEAD)
+adoptar "$P" copiar "$PP" >/dev/null
+en "$PP" git rm -q --cached config/.env.prod
+adoptar "$P" gitignore "$PP" --aplicar >/dev/null
+base_decl "$PP" "- **Base del método:** $PREVIO_PP"
+fase "$PP" F1
+en "$PP" git config core.hooksPath .githooks
+espera pasa "propios previos: commit de instalación aceptado (Ref: F1)" "" -- commitea "$PP" "Instalación del método (adopción)
+
+Ref: F1"
+espera pasa "propios previos: la instalación conserva intactos el workflow, la guía y la prueba propios" "" -- en "$PP" git diff --quiet "$PREVIO_PP" HEAD -- .github/workflows/ci.yml .github/README.md scripts/pruebas/prueba_propia.sh
+espera pasa "propios previos: ... e instala a su lado el workflow y la regresión del método" "" -- sh -c 'cd "$1" && git cat-file -e HEAD:.github/workflows/metodo.yml && git cat-file -e HEAD:scripts/pruebas/regresion.sh' sh "$PP"
+espera pasa "propios previos: el replay no juzga lo previo a la base" "1/1 commits cumplen" -- replay "$PP" HEAD
+rm -rf "$W/etapas/propios"; cp -R "$PP" "$W/etapas/propios"
+copia propios pp1; printf '  # paso nuevo\n' >> "$D/.github/workflows/ci.yml"
+espera falla "propios previos: cambiar su workflow con Ref: F1 se rechaza" "código fuera del rastro" -- commitea "$D" "ci
+
+Ref: F1"
+copia propios pp2; printf 'echo listo\n' >> "$D/scripts/pruebas/prueba_propia.sh"
+espera falla "propios previos: cambiar su prueba propia con Ref: F1 se rechaza" "código fuera del rastro" -- commitea "$D" "prueba
+
+Ref: F1"
+copia propios pp3; printf '\nMás detalle.\n' >> "$D/.github/README.md"
+espera pasa "propios previos: cambiar su guía de .github/ con Ref: F1 se acepta" "" -- commitea "$D" "guía
+
+Ref: F1"
+espera pasa "propios previos: la colisión de nombre queda registrada en el manifiesto" "" -- grep -qx -- '- scripts/pruebas/regresion-suite.sh' "$PP/contexto/adopcion.md"
+espera pasa "propios previos: el archivo propio colisionado no se sobrescribe" "" -- cmp -s "$W/suite-propia.orig" "$PP/scripts/pruebas/regresion-suite.sh"
+copia propios pp5; printf '\n# nota\n' >> "$D/scripts/pruebas/regresion.sh"
+espera pasa "propios previos: cambiar un archivo del método instalado con Ref: F1 se acepta" "" -- commitea "$D" "actualiza el método
+
+Ref: F1"
+copia propios pp7; printf 'echo cambio\n' >> "$D/.githooks/pre-push"
+espera falla "propios previos: cambiar el hook previo integrado con Ref: F1 se rechaza" "pre-push" -- commitea "$D" "hook
+
+Ref: F1"
+copia propios pp8; en "$D" git init -q --bare "$W/pp8-remoto.git"; rm -f "$D/.git/pre-push.marca"
+en "$D" git push -q "$W/pp8-remoto.git" HEAD:refs/heads/main >/dev/null 2>&1 || die "no pude empujar al remoto local de prueba"
+espera pasa "propios previos: el hook previo integrado sigue corriendo con los hooks del método activos" "" -- test -s "$D/.git/pre-push.marca"
+
 echo "== etapa: adoptado en F3 (encuadre revisado, plan aprobado, I1 cerrado)"
 # Los controles comunes se prueban también DESPUÉS de la instalación: mismas utilidades que regresion.sh.
 huella_idx() { en "$1" git add -A >/dev/null 2>&1; en "$1" sh scripts/huella.sh indice; }

@@ -369,8 +369,12 @@ revertir) vive en docs/despliegue.md. -->
   Histórico en HEAD desaparece, y una fila que pasa a `resuelto` o `verificado` lleva en «Resuelto»
   una referencia que **resuelve** (ruta `archivo:línea` del índice o commit del historial); que
   **demuestre** la resolución lo juzga el revisor. **El código del producto** —todo lo que no es
-  rastro, plantilla ni configuración: lista `SIN_REVISION` del `commit-msg`— entra solo con
-  `Ref: I<n>` y recibo del juez; ampliar esa lista es un ADR.
+  rastro, plantilla ni configuración del repositorio: lista `SIN_REVISION` del `commit-msg`; la
+  configuración operativa del producto (sus workflows de `.github/`, cualquier `CODEOWNERS`,
+  también en `docs/`), sus pruebas propias en `scripts/pruebas/` y sus hooks propios
+  en `.githooks/` cuentan como producto; un renombrado cuenta por su origen y su destino— entra solo
+  con `Ref: I<n>` y recibo del juez; ampliar esa lista es un ADR. Defecto pendiente: un archivo
+  propio que colisionó en la adopción con uno del método queda exento por su nombre.
 
 ## Revisores y sandbox
 

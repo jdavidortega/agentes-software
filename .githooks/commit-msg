@@ -54,12 +54,12 @@ if [ -n "${REV:-}" ]; then
   BASE=$(git rev-parse --verify -q "$REV^" 2>/dev/null || git hash-object -t tree /dev/null)
   idx() { git show "$REV:$1" 2>/dev/null; }
   HUELLA=$(sh scripts/huella.sh commit "$REV" 2>/dev/null)
-  cambios=$(git -c core.quotePath=false diff --name-only "$BASE" "$REV")
+  cambios=$(git -c core.quotePath=false diff --name-only --no-renames "$BASE" "$REV")
 else
   BASE=$(git rev-parse --verify -q HEAD 2>/dev/null || git hash-object -t tree /dev/null)
   idx() { git show ":$1" 2>/dev/null || cat "$1" 2>/dev/null; }
   HUELLA=$(sh scripts/huella.sh indice 2>/dev/null)
-  cambios=$(git -c core.quotePath=false diff --cached --name-only "$BASE")
+  cambios=$(git -c core.quotePath=false diff --cached --name-only --no-renames "$BASE")
 fi
 # ¿BASE es un commit (hay historial) o el árbol vacío?
 HAY_HISTORIAL=0; git rev-parse --verify -q "$BASE^{commit}" >/dev/null 2>&1 && HAY_HISTORIAL=1
@@ -111,7 +111,7 @@ if [ "$(printf '%s\n' $padres | grep -c .)" -ge 2 ]; then
   [ -n "$limpio" ] && [ "$limpio" = "$cand" ] && MERGE_LIMPIO=1
   if [ "$MERGE_LIMPIO" -eq 1 ]; then :; elif [ -n "$limpio" ]; then
     # Lo que el merge añade por su cuenta es la diferencia con la fusión automática.
-    cambios=$(git -c core.quotePath=false diff --name-only "$limpio" "$cand")
+    cambios=$(git -c core.quotePath=false diff --name-only --no-renames "$limpio" "$cand")
     MERGE_SUCIO=$(printf '%s\n' "$cambios" | head -3 | tr '\n' ' ')
   else
     MERGE_SUCIO="(fusión con conflictos o de más de dos padres: todo su contenido cuenta)"
@@ -124,13 +124,29 @@ trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
 [ -n "$HUELLA" ] || fail "no pude calcular la huella (scripts/huella.sh)."
 
 # Rutas que un commit puede tocar SIN `Ref: I<n>`: el rastro documental, las entradas, las
-# notas locales, la instrumentación del método (hooks, scripts de la plantilla, agentes y
-# skills) y la configuración del repositorio. Ampliarla es una decisión (ADR), no un atajo.
-SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents|\.githooks|\.github|scripts/pruebas)/|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check_docs\.sh|scripts/adoptar\.sh|scripts/buscar\.sh|scripts/huella\.sh|scripts/recibos\.sh|scripts/trazabilidad\.sh|scripts/guardas\.sh|scripts/consumo\.py|scripts/suite\.py|scripts/check\.sh)$|(^|/)\.env\.example$'
+# notas locales, la instrumentación del método y la configuración del repositorio. Ampliarla es
+# una decisión (ADR), no un atajo. Una carpeta que mezcla método y producto no se exime entera:
+# - METODO: la instrumentación del método, archivo por archivo. De .githooks/ solo sus dos hooks;
+#   un hook propio del proyecto (pre-push, hooks previos integrados) es código y entra con Ref: I<n>.
+#   De scripts/pruebas/, solo las regresiones y el validador; las pruebas propias son producto.
+# - .github/: además de metodo.yml, solo los documentos puramente informativos, nombrados uno a uno
+#   (README, guías de contribución, conducta, seguridad, soporte y plantillas de issue y de PR en
+#   Markdown). Los demás workflows, acciones y archivos de .github/ son configuración operativa del
+#   producto (CI, despliegue, dependencias, propietarios, instrucciones de agentes).
+METODO='^(\.github/workflows/metodo\.yml|\.githooks/(commit-msg|pre-commit)|scripts/pruebas/(regresion|regresion-suite|regresion-adopcion|validar_historial)\.sh|scripts/(check_docs|adoptar|buscar|huella|recibos|trazabilidad|guardas)\.sh|scripts/(consumo|suite)\.py)$'
+SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents)/|^\.github/((README|CONTRIBUTING|CODE_OF_CONDUCT|SECURITY|SUPPORT|PULL_REQUEST_TEMPLATE|pull_request_template)\.md|(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE)/[^/]+\.md)$|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check\.sh)$|(^|/)\.env\.example$|'"$METODO"
+# Siempre producto aunque viva en una carpeta del rastro: CODEOWNERS decide quién aprueba y GitHub
+# lo lee de .github/, la raíz o docs/ (las dos primeras ya están fuera de SIN_REVISION).
+SIEMPRE_REVISION='^docs/CODEOWNERS$'
 # Un .env.example (plantilla sin valores) en cualquier carpeta es configuración, como en guardas.sh.
 # Quitar un .env versionado es la corrección de un secreto, no código: no exige `Ref: I<n>`.
 en_candidato() { if [ -n "${cand:-}" ]; then git cat-file -e "$cand:$1" 2>/dev/null; else git ls-files --error-unmatch -- "$1" >/dev/null 2>&1; fi; }
-codigo=$(printf '%s\n' "$cambios" | grep -vE "$SIN_REVISION" | grep . | while IFS= read -r f; do
+# Límite conocido, defecto pendiente (no es un riesgo aceptado): un archivo propio de un proyecto
+# adoptado que se llama como uno de METODO («Omitidos por colisión» de contexto/adopcion.md) queda
+# exento por su nombre. Este hook no comprueba la procedencia; su diseño va aparte.
+codigo=$(printf '%s\n' "$cambios" | grep . | while IFS= read -r f; do
+  if printf '%s\n' "$f" | grep -qE "$SIEMPRE_REVISION"; then printf '%s\n' "$f"; continue; fi
+  printf '%s\n' "$f" | grep -qE "$SIN_REVISION" && continue
   printf '%s' "$f" | grep -qE '(^|/)\.env($|\.)' && ! en_candidato "$f" && continue
   printf '%s\n' "$f"
 done)

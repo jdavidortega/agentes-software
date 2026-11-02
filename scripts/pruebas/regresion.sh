@@ -956,6 +956,117 @@ copia f3 b4; echo "- nota" >> "$D/docs/MEMORIA.md"
 espera pasa "solo rastro (docs/) con Ref: F1 se acepta" "" -- commitea "$D" "memoria
 
 Ref: F1"
+# M10: de .github/ solo el workflow del método es instrumentación; los demás workflows y la
+# configuración de .github/ son configuración operativa del producto y exigen Ref: I<n>.
+copia f3 b5; mkdir -p "$D/.github/workflows"; printf 'name: despliegue\non: push\n' > "$D/.github/workflows/despliegue.yml"
+espera falla "workflow del producto (.github/workflows/despliegue.yml) con Ref: F1 se rechaza" "sin 'Ref: I<n>'" -- commitea "$D" "ci del producto
+
+Ref: F1"
+copia f3 b6; mkdir -p "$D/.github"; printf 'version: 2\n' > "$D/.github/dependabot.yml"
+espera falla "configuración del producto en .github/ (dependabot.yml) con Ref: F1 se rechaza" "sin 'Ref: I<n>'" -- commitea "$D" "dependencias
+
+Ref: F1"
+copia f3 b7; mkdir -p "$D/.github/workflows"; printf 'name: metodo\non: push\n' > "$D/.github/workflows/metodo.yml"
+espera pasa "el workflow del método (.github/workflows/metodo.yml) con Ref: F1 se acepta" "" -- commitea "$D" "ci del método
+
+Ref: F1"
+copia f3 b8; mkdir -p "$D/.github/workflows"; printf 'name: despliegue\non: push\n' > "$D/.github/workflows/despliegue.yml"
+recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera pasa "workflow del producto con Ref: I2 y recibo vigente se acepta" "" -- commitea "$D" "ci del producto
+
+Ref: I2"
+# Documentos puramente informativos de .github/, nombrados uno a uno: no por su extensión.
+copia f3 b9; mkdir -p "$D/.github"; printf '# Guía del repositorio\n' > "$D/.github/README.md"
+espera pasa "documento informativo (.github/README.md) con Ref: F1 se acepta" "" -- commitea "$D" "guía
+
+Ref: F1"
+copia f3 b10; mkdir -p "$D/.github/ISSUE_TEMPLATE"; printf '# Error\n\nPasos para reproducir.\n' > "$D/.github/ISSUE_TEMPLATE/error.md"
+espera pasa "plantilla de issue en Markdown con Ref: F1 se acepta" "" -- commitea "$D" "plantilla de issue
+
+Ref: F1"
+copia f3 b11; mkdir -p "$D/.github"; printf 'Usa siempre la API v2.\n' > "$D/.github/copilot-instructions.md"
+espera falla "un .md operativo de .github/ (instrucciones de agente) con Ref: F1 se rechaza" "sin 'Ref: I<n>'" -- commitea "$D" "instrucciones
+
+Ref: F1"
+copia f3 b12; mkdir -p "$D/.github"; printf '* @equipo\n' > "$D/.github/CODEOWNERS"
+espera falla "propietarios de revisión (.github/CODEOWNERS) con Ref: F1 se rechaza" "sin 'Ref: I<n>'" -- commitea "$D" "propietarios
+
+Ref: F1"
+# scripts/pruebas/: solo las regresiones y el validador del método; una prueba propia es producto.
+copia f3 b13; mkdir -p "$D/scripts/pruebas"; printf '#!/bin/sh\npython3 app.py\n' > "$D/scripts/pruebas/prueba_propia.sh"
+espera falla "prueba propia del producto en scripts/pruebas/ con Ref: F1 se rechaza" "sin 'Ref: I<n>'" -- commitea "$D" "prueba propia
+
+Ref: F1"
+copia f3 b14; mkdir -p "$D/scripts/pruebas"; printf '#!/bin/sh\nexit 0\n' > "$D/scripts/pruebas/regresion-producto.sh"
+espera falla "un nombre que solo empieza como el del método (regresion-producto.sh) con Ref: F1 se rechaza" "sin 'Ref: I<n>'" -- commitea "$D" "regresión propia
+
+Ref: F1"
+copia f3 b15; mkdir -p "$D/scripts/pruebas"; printf '#!/bin/sh\npython3 app.py\n' > "$D/scripts/pruebas/prueba_propia.sh"
+recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera pasa "prueba propia con Ref: I2 y recibo vigente se acepta" "" -- commitea "$D" "prueba propia
+
+Ref: I2"
+copia f3 b16; mkdir -p "$D/scripts/pruebas"; printf '#!/bin/sh\n# regresión del método\n' >> "$D/scripts/pruebas/regresion.sh"; printf '#!/bin/sh\n' >> "$D/scripts/pruebas/validar_historial.sh"
+espera pasa "la instrumentación del método en scripts/pruebas/ con Ref: F1 se acepta" "" -- commitea "$D" "actualiza el método
+
+Ref: F1"
+# Renombrados: el origen y el destino cuentan (índice, replay y merge); si no, un git mv hacia una ruta
+# exenta retira un workflow o código sin Ref: I<n>.
+con_workflow() { mkdir -p "$D/.github/workflows"; printf 'name: escaneo\non: push\n' > "$D/.github/workflows/escaneo.yml"; printf '# Guía\n' > "$D/.github/README.md"; sin_hooks "$D" "producto con workflow" || die "no pude preparar el workflow del producto"; }
+copia f3 b17; con_workflow; en "$D" git mv .github/workflows/escaneo.yml docs/escaneo.yml
+espera falla "renombrar un workflow del producto hacia docs/ con Ref: F1 se rechaza" "escaneo\.yml" -- commitea "$D" "archiva
+
+Ref: F1"
+copia f3 b18; con_workflow; en "$D" git rm -q .github/workflows/escaneo.yml
+espera falla "control: borrar el workflow del producto con Ref: F1 se rechaza" "escaneo\.yml" -- commitea "$D" "borra
+
+Ref: F1"
+copia f3 b19; con_workflow; en "$D" git mv .github/README.md docs/guia.md
+espera pasa "renombrado documental (.github/README.md a docs/guia.md) con Ref: F1 se acepta" "" -- commitea "$D" "mueve la guía
+
+Ref: F1"
+copia f3 b20; en "$D" git mv app.py docs/app.py
+espera falla "renombrar código del producto hacia docs/ con Ref: F1 se rechaza" "app\.py" -- commitea "$D" "archiva código
+
+Ref: F1"
+copia f3 b21; con_workflow; en "$D" git mv .github/workflows/escaneo.yml docs/escaneo.yml; sin_hooks "$D" "archiva colado
+
+Ref: F1" || die "no pude colar el renombrado"
+espera falla "validar_historial rechaza el renombrado colado con --no-verify" "escaneo\.yml" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia f3 b22; con_workflow; en "$D" git checkout -q -b lado; printf 'n\n' > "$D/docs/nota.md"; sin_hooks "$D" "nota
+
+Ref: F1" || die "no pude preparar la rama"
+en "$D" git checkout -q -; printf 'm\n' > "$D/docs/otra.md"; sin_hooks "$D" "otra
+
+Ref: F1" || die "no pude preparar la principal"
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-commit lado >/dev/null 2>&1 || die "no pude preparar el merge"
+en "$D" git mv .github/workflows/escaneo.yml docs/escaneo.yml
+espera falla "merge que además renombra un workflow hacia docs/ con Ref: F1 se rechaza" "escaneo\.yml" -- en "$D" git -c core.hooksPath=.githooks commit -q -m "integra
+
+Ref: F1"
+# CODEOWNERS decide quién aprueba: GitHub lo lee de .github/, la raíz o docs/.
+copia f3 b23; printf '* @equipo\n' > "$D/docs/CODEOWNERS"
+espera falla "docs/CODEOWNERS con Ref: F1 se rechaza" "docs/CODEOWNERS" -- commitea "$D" "propietarios
+
+Ref: F1"
+copia f3 b24; printf '* @equipo\n' > "$D/CODEOWNERS"
+espera falla "CODEOWNERS en la raíz con Ref: F1 se rechaza" "CODEOWNERS" -- commitea "$D" "propietarios
+
+Ref: F1"
+# .githooks/: solo los dos hooks del método; un hook propio del proyecto es código.
+copia f3 b25; printf '#!/bin/sh\nexit 0\n' > "$D/.githooks/pre-push"; chmod +x "$D/.githooks/pre-push"
+espera falla "hook propio (.githooks/pre-push) con Ref: F1 se rechaza" "pre-push" -- commitea "$D" "hook propio
+
+Ref: F1"
+copia f3 b26; printf '#!/bin/sh\nexit 0\n' > "$D/.githooks/pre-push"; chmod +x "$D/.githooks/pre-push"
+recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera pasa "hook propio con Ref: I2 y recibo vigente se acepta" "" -- commitea "$D" "hook propio
+
+Ref: I2"
+copia f3 b27; printf '\n# comentario\n' >> "$D/.githooks/pre-commit"
+espera pasa "un hook del método (.githooks/pre-commit) con Ref: F1 se acepta" "" -- commitea "$D" "actualiza el hook
+
+Ref: F1"
 
 echo "== Recibos: caducado, FALLA, seguridad, log"
 copia f3 r1; printf 'x = 1\n' >> "$D/app.py"

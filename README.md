@@ -89,7 +89,7 @@ cualquier archivo con el mismo nombre. La copia la hace un script de la plantill
    sh scripts/adoptar.sh vista-previa /ruta/al/proyecto   # qué se copia, qué choca, qué se excluye
    ```
 
-3. **Copia.** `sh scripts/adoptar.sh copiar /ruta/al/proyecto` escribe en el proyecto los
+3. **Copia**, tras revisar la vista previa. `sh scripts/adoptar.sh copiar /ruta/al/proyecto` escribe en el proyecto los
    archivos del método que faltan y crea `contexto/adopcion.md`, la lista de lo instalado.
    No hace commit: el commit de instalación lo hace el agente en el paso 4. La primera copia
    se rechaza si el proyecto no tiene commits o tiene cambios sin commitear (paso 1).

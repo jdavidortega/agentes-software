@@ -109,7 +109,8 @@ agente **se detiene** y pide resolverla.
   abierto queda en una de dos situaciones, escrita en el documento junto a él: **preguntado**
   (`[FALTA · preguntado]`), si la siguiente decisión lo necesita, con su pregunta en el chat; o
   **diferido** (`[FALTA · diferido: <qué decisión o trabajo bloquea>; <cuándo se resuelve>]`),
-  listado en el campo «Pendiente» del gate y sin construir nada sobre él. Pedir «confirma o
+  listado en el campo «Pendiente» del gate y sin construir nada sobre él (en la adopción se escribe
+  `[pendiente: …]` con los mismos datos; `docs/arranque-existente.md` §Fase 1). Pedir «confirma o
   corrige el documento» no cuenta como pregunta, y un dato no es a la vez `[FALTA]` y
   `[supuesto]`: se pregunta o se difiere.
 - **Las decisiones, aparte.** Una decisión de alto impacto que sigue pendiente de autorización

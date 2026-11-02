@@ -167,8 +167,15 @@ clasificación por aspecto (no por ticket) y la revalidación de la Fase 4 si to
 
 Antes de hacer cualquiera de estas cosas, **párate y pide aprobación explícita**.
 No las generalices: una aprobación es por acción, no permanente, y cubre solo lo que se
-preguntó: «continúa» no autoriza lo que no estaba en la pregunta (p. ej. publicar), que nadie
-objete no es aprobar y «no sé» es incertidumbre, no un dato negativo.
+preguntó y la respuesta toca: una pregunta de aprobación queda aprobada cuando la respuesta la
+aprueba inequívocamente, directamente o por referencia (también al aprobar el conjunto en que va);
+mencionarla, rechazarla o aplazarla no la autoriza, y si la respuesta contesta otras cosas y termina
+en «continúa», las que no aprueba siguen pendientes y se vuelven a pedir. «Continúa»
+tampoco autoriza lo que no estaba en la pregunta (p. ej. publicar). Una aprobación anticipada (previa
+a la pregunta) vale cuando una instrucción de la persona autoriza inequívocamente esa acción y delimita su
+alcance y condiciones; vale sin volver a pedirla, y una instrucción general de seguir el método no
+sustituye la revisión o aprobación que el método exige. Que nadie objete no es aprobar y «no sé» es
+incertidumbre, no un dato negativo.
 
 - Agregar una nueva dependencia o librería.
 - Introducir una abstracción nueva (capa, patrón, framework).

@@ -20,7 +20,8 @@ la evidencia, decisiones aparte, hallazgo ≠ decisión, ADR con hora UTC, etiqu
 
 **Pasada de coherencia (antes de cada gate de este guion).** El doctor y los hooks prueban
 integridad estructural, no que lo escrito sea coherente. Antes de pedir un gate, el agente
-responde por escrito, en el resumen del gate, cinco preguntas:
+responde por escrito cinco preguntas en `docs/estado.md`, y el gate las cita en su campo
+«Verificación» con su resultado y la referencia:
 1. ¿Queda algún **ejemplo de la plantilla** en lo que este paso tocó (`docs/estado.md`,
    tabla de criterios, manifiesto de `contexto/README.md`, `docs/decisiones.md`)?
 2. ¿`docs/estado.md` distingue **lo terminado**, **lo pendiente de aprobación** y **lo que
@@ -31,9 +32,9 @@ responde por escrito, en el resumen del gate, cinco preguntas:
    se neutralizó, resultado)?
 5. ¿Queda algún ADR `propuesta` **asignado a este gate**? Un gate no se cruza con decisiones
    suyas abiertas: se deciden, o se reasignan **con razón** a una actividad posterior. Una
-   elección pendiente es ADR; un **hecho desconocido** no (va a §Pendientes con impacto y quién).
+   elección pendiente es ADR; un **hecho desconocido** no (va a §Pendientes con impacto, quién y cuándo).
 
-El resultado queda también en `docs/estado.md`: **una línea breve por pregunta**, con la
+El resultado queda en `docs/estado.md`: **una línea breve por pregunta**, con la
 respuesta y su evidencia referenciada (no copiada), y lo que quedó pendiente. Así el revisor
 puede comprobar cada respuesta y no solo que la pasada ocurrió.
 
@@ -95,7 +96,8 @@ se decide con la persona antes de seguir.
 ## Paso 0 · Adopción (instalar el método sin tocar el producto)
 
 Pasos A–C los corre la persona (o el agente a su pedido) **desde la plantilla**; D–H, el
-agente **dentro del proyecto**. Ninguno modifica la lógica del producto.
+agente **dentro del proyecto**. Ninguno modifica la lógica del producto. Pedir al agente que corra los
+pasos no aprueba por sí solo la copia (C) ni las integraciones (D): esas siguen su propia autorización.
 
 **A. Inspección previa** (solo lectura).
 `sh scripts/adoptar.sh inspeccionar <ruta-del-proyecto>` registra commit actual, cambios
@@ -126,7 +128,13 @@ para que la instalación pueda distinguirse de ello.
 qué **afecta el autodescubrimiento del agente** desde que se copia (`.claude/`,
 `CLAUDE.md`, `AGENTS.md`), qué colisiona y se conserva, qué queda **excluido
 deliberadamente** (README.md, .gitignore, mejoras/) y qué integraciones quedan a mano.
-La persona revisa antes de copiar.
+La vista previa siempre se revisa antes de copiar: la revisa la persona o, si existe una
+aprobación anticipada válida que cubre esta operación (`AGENTS.md` §3), el agente comprueba contra
+ella sus condiciones. Antes de ejecutar C, el agente identifica la autorización aplicable —la
+respuesta de la persona a esta vista previa o esa aprobación anticipada— y comprueba que la copia está
+dentro de su alcance y condiciones (p. ej. «sin colisiones», «solo archivos del método»). Si la pregunta de aprobación de la copia sigue sin respuesta,
+una continuación condicionada («continúa hasta donde el método te permita») no la resuelve: se vuelve
+a pedir.
 
 **C. Copia de lo ausente.**
 `sh scripts/adoptar.sh copiar <ruta>` copia solo archivos que no existen y crea
@@ -217,8 +225,10 @@ inventario de paquetes describe el entorno observado; no prueba que pueda recons
 - Fila del brief y del manifiesto de instalación en el manifiesto de `contexto/README.md`,
   sin las filas de ejemplo.
 - En `docs/estado.md`, una línea con la **vista previa revisada**: cuántos archivos se copian,
-  colisiones, excluidos, quién la revisó y cuándo (o «aprobación anticipada de la persona», si
-  así fue). Es la evidencia del primer ítem del validador.
+  colisiones, excluidos, quién la revisó, cuándo y contra qué condiciones, y la instrucción o respuesta de la persona que
+  autorizó la copia, citada, con su alcance y las condiciones comprobadas. «Aprobación anticipada» sin
+  esa cita no acredita permiso, y no se registra una autorización que no existió. Es la evidencia del
+  primer ítem del validador.
 - Commit con `Ref: F1`, sin tocar código del producto (el hook lo rechazaría). Comprueba
   `sh scripts/pruebas/validar_historial.sh HEAD`: debe validar solo el commit de instalación.
 - Se trabaja según la estrategia de ramas del proyecto y el destino de integración acordado (paso
@@ -226,7 +236,8 @@ inventario de paquetes describe el entorno observado; no prueba que pueda recons
   cuándo se integra.
 
 **Validador del Paso 0 (PASA/FALLA):**
-- [ ] La inspección no tiene bloqueos y la vista previa revisada consta en `docs/estado.md`.
+- [ ] La inspección no tiene bloqueos y la vista previa revisada consta en `docs/estado.md`, con la
+  autorización de la copia citada.
 - [ ] `git diff --stat <base>..HEAD` solo muestra archivos del método, `contexto/`,
   `docs/`, `scripts/check.sh`, `.gitignore` y, si se aprobó, la retirada de secretos. El
   README y los archivos en colisión están **idénticos** a la base.
@@ -240,8 +251,10 @@ inventario de paquetes describe el entorno observado; no prueba que pueda recons
 - [ ] Pasada de coherencia respondida (cinco preguntas) sin ningún «sí» pendiente en la 1 y la 5
   ni «no» en las 2–4.
 
-**Gate del Paso 0:** resumen ejecutivo: qué se instaló, qué se conservó, qué quedó
-pendiente de integrar, cómo está la suite, y que lo siguiente es **entender el sistema**.
+**Gate del Paso 0:** con la plantilla única de `docs/convenciones.md` §Redacción; en sus campos:
+«Resultado», qué se instaló y qué se conservó; «Verificación», cómo está la suite y la pasada de
+coherencia (resultado y referencia a `docs/estado.md`); «Pendiente», qué quedó por integrar, las
+aprobaciones aún sin respuesta y los hechos pendientes; «Siguiente paso», **entender el sistema**.
 
 ---
 
@@ -276,8 +289,10 @@ de citarla. Un revisor repite una entrada con `repetir` (no escribe) y registra 
 su directorio autorizado.
 Para lo demás: `[documentado por el proyecto: archivo:línea]` (lo que dicen el README, otros documentos
 del repositorio o un **comentario** del código: es intención declarada, **no** comportamiento comprobado),
-`[de contexto/: archivo]` (documentos aportados en `contexto/`) y `[pendiente: quién lo confirma]`
-(hechos que solo la persona u operación saben). El encuadre declara una vez el
+`[de contexto/: archivo]` (documentos aportados en `contexto/`) y
+`[pendiente: quién lo confirma; cuándo; qué decisión o trabajo bloquea]` (hechos que solo la persona u
+operación saben). Es la forma que toma en la adopción el `[FALTA · diferido: …]` de `docs/arranque.md`
+§Transversal: lleva los mismos datos y no se marca dos veces. El encuadre declara una vez el
 **commit evaluado**; cada `C#` y cada hallazgo citan `archivo:línea` de ese commit.
 
 **Si la verificación dinámica está bloqueada** (paso F: herramienta ausente, dependencias no
@@ -303,7 +318,8 @@ verificar** por eso (p. ej. «TTL y concurrencia de Redis no verificados»), en 
 
 **Desconocidos: hecho pendiente ≠ elección.** Un dato que solo la persona u operación sabe
 (parámetros desplegados, política de una capa externa, tiempos reales) es un **hecho
-pendiente de confirmar**: se escribe con su impacto y quién lo confirma, sin ADR. Solo hay
+pendiente de confirmar**: se escribe con su impacto (qué decisión o trabajo bloquea), quién lo
+confirma y cuándo se resuelve, sin ADR. Solo hay
 ADR (`propuesta`) cuando hay una **elección** entre opciones. Un pendiente no bloquea la
 Fase 1 si ninguna garantía que se declare verificada depende de él.
 
@@ -400,7 +416,7 @@ la adopción sin la autorización puntual de la persona (`AGENTS.md` §3).
 - [ ] §Cómo funciona lista los parámetros críticos (aunque coincidan con su valor por defecto).
 - [ ] `docs/convenciones.md` abre con «Observado en este proyecto» (configurar, levantar,
   probar, aplicar un cambio; estilo) y conserva las reglas de la plantilla.
-- [ ] Cada `[pendiente]` con impacto y quién lo confirma.
+- [ ] Cada `[pendiente]` con impacto, quién lo confirma y cuándo se resuelve.
 - [ ] Revisor funcional en PASA y pasada de coherencia respondida y anotada en `docs/estado.md`.
 
 **Gate de la Fase 1:** la persona confirma el encuadre y la **ruta del ciclo** con sus criterios.

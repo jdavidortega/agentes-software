@@ -57,9 +57,10 @@ que está bien protegido—, rellenando el incremento y el rango del diff:
 > el reporte con su formato exacto (Veredicto · Bloqueantes `R-S#.n` con severidad,
 > confianza y remediación y filas listas · Sugerencias · Cobertura y limitaciones ·
 > Obstáculos · Recibo generado con `sh scripts/recibos.sh linea …`: tú declaras veredicto,
-> bloqueantes, ejecutor y modalidad; la herramienta pone fecha y huella). No escribas
-> en ningún archivo, no uses la red ni
-> ataques ningún sistema vivo: todo va en el reporte.
+> bloqueantes, ejecutor y modalidad; la herramienta pone fecha y huella). No compongas
+> ningún comando que escriba, no uses la red ni ataques ningún sistema vivo; corre solo los
+> chequeos autorizados que nombra el encargo, en sus destinos
+> (`.claude/skills/dirigiendo-revisiones/SKILL.md` §Chequeos autorizados): todo va en el reporte.
 
 ## Insumos
 

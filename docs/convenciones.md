@@ -87,15 +87,29 @@ activa, sin relleno ni adornos; una sigla se define la primera vez que aparece; 
 documentos de cara a terceros (README, ADRs, `encuadre.md`) se escriben para un lector
 **externo al proyecto**. Concreto > elegante.
 
-**El cierre (de fase, de incremento o un gate) es un resumen ejecutivo** (≤15 líneas,
-`AGENTS.md` §2), con esta forma; las actualizaciones intermedias no la usan:
-**Estado:** terminado técnicamente; pendiente de tu aprobación. **Resultado:** qué se consiguió
-y lo decidido con su enunciado («C3 «exportar-excel»: el reporte mensual se exporta a Excel con
-las columnas de la vista»); un ejemplo si ayuda. **Verificación:** qué pasó y qué no se comprobó.
-**README y rama:** el resultado de la revisión del README; integración recomendada, mantener o ya
-incorporado. **Pendiente:** decisiones y trabajo restante, por separado. **Siguiente paso:** la
-acción concreta recomendada. **Acción tuya:** la pregunta exacta («¿Apruebas I3 «exportar-excel»
-y empiezo I4?»). **Detalle:** dónde está (`docs/plan.md` §Incrementos, ADR «Exportar con openpyxl»).
+**El cierre (de fase, de incremento o un gate) es un resumen ejecutivo** (`AGENTS.md` §2) y se
+escribe copiando esta plantilla, que es su única definición; las actualizaciones intermedias no
+la usan:
+
+```text
+**Estado:** <terminado técnicamente; pendiente de tu aprobación — o bloqueado: qué falta>
+**Resultado:** <qué se consiguió y lo decidido con su enunciado>
+**Verificación:** <qué pasó y qué no se comprobó>
+**README y rama:** <resultado de la revisión del README; rama: integrar, mantener o ya incorporada>
+**Pendiente:** <decisiones y trabajo restante, por separado>
+**Siguiente paso:** <la acción concreta recomendada>
+**Acción tuya:** <la pregunta exacta>
+**Detalle:** <dónde está>
+```
+
+Los ocho campos van siempre, en este orden; uno sin contenido lleva «—» o «no aplica». **≤15
+líneas lógicas** (separadas por saltos de línea; el ancho de pantalla no cuenta), y cada campo en
+una o dos frases: un párrafo largo dentro de un campo incumple la brevedad aunque cumpla el
+contador. «Resultado» dice qué se consiguió y qué se pide aprobar; el inventario y los
+antecedentes van al Detalle. Las preguntas de datos y las decisiones pendientes que el gate
+necesite van después, en bloques propios. Ejemplo de enunciado: «C3 «exportar-excel»: el reporte mensual se exporta a Excel
+con las columnas de la vista»; de acción: «¿Apruebas I3 «exportar-excel» y empiezo I4?»; de
+detalle: «`docs/plan.md` §Incrementos, ADR «Exportar con openpyxl»».
 
 Todo mensaje que no es un cierre dice en qué caso está: **en curso** («Sigo trabajando; no
 necesitas responder»), **bloqueado** («Necesito X para continuar con Y») o **finalizado** («Lo
@@ -369,6 +383,9 @@ revertir) vive en docs/despliegue.md. -->
 ## Pruebas
 - **Herméticas:** sin dependencia de `.env` real ni de servicios externos; inyectar
   o mockear. Un test cuyo resultado cambia por un `.env` es frágil.
+- **Dónde escribe la suite:** _<rutas, todas ignoradas por git; se llena cuando nace
+  `scripts/check.sh`>_. Fuera de ellas, o si llama servicios o lee un `.env` real, se corre
+  en copia aislada (`.claude/skills/dirigiendo-revisiones/SKILL.md` §Chequeos autorizados).
 - **El camino principal siempre en la suite** y estrategia completa en
   `.claude/skills/probando-con-datos-reales/SKILL.md` (flujos reales, tests que aportan, mutation
   testing en Fase 4).

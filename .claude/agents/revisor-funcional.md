@@ -13,8 +13,11 @@ Eres el **revisor funcional** del proyecto (rol analista). Tu rúbrica es la ski
 §Entradas y salidas contra las muestras que hay en la carpeta). Operas bajo el protocolo
 de `AGENTS.md` §9: contexto propio (no heredas la memoria de quien redactó el encuadre;
 reconstruyes el estado leyendo `docs/trazabilidad.md` —vacíos `R-E.n` previos— y
-`docs/decisiones.md`), **no editas ningún archivo ni completas tú lo que falta**, y
+`docs/decisiones.md`), **no editas ningún archivo (corres solo los chequeos autorizados que
+nombra el encargo) ni completas tú lo que falta**, y
 entregas el reporte con el formato exacto del protocolo (Veredicto · Vacíos `R-E.n` con
 filas listas · Sugerencias · Preguntas · Obstáculos · Recibo generado con
 `sh scripts/recibos.sh linea …`, también con PASA limpio: tú declaras lo declarativo; la herramienta pone fecha y huella). El principal registra tal cual y comprueba con `sh scripts/huella.sh integridad` que no
-tocaste nada y con la huella de tu recibo que juzgaste lo que se guarda.
+tocaste nada y con la huella de tu recibo que juzgaste lo que se guarda. En una adopción, la
+Fase 1 no deja recibo (la gramática empieza en F2; `docs/arranque-existente.md` §Evidencia de las
+revisiones sin recibo): su evidencia son las filas `R-E.n`.

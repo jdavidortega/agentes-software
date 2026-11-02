@@ -1856,9 +1856,15 @@ espera pasa "un agente que no es revisor no se filtra" "" -- gr general-purpose 
 espera pasa "revisor en lectura: consultar git config pasa" "" -- gr juez-codigo 'git config core.hooksPath && git config --get user.name && git config --list > /dev/null'
 espera falla "revisor en lectura: escribir git config se rechaza" "git config \\(escritura\\)" -- gr juez-codigo 'git config user.name intruso'
 espera falla "revisor en lectura: git config --unset se rechaza" "git config \\(escritura\\)" -- gr juez-codigo 'git config --unset core.hooksPath'
+# El rechazo no puede leerse como «no corras nada»: dice que los chequeos autorizados siguen permitidos
+# (caso real de la ronda 14: un revisor citó «escritura permitida en ningún sitio» para no correr check.sh).
+espera falla "revisor en lectura: el rechazo de la prueba de bloqueo dice que los chequeos autorizados siguen permitidos" "Los chequeos autorizados .*siguen permitidos" -- gr revisor-funcional "touch $GW/.git/prueba-de-bloqueo"
+sin_ningun_sitio() { out=$(gr "$1" "$2" 2>&1); [ -n "$out" ] && ! printf '%s' "$out" | grep -q "en ningún sitio"; }
+espera pasa "revisor en lectura: el rechazo ya no dice «en ningún sitio»" "" -- sin_ningun_sitio juez-codigo "touch $GW/.git/prueba-de-bloqueo"
 printf 'experimentos %s/aut\n' "$GW" > "$GW/.git/revision-modalidad"
 espera pasa "revisor en experimentos: escribir en el directorio autorizado pasa" "" -- gr juez-conjunto "python3 x.py > $GW/aut/out.txt"
 espera falla "revisor en experimentos: escribir fuera del directorio autorizado se rechaza" "solo en $GW/aut" -- gr juez-conjunto 'cp a /tmp/b'
+espera falla "revisor en experimentos: el rechazo también dice que los chequeos autorizados siguen permitidos" "Los chequeos autorizados .*siguen permitidos" -- gr juez-conjunto 'cp a /tmp/b'
 # Cada escritura se juzga por su destino: nombrar el directorio autorizado en OTRO tramo no autoriza
 # (caso reproducido en la medición: prueba de bloqueo en la misma línea que el doctor con TMPDIR=<autorizado>).
 espera falla "experimentos: prueba de bloqueo sola se rechaza" "touch → $GW/.git/prueba-de-bloqueo" -- gr revisor-funcional "touch $GW/.git/prueba-de-bloqueo"

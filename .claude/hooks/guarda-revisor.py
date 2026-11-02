@@ -450,11 +450,13 @@ def main() -> int:
         if not fuera:
             return 0
         hits = fuera
-    where = f"solo en {allowed}" if kind == "experimentos" else "en ningún sitio"
+    where = f"tus comandos escriben solo en {allowed}" if kind == "experimentos" else "ningún comando tuyo escribe"
     print(
         f"guarda-revisor (filtro preventivo, no frontera): modalidad «{kind}» leída de "
-        f"{os.path.join(project, '.git', 'revision-modalidad')}, escritura permitida {where}. "
-        f"Bloqueado por: {', '.join(sorted(set(hits)))}. Si la revisión necesita escribir, pide al "
+        f"{os.path.join(project, '.git', 'revision-modalidad')}: {where}. "
+        f"Bloqueado por: {', '.join(sorted(set(hits)))}. Los chequeos autorizados "
+        f"(.claude/skills/dirigiendo-revisiones/SKILL.md §Chequeos autorizados) siguen permitidos en "
+        f"esta modalidad: córrelos tal cual. Si la revisión necesita escribir fuera de ellos, pide al "
         f"principal la modalidad «experimentos» con su directorio autorizado.",
         file=sys.stderr,
     )

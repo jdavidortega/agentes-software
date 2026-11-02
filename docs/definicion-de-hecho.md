@@ -52,8 +52,12 @@
   `.env` por defecto**. Nunca credenciales/rutas quemadas en el código.
 - [ ] **Pasada de seguridad, si el incremento toca superficie de riesgo** (entrada no
   confiable, authn/authz, secretos, persistencia, IaC/despliegue, IA/LLM): hecha, con
-  sus hallazgos `R-S#.n` cerrados y su recibo en `docs/revisiones.log`
-  (`.claude/skills/revision-seguridad/SKILL.md`). Si no la toca, el juez lo hace constar
+  sus hallazgos `R-S#.n` en `resuelto` (con su referencia que resuelve) o `verificado`,
+  **y** el recibo del juez de seguridad en PASA sobre la huella del contenido final en
+  `docs/revisiones.log` (una corrección cambia la huella: el juez de seguridad repasa antes
+  del PASA; `.claude/skills/revision-seguridad/SKILL.md`). El paso a `verificado` por un
+  revisor independiente es condición de salida de la Fase 3 (`AGENTS.md` §2), no del
+  commit del incremento. Si no la toca, el juez lo hace constar
   con `seguridad=no-aplica` en su recibo.
 - [ ] **Verificación con datos reales y sobre lo generado:** si el incremento toca
   datos o salida, se verificó de forma exploratoria sobre insumos reales

@@ -32,29 +32,32 @@ allowed-tools: Read, Grep, Glob, Bash
    (`$CLAUDE_PROJECT_DIR`), no del repositorio revisado: si son distintos (p. ej. el principal
    revisa otro repositorio desde la sesión de la plantilla), escríbela en el de la sesión y
    decláralo en el informe. El rechazo de la prueba de bloqueo muestra qué archivo se leyó.
-   - **lectura** (por defecto): el revisor no escribe en ningún sitio. Borra
-     `.git/revision-modalidad` o escribe en él `lectura`.
+   - **lectura** (por defecto): ningún comando del revisor escribe. Corre solo los chequeos de
+     la tabla §Chequeos autorizados, que escriben únicamente en los destinos listados; cualquier
+     otra escritura, la produzca quien la produzca, está fuera del encargo: no la ejecuta y la
+     reporta como obstáculo. Borra `.git/revision-modalidad` o escribe en él `lectura`.
    - **experimentos** (reproducir, sabotear, correr algo que genera archivos):
      `D=$(mktemp -d)` y `printf 'experimentos %s\n' "$D" > .git/revision-modalidad`. Es el
-     **único** lugar donde el revisor está autorizado a escribir.
-   La modalidad depende de la **operación**, no del rol: si la revisión necesita una herramienta
-   que escribe temporales (`validar_historial.sh`, `sabotear.py`, una suite que crea archivos),
-   es **experimentos**, y el revisor la corre con `TMPDIR="$D"` delante para que sus temporales
+     **único** lugar donde los comandos del revisor pueden escribir; los chequeos autorizados
+     conservan sus destinos, con `TMPDIR="$D"` delante.
+   La modalidad depende de la **operación**, no del rol: los chequeos de §Chequeos autorizados
+   corren en **lectura** con sus destinos declarados; si la revisión necesita una herramienta que
+   no está en esa tabla o que escribe fuera de sus destinos (`validar_historial.sh`,
+   `sabotear.py`, una suite que crea archivos no declarados), es **experimentos**, y el revisor la corre con `TMPDIR="$D"` delante para que sus temporales
    caigan en el directorio autorizado. El filtro reconoce el directorio solo si el comando lo
    **nombra literalmente**: una variable (`> "$X/out"`) se rechaza aunque apunte a él. Dilo en
-   el prompt; es un límite conocido del filtro, no un error del revisor. `scripts/check.sh` corre
-   bajo `scripts/suite.py`: sus temporales caen bajo `TMPDIR` (por eso va con `TMPDIR="$D"`), pero su
-   registro va a `<git common dir>/suite-runs`, fuera del árbol y de las huellas. Es una escritura
-   autorizada en una ubicación declarada; tras la revisión, `python3 scripts/suite.py estado
-   --abiertas` no debe mostrar nada suyo.
+   el prompt; es un límite conocido del filtro, no un error del revisor. Qué escribe cada chequeo
+   autorizado, y dónde: tabla §Chequeos autorizados.
 
 ## Invocación
 
 4. Lanza el agente declarado (`.claude/agents/<rol>.md`) o, sin subagentes, el «Prompt
    de invocación» de su skill. Pásale **solo** qué revisar: rol, alcance, rango del diff
    (`git diff <base>..HEAD` o árbol de trabajo) y los archivos. **No** le resumas tu
-   solución ni le adelantes conclusiones. Dile la **modalidad** con su regla literal: «no
-   escribas en ningún sitio, tampoco en directorios temporales» o «escribe solo en `<D>`»; y
+   solución ni le adelantes conclusiones. Dile la **modalidad** con su regla literal: «ningún
+   comando tuyo escribe; los chequeos autorizados son <lista> y escriben solo en <destinos>; si
+   uno necesita escribir en otro sitio, no lo corras y repórtalo» (en experimentos, antepón «tus
+   comandos escriben solo en `<D>`»); y
    pídele, como primer comando y **solo** (en un comando propio, sin nada más en la línea), la
    **prueba de bloqueo** `touch .git/prueba-de-bloqueo`: si el filtro preventivo está activo debe rechazarse
    (en experimentos también, porque su destino no está en `<D>`). Es inocuo si llega a
@@ -161,8 +164,32 @@ allowed-tools: Read, Grep, Glob, Bash
   trabajo y en un temporal por usuario. «Sandbox configurado» no equivale a «ejecución aislada»:
   solo se declara `verificado` si una escritura fuera de lo permitido se intentó y el sistema la negó.
 - **Suites:** `PYTHONDONTWRITEBYTECODE=1` (o el equivalente del stack) evita el bytecode, no
-  garantiza una suite sin escrituras; una suite que genera temporales, bases o informes va en
-  modalidad **experimentos**.
+  garantiza una suite sin escrituras; una suite que escribe fuera de los destinos declarados en
+  `docs/convenciones.md` §Pruebas, llama servicios o lee un `.env` real se corre en **copia
+  aislada** (modalidad **experimentos**, `TMPDIR="$D"`), en ambas rutas.
+
+### Chequeos autorizados
+
+Lo autorizado es esta lista cerrada de chequeos con sus destinos de escritura, y el encargo la
+nombra. Lo que no está en la lista, o escribe fuera de los destinos listados, está fuera del
+encargo sea quien sea quien lo produzca: el revisor no lo corre y lo reporta como obstáculo.
+Distinguir quién escribe no autoriza nada; que git ignore un destino, tampoco.
+
+| Chequeo | Escribe en (efectos completos) |
+|---|---|
+| `sh scripts/check.sh` (corre bajo `suite.py correr`) | Registro `<git common dir>/suite-runs/`: crea el directorio si no existe, escribe `<id>.json` de la corrida y, **antes de lanzarla, recupera** ejecuciones abandonadas y carpetas reclamadas anteriores: borra sus temporales y cierra sus registros cuando puede demostrar que son suyos; cuando no puede, los conserva y se bloquea. Carpeta propia `suite-<id>-*` bajo el temporal del sistema (el `TMPDIR` de la corrida); se borra al cerrar **salvo** que queden procesos o el registro no sea comprobable: entonces se conserva con su motivo. Más los destinos de la suite del proyecto declarados en `docs/convenciones.md` §Pruebas |
+| `sh scripts/check_docs.sh` | Desde F2, un `mktemp -d "$TMPDIR/check-docs-suite.XXXXXX"` con registro propio; se borra solo si `suite.py estado --abiertas` demuestra que quedó cerrado; si no puede demostrarlo, **se conserva** y lo dice |
+| `python3 scripts/suite.py estado` | Puede **crear** el directorio del registro si no existe; nada más |
+| `sh scripts/huella.sh …`, `sh scripts/recibos.sh linea …` | Nada (salida estándar) |
+| Suites de la plantilla, `validar_historial.sh`, `sabotear.py` | Solo en **experimentos**, con `TMPDIR="$D"` delante |
+
+La tabla no promete «no escribe» ni «se borra al cerrar» de forma incondicional: la conservación
+ante lo no comprobable es deliberada y se declara como efecto autorizado. Tras la revisión, el
+principal mira `python3 scripts/suite.py estado --abiertas` y las carpetas conservadas, y anota en
+`docs/estado.md` las que queden (`docs/convenciones.md` §Recursos). **Límite:** una escritura
+ignorada por git y no declarada no la ve ningún control —ni el filtro, que solo ve comandos del
+revisor, ni la huella, que excluye lo ignorado—; la prohíbe el encargo y la detecta solo el
+revisor que la observa.
 
 ## Notas / trampas
 

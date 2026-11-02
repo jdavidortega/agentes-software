@@ -13,9 +13,10 @@ modo, no se vuelve a preguntar. Si nadie lo pidió pero hay código del producto
 rastro y `docs/estado.md` no declara fase, **propón** este modo antes de actuar.
 
 **Rige igual que en el arranque normal:** la REGLA DURA (validador en PASA **y** OK
-explícito por actividad), la sección Transversal (hallazgo ≠ decisión, ADR con hora UTC,
-etiquetas `REGISTRADO` / `PROPUESTO` / `PENDIENTE`, alias al crear) y el formato del gate
-como resumen ejecutivo (`AGENTS.md` §2).
+explícito por actividad), la sección Transversal (preguntar solo lo que falta tras consultar
+la evidencia, decisiones aparte, hallazgo ≠ decisión, ADR con hora UTC, etiquetas `REGISTRADO` /
+`PROPUESTO` / `PENDIENTE`, alias al crear) y el formato de todo gate con la forma canónica de
+`docs/convenciones.md` §Redacción (`AGENTS.md` §2).
 
 **Pasada de coherencia (antes de cada gate de este guion).** El doctor y los hooks prueban
 integridad estructural, no que lo escrito sea coherente. Antes de pedir un gate, el agente
@@ -347,7 +348,10 @@ la adopción sin la autorización puntual de la persona (`AGENTS.md` §3).
    `archivo:línea`. Un `C#` `conserva` por comportamiento observable que debe conservarse en el
    alcance, y **todo estado terminal** que ese alcance expone tiene un `C#` o queda declarado
    fuera. Un `C#` `nuevo` por capacidad pedida, citando el brief, con su par del set de oro como
-   **salida esperada acordada**. Set de oro de los `conserva` con **referencia producida por la versión actual** (no por un
+   **salida esperada acordada**. Si un `nuevo` o una corrección se apoya en un supuesto técnico
+   (la librería que debería leer el formato, el contrato que debería responder así), experimento
+   mínimo en `contexto/exploracion/` con los dos desenlaces escritos, como en `docs/arranque.md`
+   §Fase 2. Set de oro de los `conserva` con **referencia producida por la versión actual** (no por un
    análisis previo cuya procedencia no se conoce), con **los pares necesarios para representar
    salidas y caminos materialmente distintos** (cinco es una referencia, no una garantía de
    suficiencia). Toda **cifra** del set de oro se **deriva del artefacto persistido** con una
@@ -450,7 +454,8 @@ nota en el diagnóstico; si cambia un `C#` o el set de oro, es **reentrada** (AD
 plan es **condicionado**: su primer incremento es **habilitar la verificación** (la condición de
 la Fase 1, sin tocar el producto: caché, entorno, acceso) y los de protección que necesitan ejecutar
 dependen de él (cada `I#` dice si depende; uno que no lo necesita puede ir antes); el
-plan no afirma que el sistema funciona, y los `C#` siguen `sin verificar` hasta ejecutarse.
+plan no afirma que el sistema funciona, y los `C#` siguen en `pendiente`, con la nota
+«verificación dinámica bloqueada: <causa>», hasta ejecutarse.
 - **Protección (obligatoria y mínima):** lo necesario para que **cada `C#` `conserva` quede
   verificable**. Un `C#` cubierto por pruebas existentes va a un incremento de **verificación por
   sabotaje** (`.claude/skills/verificando-por-sabotaje/SKILL.md`): demuestra que la prueba protege

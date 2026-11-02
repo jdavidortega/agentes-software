@@ -49,7 +49,10 @@ description: "Estrategia de pruebas del proyecto: el camino principal siempre en
    set de oro se automatiza; la DoD exige **exactamente esas**. Una prueba fuera del
    plan que no protege un criterio, que duplica a otra o que no puede fallar es un
    hallazgo del juez (dimensión Pruebas), no mérito. Esta metodología **no es TDD**:
-   el test de flujo va primero, pero no se escribe un test por cada línea.
+   el test de flujo va primero, pero no se escribe un test por cada línea. Por garantía se
+   elige el nivel más barato que la comprueba de forma fiable (unidad, contrato, integración
+   o flujo), con la regla 2 como piso: al menos un flujo por criterio. Las combinaciones van
+   por la regla 9.
 8. **Mutation testing en la Fase 4 y por hito (informativo).** Sobre el código del camino
    crítico, con la herramienta del stack —verifica la vigente en la doc oficial;
    referencia: `mutmut` (Python), Stryker (JS/TS), PIT (Java)—. Los **mutantes

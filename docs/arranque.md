@@ -63,16 +63,20 @@ No pasas a la siguiente actividad hasta que **(a)** su validador esté en **PASA
 **apruebe** explícitamente. Si un validador da FALLA, te detienes, dices qué
 falta y qué archivo ajustar, y vuelves a validar. La aprobación es por actividad.
 
-**Cómo pides la aprobación.** Con un **resumen ejecutivo en el chat** (`AGENTS.md` §2):
+**Cómo pides la aprobación.** Con un **resumen ejecutivo en el chat** (`AGENTS.md` §2), con la
+forma canónica completa de `docs/convenciones.md` §Redacción (§Transversal, «Todo gate»): en ella,
 qué se decidió en texto completo —criterios, pares del set de oro, stack, despliegue
 escritos, no citados por sigla—, qué se pide aprobar y dónde está el detalle. Nada de
 "ya quedó, ¿seguimos?".
 
 **Precondición de arranque:** no se construye el encuadre sin entradas. La carpeta
 `contexto/` debe tener **≥1 archivo real** (además de su `README.md`). Si está
-vacía, **detente** y pídelo: aunque sea un brief breve escrito a propósito (formato:
-`docs/plantilla-requerimiento.md`). El encuadre se deriva de las entradas, no de lo que
-la persona alcance a teclear en frío.
+vacía, **detente**: no se construye el encuadre sin brief. Recoge primero lo que la
+conversación ya dice, pregunta en el chat **solo por los huecos** de
+`docs/plantilla-requerimiento.md`, escríbelo tú en `contexto/brief.md` con su fila en el
+manifiesto y pide a la persona que lo confirme. La persona responde en el chat y el agente
+lo escribe; lo que la conversación ya dice no se pregunta. El encuadre se deriva de las
+entradas, no de lo que la persona alcance a teclear en frío.
 
 ## Paso 0 · Bootstrap del repositorio
 
@@ -96,6 +100,32 @@ agente **se detiene** y pide resolverla.
   dicen no se pregunta, y una prioridad ya expresada se cita, no se vuelve a pedir. Se pregunta
   solo lo que falta para la siguiente decisión. La persona responde en el chat; los documentos
   los escribe el agente.
+- **Solo lo que de verdad falta, después de consultar la evidencia accesible.** Antes de
+  preguntar se revisa lo que el repositorio, `contexto/`, la conversación o una comprobación al
+  alcance del agente pueden responder. Una inferencia justificada se conserva como `[inferido]`
+  con su fuente (qué entrada o qué frase la sostiene) y se confirma antes del gate. Lo que ninguna
+  fuente sostiene no se rellena con `[inferido]` ni `[supuesto]` para no preguntarlo: es
+  `[FALTA]`; si propones un valor, va como propuesta dentro de la pregunta. Cada `[FALTA]`
+  abierto queda en una de dos situaciones, escrita en el documento junto a él: **preguntado**
+  (`[FALTA · preguntado]`), si la siguiente decisión lo necesita, con su pregunta en el chat; o
+  **diferido** (`[FALTA · diferido: <qué decisión o trabajo bloquea>; <cuándo se resuelve>]`),
+  listado en el campo «Pendiente» del gate y sin construir nada sobre él. Pedir «confirma o
+  corrige el documento» no cuenta como pregunta, y un dato no es a la vez `[FALTA]` y
+  `[supuesto]`: se pregunta o se difiere.
+- **Las decisiones, aparte.** Una decisión de alto impacto que sigue pendiente de autorización
+  (stack, despliegue, alcance de lo que se versiona, datos personales) va en su propia pregunta,
+  separada del ruteo y de los datos. Una decisión que la persona ya expresó se cita y se registra
+  (ADR `aceptada` con la cita), sin pedirle que la apruebe otra vez. Un ADR queda `aceptada` solo
+  si identifica la decisión autorizada y cita la respuesta de la persona que la aprueba: la
+  elección dicha por ella, o una aprobación inequívoca de una propuesta concreta que el ADR
+  referencia («sí, sigue con tu recomendación» sobre esa propuesta). Si para llegar a la opción
+  hay que deducirla de otra frase (p. ej. un motor de base de datos a partir de «que guarde el
+  histórico»), queda `propuesta` y se pregunta aparte.
+- **Todo gate del arranque** (completitud, ruteo, encuadre, diseño, registro) se pide con la
+  plantilla de `docs/convenciones.md` §Redacción, copiada y llena: los ocho campos, en ≤15
+  líneas lógicas. El detalle va en su
+  archivo —la propuesta de ruteo, en `contexto/exploracion/ruteo.md` hasta que se apruebe— y el
+  chat lo resume y dice dónde está.
 - **Hallazgo ≠ decisión.** Un **hallazgo** es un hecho observado (p. ej. "el prototipo
   no implementa el filtro de frescura"); se **registra ya** donde informa
   (`docs/encuadre.md`), porque es un dato, no requiere que nadie decida. Una
@@ -239,9 +269,15 @@ Transversal). Es barato y evita rediseñar en plena ejecución.
 Con la ingesta hecha, ya tienes un **borrador de `docs/encuadre.md` derivado de las
 entradas de `contexto/`**. El encuadre **no parte de cero**: es revisar ese borrador
 con la persona y **cerrar los huecos**. Marca cada dato como `[de contexto/]`,
-`[inferido]` o `[FALTA]`, y cada `[FALTA]` se lo preguntas en el chat, **una cosa a la
-vez**, y lo diligencias tú; solo si la persona prefiere escribir una sección ella misma, se
-la entregas y luego la revisas. No avanzas de una sección sin su
+`[inferido]` (deducido de las entradas o de la conversación: di de cuál, y la persona lo
+confirma antes del gate) o `[FALTA]`. Los `[FALTA]` se preguntan en el chat **agrupados por
+sección y en un solo mensaje**; lo que `contexto/` o la conversación ya respondan no se
+pregunta, se cita. Un dato que solo la persona sabe se pregunta abierto, y «no lo sé» es una
+respuesta válida que queda registrada como pendiente. Solo cuando hay una elección real se
+presentan opciones con tu recomendación (`AGENTS.md` §3), y una decisión de alto impacto va
+en su propia pregunta, separada de los datos, para que aprobarla no se confunda con
+responderlos. Las respuestas las diligencias tú; solo si la persona prefiere escribir una
+sección ella misma, se la entregas y luego la revisas. No avanzas de una sección sin su
 contenido.
 
 Hay partes del encuadre que las entradas rara vez traen completas —**criterios de
@@ -310,9 +346,15 @@ inicio, no se descubre al final.
 **Supuesto técnico → experimento, no fe.** Si un incremento se apoya en un supuesto
 técnico sin verificar (la librería que "debería" leer el formato, el servicio que
 "debería" responder así, el rendimiento esperado), el plan antepone un **experimento
-mínimo** en `contexto/exploracion/` que lo confirme antes de construir sobre él. Su resultado es
-un hallazgo (→ `docs/encuadre.md`); si fuerza una elección, ADR. Rehacer un
-incremento cuesta más que el experimento.
+mínimo** en `contexto/exploracion/` **que lo confirme o lo refute** antes de construir sobre
+él: antes de correrlo se escribe la hipótesis, qué resultado la confirma y cuál la refuta; se
+prueba el caso válido y el negativo que cambiaría la decisión (dato incompleto o
+incompatible, un límite, lo que el consumidor ejecuta); se registra el resultado con sus
+límites, y lo que siga faltando se pregunta después. Es el protocolo del aserto falsable
+(`.claude/skills/verificando-por-sabotaje/SKILL.md`) aplicado a una hipótesis: no exige un
+experimento por cada pregunta, solo cuando una incertidumbre técnica condiciona la decisión;
+el alcance lo sigue eligiendo la persona. Su resultado es un hallazgo (→ `docs/encuadre.md`);
+si fuerza una elección, ADR. Rehacer un incremento cuesta más que el experimento.
 
 **Validador (PASA/FALLA):**
 - [ ] Existe un plan escrito (enfoque + incrementos) en `docs/plan.md`, acordado.
@@ -340,7 +382,8 @@ incremento cuesta más que el experimento.
 - [ ] `README.md` de la plantilla reemplazado por el del proyecto, con el diagrama gerencial de la arquitectura propuesta y
   **validado por la persona** (iterado hasta su OK).
 - [ ] Ningún incremento se apoya en un supuesto técnico sin verificar: tiene su
-  **experimento mínimo** previo en el plan, o su validación diferida registrada.
+  **experimento mínimo** previo en el plan, con los dos desenlaces escritos (qué lo
+  confirma, qué lo refuta), o su validación diferida registrada.
 
 ---
 

@@ -31,8 +31,10 @@ al encuadre ni justificarle sus elecciones; su valor está en que no hereda tu f
 > Sigue el protocolo de `AGENTS.md` §9 y entrega el reporte con su formato exacto
 > (Veredicto · Vacíos `R-E.n` con filas listas · Sugerencias · Preguntas · Obstáculos ·
 > Recibo generado con `sh scripts/recibos.sh linea …`: tú declaras veredicto, bloqueantes,
-> ejecutor y modalidad; la herramienta pone fecha y huella). No escribas en ningún
-> archivo ni uses la red: todo va en el reporte.
+> ejecutor y modalidad; la herramienta pone fecha y huella). No compongas ningún comando que
+> escriba ni uses la red; corre solo los chequeos autorizados que nombra el encargo, en sus
+> destinos (`.claude/skills/dirigiendo-revisiones/SKILL.md` §Chequeos autorizados): todo va en
+> el reporte.
 
 ## Insumos (el contexto en que se apoya)
 
@@ -96,7 +98,11 @@ Después, el agente principal **valida si el dato ya está presente**:
 - Si no hubo insumo real (caso 2 de la ingesta): el **bosquejo del modelo de datos**
   está en `docs/plan.md`, con ejemplo concreto por entrada/salida, y fue validado por
   la persona.
-- Decisiones de alto impacto registradas como ADR.
+- Decisiones de alto impacto registradas como ADR. Cada ADR `aceptada` identifica la decisión
+  autorizada y cita la respuesta de la persona que la aprueba —la elección dicha por ella, o la
+  aprobación inequívoca de una propuesta concreta que el ADR referencia—; contrasta esa cita con
+  su fuente (`contexto/`, el brief o el registro de la conversación). Un ADR `aceptada` cuya
+  opción haya que deducir de otra frase es un vacío: vuelve a `propuesta`.
 - Sin marcas `[FALTA]` ni `[inferido]` sin confirmar.
 
 **Consistencia (criterio):**
@@ -112,6 +118,21 @@ Después, el agente principal **valida si el dato ya está presente**:
 **Trazabilidad (binario):**
 
 - Cada `C#` está cubierto por al menos un incremento (`docs/trazabilidad.md`).
+
+**Vigencia y supuestos (binario):**
+
+- **Encuadre vigente:** el encuadre que revisas es el aprobado en el commit `Ref: F1`. Si
+  `docs/encuadre.md` cambió desde entonces (`git diff <commit Ref: F1> -- docs/encuadre.md`),
+  revisas lo cambiado con la rúbrica de la Fase 1 y el reporte dice qué parte volviste a
+  revisar; un cambio sin revisar es vacío. Un cambio revisado y correcto no impide el PASA.
+- **Supuestos técnicos con experimento discriminante:** cada supuesto técnico que condiciona
+  un incremento tiene experimento en el plan con la hipótesis, un caso válido, el caso
+  negativo que cambiaría la decisión, el resultado que la confirma y el que la refuta, y sus
+  límites; un experimento que solo puede confirmar, o cuyos desenlaces no pueden cambiar la
+  decisión, es un vacío `R-E.n`. La excepción es la **validación diferida registrada** (el
+  insumo que la resolverá y cuándo, como permite el validador de la Fase 2): vale solo si
+  ningún incremento que dependa del supuesto se construye antes de validarlo; un plan que
+  construye sobre él antes es un vacío.
 
 ## En una adopción (proyecto existente)
 

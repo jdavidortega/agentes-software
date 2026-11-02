@@ -35,8 +35,10 @@ el incremento y el rango del diff:
 > exacto (Veredicto · Bloqueantes `R-I#.n` —`R-F4.n` si revisas el conjunto— con filas
 > listas · Sugerencias · Preguntas · Obstáculos · Recibo generado con
 > `sh scripts/recibos.sh linea …` —tú declaras veredicto, bloqueantes, ejecutor, modalidad y
-> `seguridad=requerida|no-aplica`; la herramienta pone fecha y huella—). No escribas en
-> ningún archivo ni uses la red: todo va en el reporte.
+> `seguridad=requerida|no-aplica`; la herramienta pone fecha y huella—). No compongas
+> ningún comando que escriba ni uses la red; corre solo los chequeos autorizados que nombra el
+> encargo, en sus destinos (`.claude/skills/dirigiendo-revisiones/SKILL.md` §Chequeos
+> autorizados): todo va en el reporte.
 
 ## Insumos (el contexto en que se apoya)
 
@@ -106,8 +108,9 @@ el incremento y el rango del diff:
 - **Seguridad (binario, es un gancho — no la auditoría):** ¿el diff toca superficie de
   riesgo (entrada no confiable, authn/authz, secretos, persistencia, IaC/despliegue,
   superficie de IA/LLM)? Si **sí**, la **pasada del juez de seguridad**
-  (`.claude/skills/revision-seguridad/SKILL.md`) es requisito para PASA, y sus hallazgos
-  `R-S#.n` deben estar cerrados. Si **no**, hazlo constar ("sin superficie de riesgo").
+  (`.claude/skills/revision-seguridad/SKILL.md`) es requisito para PASA: sus hallazgos
+  `R-S#.n` están en `resuelto` o `verificado` y su recibo PASA lleva la misma huella que el
+  tuyo. Si **no**, hazlo constar ("sin superficie de riesgo").
   Tú no la auditas: verificas que ocurrió.
 - **No funcionales:** solo los acordados en el encuadre (rendimiento, observabilidad…);
   no inventes NFR que nadie pidió. **La seguridad no entra aquí:** no es un NFR

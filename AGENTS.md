@@ -51,11 +51,11 @@ agente lo hace por defecto, sin que la persona lo pida; ningún gate se solicita
 el README desactualizado (formato: `.claude/skills/escribiendo-readme/SKILL.md`)—.
 
 **El gate es un resumen ejecutivo en el chat** (≤15 líneas), no un índice de archivos:
-(1) qué se decidió, **en texto completo**, no por siglas; (2) el cambio o la arquitectura
-en cinco líneas; (3) qué se pide aprobar y qué pasa después; (4) dónde está el detalle.
-El resumen representa al documento, no lo sustituye: antes de enviarlo se verifica que
-dicen lo mismo. Igual para cualquier decisión que se pida fuera de un gate. Formato y
-ejemplo en `docs/convenciones.md` §Redacción.
+lo decidido **en texto completo**, no por siglas; qué se pide aprobar y qué pasa después;
+dónde está el detalle. El resumen representa al documento, no lo sustituye: antes de
+enviarlo se verifica que dicen lo mismo. Igual para cualquier decisión fuera de un gate.
+**La forma canónica, con sus campos y un ejemplo, es la de `docs/convenciones.md`
+§Redacción.**
 
 1. **Encuadre** — contexto, objetivos, criterios de éxito, *no-objetivos*, **set de
    oro** (ejemplos de salida esperada), **stack y arquitectura** y **modelo de
@@ -192,9 +192,10 @@ servicios o bases de datos): pide el insumo y detente. Si aún no existe (diseñ
 cero), acuerda con la persona la entrada/salida esperada —si el sistema tiene
 entradas o salidas, como **bosquejo del modelo de datos** diseñado y validado (ver
 `docs/arranque.md`, caso 2)— y marca el supuesto con **validación diferida al primer
-insumo real**. Un supuesto **técnico** que condiciona un incremento se confirma con un
-**experimento mínimo** en `contexto/exploracion/` antes de construir sobre él: rehacer cuesta más
-que el experimento. En contratos de integración, la fuente de verdad es **lo que el
+insumo real**. Un supuesto **técnico** que condiciona un incremento se confirma o se refuta
+con un **experimento mínimo** en `contexto/exploracion/` antes de construir sobre él, con los
+dos desenlaces escritos antes (`docs/arranque.md` §Fase 2): rehacer cuesta más que el
+experimento. En contratos de integración, la fuente de verdad es **lo que el
 consumidor ejecuta**, no la spec.
 
 **Decisiones de alto impacto** (requisitos, alcance, stack, tecnologías, arquitectura,

@@ -76,9 +76,10 @@ cualquier archivo con el mismo nombre. La copia la hace un script de la plantill
 1. **Prepara el proyecto.** Necesita al menos un commit con su estado actual y ningún cambio
    sin commitear: ese commit separa tu código de lo que trae el método (será la «Base del
    método»). Si el repositorio aún no tiene commits, revisa que no entre ningún secreto y haz
-   uno: `git add -A && git commit -m "Estado antes de adoptar el método"`. Después, una rama
-   local para probar: `git switch -c adopcion-metodo`. Nada se publica hasta que tú lo
-   decidas; sin remoto, todo sigue en local.
+   uno: `git add -A && git commit -m "Estado antes de adoptar el método"`. Después, si el
+   proyecto no tiene estrategia de ramas propia, una rama local para probar:
+   `git switch -c adopcion-metodo`; si la tiene, úsala (`docs/arranque-existente.md`, Paso 0).
+   Nada se publica hasta que tú lo decidas; sin remoto, todo sigue en local.
 2. **Mira qué pasaría, sin escribir nada.** Desde la carpeta de la plantilla, con la ruta
    de la **raíz** del proyecto:
 

@@ -86,6 +86,29 @@ trazabilidad() {
     printf '\n## Histórico (compactado)\n\n'
     [ -n "${5:-}" ] && printf '%s\n' "$5"
   } > "$1/docs/trazabilidad.md"
+  criterios_estado "$1" "$2"
+}
+# criterios_estado <dir> "<filas C>": regenera la tabla «## Criterios» de estado.md desde las filas de
+# cobertura (como el agente al regenerar estado.md): mismo C#, alias y celda de estado. Así el proyecto del
+# fixture es coherente desde F2 (check_docs §1b); los casos que prueban una contradicción la escriben aparte.
+criterios_estado() {
+  python3 -I - "$1/docs/estado.md" "$2" <<'PY'
+import sys
+p, filas = sys.argv[1], sys.argv[2]
+try: s = open(p).read()
+except OSError: sys.exit(0)
+rows = []
+for l in filas.split("\n"):
+    c = [x.strip() for x in l.strip().strip("|").split("|")]
+    if len(c) >= 4 and c[0]: rows.append("| %s | %s | %s |" % (c[0], c[1], c[3]))
+sec = "## Criterios\n\n| C# | Alias | Estado |\n|----|-------|--------|\n" + "".join(r + "\n" for r in rows) + "\n"
+i = s.find("\n## Criterios\n")
+if i < 0: s = s.rstrip("\n") + "\n\n" + sec
+else:
+    j = s.find("\n## ", i + 1)
+    s = s[:i + 1] + sec + (s[j + 1:] if j >= 0 else "")
+open(p, "w").write(s)
+PY
 }
 C1_PEND='| C1 | «suma» | I1 | pendiente | |'
 C1_VERIF='| C1 | «suma» | I1 | verificado | |'
@@ -285,7 +308,7 @@ espera falla "Ref: F2 e I2 en el mismo commit con el recibo del revisor sobre un
 
 Ref: F2
 Ref: I2"
-copia plantilla cr10; for f in AGENTS.md docs/encuadre.md docs/plan.md docs/trazabilidad.md docs/decisiones.md scripts/check.sh; do cp "$W/etapas/f2/$f" "$D/$f"; done
+copia plantilla cr10; for f in AGENTS.md docs/encuadre.md docs/plan.md docs/trazabilidad.md docs/decisiones.md docs/estado.md scripts/check.sh; do cp "$W/etapas/f2/$f" "$D/$f"; done
 fase "$D" F3 "I1 «suma»"; printf 'def suma(a, b):\n    return a + b\n' > "$D/app.py"; recibo "$D" juez-codigo incremento I1 PASA 0 seguridad=no-aplica
 espera falla "Ref: I1 sin ningún commit Ref: F2 en el historial se rechaza (sin plan aprobado no hay contrato)" "no hay ningún commit 'Ref: F2'" -- commitea "$D" "I1
 
@@ -897,6 +920,16 @@ espera falla "NUL en el bloque y en la referencia por igual: check_docs falla si
 espera falla "... (ningún efecto)" "" -- test -e "$W/efecto-cd4f"
 copia f3 cd4g; bytes_en "$D/scripts/check.sh" "\\r"
 espera falla "CR en el bloque de check.sh: check_docs falla sin ejecutarlo" "contiene bytes NUL o CR" -- doc "$D"
+
+echo "== check_docs: desde F2, la tabla de criterios de estado.md no contradice la cobertura"
+copia f3 ce0
+espera pasa "control: estado.md con la tabla regenerada desde la cobertura (F3)" "" -- doc "$D"
+copia f3 ce1; sed -i.bak 's/^| C1 | «suma» | pendiente |$/| C1 | «suma» | verificado |/' "$D/docs/estado.md" && rm -f "$D/docs/estado.md.bak"
+espera falla "estado.md dice verificado y la cobertura pendiente: check_docs falla" "docs/estado.md: C1 dice «suma» verificado y trazabilidad.md \\(la fuente\\) dice «suma» pendiente" -- doc "$D"
+copia f3 ce2; python3 -I -c 'import sys; p=sys.argv[1]; s=open(p).read(); i=s.index("## Criterios"); j=s.index("## ", i+3); open(p,"w").write(s[:i]+s[j:])' "$D/docs/estado.md"
+espera falla "sin la sección «## Criterios» desde F2: check_docs falla (no es «nada que comparar»)" "docs/estado.md no tiene la sección «## Criterios»" -- doc "$D"
+copia f3 ce3; trazabilidad "$D" '| C1 | C1 suma  de C1 | I1 | pendiente | |' "" ""
+espera pasa "control: alias con espacios internos y con el texto de su identificador (extracción por posición)" "" -- doc "$D"
 copia f3 cd5; rm "$D/scripts/suite.py"
 espera falla "sin scripts/suite.py: check_docs falla" "falta scripts/suite.py" -- doc "$D"
 # El cuerpo real nunca se ejecuta: deja un testigo si corriera.

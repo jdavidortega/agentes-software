@@ -397,6 +397,67 @@ if has docs/encuadre.md; then
   fi
 fi
 
+# --- 1b) Criterios en estado.md: el resumen no contradice la cobertura -------------------
+# Desde F2 (cuando la cobertura ya está sembrada; docs/arranque.md: «estado.md sembrado: fase,
+# criterios con alias») docs/estado.md tiene UNA sección «## Criterios» con UNA tabla legible
+# `| C# | Alias | Estado |`; ninguna otra tabla del archivo lleva ese encabezado. Faltar, ilegible
+# o duplicada FALLA: no equivale a «nada que comparar». Vacía solo vale si la cobertura también lo
+# está (rechazar un proyecto sin criterios es cosa del cierre, no de este resumen). La fila separadora
+# de Markdown (---, :---, ---:, :---:) se reconoce por todas sus celdas, no por la primera.
+# Cada criterio de la cobertura de trazabilidad.md aparece en ella UNA vez, con el mismo alias (la
+# celda sin los espacios de los extremos) y el mismo estado (la primera palabra, la regla del lector
+# de trazabilidad), y no hay C# ajenos ni filas que no sean un C#. La fuente de verdad es
+# trazabilidad.md (lector único); que la cobertura sea verdad lo deciden la regla escalonada y el
+# revisor, no esto. En F_ y F1 no se exige (plantilla con fila de ejemplo; adopción «aún no definidos»).
+if has docs/estado.md && [ "$INICIADO" -eq 1 ]; then
+  EST_CRIT=$(awk -F'|' '
+    function trim(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    /^## / { sec = ($0 ~ /^## Criterios[ \t]*$/); if (sec) nsec++; hdr = 0; next }
+    $0 !~ /^[ \t]*\|/ { if (hdr) hdr = 0; next }
+    { for (k in c) delete c[k]; n=0; for(i=2;i<NF;i++){ n++; c[n]=trim($i) } }
+    { sep = (n > 0); for (k = 1; k <= n; k++) if (c[k] !~ /^:?-+:?$/) sep = 0 }
+    sep { next }
+    c[1]=="C#" { ntot++; if (!sec) next; nhs++; hdr=1; ca=0; ce=0; for(k=1;k<=n;k++){ if(c[k]=="Alias") ca=k; if(c[k]=="Estado") ce=k }; if (!(ca && ce)) mal=1; next }
+    !sec || !hdr { next }
+    c[1] !~ /^C[0-9]+$/ { print "NOC\t" c[1]; next }
+    { e=c[ce]; sub(/[ \t].*$/, "", e); print "C\t" c[1] "\t" c[ca] "\t" e }
+    END { print "SEC\t" nsec+0 "\t" nhs+0 "\t" ntot+0 "\t" mal+0 }' docs/estado.md)
+  est_campo() { printf '%s\n' "$EST_CRIT" | awk -F'\t' -v k="$1" '$1=="SEC" {print $k}'; }
+  nsec=$(est_campo 2); nhs=$(est_campo 3); ntot=$(est_campo 4); est_mal=$(est_campo 5)
+  if [ "${nsec:-0}" -eq 0 ]; then
+    err "docs/estado.md no tiene la sección «## Criterios» (desde F2 es obligatoria: el resumen de la cobertura, | C# | Alias | Estado |)"
+  elif [ "$nsec" -gt 1 ]; then
+    err "docs/estado.md tiene $nsec secciones «## Criterios»: debe haber una"
+  elif [ "$nhs" -eq 0 ]; then
+    err "docs/estado.md: la sección «## Criterios» no tiene una tabla legible (| C# | Alias | Estado |)"
+  elif [ "$nhs" -gt 1 ] || [ "$ntot" -gt 1 ]; then
+    err "docs/estado.md tiene más de una tabla de criterios (encabezado «| C# |»): debe haber una, en «## Criterios»"
+  elif [ "$est_mal" -ne 0 ]; then
+    err "docs/estado.md: la tabla de criterios no tiene columnas «Alias» y «Estado» (| C# | Alias | Estado |)"
+  elif ! printf '%s\n' "$EST_CRIT" | grep -q '^C	' && printf '%s\n' "$FILAS" | grep -q '^C '; then
+    err "docs/estado.md: la tabla de criterios no tiene filas legibles y la cobertura sí tiene criterios; desde F2 los lista"
+  else
+    noc=$(printf '%s\n' "$EST_CRIT" | awk -F'\t' '$1=="NOC" {printf "%s«%s»", (n++ ? ", " : ""), $2}')
+    [ -z "$noc" ] || err "docs/estado.md: fila de criterios que no es un C# ($noc); desde F2 la tabla lista los criterios de la cobertura"
+    for c in $(printf '%s\n' "$EST_CRIT" | awk -F'\t' '$1=="C" {print $2}' | sort | uniq -d); do
+      err "docs/estado.md: $c aparece $(printf '%s\n' "$EST_CRIT" | awk -F'\t' -v c="$c" '$1=="C" && $2==c' | grep -c .) veces en la tabla de criterios"
+    done
+    for c in $(printf '%s\n' "$FILAS" | awk '$1=="C" {print $2}'); do
+      e=$(printf '%s\n' "$EST_CRIT" | awk -F'\t' -v c="$c" '$1=="C" && $2==c {print; exit}')
+      if [ -z "$e" ]; then err "docs/estado.md: falta $c en la tabla de criterios (trazabilidad.md lo cubre)"; continue; fi
+      ta=$(printf '%s\n' "$FILAS" | awk -v c="$c" '$1=="AL" && $2==c {print substr($0, length($1) + length($2) + 3); exit}')
+      te=$(printf '%s\n' "$FILAS" | awk -v c="$c" '$1=="C" && $2==c {print $4; exit}')
+      ea=$(printf '%s' "$e" | cut -f3); ee=$(printf '%s' "$e" | cut -f4)
+      [ "$ea" = "$ta" ] && [ "$ee" = "$te" ] \
+        || err "docs/estado.md: $c dice $ea $ee y trazabilidad.md (la fuente) dice $ta $te: regenera la tabla de criterios desde la cobertura"
+    done
+    for c in $(printf '%s\n' "$EST_CRIT" | awk -F'\t' '$1=="C" {print $2}' | sort -u); do
+      printf '%s\n' "$FILAS" | awk -v c="$c" '$1=="C" && $2==c {f=1} END {exit f?0:1}' \
+        || err "docs/estado.md: $c está en la tabla de criterios pero no está en la cobertura de trazabilidad.md"
+    done
+  fi
+fi
+
 # --- 2) Incrementos I#: únicos en plan.md; todo I# citado en el rastro existe allí --------
 if has docs/plan.md; then
   PLAN=$(leer_plan docs/plan.md)

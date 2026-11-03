@@ -405,6 +405,29 @@ trazabilidad() {  # trazabilidad <dir> "<filas C>" "<filas E>" "<filas R>" ["<hi
     printf '\n## Histórico (compactado)\n\n'
     [ -n "${5:-}" ] && printf '%s\n' "$5"
   } > "$1/docs/trazabilidad.md"
+  criterios_estado "$1" "$2"
+}
+# criterios_estado <dir> "<filas C>": regenera la tabla «## Criterios» de estado.md desde las filas de
+# cobertura (como el agente al regenerar estado.md): mismo C#, alias y celda de estado. Así el proyecto del
+# fixture es coherente desde F2 (check_docs §1b); los casos que prueban una contradicción la escriben aparte.
+criterios_estado() {
+  python3 -I - "$1/docs/estado.md" "$2" <<'PY'
+import sys
+p, filas = sys.argv[1], sys.argv[2]
+try: s = open(p).read()
+except OSError: sys.exit(0)
+rows = []
+for l in filas.split("\n"):
+    c = [x.strip() for x in l.strip().strip("|").split("|")]
+    if len(c) >= 4 and c[0]: rows.append("| %s | %s | %s |" % (c[0], c[1], c[3]))
+sec = "## Criterios\n\n| C# | Alias | Estado |\n|----|-------|--------|\n" + "".join(r + "\n" for r in rows) + "\n"
+i = s.find("\n## Criterios\n")
+if i < 0: s = s.rstrip("\n") + "\n\n" + sec
+else:
+    j = s.find("\n## ", i + 1)
+    s = s[:i + 1] + sec + (s[j + 1:] if j >= 0 else "")
+open(p, "w").write(s)
+PY
 }
 C1A='| C1 | «arranca» | I1 | pendiente | |'
 siembra_f2() {  # documentos mínimos de un plan aprobado sobre el proyecto adoptado

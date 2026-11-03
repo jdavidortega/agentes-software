@@ -136,26 +136,68 @@ if [ "$INICIADO" -eq 1 ]; then
   has scripts/check.sh || err "falta scripts/check.sh (lint+formato+tests; salida obligatoria del diseño, F2)"
 fi
 
-# --- 0a') Suite vigilada (docs/convenciones.md §Comandos clave): desde F2, scripts/check.sh empieza
-#     por el bloque que la corre bajo scripts/suite.py, y el plazo común está declarado. El bloque se
+# --- 0a') Suite vigilada (docs/convenciones.md §Comandos clave): desde que existe, en cualquier fase
+#     (también F_ en el Paso 0 de una adopción y F1), scripts/check.sh empieza por el bloque que la
+#     corre bajo scripts/suite.py, y el plazo común está declarado. El pre-commit corre esto ANTES de
+#     lanzar check.sh: un check.sh sin el bloque no llega a ejecutarse desde el hook. El bloque se
 #     PRUEBA aislado: en un proyecto temporal mínimo (copia de suite.py + un check.sh ficticio = el
 #     bloque + un eco del identificador), con registro propio, sin las SUITE_* heredadas y con un
 #     límite propio (no depende del envoltorio que comprueba). El cuerpo real nunca se ejecuta.
-#     La posición se comprueba como texto: antes del bloque solo caben shebang, comentarios y blancos.
+#     Antes de ejecutar nada, un único validador (python3 -I) lee check.sh y docs/convenciones.md como
+#     BYTES (sin awk ni variables de shell que los transformen) y exige: ningún NUL ni CR en ninguno de
+#     los dos (sh ejecuta lo que hay tras un NUL; el chequeo no lo vería); un solo par de delimitadores
+#     completo en cada uno; antes del bloque de check.sh solo shebang, comentarios y blancos; y el bloque
+#     IDÉNTICO a la única definición canónica (docs/convenciones.md §Comandos clave). Si algo falla, no
+#     ejecuta nada; si pasa, escribe la prueba temporal desde esos MISMOS bytes. Alcance: rechaza un
+#     bloque alterado respecto a la referencia LOCAL; no autentica convenciones.md ni suite.py, que se
+#     pueden cambiar en el mismo commit, ni impide que otro código del candidato se ejecute.
 INICIO_BLOQUE='# --- suite vigilada'
 FIN_BLOQUE='# --- fin suite vigilada ---'
-if [ "$INICIADO" -eq 1 ] && has scripts/check.sh && has scripts/suite.py; then
+if has scripts/check.sh && has scripts/suite.py; then
   grep -qE '^- \*\*Plazo de la suite:\*\* [0-9]+ s' docs/convenciones.md \
     || err "docs/convenciones.md no declara el plazo común de la suite («- **Plazo de la suite:** N s», §Comandos clave)"
-  antes=$(awk -v m="$INICIO_BLOQUE" 'index($0, m) == 1 { print "ok"; exit } /^[ \t]*(#|$)/ { next } { print "codigo"; exit }' scripts/check.sh)
-  bloque=$(awk -v a="$INICIO_BLOQUE" -v b="$FIN_BLOQUE" 'index($0, a) == 1 { f = 1 } f { print } f && $0 == b { exit }' scripts/check.sh)
-  if [ "$antes" != ok ] || [ "$(printf '%s\n' "$bloque" | tail -1)" != "$FIN_BLOQUE" ]; then
-    err "scripts/check.sh no EMPIEZA por el bloque de la suite vigilada (de «${INICIO_BLOQUE}» a «${FIN_BLOQUE}», docs/convenciones.md §Comandos clave): sin él, la suite corre sin plazo ni registro"
+  aisl=$(mktemp -d "${TMPDIR:-/tmp}/check-docs-suite.XXXXXX") && mkdir -p "$aisl/p/scripts" "$aisl/p/docs" \
+    || err "no pude preparar el proyecto temporal para probar el bloque de la suite vigilada"
+  v=$(python3 -I -c '
+import re, sys
+INI, FIN = b"# --- suite vigilada", b"# --- fin suite vigilada ---"
+def lee(p):
+    try:
+        with open(p, "rb") as f: return f.read()
+    except OSError: return None
+def delim(datos):
+    l = datos.split(b"\n")
+    return l, [n for n, x in enumerate(l) if x.startswith(INI)], [n for n, x in enumerate(l) if x == FIN]
+chk, conv = lee(sys.argv[1]), lee(sys.argv[2])
+if conv is None: sys.exit(print("sin-referencia"))
+if b"\0" in conv or b"\r" in conv: sys.exit(print("referencia-nul-cr"))
+cl, ci, cf = delim(conv)
+if len(ci) != 1 or len(cf) != 1 or cf[0] < ci[0]: sys.exit(print("sin-referencia"))
+canonico = b"\n".join(cl[ci[0]:cf[0] + 1])
+if chk is None: sys.exit(print("no-empieza"))
+if b"\0" in chk or b"\r" in chk: sys.exit(print("nul-cr"))
+l, i, f = delim(chk)
+if not i or not all(re.fullmatch(rb"[ \t]*(#.*)?", x) for x in l[:i[0]]) or not any(n > i[0] for n in f): sys.exit(print("no-empieza"))
+if len(i) != 1 or len(f) != 1: sys.exit(print("duplicados"))
+if b"\n".join(l[i[0]:f[0] + 1]) != canonico: sys.exit(print("difiere"))
+with open(sys.argv[3], "wb") as o: o.write(b"#!/bin/sh\n" + canonico + b"\n" + b"echo \"vigilada:${SUITE_ID:-}\"\n")
+print("ok")
+' scripts/check.sh docs/convenciones.md "$aisl/p/scripts/check.sh" 2>&1)
+  case "$v" in
+    ok) ;;
+    sin-referencia) err "docs/convenciones.md no tiene UNA definición completa del bloque de la suite vigilada (un «${INICIO_BLOQUE}» y un «${FIN_BLOQUE}», §Comandos clave): sin referencia no ejecuto el de scripts/check.sh" ;;
+    referencia-nul-cr) err "docs/convenciones.md contiene bytes NUL o CR: sin una referencia legible tal cual no ejecuto el bloque de scripts/check.sh" ;;
+    nul-cr) err "scripts/check.sh contiene bytes NUL o CR (sh ejecutaría lo que la comprobación no ve): no lo ejecuto" ;;
+    no-empieza) err "scripts/check.sh no EMPIEZA por el bloque de la suite vigilada (de «${INICIO_BLOQUE}» a «${FIN_BLOQUE}», docs/convenciones.md §Comandos clave): sin él, la suite corre sin plazo ni registro" ;;
+    duplicados) err "scripts/check.sh tiene delimitadores del bloque de la suite vigilada duplicados (debe haber un «${INICIO_BLOQUE}» y un «${FIN_BLOQUE}»): no lo ejecuto" ;;
+    difiere) err "el bloque de la suite vigilada de scripts/check.sh DIFIERE del canónico (docs/convenciones.md §Comandos clave; cópialo sin cambios): no lo ejecuto" ;;
+    *) err "no pude validar el bloque de la suite vigilada ($v): no lo ejecuto" ;;
+  esac
+  if [ "$v" != ok ]; then
+    rm -rf "$aisl"
   else
-    aisl=$(mktemp -d "${TMPDIR:-/tmp}/check-docs-suite.XXXXXX") && mkdir -p "$aisl/p/scripts" "$aisl/p/docs" \
-      && cp scripts/suite.py "$aisl/p/scripts/suite.py" \
+    cp scripts/suite.py "$aisl/p/scripts/suite.py" \
       && printf -- '- **Plazo de la suite:** 30 s\n' > "$aisl/p/docs/convenciones.md" \
-      && { printf '#!/bin/sh\n%s\n' "$bloque"; printf 'echo "vigilada:${SUITE_ID:-}"\n'; } > "$aisl/p/scripts/check.sh" \
       || err "no pude preparar el proyecto temporal para probar el bloque de la suite vigilada"
     r=$(python3 -I -c '
 import json, os, re, signal, subprocess, sys

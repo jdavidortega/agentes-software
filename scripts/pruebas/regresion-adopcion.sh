@@ -21,7 +21,7 @@ export GIT_CONFIG_GLOBAL="$W/gitconfig" GIT_CONFIG_SYSTEM=/dev/null
 : > "$W/gitconfig"; git config --file "$W/gitconfig" --add safe.directory "*"
 git config --file "$W/gitconfig" init.defaultBranch main
 unset FASE_PREVIA FASE_HISTORICA REV SUITE_ID SUITE_REGISTRO SUITE_PLAZO SUITE_ENVUELTO SUITE_INFORME SUITE_PROPIA
-# Desde F2 todo check.sh empieza por el bloque de la suite vigilada (check_docs lo exige y lo prueba).
+# Todo check.sh, en cualquier fase, empieza por el bloque de la suite vigilada (check_docs lo exige y lo prueba).
 BLOQUE=$(awk '/^# --- suite vigilada/{f=1} f{print} /^# --- fin suite vigilada/{exit}' "$RAIZ/docs/convenciones.md")
 TOTAL=0; MAL=0; FALLIDOS=""
 
@@ -276,6 +276,22 @@ espera pasa "commit de instalación aceptado (Ref: F1, fase en curso, base decla
 Ref: F1"
 mkdir -p "$W/etapas"; rm -rf "$W/etapas/instalado"; cp -R "$I" "$W/etapas/instalado"
 INST=$(en "$I" git rev-parse HEAD)
+
+echo "== suite vigilada desde el Paso 0 (el check.sh nace en el paso G con el bloque)"
+copia existente vg0; adoptar "$P" copiar "$D" >/dev/null; en "$D" git rm -q --cached config/.env.prod
+adoptar "$P" gitignore "$D" --aplicar >/dev/null; en "$D" git config core.hooksPath .githooks; VG0=$(en "$D" git rev-parse HEAD)
+printf '#!/bin/sh\necho "id=${SUITE_ID:-}" > "%s"\n' "$W/cuerpo-vg0" > "$D/scripts/check.sh"
+espera falla "Paso 0 (paso G): check.sh sin el bloque, check_docs falla" "no EMPIEZA por el bloque" -- sh -c 'cd "$1" && git add -A && sh scripts/check_docs.sh' _ "$D"
+base_decl "$D" "- **Base del método:** $VG0"; fase "$D" F1
+espera falla "commit de instalación con check.sh sin el bloque: se rechaza" "no EMPIEZA por el bloque" -- commitea "$D" "Instalación del método (adopción)
+
+Ref: F1"
+espera falla "... y su cuerpo no llegó a correr" "" -- test -e "$W/cuerpo-vg0"
+{ printf '#!/bin/sh\n%s\n' "$BLOQUE"; tail -n +2 "$D/scripts/check.sh"; } > "$D/c.tmp" && mv "$D/c.tmp" "$D/scripts/check.sh"
+espera pasa "control: con el bloque antepuesto, el commit de instalación se acepta" "" -- commitea "$D" "Instalación del método (adopción)
+
+Ref: F1"
+espera pasa "... y el cuerpo corrió vigilado (con identificador de la suite)" "" -- grep -qE '^id=[0-9]{8}T' "$W/cuerpo-vg0"
 
 echo "== base del método: replay"
 espera pasa "con base: el historial previo no se juzga y la instalación sí" "1/1 commits cumplen" -- replay "$I" HEAD

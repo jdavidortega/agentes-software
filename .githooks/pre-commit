@@ -74,6 +74,16 @@ if [ -f "$tmp/scripts/check.sh" ]; then
   # enlazado): todo lo dirigido al temporal, la suite incluida, corre SIN ellas, o actuaría sobre el
   # repositorio original.
   LIMPIA=$(git rev-parse --local-env-vars | sed 's/^/-u /' | tr '\n' ' ')
+  # Dentro de una ejecución de la suite el entorno lleva SUITE_ID sin SUITE_ENVUELTO (el bloque lo
+  # quita): un commit desde ahí se rechaza aquí, antes de lanzar nada. Todo lo demás corre SIN
+  # SUITE_ID ni SUITE_ENVUELTO: heredadas o puestas a mano harían que el bloque se saltara y el
+  # cuerpo de check.sh corriera sin vigilancia.
+  if [ -n "${SUITE_ID:-}" ] && [ -z "${SUITE_ENVUELTO:-}" ]; then
+    echo "✗ pre-commit: el commit se lanzó desde dentro de otra ejecución de la suite (SUITE_ID=$SUITE_ID); hazlo fuera de ella." >&2; exit 1
+  fi
+  # CDPATH desviaría el «cd» relativo del bloque. PATH y las funciones exportadas del operador se heredan:
+  # quedan fuera de esta garantía (límite declarado).
+  LIMPIA="$LIMPIA -u SUITE_ID -u SUITE_ENVUELTO -u CDPATH"
   snap=$(mktemp -d "${TMPDIR:-/tmp}/precommit-snap.XXXXXX"); snap=$(cd "$snap" && pwd -P)
   sreg=${SUITE_REGISTRO:-$(cd "$(git rev-parse --git-common-dir)" && pwd -P)/suite-runs}
   # Recién creada y vacía, la instantánea se RECLAMA como carpeta propia de este hook: si hay que

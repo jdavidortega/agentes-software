@@ -45,7 +45,12 @@ Verificados contra la doc oficial actual de cada herramienta. -->
   bloque, sin cambios. Lo corre siempre bajo `scripts/suite.py` (plazo, una ejecución a la vez,
   grupo de procesos terminado al vencer), también cuando se invoca a mano o desde otra carpeta;
   dentro de la ejecución se salta, y un `check.sh` lanzado desde dentro de otro se rechaza (75).
-  Desde F2, `check_docs.sh` lo exige **al principio** (antes solo shebang, comentarios o blancos) y lo
+  Desde que `check.sh` existe, en cualquier fase (también en el Paso 0 de una adopción y en F1),
+  `check_docs.sh` lo exige **al principio** (antes solo shebang, comentarios o blancos), **idéntico** a
+  esta definición, que es la única canónica. Compara los dos archivos como bytes y rechaza NUL y CR en
+  cualquiera de ellos; si el bloque falta, difiere o tiene delimitadores duplicados, falla sin ejecutarlo.
+  Eso rechaza un bloque alterado respecto a esta referencia local; no autentica este archivo ni
+  `suite.py`. Después lo
   **prueba aislado**: en un proyecto temporal con una copia de `suite.py` y un `check.sh` ficticio (el
   bloque + un eco del identificador), con registro propio, sin las `SUITE_*` heredadas y con un límite
   propio de 60 s; comprueba que corre vigilado y que una llamada anidada se rechaza. El cuerpo real de

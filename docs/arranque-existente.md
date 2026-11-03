@@ -189,7 +189,20 @@ escribe; lo que el repositorio o la conversación ya dicen no se pregunta. Fila 
 Versión del lenguaje, dependencias **instaladas** (no solo declaradas), comando de pruebas
 existente y su resultado. **Antes de correr la suite**, lee qué hace: si escribe archivos,
 llama servicios o lee un `.env` real, ejecútala aislada (copia temporal, variables
-neutras, sin red). El resultado es uno de: `pasa (N pruebas)` · `suite parcial (N de M)` · `pruebas fallidas (cuáles)` ·
+neutras, sin red). Córrela **vigilada**. El registro queda en el repositorio del proyecto
+(`--dir`: el que tiene `.git` y el plazo en `docs/convenciones.md`); las pruebas corren en
+`<carpeta>` (el proyecto o su copia aislada), que va como argumento, nunca dentro de las comillas.
+El entorno es mínimo y explícito: añade solo lo que la suite necesite (p. ej. `VIRTUAL_ENV`).
+
+```sh
+python3 scripts/suite.py correr --dir . -- env -i PATH="$PATH" HOME="<carpeta temporal>" \
+  sh -c 'cd "$1" && shift && exec "$@"' _ "<carpeta>" <comando> <argumentos…>
+```
+
+Es una instrucción, no un control. Vaciar el entorno **no** sustituye al aislamiento: si la suite
+escribe fuera, usa servicios o lee secretos, se corre en la copia temporal y sin red igual.
+
+El resultado es uno de: `pasa (N pruebas)` · `suite parcial (N de M)` · `pruebas fallidas (cuáles)` ·
 `fallo de compilación` · `herramienta ausente (cuál)` · `dependencias no disponibles sin red` ·
 `requiere servicio externo` · `sin pruebas`; no se agrupan. Una **suite parcial** declara qué
 ejecutó y con qué resultado, qué no ejecutó y por qué (cada parte con su clase) y **qué garantías
@@ -201,7 +214,9 @@ inventario de paquetes describe el entorno observado; no prueba que pueda recons
 
 **G. Controles.**
 - `scripts/check.sh` nace aquí (no en F2: el stack ya existe) con el comando de pruebas
-  que ya funciona. Imprime **cuántas pruebas ejecutó** y un aviso visible si fueron cero;
+  que ya funciona, **después del bloque de la suite vigilada** (`docs/convenciones.md` §Comandos
+  clave): `check_docs.sh` lo exige desde que el archivo existe, y el `pre-commit` no lo lanza sin él.
+  Si el proyecto ya tenía un `scripts/check.sh`, se le antepone el bloque sin tocar el resto. Imprime **cuántas pruebas ejecutó** y un aviso visible si fueron cero;
   un cero silencioso está prohibido. **Si la verificación está bloqueada** (resultado del paso F
   distinto de `pasa` o `pruebas fallidas`), `check.sh` igual se crea: su **primera línea** dice
   `VERIFICACIÓN BLOQUEADA: <clase del paso F> — 0 pruebas ejecutadas; no es un resultado

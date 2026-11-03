@@ -89,7 +89,7 @@ trazabilidad() {
 }
 C1_PEND='| C1 | «suma» | I1 | pendiente | |'
 C1_VERIF='| C1 | «suma» | I1 | verificado | |'
-# Desde F2 todo check.sh empieza por el bloque de la suite vigilada (check_docs lo exige y lo prueba).
+# Todo check.sh, en cualquier fase, empieza por el bloque de la suite vigilada (check_docs lo exige y lo prueba).
 BLOQUE=$(awk '/^# --- suite vigilada/{f=1} f{print} /^# --- fin suite vigilada/{exit}' "$RAIZ/docs/convenciones.md")
 [ -n "$BLOQUE" ] || die "no encontré el bloque de la suite vigilada en docs/convenciones.md"
 SUITE="#!/bin/sh
@@ -863,7 +863,7 @@ else
 fi
 chmod 700 "$W/sin-lectura"
 
-echo "== check_docs: desde F2, check.sh empieza por el bloque vigilado y el bloque se prueba aislado"
+echo "== check_docs: en cualquier fase, check.sh empieza por el bloque vigilado y el bloque se prueba aislado"
 doc() { en "$1" sh scripts/check_docs.sh; }
 copia f3 cd0
 espera pasa "check.sh con el bloque al principio y plazo declarado: check_docs pasa" "" -- doc "$D"
@@ -873,8 +873,30 @@ copia f3 cd2; { printf '#!/bin/sh\n# comentario permitido\necho antes\n%s\n' "$B
 espera falla "código antes del bloque: check_docs falla (la posición se comprueba como texto)" "no EMPIEZA por el bloque" -- doc "$D"
 copia f3 cd3; grep -v 'Plazo de la suite' "$D/docs/convenciones.md" > "$D/c.tmp"; mv "$D/c.tmp" "$D/docs/convenciones.md"
 espera falla "sin el plazo común en convenciones: check_docs falla" "no declara el plazo común" -- doc "$D"
-copia f3 cd4; sed 's/^  exec env SUITE_ENVUELTO=1/  : env SUITE_ENVUELTO=1/' "$D/scripts/check.sh" > "$D/c.tmp"; mv "$D/c.tmp" "$D/scripts/check.sh"
-espera falla "bloque roto (no envuelve): la prueba aislada lo detecta" "no funciona aislado: no corrió vigilado" -- doc "$D"
+# El bloque tiene que ser idéntico al canónico de convenciones.md antes de ejecutarse. Para probar la
+# prueba aislada, la alteración se aplica a los DOS (la referencia local no está autenticada).
+en_ambos() { for f in "$1/scripts/check.sh" "$1/docs/convenciones.md"; do sh -c "$2" _ "$f" > "$1/c.tmp" && mv "$1/c.tmp" "$f"; done; }
+copia f3 cd4; en_ambos "$D" "sed 's/^  exec env SUITE_ENVUELTO=1/  : env SUITE_ENVUELTO=1/' \"\$1\""
+espera falla "bloque roto (no envuelve) también en la referencia: la prueba aislada lo detecta" "no funciona aislado: no corrió vigilado" -- doc "$D"
+copia f3 cd4b; awk -v e="$W/efecto-cd4b" '{ print } /^# --- suite vigilada/ { print ": > \"" e "\"" }' "$D/scripts/check.sh" > "$D/c.tmp" && mv "$D/c.tmp" "$D/scripts/check.sh"
+espera falla "bloque alterado solo en check.sh: check_docs falla sin ejecutarlo" "DIFIERE del canónico" -- doc "$D"
+espera falla "... (el efecto del bloque alterado no se produjo)" "" -- test -e "$W/efecto-cd4b"
+copia f3 cd4c; printf '# --- suite vigilada: otra vez\n: > "%s"\n# --- fin suite vigilada ---\n' "$W/efecto-cd4c" >> "$D/scripts/check.sh"
+espera falla "delimitadores duplicados en check.sh: check_docs falla sin ejecutar" "delimitadores del bloque de la suite vigilada duplicados" -- doc "$D"
+espera falla "... (ningún efecto)" "" -- test -e "$W/efecto-cd4c"
+copia f3 cd4d; awk '/^# --- suite vigilada/ { f = 1 } !f { print } /^# --- fin suite vigilada ---$/ { f = 0 }' "$D/docs/convenciones.md" > "$D/c.tmp" && mv "$D/c.tmp" "$D/docs/convenciones.md"
+espera falla "sin la definición canónica en convenciones: check_docs falla sin ejecutar" "no tiene UNA definición completa del bloque" -- doc "$D"
+# Bytes (R-S.5): el awk de macOS corta la línea en un NUL y sh ejecuta lo que sigue; la comparación es por bytes y NUL/CR se rechazan.
+bytes_en() {  # bytes_en <archivo> <extra>: añade <extra> tras «pwd -P)» en la línea SUITE_RAIZ del bloque
+  python3 -I -c 'import sys; p=sys.argv[1]; t=open(p,"rb").read(); n=t.replace(b"pwd -P)\n", b"pwd -P)" + sys.argv[2].encode().decode("unicode_escape").encode("latin-1") + b"\n", 1); assert n != t; open(p,"wb").write(n)' "$1" "$2"; }
+copia f3 cd4e; bytes_en "$D/scripts/check.sh" "\\x00; : > '$W/efecto-cd4e'"
+espera falla "NUL dentro del bloque de check.sh: check_docs falla sin ejecutarlo" "contiene bytes NUL o CR" -- doc "$D"
+espera falla "... (ningún efecto)" "" -- test -e "$W/efecto-cd4e"
+copia f3 cd4f; bytes_en "$D/scripts/check.sh" "\\x00; : > '$W/efecto-cd4f'"; bytes_en "$D/docs/convenciones.md" "\\x00; : > '$W/efecto-cd4f'"
+espera falla "NUL en el bloque y en la referencia por igual: check_docs falla sin ejecutarlo" "convenciones.md contiene bytes NUL o CR" -- doc "$D"
+espera falla "... (ningún efecto)" "" -- test -e "$W/efecto-cd4f"
+copia f3 cd4g; bytes_en "$D/scripts/check.sh" "\\r"
+espera falla "CR en el bloque de check.sh: check_docs falla sin ejecutarlo" "contiene bytes NUL o CR" -- doc "$D"
 copia f3 cd5; rm "$D/scripts/suite.py"
 espera falla "sin scripts/suite.py: check_docs falla" "falta scripts/suite.py" -- doc "$D"
 # El cuerpo real nunca se ejecuta: deja un testigo si corriera.
@@ -885,16 +907,17 @@ copia f3 cd7; mkdir -p "$W/otro-reg"
 espera pasa "variables SUITE_* heredadas (dentro de otra ejecución, otro registro): no alteran la prueba aislada" "" -- env SUITE_ID=fuera SUITE_REGISTRO="$W/otro-reg" SUITE_ENVUELTO=1 SUITE_PROPIA=x sh -c 'cd "$1" && sh scripts/check_docs.sh' _ "$D"
 espera pasa "... y no deja temporales propios" "^0$" -- sh -c 'ls -d "${TMPDIR:-/tmp}"/check-docs-suite.* 2>/dev/null | wc -l | tr -d " "'
 # Un bloque que deja pasar la llamada anidada (olvida el SUITE_ID heredado) no pasa la prueba aislada.
-copia f3 cd7b; awk '{ print } /^# --- suite vigilada/ { print "[ \"${SUITE_ENVUELTO:-}\" = 1 ] || unset SUITE_ID" }' "$D/scripts/check.sh" > "$D/c.tmp" && mv "$D/c.tmp" "$D/scripts/check.sh"
+copia f3 cd7b; en_ambos "$D" "awk '{ print } /^# --- suite vigilada/ { print \"[ \\\"\\\${SUITE_ENVUELTO:-}\\\" = 1 ] || unset SUITE_ID\" }' \"\$1\""
 espera falla "bloque que no rechaza la llamada anidada: la prueba aislada lo detecta" "una llamada anidada no se rechazó" -- doc "$D"
 # El registro temporal se lee como JSON validado (el parser de suite.py), nunca como texto. Las líneas
 # se inyectan al final del bloque (corren ya vigiladas) y escriben en el registro temporal; cada caso
 # usa su propio TMPDIR para borrar luego solo lo que conservó.
-inyecta() {  # inyecta <dir> <línea>
-  python3 - "$1/scripts/check.sh" "$2" <<'PY'
+inyecta() {  # inyecta <dir> <línea>: en check.sh y en la referencia canónica por igual
+  python3 - "$1/scripts/check.sh" "$1/docs/convenciones.md" "$2" <<'PY'
 import sys
-p, l = sys.argv[1], sys.argv[2]; t = open(p).read(); fin = "# --- fin suite vigilada ---"
-open(p, "w").write(t.replace(fin, l + "\n" + fin, 1))
+l = sys.argv[3]; fin = "# --- fin suite vigilada ---"
+for p in sys.argv[1:3]:
+    t = open(p).read(); open(p, "w").write(t.replace(fin, l + "\n" + fin, 1))
 PY
 }
 COPIA_REG='import json,os,sys; r=os.environ["SUITE_REGISTRO"]; d=json.load(open(os.path.join(r, os.environ["SUITE_ID"] + ".json"))); d.update(json.loads(sys.argv[1])); open(os.path.join(r, d["id"] + ".json"), "w").write(json.dumps(d, separators=(",", ":")))'
@@ -910,7 +933,7 @@ copia f3 cd13; inyecta "$D" "[ -z \"\${SUITE_ID:-}\" ] || { python3 -c '$COPIA_R
 espera falla "«aprobada» en otro campo de un registro fallido: no cuenta como aprobada" "la ejecución falsa no quedó registrada como aprobada" -- doc_t "$D" cd13
 rm -rf "$W"/tmpcd-cd1[123]
 # Límite propio: un bloque que se cuelga ANTES de llegar a suite.py no cuelga check_docs.
-copia f3 cd8; awk 'NR == 2 { print "# --- suite vigilada: colgada antes del envoltorio"; print "sleep 300" } { print }' "$D/scripts/check.sh" > "$D/c.tmp" && mv "$D/c.tmp" "$D/scripts/check.sh"
+copia f3 cd8; en_ambos "$D" "awk '{ print } /^# --- suite vigilada/ { print \"sleep 300\" }' \"\$1\""
 espera falla "bloque que se cuelga fuera del envoltorio: check_docs vence su propio límite" "no terminó en 60 s" -- acotado 90 sh -c 'cd "$1" && sh scripts/check_docs.sh' _ "$D"
 # Inicio de sesión: una ejecución abierta se avisa (sin fallar).
 P="$W/pids/cd9"; mkdir -p "$P"; copia f3 cd9
@@ -921,6 +944,27 @@ id9=$(python3 -c 'import json,glob,sys; print(next(json.load(open(p))["id"] for 
 en "$D" python3 scripts/suite.py terminar "$id9" > /dev/null 2>&1; wait $bg 2>/dev/null
 copia f3 cd10; printf '#!/bin/sh\npython3 -I app.py || exit 1\n' > "$D/scripts/check.sh"
 espera falla "el pre-commit rechaza un check.sh sin el bloque (check_docs sobre el índice)" "no EMPIEZA por el bloque" -- nota_acotada "$D" cd10
+# Antes de F2 también (M02): desde que check.sh existe, el bloque se exige; el pre-commit no llega a lanzarlo sin él.
+copia plantilla cd14; printf '#!/bin/sh\npython3 -I app.py || exit 1\n' > "$D/scripts/check.sh"
+espera falla "plantilla F_ con check.sh sin el bloque: check_docs falla (no espera a F2)" "no EMPIEZA por el bloque" -- doc "$D"
+copia plantilla cd15; fase "$D" F1; printf '#!/bin/sh\npython3 -I app.py || exit 1\n' > "$D/scripts/check.sh"
+espera falla "F1 con check.sh sin el bloque: check_docs falla" "no EMPIEZA por el bloque" -- doc "$D"
+copia plantilla cd16; fase "$D" F1; printf '#!/bin/sh\necho "id=${SUITE_ID:-}" > "%s"\n' "$W/cuerpo-cd16" > "$D/scripts/check.sh"
+espera falla "el pre-commit en F1 rechaza un check.sh sin el bloque" "no EMPIEZA por el bloque" -- nota_acotada "$D" cd16
+espera falla "... y su cuerpo no llegó a correr" "" -- test -e "$W/cuerpo-cd16"
+copia plantilla cd17; fase "$D" F1; printf '#!/bin/sh\n%s\necho "id=${SUITE_ID:-}" > "%s"\n' "$BLOQUE" "$W/cuerpo-cd17" > "$D/scripts/check.sh"
+espera pasa "control: en F1 con el bloque, el pre-commit acepta" "" -- nota_acotada "$D" cd17
+espera pasa "... y el cuerpo corrió vigilado (con identificador de la suite)" "" -- grep -qE '^id=[0-9]{8}T' "$W/cuerpo-cd17"
+# SUITE_ID y SUITE_ENVUELTO heredadas: el pre-commit las quita al lanzar (el cuerpo corre vigilado);
+# SUITE_ID sin SUITE_ENVUELTO (así está el entorno dentro de una ejecución) se rechaza como anidado.
+copia f3 cd18; printf '#!/bin/sh\n%s\necho "id=${SUITE_ID:-}" > "%s"\n' "$BLOQUE" "$W/cuerpo-cd18" > "$D/scripts/check.sh"
+evade() { ( export SUITE_ENVUELTO=1 SUITE_ID=evasion; nota_acotada "$@" ); }
+espera pasa "SUITE_ENVUELTO=1 y SUITE_ID heredadas: el commit pasa" "" -- evade "$D" cd18
+espera pasa "... y el cuerpo corrió vigilado, no con la identidad heredada" "" -- grep -qE '^id=[0-9]{8}T' "$W/cuerpo-cd18"
+copia f3 cd19; printf '#!/bin/sh\n%s\necho "id=${SUITE_ID:-}" > "%s"\n' "$BLOQUE" "$W/cuerpo-cd19" > "$D/scripts/check.sh"
+anida() { ( export SUITE_ID=dentro; unset SUITE_ENVUELTO; nota_acotada "$@" ); }
+espera falla "commit desde dentro de una ejecución (SUITE_ID sin SUITE_ENVUELTO): se rechaza" "desde dentro de otra ejecución de la suite" -- anida "$D" cd19
+espera falla "... sin lanzar el cuerpo" "" -- test -e "$W/cuerpo-cd19"
 
 echo "== El avance queda a la vista: casilla del plan y estado.md en el commit Ref: I<n>"
 # recibo_bruto con la huella del índice: un recibo vigente que NO pasa por cierra_inc.

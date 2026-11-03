@@ -145,7 +145,7 @@ else
   printf 'root = true\n' > "$B/.editorconfig"
   printf '# Contexto\n\nEntradas del proyecto (sintético).\n' > "$B/contexto/README.md"
   printf '# Estado del proyecto\n\n- **Fase actual:** F_ · incremento activo: I_ «alias»\n- **Próximo paso:** _…_\n' > "$B/docs/estado.md"
-  printf '# Encuadre\n\n## Criterios de éxito\n\n- C1:\n' > "$B/docs/encuadre.md"
+  printf '# Encuadre\n\n## Criterios de éxito\n\n- C1:\n\n## Set de oro (ejemplos de salida esperada)\n\n- Entrada: _…_ → Salida esperada: _…_\n' > "$B/docs/encuadre.md"
   printf '# Plan\n\n- [ ] I1 «…» — _…_ (satisface: C_)\n' > "$B/docs/plan.md"
   trazabilidad "$B" '| C1 | «…» | I_ | pendiente / cubierto / verificado | |' '| R-E._ | «…» | _…_ | abierto | — |' '| R-I_._ | «…» | I_ | C_ | _…_ | abierto | — |' '- _(ejemplo)_ `R-I_._ «alias» · verificado AAAA-MM-DD · commit abc1234`'
   for f in decisiones convenciones definicion-de-hecho despliegue MEMORIA; do printf '# %s\n\n(sintético)\n' "$f" > "$B/docs/$f.md"; done
@@ -167,7 +167,7 @@ Ref: F1"
 # E1: F2 cerrado (encuadre + plan + trazabilidad sembrada + suite), listo para I1.
 P="$W/etapas/f2"; cp -R "$B" "$P"
 printf '# AGENTS.md\n\nProyecto Demo: sumar dos números. Ver docs/.\n' > "$P/AGENTS.md"
-printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\n' > "$P/docs/encuadre.md"
+printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$P/docs/encuadre.md"
 printf '# Plan\n\n- [ ] I1 «suma» — función suma (satisface: C1)\n- [ ] I2 «resta» — (satisface: C1)\n- [ ] I3 «multiplica» — (satisface: C1)\n- [ ] I4 «divide» — (satisface: C1)\n- [ ] I5 «potencia» — (satisface: C1)\n' > "$P/docs/plan.md"
 printf '# Decisiones\n\n(ninguna todavía)\n' > "$P/docs/decisiones.md"
 trazabilidad "$P" "$C1_PEND" "" ""
@@ -289,11 +289,11 @@ recibo "$D" revisor-funcional encuadre reentrada:C1 PASA 0
 espera falla "reentrada:C1 cuando también cambió C2 se rechaza (varios criterios ⇒ alcance F2)" "también cambió C2" -- commitea "$D" "reentrada parcial
 
 Ref: F2"
-copia f3 cr6; printf '\n## Set de oro\n\n- suma(1, 2) → 3\n' >> "$D/docs/encuadre.md"; printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+copia f3 cr6; printf -- '- suma(2, 2) → 4\n' >> "$D/docs/encuadre.md"; printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
 espera falla "cambiar el set de oro dentro de Ref: I2 se rechaza" "contrato revisado" -- commitea "$D" "I2
 
 Ref: I2"
-copia f3 cr7; printf '\n## Set de oro\n\n- suma(1, 2) → 3\n' >> "$D/docs/encuadre.md"; recibo "$D" revisor-funcional encuadre reentrada:C1 PASA 0
+copia f3 cr7; printf -- '- suma(2, 2) → 4\n' >> "$D/docs/encuadre.md"; recibo "$D" revisor-funcional encuadre reentrada:C1 PASA 0
 espera pasa "reentrada:C1 con solo el set de oro cambiado se acepta" "" -- commitea "$D" "set de oro
 
 Ref: F2"
@@ -363,14 +363,14 @@ copia f3 rf7; trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «sin-prueba» | I1 | 
 espera falla "el doctor rechaza resuelto con la columna Resuelto vacía" "columna Resuelto vacía" -- en "$D" sh scripts/check_docs.sh
 
 echo "== Criterio en una línea; merges limpios y las invariantes del resultado"
-copia f3 cc1; printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\n  Las entradas inválidas se rechazan.\n' > "$D/docs/encuadre.md"
+copia f3 cc1; printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\n  Las entradas inválidas se rechazan.\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$D/docs/encuadre.md"
 espera falla "el doctor rechaza un criterio con texto de continuación (sangrado)" "continuación" -- en "$D" sh scripts/check_docs.sh
-copia f3 cc1b; printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\nLas entradas inválidas se rechazan.\n' > "$D/docs/encuadre.md"
+copia f3 cc1b; printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\nLas entradas inválidas se rechazan.\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$D/docs/encuadre.md"
 espera falla "el doctor rechaza un criterio con continuación perezosa (sin sangría)" "continuación" -- en "$D" sh scripts/check_docs.sh
 copia f3 cc2; printf '# Encuadre\n\n## Criterios de éxito\n\n<!-- nota -->\n- C1: la función suma devuelve a+b para enteros.\n- C2: resta devuelve a-b.\n\n## Set de oro\n\n- par\n' > "$D/docs/encuadre.md"; trazabilidad "$D" "$C1_PEND
 | C2 | «resta» | I2 | pendiente | |" "" ""
 espera pasa "criterios de una línea seguidos de otro ítem, blanco, comentario o encabezado pasan el doctor" "" -- en "$D" sh scripts/check_docs.sh
-copia f3 cc3; printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\n\n  Las entradas inválidas se rechazan.\n' > "$D/docs/encuadre.md"
+copia f3 cc3; printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\n\n  Las entradas inválidas se rechazan.\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$D/docs/encuadre.md"
 espera falla "el doctor rechaza un párrafo sangrado tras una línea blanca (sigue siendo del criterio)" "continuación" -- en "$D" sh scripts/check_docs.sh
 espera falla "el pre-commit rechaza ese criterio con párrafo tras blanco (Ref: F1)" "continuación" -- commitea "$D" "criterio con párrafo
 
@@ -1430,7 +1430,7 @@ espera pasa "huella con un filtro clean configurado: avisa que no certifica lect
 en "$HV" git config --unset filter.propio.clean
 
 tres_criterios() {  # tres_criterios <dir>: C1..C3 construidos (I1, I2, I3) y C4 futuro (I4, sin commit)
-  printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: suma devuelve a+b.\n- C2: resta devuelve a-b.\n- C3: multiplica devuelve a*b.\n- C4: divide devuelve a/b.\n' > "$1/docs/encuadre.md"
+  printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: suma devuelve a+b.\n- C2: resta devuelve a-b.\n- C3: multiplica devuelve a*b.\n- C4: divide devuelve a/b.\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$1/docs/encuadre.md"
   trazabilidad "$1" "$C1_PEND
 | C2 | «resta» | I2 | pendiente | |
 | C3 | «multiplica» | I3 | pendiente | |
@@ -1557,7 +1557,7 @@ espera pasa "hallazgo de seguridad con categoría CWE en Criterio se acepta" "" 
 Ref: F1"
 
 echo "== Cierre: criterios, IDs, alcance funcional"
-copia cierre z1; printf '# Encuadre\n\n- Objetivo: sumar\n' > "$D/docs/encuadre.md"
+copia cierre z1; printf '# Encuadre\n\n- Objetivo: sumar\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$D/docs/encuadre.md"
 trazabilidad "$D" "" "" '| R-I1.1 | «sin-prueba» | I1 | general | falta prueba | verificado | 2026-10-19 10:00 · app.py:1 |'
 recibo "$D" revisor-funcional encuadre F2 PASA 0
 commitea "$D" "encuadre sin criterios
@@ -1602,7 +1602,7 @@ copia cierre z2; trazabilidad "$D" "$C1_VERIF
 espera falla "criterio huérfano C999 en trazabilidad se rechaza" "huérfano" -- commitea "$D" "docs
 
 Ref: F1"
-copia cierre z3; printf '# Encuadre\n\n- **C1**: la función suma devuelve a+b.\n' > "$D/docs/encuadre.md"
+copia cierre z3; printf '# Encuadre\n\n- **C1**: la función suma devuelve a+b.\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$D/docs/encuadre.md"
 espera falla "criterio en negrita (**C1**) se rechaza como formato no admitido" "fuera de la gramática" -- commitea "$D" "docs
 
 Ref: F1"
@@ -1615,7 +1615,7 @@ copia f2 z5
 espera falla "fila de ejemplo de la plantilla con proyecto iniciado se rechaza" "fila de ejemplo" -- sh -c 'cd "$1" && printf "| R-I_._ | «…» | I_ | C_ | _…_ | abierto | — |\n" >> docs/trazabilidad.md && git add -A && git -c core.hooksPath=.githooks commit -q -m "x
 
 Ref: F1"' sh "$D"
-copia cierre z6; printf '# Encuadre\n\n- C1:\n' > "$D/docs/encuadre.md"
+copia cierre z6; printf '# Encuadre\n\n- C1:\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$D/docs/encuadre.md"
 espera falla "criterio sin enunciado con proyecto iniciado se rechaza" "sin enunciado" -- commitea "$D" "docs
 
 Ref: F1"

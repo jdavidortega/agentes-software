@@ -34,7 +34,17 @@ el que se valida. Usa muestras reales cuando existan.
 OBLIGATORIO: incluye al menos un EJEMPLO CONCRETO de entrada y de salida (no basta
 describir el formato). Puede ir inline aquí, o como archivo referenciado en contexto/ si el ejemplo es
 grande; en ese caso enlaza el archivo. Las muestras de salida inventariadas en
-§Entradas y salidas son candidatas directas a estos pares. -->
+§Entradas y salidas son candidatas directas a estos pares.
+CONTRATO: esta sección (una sola, con este título) y el contenido exacto de cada archivo que referencia
+directamente son la verdad acordada; cambiarlos después del plan exige reentrada (Ref: F2). Dos formas de
+referenciar un archivo, y solo estas (scripts/contrato.py):
+  - enlace Markdown, relativo a este archivo:  [par 1](../contexto/oro/par1.json)
+    con espacios, entre < >:                    [par 2](<../contexto/oro/par 2.json>)
+  - ruta entre acentos graves desde la raíz, empezando por contexto/ o ./:
+                                               `contexto/oro/par3.json`  `./ejemplos/salida 4.csv`
+Cualquier otro texto entre acentos graves es un dato (`suma(1, 2) → 3`), no un archivo. Una referencia
+inexistente, a un directorio, a un enlace simbólico, absoluta o fuera del repositorio hace FALLAR el
+commit. Lo que está en comentarios como este no cuenta. -->
 - Entrada: _…_ → Salida esperada: _…_
 
 ## Entradas y salidas

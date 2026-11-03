@@ -23,10 +23,16 @@
 #   Ref: F4   → juez-conjunto conjunto F4 (no sirve un recibo de hito) (+ seguridad si requerida)
 #   Ref: F5   → exactamente lo de F4 (conjunto + seguridad), vigente sobre lo que se commitea
 # Ref: F4|F5 dispara además check_docs en modo cierre.
-# CONTRATO REVISADO (la verdad acordada): las líneas `- C<n>:` y la sección `## Set de oro` de
-# docs/encuadre.md tal como estaban en el ÚLTIMO commit `Ref: F2` del historial (en un proyecto
-# adoptado, posterior a la «Base del método» de docs/convenciones.md: un trailer previo no acredita
-# revisión). Todo trabajo DEPENDIENTE (Ref: I<n>, Ref: hito, Ref: F4, Ref: F5) exige que el candidato
+# CONTRATO REVISADO (la verdad acordada): las líneas `- C<n>:`, la ÚNICA sección `## Set de oro` de
+# docs/encuadre.md y el contenido exacto de los archivos que esa sección referencia, leídos con el lector
+# único scripts/contrato.py desde los OBJETOS (índice, o el commit en replay; nunca el árbol de trabajo)
+# tal como estaban en el ÚLTIMO commit `Ref: F2` del historial (en un proyecto adoptado, posterior a la
+# «Base del método» de docs/convenciones.md: un trailer previo no acredita revisión). Esa lectura rige si el
+# scripts/check_docs.sh del candidato declara «# contrato-set-de-oro: 1»; sin el marcador (un commit
+# anterior), la comparación previa de `- C<n>:` y la sección. Con el marcador, si ese último `Ref: F2` no
+# vale como referencia (el lector da ERR), el trabajo dependiente exige migrarlo con un `Ref: F2` de alcance
+# F2 completo (reentrada:C<n> no basta).
+# Todo trabajo DEPENDIENTE (Ref: I<n>, Ref: hito, Ref: F4, Ref: F5) exige que el candidato
 # tenga ese contrato idéntico; sin ningún `Ref: F2` no hay contrato y se rechaza. `Ref: F1` edita el
 # encuadre libremente (borrador, reencuadre F3→F1, Fase 1 de una adopción) y `Ref: F2` fija el contrato
 # nuevo (su recibo lleva la huella del índice, que incluye encuadre.md); con alcance reentrada:C<n>
@@ -133,7 +139,7 @@ trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
 #   (README, guías de contribución, conducta, seguridad, soporte y plantillas de issue y de PR en
 #   Markdown). Los demás workflows, acciones y archivos de .github/ son configuración operativa del
 #   producto (CI, despliegue, dependencias, propietarios, instrucciones de agentes).
-METODO='^(\.github/workflows/metodo\.yml|\.githooks/(commit-msg|pre-commit)|scripts/pruebas/(regresion|regresion-suite|regresion-adopcion|validar_historial)\.sh|scripts/(check_docs|adoptar|buscar|huella|recibos|trazabilidad|guardas)\.sh|scripts/(consumo|suite)\.py)$'
+METODO='^(\.github/workflows/metodo\.yml|\.githooks/(commit-msg|pre-commit)|scripts/pruebas/(regresion|regresion-suite|regresion-adopcion|validar_historial)\.sh|scripts/(check_docs|adoptar|buscar|huella|recibos|trazabilidad|guardas)\.sh|scripts/(consumo|suite|contrato)\.py)$'
 SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents)/|^\.github/((README|CONTRIBUTING|CODE_OF_CONDUCT|SECURITY|SUPPORT|PULL_REQUEST_TEMPLATE|pull_request_template)\.md|(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE)/[^/]+\.md)$|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check\.sh)$|(^|/)\.env\.example$|'"$METODO"
 # Siempre producto aunque viva en una carpeta del rastro: CODEOWNERS decide quién aprueba y GitHub
 # lo lee de .github/, la raíz o docs/ (las dos primeras ya están fuera de SIN_REVISION).
@@ -204,8 +210,18 @@ cerrados_desde_hito() {
   hc=$(git log -1 --format=%H -E --grep='^Ref:[[:space:]]*hito:I[0-9]+-I[0-9]+[[:space:]]*$' "$BASE" 2>/dev/null)
   git log --format=%B ${hc:+"$hc.."}"$BASE" 2>/dev/null | grep -oE '^Ref:[[:space:]]*I[0-9]+[[:space:]]*$' | grep -oE 'I[0-9]+' | sort -u
 }
-# Contrato revisado: `- C<n>:` y el cuerpo de `## Set de oro` de un encuadre (stdin), sin blancos finales.
-contrato() { awk '/^- C[0-9]+:/ {print; next} /^## / {s=($0 ~ /^## Set de oro/); next} s {print}' | sed 's/[[:space:]]*$//' | grep -v '^$'; }
+# Contrato revisado de <INDICE|commit> con el lector único (scripts/contrato.py, el mismo de check_docs):
+# registros C, ORO, REF (archivo referenciado y su blob) y ERR. Si no puede leer, el código no es 0.
+contrato() { python3 -I scripts/contrato.py objetos "$1"; }
+# El candidato declara su versión del contrato en SU scripts/check_docs.sh (la línea exacta
+# «# contrato-set-de-oro: 1»). Sin ella (un commit anterior a M03, en el replay) rige la comparación de
+# entonces, conservada tal cual; con ella, solo el lector, y un error de lectura FALLA (nunca vuelve a la
+# previa). Si el último `Ref: F2` no vale como referencia con el marcador, el trabajo dependiente exige
+# migrarlo con una reentrada de alcance F2 completo (reentrada:C<n> no basta); si vale, rige la reentrada
+# ordinaria. El marcador identifica la versión; no autentica a los validadores. guardas.sh (regla 8)
+# impide retirarlo una vez instalado.
+m03() { idx scripts/check_docs.sh | grep -qx '# contrato-set-de-oro: 1'; }
+contrato_previo() { awk '/^- C[0-9]+:/ {print; next} /^## / {s=($0 ~ /^## Set de oro/); next} s {print}' | sed 's/[[:space:]]*$//' | grep -v '^$'; }
 base_metodo() { idx docs/convenciones.md | sed -nE 's/^- \*\*Base del método:\*\* `?([0-9a-f]{7,40})`?[[:space:]]*$/\1/p' | head -1; }
 ultimo_f2() {  # sha del último commit `Ref: F2` alcanzable desde BASE (tras la base del método, si la hay)
   [ "$HAY_HISTORIAL" -eq 1 ] || return 1
@@ -245,7 +261,20 @@ for line in $trailers; do
             c=${a#reentrada:}
             idx docs/encuadre.md | grep -qE "^- $c:" || fail "'$line': el recibo del revisor funcional es de alcance $a, pero $c no está definido en docs/encuadre.md ('- $c: …')."
             if f2p=$(ultimo_f2); then
-              cambiados=$( { git show "$f2p:docs/encuadre.md" 2>/dev/null | grep -E '^- C[0-9]+:' ; idx docs/encuadre.md | grep -E '^- C[0-9]+:' ; } | sed 's/[[:space:]]*$//' | sort | uniq -u | grep -oE '^- C[0-9]+' | grep -oE 'C[0-9]+' | sort -u)
+              # Con el marcador, un registro ERR (aunque el lector salga con 0) no acota nada: FALLA. Si el
+              # último F2 no vale como referencia, la migración revisa el contrato completo (alcance F2).
+              cambiados=""
+              if ! m03; then
+                cambiados=$( { git show "$f2p:docs/encuadre.md" 2>/dev/null | grep -E '^- C[0-9]+:' ; idx docs/encuadre.md | grep -E '^- C[0-9]+:' ; } | sed 's/[[:space:]]*$//' | sort | uniq -u | grep -oE '^- C[0-9]+' | grep -oE 'C[0-9]+' | sort -u)
+              elif ! c2=$(contrato "$f2p") || ! cn=$(contrato "${REV:-INDICE}"); then
+                fail "'$line': no pude leer el contrato con scripts/contrato.py (python3 -I) para acotar la reentrada."
+              elif printf '%s\n' "$cn" | grep -q '^ERR	'; then
+                fail "'$line': el contrato de docs/encuadre.md no se puede leer ($(printf '%s\n' "$cn" | sed -n 's/^ERR	//p' | head -3 | tr '\n' '|')); una reentrada no se acota sobre un contrato ilegible."
+              elif printf '%s\n' "$c2" | grep -q '^ERR	'; then
+                fail "'$line': el último contrato revisado (commit $(git rev-parse --short "$f2p"), 'Ref: F2') no vale como referencia con «contrato-set-de-oro: 1» ($(printf '%s\n' "$c2" | sed -n 's/^ERR	//p' | head -3 | tr '\n' '|')): la migración revisa el contrato completo, así que el recibo del revisor funcional es de alcance F2, no $a."
+              else
+                cambiados=$( { printf '%s\n' "$c2"; printf '%s\n' "$cn"; } | grep '^C	' | sort | uniq -u | grep -oE '^C	- C[0-9]+' | grep -oE 'C[0-9]+' | sort -u)
+              fi
               for k in $cambiados; do
                 [ "$k" = "$c" ] || fail "'$line': el recibo de reentrada cubre $c, pero también cambió $k respecto del contrato revisado (commit $(git rev-parse --short "$f2p")); con varios criterios el alcance de la revisión es F2 completo."
               done
@@ -353,8 +382,20 @@ unset IFS
 # --- Contrato revisado: el trabajo dependiente se ata al último `Ref: F2`, no a la fase ---------
 if [ "$dependiente" -eq 1 ] && [ "$con_f2" -eq 0 ]; then
   if f2=$(ultimo_f2); then
-    ca=$(git show "$f2:docs/encuadre.md" 2>/dev/null | contrato); cb=$(idx docs/encuadre.md | contrato)
-    [ "$ca" = "$cb" ] || fail "los criterios o el set de oro de docs/encuadre.md no son los del último contrato revisado (commit $(git rev-parse --short "$f2"), 'Ref: F2'); difiere: $( { printf '%s\n' "$ca"; printf '%s\n' "$cb"; } | sort | uniq -u | head -2 | cut -c1-60 | tr '\n' '|'). Un cambio de la verdad acordada reentra por el encuadre (docs/arranque.md §Reentrada): ADR, revisor funcional y commit 'Ref: F2' (alcance F2, o reentrada:C<n> si solo cambió ese criterio) antes de cerrar trabajo que depende de ella."
+    # Sin el marcador, la comparación de entonces (con contrato_previo). Con él, una sección ausente,
+    # duplicada o no reconocida, o una referencia inválida, no es un contrato vacío: FALLA.
+    if ! m03; then
+      ca=$(git show "$f2:docs/encuadre.md" 2>/dev/null | contrato_previo); cb=$(idx docs/encuadre.md | contrato_previo)
+      [ "$ca" = "$cb" ] || fail "los criterios o el set de oro de docs/encuadre.md no son los del último contrato revisado (commit $(git rev-parse --short "$f2"), 'Ref: F2'); difiere: $( { printf '%s\n' "$ca"; printf '%s\n' "$cb"; } | sort | uniq -u | head -2 | cut -c1-60 | tr '\n' '|'). Un cambio de la verdad acordada reentra por el encuadre (docs/arranque.md §Reentrada): ADR, revisor funcional y commit 'Ref: F2' (alcance F2, o reentrada:C<n> si solo cambió ese criterio) antes de cerrar trabajo que depende de ella."
+    elif ! ca=$(contrato "$f2") || ! cb=$(contrato "${REV:-INDICE}"); then
+      fail "no pude leer el contrato revisado con scripts/contrato.py (python3 -I); sin lector no hay comparación."
+    elif printf '%s\n' "$cb" | grep -q '^ERR	'; then
+      fail "el contrato de docs/encuadre.md no se puede leer: $(printf '%s\n' "$cb" | sed -n 's/^ERR	//p' | head -3 | tr '\n' '|'). No es un contrato vacío ni el último contrato revisado (commit $(git rev-parse --short "$f2"), 'Ref: F2'): corrige la estructura o la referencia, y si cambia la verdad acordada, reentra por el encuadre (docs/arranque.md §Reentrada)."
+    elif printf '%s\n' "$ca" | grep -q '^ERR	'; then
+      fail "el último contrato revisado (commit $(git rev-parse --short "$f2"), 'Ref: F2') no vale como referencia con «contrato-set-de-oro: 1»: $(printf '%s\n' "$ca" | sed -n 's/^ERR	//p' | head -3 | tr '\n' '|'). Se migra hacia adelante, sin reescribir historia: reentrada por el encuadre con revisor funcional y un commit 'Ref: F2' cuyo docs/encuadre.md ya cumpla la estructura (docs/arranque.md §Reentrada); después, el trabajo dependiente se ata a ese F2."
+    else
+      [ "$ca" = "$cb" ] || fail "los criterios, el set de oro o los archivos que referencia (docs/encuadre.md) no son los del último contrato revisado (commit $(git rev-parse --short "$f2"), 'Ref: F2'); difiere: $( { printf '%s\n' "$ca"; printf '%s\n' "$cb"; } | sort | uniq -u | head -2 | cut -c1-80 | tr '\n' '|'). Un cambio de la verdad acordada reentra por el encuadre (docs/arranque.md §Reentrada): ADR, revisor funcional y commit 'Ref: F2' (alcance F2, o reentrada:C<n> si solo cambió ese criterio) antes de cerrar trabajo que depende de ella."
+    fi
   else
     fail "el commit cierra trabajo que depende de los criterios (Ref: I<n> | hito | F4 | F5) pero no hay ningún commit 'Ref: F2' en el historial$( [ -n "$(base_metodo)" ] && printf ' posterior a la Base del método'): sin plan aprobado no hay contrato revisado (docs/arranque.md, Fase 2)."
   fi

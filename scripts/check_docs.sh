@@ -14,11 +14,19 @@
 #
 # Salida: 0 = PASA; 1 = FALLA (los motivos van a stderr, uno por línea).
 # Un archivo obligatorio ausente es FALLA, nunca una sección omitida en silencio.
+#
+# Versión del contrato del set de oro de ESTE check_docs (la línea exacta de abajo). Identifica la
+# versión; no autentica a los validadores ni resuelve la confianza del replay. La exigencia M03
+# (scripts/contrato.py y §1a) rige para el árbol cuyo PROPIO scripts/check_docs.sh la lleva: un commit
+# anterior se valida con sus reglas, y una vez instalada guardas.sh (regla 8) impide retirarla.
+# contrato-set-de-oro: 1
 
 MODE="${1:-commit}"
 FAIL=0
 err() { echo "  ✗ check_docs: $1" >&2; FAIL=1; }
 has() { [ -f "$1" ]; }
+# Del árbol validado (en el pre-commit, la exportación del índice; en el replay, el commit), nunca del entorno.
+M03=0; grep -qx '# contrato-set-de-oro: 1' scripts/check_docs.sh 2>/dev/null && M03=1
 
 # --- Última fase legible del HISTORIAL --------------------------------------------------------
 # Un commit que borra o estropea la fase no puede devolver el proyecto a «plantilla»: lo que
@@ -125,6 +133,8 @@ for f in AGENTS.md README.md contexto/README.md docs/estado.md docs/encuadre.md 
          .claude/agents/juez-conjunto.md .claude/agents/juez-seguridad.md; do
   has "$f" || err "falta $f (viene con la plantilla y el método lo necesita: los cuatro roles, sus rúbricas, el procedimiento del principal, los registros y los hooks)"
 done
+# Con el marcador, el lector es obligatorio: una instalación parcial FALLA (nunca vuelve a las reglas previas).
+[ "$M03" -eq 0 ] || has scripts/contrato.py || err "falta scripts/contrato.py: scripts/check_docs.sh declara «contrato-set-de-oro: 1» y sin el lector no hay contrato (instalación parcial; se instala con adoptar.sh actualizar o desde la plantilla)"
 # Adaptador Codex (si se usa): los mismos cuatro roles.
 if [ -d .codex/agents ]; then
   for r in revisor-funcional juez-codigo juez-conjunto juez-seguridad; do
@@ -394,6 +404,21 @@ if has docs/encuadre.md; then
     for c in $(printf '%s\n' "$FILAS" | awk '$1=="C" && $3 !~ /I[0-9]+/ {print $2}'); do
       err "trazabilidad.md: $c no tiene incremento asignado (columna Incremento) con el plan aprobado; cada criterio se cubre con un I<n> o sale del encuadre por ADR"
     done
+  fi
+fi
+
+# --- 1a) Set de oro: una sola sección reconocida y referencias válidas, desde F1 ------------------
+# Lo lee scripts/contrato.py, el mismo lector que usa el commit-msg para comparar el contrato revisado
+# (sus reglas, con ejemplos, en su cabecera y en el comentario de §Set de oro de docs/encuadre.md).
+# Sección ausente, duplicada o no reconocida, y referencias que no resuelven a un archivo regular dentro
+# del repositorio, FALLAN. Aquí se mira el directorio sobre el que corre (en el pre-commit, la exportación
+# del índice). La plantilla sin iniciar (F_) no se mira, ni un árbol sin el marcador (contrato previo).
+if [ "$M03" -eq 1 ] && has docs/encuadre.md && { [ "$FASE" = F1 ] || [ "$INICIADO" -eq 1 ]; }; then
+  if ORO_ERR=$(python3 -I scripts/contrato.py revisa docs/encuadre.md); then
+    oro_n=$(printf '%s\n' "$ORO_ERR" | grep -c '^ERR	'); oro_k=1
+    while [ "$oro_k" -le "$oro_n" ]; do err "$(printf '%s\n' "$ORO_ERR" | grep '^ERR	' | sed -n "${oro_k}p" | cut -f2-)"; oro_k=$((oro_k+1)); done
+  else
+    err "no pude leer el set de oro de docs/encuadre.md con scripts/contrato.py (python3 -I)"
   fi
 fi
 

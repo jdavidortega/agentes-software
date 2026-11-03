@@ -78,7 +78,7 @@ else
   printf 'root = true\n' > "$P/.editorconfig"
   printf '# Contexto\n\nEntradas del proyecto.\n' > "$P/contexto/README.md"
   printf '# Estado del proyecto\n\n- **Fase actual:** F_ · incremento activo: I_ «alias»\n- **Próximo paso:** _…_\n' > "$P/docs/estado.md"
-  printf '# Encuadre\n\n## Criterios de éxito\n\n- C1:\n' > "$P/docs/encuadre.md"
+  printf '# Encuadre\n\n## Criterios de éxito\n\n- C1:\n\n## Set de oro (ejemplos de salida esperada)\n\n- Entrada: _…_ → Salida esperada: _…_\n' > "$P/docs/encuadre.md"
   printf '# Plan\n\n- [ ] I1 «…» — _…_ (satisface: C_)\n' > "$P/docs/plan.md"
   printf '# Trazabilidad\n\n## Cobertura de criterios\n\n| Criterio | Alias | Incremento(s) | Estado | Nota |\n|----------|-------|---------------|--------|------|\n| C1 | «…» | I_ | pendiente / cubierto / verificado | |\n\n## Registro de vacíos del revisor funcional (arranque)\n\n| Vacío | Alias | Punto incumplido | Estado | Resuelto (cómo · AAAA-MM-DD HH:MM UTC) |\n|-------|-------|------------------|--------|----------------------------------------|\n\n## Registro de revisiones del juez\n\n| Hallazgo | Alias | Incr. | Criterio | Descripción | Estado | Resuelto (AAAA-MM-DD HH:MM UTC · commit) |\n|----------|-------|-------|----------|-------------|--------|------------------------------------------|\n\n## Histórico (compactado)\n\n' > "$P/docs/trazabilidad.md"
   for f in decisiones convenciones definicion-de-hecho despliegue MEMORIA; do printf '# %s\n\n(sintético)\n' "$f" > "$P/docs/$f.md"; done
@@ -170,6 +170,7 @@ espera pasa "copiar: README del proyecto idéntico byte a byte" "" -- cmp "$W/re
 espera pasa "copiar: runbook propio idéntico byte a byte" "" -- cmp "$W/runbook.orig" "$D/docs/despliegue.md"
 espera pasa "copiar: adoptar.sh y su regresión no se distribuyen" "" -- sh -c "[ ! -e '$D/scripts/adoptar.sh' ] && [ ! -e '$D/scripts/pruebas/regresion-adopcion.sh' ]"
 espera pasa "copiar: los hooks quedan ejecutables" "" -- sh -c "[ -x '$D/.githooks/pre-commit' ] && [ -x '$D/.githooks/commit-msg' ]"
+espera pasa "copiar: el lector del contrato (scripts/contrato.py) se distribuye idéntico" "" -- cmp "$P/scripts/contrato.py" "$D/scripts/contrato.py"
 espera pasa "copiar: manifiesto registra hash por archivo y la colisión" "" -- sh -c "grep -qE '^- AGENTS\.md · [0-9a-f]{40}$' '$D/contexto/adopcion.md' && grep -qx -- '- docs/despliegue.md' '$D/contexto/adopcion.md'"
 huella_arbol "$D" > "$W/h1"; cp "$D/contexto/adopcion.md" "$W/m1"
 espera pasa "repetir: todo instalado sin cambios" "Instalado sin cambios: [1-9]" -- adoptar "$P" copiar "$D"

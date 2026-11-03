@@ -24,6 +24,10 @@
 #   7) que la instrumentación retroceda: si el base o CUALQUIER padre (un merge) tiene un
 #      scripts/recibos.sh que conoce el marcador «# contrato-recibos: 2», el candidato también (si
 #      no, la excepción histórica del replay sería un atajo para colar recibos sin modalidad)
+#   8) que el contrato del set de oro retroceda: si el base o CUALQUIER padre tiene un
+#      scripts/check_docs.sh con la línea exacta «# contrato-set-de-oro: 1», el candidato también, y
+#      conserva scripts/contrato.py (retirar o alterar el marcador, o borrar el lector, devolvería el
+#      árbol a la comparación previa). El marcador identifica la versión; no autentica a los validadores.
 # La excepción histórica (5) se deriva del CANDIDATO: un commit cuyo propio recibos.sh no conoce el
 # marcador; el índice (pre-commit) nunca la tiene. No se lee del entorno.
 # No corre check_docs ni check.sh: eso lo hacen el pre-commit y el replay por su cuenta.
@@ -115,4 +119,14 @@ if ! blob_c scripts/recibos.sh | conoce; then
     fi
   done
 fi
+
+# 8) La versión del contrato del set de oro no retrocede respecto del base ni de ningún padre.
+m03() { grep -qx '# contrato-set-de-oro: 1' 2>/dev/null; }
+for p in $padres; do
+  git show "$p:scripts/check_docs.sh" 2>/dev/null | m03 || continue
+  q=$(git rev-parse --short "$p" 2>/dev/null || echo 'el estado anterior')
+  blob_c scripts/check_docs.sh | m03 || fail "scripts/check_docs.sh deja de declarar «# contrato-set-de-oro: 1» (lo retira o lo altera), que $q ya declaraba: el contrato del set de oro no retrocede a la comparación previa, tampoco al fusionar (se actualiza con adoptar.sh actualizar o desde la plantilla)."
+  tiene_c scripts/contrato.py || fail "scripts/contrato.py desaparece y $q ya declaraba «# contrato-set-de-oro: 1»: sin el lector no hay contrato del set de oro (se restaura con adoptar.sh actualizar o desde la plantilla)."
+  break
+done
 exit $FAIL

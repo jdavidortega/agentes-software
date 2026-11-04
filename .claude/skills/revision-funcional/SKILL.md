@@ -103,7 +103,10 @@ Después, el agente principal **valida si el dato ya está presente**:
   aprobación inequívoca de una propuesta concreta que el ADR referencia—; contrasta esa cita con
   su fuente (`contexto/`, el brief o el registro de la conversación). Un ADR `aceptada` cuya
   opción haya que deducir de otra frase es un vacío: vuelve a `propuesta`.
-- Sin marcas `[FALTA]` ni `[inferido]` sin confirmar.
+- Ningún `[inferido]` sin confirmar. Ningún `[FALTA]` abierto salvo un diferido que cumple
+  `docs/convenciones.md` §Hechos pendientes: sus tres datos, listado en «Pendiente» y sin una decisión
+  siguiente, un trabajo construido ni una garantía declarada verificada que dependa de él. Uno
+  preguntado y sin respuesta sigue abierto.
 
 **Consistencia (criterio):**
 
@@ -155,8 +158,8 @@ documenta, no se decide). Lo propio del revisor en este modo:
 - **Observado frente a inferido:** lo marcado `observado en código` tiene que estar literalmente
   en su cita; un comportamiento que exige juntar piezas es `inferido`, y marcarlo como observado
   o comprobado es vacío.
-- **Desconocidos:** un hecho pendiente con impacto y responsable no es vacío si ninguna
-  garantía declarada verificada depende de él; solo una **elección** exige ADR `propuesta`.
+- **Desconocidos:** un `[pendiente]` se juzga con `docs/convenciones.md` §Hechos pendientes, igual
+  que un `[FALTA · diferido]` en la rúbrica normal; solo una **elección** exige ADR `propuesta`.
 - **Decisiones:** ADR retrospectivos con evidencia, explicación confirmada o hipótesis; no se
   juzgan como decisiones nuevas.
 - **Alcance proporcional** (ruta de trabajo elegido): contrasta con el código que el mapa del área

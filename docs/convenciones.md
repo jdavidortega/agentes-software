@@ -136,6 +136,41 @@ con las columnas de la vista") y las siguientes al menos con el alias. Un docume
 mensaje que solo cita siglas se vuelve ilegible cuando el proyecto crece; el seguimiento
 de un requerimiento tiene que poder hacerse leyendo, no descifrando.
 
+### Hechos pendientes
+
+Rige en el arranque, en la adopción y en la reentrada; es la única definición. Un **hecho pendiente**
+es un dato que ninguna fuente accesible sostiene (el repositorio, `contexto/`, la conversación o una
+comprobación al alcance del agente) y que solo la persona, operación o un tercero pueden dar. No se
+rellena con `[inferido]` ni `[supuesto]` para no preguntarlo, y esta regla no relaja la de las
+inferencias: todo `[inferido]` se confirma con la persona antes del gate.
+
+- **Preguntar no lo resuelve.** Un hecho preguntado y todavía sin respuesta sigue abierto; si la
+  siguiente decisión lo necesita, esa decisión no se toma hasta tenerlo. «No lo sé» es una respuesta
+  válida y lo deja diferido.
+- **Diferido, con tres datos:** quién lo confirma; cuándo se resuelve; qué decisión o trabajo bloquea.
+  En el arranque se escribe `[FALTA · diferido: quién; cuándo; qué bloquea]` y en la adopción
+  `[pendiente: quién; cuándo; qué bloquea]`: son la misma marca en dos notaciones, y un hecho lleva
+  solo una.
+- **Cruza un gate solo si se cumplen las cuatro condiciones:** figura en el campo «Pendiente» del gate;
+  la siguiente decisión no necesita resolverlo; ningún trabajo que dependa de él se construye antes de
+  resolverlo; y ninguna garantía declarada verificada depende de él. Si falla una, el gate no se pide con
+  él abierto: se pregunta y se espera, o la decisión, el trabajo o la garantía que dependen de él quedan
+  fuera del gate, dicho explícitamente.
+- **Hecho ≠ elección.** Un hecho pendiente no es un ADR; solo una elección entre opciones lo es
+  (`propuesta`, con la actividad donde se resuelve).
+
+**Pendiente de seguridad física** (un dato del que depende que el sistema actúe o no sobre equipos,
+personas o el mundo real: configuración desplegada, a qué alcanza un mando, si un automatismo está
+encendido) lleva cuatro partes: **qué** falta confirmar y **quién** puede hacerlo; **qué decisión**
+queda bloqueada hasta conocerlo; **cuándo** debe resolverse (p. ej. «antes del gate de la Fase 2»); y
+**qué medida provisional** se propone, **quién la autoriza** y **cómo se comprueba**. Una medida
+provisional es **candidata**: se dice si es suficiente o qué otros caminos persisten. **Al vencer sin
+resolverse**, la decisión bloqueada **no se toma** en ese gate: la persona puede aprobar el resto, pero el
+gate dice explícitamente qué decisión queda fuera, y `docs/estado.md` distingue la **revisión documental
+aprobada** del **gate pendiente** de esa decisión; el pendiente sigue con un nuevo «cuándo». El cierre
+documental de una fase **no autoriza** operar, desplegar ni declarar seguro el sistema, y un documento
+del proyecto (README) no acredita la configuración desplegada. Cambiar producción nunca ocurre sin la autorización puntual de la persona (`AGENTS.md` §3).
+
 ## Contexto por sesión y compactación
 
 - **Lectura por sesión:** `docs/estado.md` + este archivo + la rebanada que la tarea

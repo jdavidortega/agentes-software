@@ -7,7 +7,8 @@
 >
 > **Marca el origen de cada dato:** `[de contexto/]` (extraído de una entrada: di
 > cuál), `[inferido]` (deducido por el agente — hay que confirmarlo) o `[FALTA]` (hueco
-> pendiente). No se avanza con `[FALTA]` ni `[inferido]` sin confirmar.
+> pendiente). No se avanza con un `[inferido]` sin confirmar ni con un `[FALTA]` abierto, salvo
+> diferido según `docs/convenciones.md` §Hechos pendientes.
 
 ## Contexto
 <!-- ¿Por qué existe este proyecto? ¿Qué problema o necesidad lo origina? -->

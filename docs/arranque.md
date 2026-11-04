@@ -108,9 +108,9 @@ agente **se detiene** y pide resolverla.
   `[FALTA]`; si propones un valor, va como propuesta dentro de la pregunta. Cada `[FALTA]`
   abierto queda en una de dos situaciones, escrita en el documento junto a él: **preguntado**
   (`[FALTA · preguntado]`), si la siguiente decisión lo necesita, con su pregunta en el chat; o
-  **diferido** (`[FALTA · diferido: <qué decisión o trabajo bloquea>; <cuándo se resuelve>]`),
-  listado en el campo «Pendiente» del gate y sin construir nada sobre él (en la adopción se escribe
-  `[pendiente: …]` con los mismos datos; `docs/arranque-existente.md` §Fase 1). Pedir «confirma o
+  **diferido** (`[FALTA · diferido: <quién lo confirma>; <cuándo se resuelve>; <qué decisión o trabajo
+  bloquea>]`). Preguntarlo no lo resuelve, y cuándo puede cruzar un gate lo fija
+  `docs/convenciones.md` §Hechos pendientes (en la adopción, `[pendiente: …]` es la misma marca). Pedir «confirma o
   corrige el documento» no cuenta como pregunta, y un dato no es a la vez `[FALTA]` y
   `[supuesto]`: se pregunta o se difiere.
 - **Las decisiones, aparte.** Una decisión de alto impacto que sigue pendiente de autorización
@@ -316,7 +316,9 @@ marcador `-` ni el comentario `<!-- -->`— las secciones:
 - [ ] **Alcance del rastro decidido:** si `docs/` y `contexto/` viajan con
   el entregable, se excluyen del empaquetado/imagen, o van en repo aparte (relevante
   con terceros o entradas sensibles). Si hubo opciones, ADR.
-- [ ] No queda ningún `[FALTA]` ni `[inferido]` sin confirmar con la persona.
+- [ ] No queda ningún `[inferido]` sin confirmar con la persona, ni ningún `[FALTA]` abierto salvo los
+  diferidos con sus tres datos que cumplen las condiciones de cruce de `docs/convenciones.md`
+  §Hechos pendientes (uno preguntado y sin respuesta sigue abierto).
 - [ ] No queda ningún **ADR en estado `propuesta`** asignado a esta actividad (las
   decisiones diferidas al Encuadre —p. ej. el alcance— quedaron resueltas: `aceptada`).
 - [ ] El encuadre quedó en un **commit** (`Ref: F1`) antes de pedir el gate.
@@ -385,6 +387,8 @@ si fuerza una elección, ADR. Rehacer un incremento cuesta más que el experimen
 - [ ] Ningún incremento se apoya en un supuesto técnico sin verificar: tiene su
   **experimento mínimo** previo en el plan, con los dos desenlaces escritos (qué lo
   confirma, qué lo refuta), o su validación diferida registrada.
+- [ ] Cada pendiente de seguridad física, si lo hay, tiene sus cuatro partes (`docs/convenciones.md`
+  §Hechos pendientes).
 
 ---
 

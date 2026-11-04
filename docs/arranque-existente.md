@@ -32,7 +32,8 @@ responde por escrito cinco preguntas en `docs/estado.md`, y el gate las cita en 
    se neutralizó, resultado)?
 5. ¿Queda algún ADR `propuesta` **asignado a este gate**? Un gate no se cruza con decisiones
    suyas abiertas: se deciden, o se reasignan **con razón** a una actividad posterior. Una
-   elección pendiente es ADR; un **hecho desconocido** no (va a §Pendientes con impacto, quién y cuándo).
+   elección pendiente es ADR; un **hecho desconocido** no (`[pendiente: …]` en el campo «Pendiente» del gate;
+   `docs/convenciones.md` §Hechos pendientes).
 
 El resultado queda en `docs/estado.md`: **una línea breve por pregunta**, con la
 respuesta y su evidencia referenciada (no copiada), y lo que quedó pendiente. Así el revisor
@@ -336,8 +337,8 @@ Para lo demás: `[documentado por el proyecto: archivo:línea]` (lo que dicen el
 del repositorio o un **comentario** del código: es intención declarada, **no** comportamiento comprobado),
 `[de contexto/: archivo]` (documentos aportados en `contexto/`) y
 `[pendiente: quién lo confirma; cuándo; qué decisión o trabajo bloquea]` (hechos que solo la persona u
-operación saben). Es la forma que toma en la adopción el `[FALTA · diferido: …]` de `docs/arranque.md`
-§Transversal: lleva los mismos datos y no se marca dos veces. El encuadre declara una vez el
+operación saben). Es la misma marca que el `[FALTA · diferido: …]` del arranque, con sus tres datos y sus
+condiciones de cruce en `docs/convenciones.md` §Hechos pendientes; un hecho no se marca dos veces. El encuadre declara una vez el
 **commit evaluado**; cada `C#` y cada hallazgo citan `archivo:línea` de ese commit.
 
 **Si la verificación dinámica está bloqueada** (paso F: herramienta ausente, dependencias no
@@ -362,24 +363,10 @@ verificar** por eso (p. ej. «TTL y concurrencia de Redis no verificados»), en 
 §Entradas y salidas o en el mapa de protección que corresponda.
 
 **Desconocidos: hecho pendiente ≠ elección.** Un dato que solo la persona u operación sabe
-(parámetros desplegados, política de una capa externa, tiempos reales) es un **hecho
-pendiente de confirmar**: se escribe con su impacto (qué decisión o trabajo bloquea), quién lo
-confirma y cuándo se resuelve, sin ADR. Solo hay
-ADR (`propuesta`) cuando hay una **elección** entre opciones. Un pendiente no bloquea la
-Fase 1 si ninguna garantía que se declare verificada depende de él.
-
-**Pendiente de seguridad física** (un dato del que depende que el sistema actúe o no sobre equipos,
-personas o el mundo real: configuración desplegada, a qué alcanza un mando, si un automatismo está
-encendido) lleva cuatro partes: **qué** falta confirmar y **quién** puede hacerlo; **qué decisión**
-queda bloqueada hasta conocerlo; **cuándo** debe resolverse (p. ej. «antes del gate de la Fase 2»); y
-**qué medida provisional** se propone, **quién la autoriza** y **cómo se comprueba**. Una medida
-provisional es **candidata**: se dice si es suficiente o qué otros caminos persisten. **Al vencer sin
-resolverse**, la decisión bloqueada **no se toma** en ese gate: la persona puede aprobar el resto, pero el
-gate dice explícitamente qué decisión queda fuera, y `docs/estado.md` distingue la **revisión documental
-aprobada** del **gate pendiente** de esa decisión; el pendiente sigue con un nuevo «cuándo». El cierre
-documental de una fase **no autoriza** operar, desplegar ni declarar seguro el sistema, y un documento
-del proyecto (README) no acredita la configuración desplegada. Cambiar producción nunca ocurre dentro de
-la adopción sin la autorización puntual de la persona (`AGENTS.md` §3).
+(parámetros desplegados, política de una capa externa, tiempos reales) es un **hecho pendiente**, no una
+elección: se escribe `[pendiente: …]`, sin ADR, y cuándo puede cruzar un gate lo fija
+`docs/convenciones.md` §Hechos pendientes. Ahí está también el **pendiente de seguridad física** (un dato
+del que depende que el sistema actúe o no sobre equipos, personas o el mundo real), con sus cuatro partes.
 
 **Actividades:**
 1. **Qué hace.** Contexto en cinco líneas. §Entradas y salidas: una fila por entrada y por
@@ -461,7 +448,8 @@ la adopción sin la autorización puntual de la persona (`AGENTS.md` §3).
 - [ ] §Cómo funciona lista los parámetros críticos (aunque coincidan con su valor por defecto).
 - [ ] `docs/convenciones.md` abre con «Observado en este proyecto» (configurar, levantar,
   probar, aplicar un cambio; estilo) y conserva las reglas de la plantilla.
-- [ ] Cada `[pendiente]` con impacto, quién lo confirma y cuándo se resuelve.
+- [ ] Cada `[pendiente]` con sus tres datos y, si sigue abierto en el gate, con las condiciones de cruce de
+  `docs/convenciones.md` §Hechos pendientes.
 - [ ] Revisor funcional en PASA y pasada de coherencia respondida y anotada en `docs/estado.md`.
 
 **Gate de la Fase 1:** la persona confirma el encuadre y la **ruta del ciclo** con sus criterios.
@@ -562,7 +550,8 @@ la **síntesis contra sus fuentes** (encuadre e informes de línea base).
   y el backlog; vive en el **backlog** y el plan la cita sin contarla como seleccionada.
 - [ ] Plan de pruebas por incremento; las caracterizaciones marcadas con su hallazgo.
 - [ ] Cada pendiente de seguridad física tiene sus cuatro partes (qué y quién, decisión bloqueada,
-  cuándo, medida provisional candidata con quién la autoriza y cómo se comprueba).
+  cuándo, medida provisional candidata con quién la autoriza y cómo se comprueba;
+  `docs/convenciones.md` §Hechos pendientes).
 - [ ] Reglas compartidas comprobadas: `AGENTS.md` §1 sin marcadores, hitos en el plan, consumo
   anotado.
 - [ ] El plan se defiende en ≤ 10 líneas en el resumen del gate.

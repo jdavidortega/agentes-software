@@ -102,19 +102,14 @@ agente **se detiene** y pide resolverla.
   dicen no se pregunta, y una prioridad ya expresada se cita, no se vuelve a pedir. Se pregunta
   solo lo que falta para la siguiente decisión. La persona responde en el chat; los documentos
   los escribe el agente.
-- **Solo lo que de verdad falta, después de consultar la evidencia accesible.** Antes de
-  preguntar se revisa lo que el repositorio, `contexto/`, la conversación o una comprobación al
-  alcance del agente pueden responder. Una inferencia justificada se conserva como `[inferido]`
-  con su fuente (qué entrada o qué frase la sostiene) y se confirma antes del gate. Lo que ninguna
-  fuente sostiene no se rellena con `[inferido]` ni `[supuesto]` para no preguntarlo: es
-  `[FALTA]`; si propones un valor, va como propuesta dentro de la pregunta. Cada `[FALTA]`
-  abierto queda en una de dos situaciones, escrita en el documento junto a él: **preguntado**
-  (`[FALTA · preguntado]`), si la siguiente decisión lo necesita, con su pregunta en el chat; o
-  **diferido** (`[FALTA · diferido: <quién lo confirma>; <cuándo se resuelve>; <qué decisión o trabajo
-  bloquea>]`). Preguntarlo no lo resuelve, y cuándo puede cruzar un gate lo fija
-  `docs/convenciones.md` §Hechos pendientes (en la adopción, `[pendiente: …]` es la misma marca). Pedir «confirma o
-  corrige el documento» no cuenta como pregunta, y un dato no es a la vez `[FALTA]` y
-  `[supuesto]`: se pregunta o se difiere.
+- **Solo lo que de verdad falta.** Una inferencia justificada se conserva como `[inferido]` con su
+  fuente (qué entrada o qué frase la sostiene) y se confirma antes del gate. Lo que ninguna fuente
+  sostiene es un hecho pendiente: consulta `docs/convenciones.md` §Hechos pendientes antes de
+  preguntarlo, de diferirlo o de pedir un gate con él abierto. Se marca junto al dato como
+  `[FALTA · preguntado]`, con su pregunta en el chat, o `[FALTA · diferido: <quién lo confirma>;
+  <cuándo se resuelve>; <qué decisión o trabajo bloquea>]`. Si propones un valor, va como propuesta
+  dentro de la pregunta. Pedir «confirma o corrige el documento» no cuenta como pregunta, y un dato
+  no es a la vez `[FALTA]` y `[supuesto]`: se pregunta o se difiere.
 - **Las decisiones, aparte.** Una decisión de alto impacto que sigue pendiente de autorización
   (stack, despliegue, alcance de lo que se versiona, datos personales) va en su propia pregunta,
   separada del ruteo y de los datos. Una decisión que la persona ya expresó se cita y se registra

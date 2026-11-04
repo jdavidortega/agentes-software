@@ -56,7 +56,7 @@ Guarantees:
 Exit: 0 aprobada; the suite's code if fallida; 124 excedida; 130 terminada/interrumpida;
 75 blocked (another run open, nested call, unprovable ownership, incomplete ending); 2 usage. --informe writes
 `id= estado= rc=` so a caller never confuses those codes with the suite's own.
-Verified on macOS; POSIX only. A process that leaves the group on purpose (setsid, a daemon) escapes.
+Requires Python >= 3.10. Verified on macOS; POSIX only. A process that leaves the group on purpose (setsid, a daemon) escapes.
 """
 import argparse
 import fcntl

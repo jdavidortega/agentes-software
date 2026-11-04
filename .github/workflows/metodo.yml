@@ -1,7 +1,10 @@
 # CI mínima del método (viene con la plantilla; README §Enforcement, convenciones §Git).
 # Reejecuta en el remoto lo que los hooks locales exigen, para que un `--no-verify` no pase:
-# el rastro documental, el contrato de cada commit NUEVO, la regresión de los propios hooks
-# y la suite del producto. Sin red salvo el checkout; sin credenciales.
+# el rastro documental, el contrato de cada commit NUEVO, la regresión de los propios hooks y de
+# la suite vigilada, y la suite del producto. Sin red salvo el checkout; sin credenciales.
+# Primero, las capacidades del entorno (Python >= 3.10, consulta e identidad de procesos, grupos,
+# señales, flock): si faltan, nada de lo que depende de ellas corre y el job falla. La regresión de
+# la suite corre aunque falle otro control, solo si las capacidades pasaron y el job no se canceló.
 #
 # Qué commits se validan (política explícita):
 #   push          los del evento: before..after. Primer push de una rama (before = 0000…) →
@@ -25,6 +28,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0            # validar_historial necesita el historial completo
+      - name: Capacidades del entorno (antes de todo lo que usa Python y la consulta de procesos)
+        id: capacidades
+        run: sh scripts/pruebas/regresion-suite.sh --capacidades
       - name: Hooks activos (el doctor lo exige dentro de un repo)
         run: git config core.hooksPath .githooks
       - name: Rastro documental (árbol del checkout; en PR, el árbol integrado)
@@ -57,6 +63,10 @@ jobs:
           sh scripts/pruebas/validar_historial.sh "$rango"
       - name: Regresión de los hooks
         run: sh scripts/pruebas/regresion.sh
+      - name: Regresión de la suite vigilada (plazos, señales, grupos de procesos)
+        if: ${{ !cancelled() && steps.capacidades.outcome == 'success' }}
+        timeout-minutes: 10
+        run: sh scripts/pruebas/regresion-suite.sh
       - name: Regresión de la adopción (copia sin sobreescribir y base del método)
         run: if [ -f scripts/pruebas/regresion-adopcion.sh ]; then sh scripts/pruebas/regresion-adopcion.sh; else echo "sin regresión de adopción (solo en la plantilla)"; fi
       - name: Suite del producto (desde F2)

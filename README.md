@@ -20,6 +20,11 @@ cada pieza está en «Cómo está armado el sistema» y en el glosario de «Defi
 
 ## Cómo usarla
 
+**Requisitos:** git, un `sh` POSIX, `ps` y **Python ≥ 3.10** como `python3` (los usan los hooks y
+`scripts/suite.py`; con 3.9 la suite vigilada no arranca). `sh scripts/pruebas/regresion-suite.sh
+--capacidades` comprueba en segundos lo que la suite necesita del sistema e imprime la versión de
+Python encontrada; si falta algo, sale con 3 y dice qué. Verificado en macOS.
+
 1. Crea la carpeta del proyecto nuevo, entra en ella y copia la plantilla con
    `git archive`: trae exactamente lo versionado en el último commit, sin `.git`, sin
    `mejoras/` ni archivos locales, y con los permisos de ejecución de los hooks.

@@ -5,7 +5,321 @@
 #
 #   sh scripts/pruebas/regresion-suite.sh       → 0 si todos los casos pasan; 1 y la lista si no
 #   sh scripts/pruebas/regresion-suite.sh -v    → además imprime la salida de cada caso
+#   sh scripts/pruebas/regresion-suite.sh --capacidades → solo comprueba el entorno (3 si falta algo)
 VERBOSE=0; [ "${1:-}" = "-v" ] && VERBOSE=1
+# Capacidades del sistema que suite.py usa de verdad, comprobadas ANTES de los casos largos y con el
+# PATH real (el ps de prueba se instala después). Sin sustitutos. Una capacidad ausente, un ps que falla
+# o no responde, o una comprobación que no puede completarse terminan con 3 y su motivo, y la batería
+# no corre (no se confunde con un caso fallido); la primera que falta detiene las que dependen de ella.
+# Toda espera tiene plazo. Cada proceso que lanza (en su sesión) se termina por grupo mientras su líder
+# sigue sin recoger, la única prueba de que el grupo es nuestro, y solo después se recoge; sin esa prueba
+# no se señala y se falla. Tras recoger, un sondeo sin señal (ESRCH) demuestra el grupo vacío; «recogido»
+# y «grupo vacío demostrado» se anotan por separado. SIGTERM, SIGINT y SIGHUP (al envoltorio sh o a
+# Python) y el plazo total cortan la comprobación, nunca la limpieza, y el resultado no es exitoso; ante
+# SIGKILL no hay limpieza. `--capacidades` corre solo esta parte; las dos formas imprimen plataforma y
+# versión de Python.
+capacidades() {
+  echo "== capacidades ($(uname -sm))"
+  falta=""
+  for c in python3 git ps mktemp find awk sed grep cut sort kill sleep; do
+    command -v "$c" >/dev/null 2>&1 || falta="$falta $c"
+  done
+  [ -n "$falta" ] && { echo "capacidad ausente: comandos:$falta"; return 3; }
+  sleep 0.1 2>/dev/null || { echo "capacidad ausente: sleep con fracciones de segundo"; return 3; }
+  # Una señal al envoltorio no se reenvía por pid (no probaría identidad): se anota en un aviso que
+  # Python consulta en cada espera, y el envoltorio espera a que termine su limpieza.
+  avisos=$(mktemp -d "${TMPDIR:-/tmp}/capacidades-sh.XXXXXX") || { echo "capacidad ausente: mktemp -d"; return 3; }
+  senal=""; t=0
+  trap 'senal="${senal}TERM "; t=1; : > "$avisos/senal"' TERM
+  trap 'senal="${senal}INT "; t=1; : > "$avisos/senal"' INT
+  trap 'senal="${senal}HUP "; t=1; : > "$avisos/senal"' HUP
+  CAPACIDADES_AVISO="$avisos/senal" python3 -I - <<'PY' &
+# Sintaxis de Python 3.6, para poder decir qué versión falta en lugar de caer al leer el archivo.
+import os, re, shutil, signal, subprocess, sys, tempfile, time
+PLAZO_PS, PLAZO_ESPERA, PLAZO_TOTAL = 10, 5, 90
+print("  python %s (%s)" % (sys.version.split()[0], sys.executable), flush=True)
+if sys.version_info < (3, 10):
+    print("capacidad ausente: python3 >= 3.10 (hay %s)" % sys.version.split()[0])
+    sys.exit(3)
+CRITICAS = {signal.SIGTERM, signal.SIGINT, signal.SIGHUP, signal.SIGALRM}
+NOMBRE = {signal.SIGTERM: "SIGTERM", signal.SIGINT: "SIGINT", signal.SIGHUP: "SIGHUP", signal.SIGALRM: "plazo total"}
+AVISO = os.environ.get("CAPACIDADES_AVISO", "")
+senales = []
+
+
+def anota(num, _):
+    """El manejador solo anota, nunca lanza: así ninguna señal puede saltarse la limpieza. La comprobación
+    se corta en puntos definidos (revisa)."""
+    senales.append(NOMBRE.get(num, str(num)))
+
+
+for s in CRITICAS:  # antes de lanzar ningún hijo
+    signal.signal(s, anota)
+signal.alarm(PLAZO_TOTAL)
+
+
+class Falta(Exception):
+    pass
+
+
+class critica:
+    """Bloquea las señales de CRITICAS y al salir RESTAURA la máscara anterior: anidada dentro de otra
+    sección crítica, no deshace su protección."""
+
+    def __enter__(self):
+        self.antes = signal.pthread_sigmask(signal.SIG_BLOCK, CRITICAS)
+
+    def __exit__(self, *_):
+        signal.pthread_sigmask(signal.SIG_SETMASK, self.antes)
+
+
+def motivos():
+    m = list(dict.fromkeys(senales))
+    if AVISO and os.path.exists(AVISO):
+        m.append("señal al envoltorio sh")
+    return m
+
+
+def revisa():
+    m = motivos()
+    if m:
+        raise Falta(f"interrumpida ({', '.join(m)}): termino lo propio y salgo sin éxito")
+
+
+def need(cond, what):
+    revisa()
+    if not cond:
+        raise Falta(what)
+    print("  ok    " + what, flush=True)
+
+
+def hasta(cond, plazo=PLAZO_ESPERA, corta=True):
+    """Espera con plazo. Durante la comprobación se corta si llegó una señal; en la limpieza, no."""
+    limite = time.time() + plazo
+    while not cond():
+        if corta:
+            revisa()
+        if time.time() >= limite:
+            return False
+        time.sleep(0.05)
+    return True
+
+
+# Propiedad: un hijo propio se recoge SOLO en termina(), después de terminar su grupo. Mientras el líder
+# no se recoge (vivo o zombi), su pid y su grupo no pueden reutilizarse: esa es la prueba para señalar.
+# estado[pid]: recogido (False, True, o None si lo recogió otro) y grupo ("vacío" solo con ESRCH).
+hijos, estado, tmp = [], {}, None
+
+
+def lanza(cmd, **kw):
+    with critica():  # lanzar y anotar, sin una señal en medio
+        p = subprocess.Popen(cmd, start_new_session=True, stdin=subprocess.DEVNULL, **kw)
+        hijos.append(p)
+        estado[p.pid] = {"recogido": False, "grupo": "sin comprobar"}
+    revisa()
+    return p
+
+
+def salio(p):
+    """Salida detectada SIN recogerlo (WNOWAIT): el líder sigue siendo nuestro."""
+    return os.waitid(os.P_PID, p.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None
+
+
+def grupo_existe(pg):
+    """Sondeo sin señal (kill 0) tras la recogida: ESRCH demuestra el grupo vacío; nunca autoriza señalar."""
+    try:
+        os.killpg(pg, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        pass
+    return True
+
+
+def termina(p):
+    """Termina el grupo de un hijo propio, lo recoge y demuestra el grupo vacío. None si quedó demostrado;
+    si no, el motivo (también queda en estado). Idempotente; nunca se corta por una señal."""
+    e = estado[p.pid]
+    if e["recogido"] is False:
+        try:
+            salio(p)
+        except ChildProcessError:  # ya no es un hijo sin recoger: su identidad no prueba nada
+            e["recogido"], e["grupo"] = None, "propiedad no demostrable (su líder ya fue recogido); no lo señalo"
+            return e["grupo"]
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass  # EPERM en macOS: solo queda el líder sin recoger
+        if not hasta(lambda: salio(p), corta=False):
+            e["grupo"] = "no terminó tras KILL; no lo recojo"
+            return e["grupo"]
+        try:
+            os.killpg(p.pid, signal.SIGKILL)  # líder salido y aún sin recoger: lo que quede del grupo
+        except (ProcessLookupError, PermissionError):
+            pass
+        with critica():  # recoger y anotarlo, sin una señal en medio
+            p.wait(timeout=PLAZO_ESPERA)
+            e["recogido"] = True
+    if e["recogido"] is None:
+        return e["grupo"]
+    if e["grupo"] != "vacío":
+        e["grupo"] = "vacío" if hasta(lambda: not grupo_existe(p.pid), corta=False) else \
+            "sigue con procesos tras KILL o no pude demostrar que quedó vacío"
+    return None if e["grupo"] == "vacío" else e["grupo"]
+
+
+def ps(*args):
+    with tempfile.TemporaryFile() as fo, tempfile.TemporaryFile() as fe:
+        try:
+            p = lanza(["ps", *args], stdout=fo, stderr=fe)
+        except OSError as exc:
+            raise Falta(f"ps: {exc}")
+        listo = hasta(lambda: salio(p), PLAZO_PS)
+        resto = termina(p)  # con o sin respuesta: su grupo entero, y después el líder
+        problemas = ([] if listo else [f"ps {' '.join(args)} no respondió en {PLAZO_PS}s"]) + ([resto] if resto else [])
+        if problemas:
+            raise Falta("; ".join(problemas))
+        fo.seek(0)
+        fe.seek(0)
+        out, err = fo.read().decode(errors="replace"), fe.read().decode(errors="replace")
+    if p.returncode or not out.strip():
+        raise Falta(f"ps {' '.join(args)} falló: {err.strip() or f'rc={p.returncode}, sin salida'}")
+    return out
+
+
+def limpia():
+    """Termina lo que siga pendiente. Un error con un hijo se anota y no impide intentar los demás ni el
+    temporal; los que fallaron se intentan una vez más."""
+    errores = []
+    for vuelta in (1, 2):
+        for p in hijos:
+            e = estado[p.pid]
+            if e["grupo"] == "vacío" or e["recogido"] is None:
+                continue
+            try:
+                termina(p)
+            except Exception as exc:
+                errores.append(f"{p.pid} (vuelta {vuelta}): {type(exc).__name__}: {exc}")
+    temporal = None
+    if tmp:
+        try:
+            shutil.rmtree(tmp)
+        except Exception as exc:
+            errores.append(f"temporal: {type(exc).__name__}: {exc}")
+        if os.path.exists(tmp):
+            temporal = f"temporal {tmp} sin retirar"
+    restos = [f"grupo {p.pid}: {estado[p.pid]['grupo']}" for p in hijos if estado[p.pid]["grupo"] != "vacío"]
+    return restos, errores, temporal
+
+
+rc, completa = 0, False  # completa solo al final del try: cualquier otra salida no es éxito
+try:
+    import fcntl
+    need(all(hasattr(os, n) for n in ("waitid", "WNOWAIT", "WEXITED", "WNOHANG", "P_PID", "killpg", "getsid"))
+         and hasattr(signal, "pthread_sigmask") and hasattr(signal, "sigpending"),
+         "os.waitid con WNOWAIT, killpg, getsid y signal.pthread_sigmask/sigpending")
+    ch = lanza(["sleep", "30"])
+    need(os.getpgid(ch.pid) == ch.pid and os.getsid(ch.pid) == ch.pid, "sesión y grupo propios (start_new_session)")
+    f = ps("-o", "stat=,lstart=", "-p", str(ch.pid)).split()
+    lstart = " ".join(f[1:])
+    need(len(f) == 6 and re.fullmatch(r"\d{4}", f[-1]) is not None,
+         f"ps -o stat=,lstart= -p: 5 campos de fecha ({lstart!r})")
+    fila = next((l for l in (x.split() for x in ps("-A", "-o", "pid=,pgid=,stat=,lstart=,command=").splitlines())
+                 if l[:1] == [str(ch.pid)]), None)
+    need(fila is not None and len(fila) >= 8 and fila[1] == str(ch.pid) and " ".join(fila[3:8]) == lstart,
+         "ps -A -o pid=,pgid=,stat=,lstart=,command=: el mismo proceso, su grupo y la misma hora de inicio")
+    hasta(lambda: False, 1.2)
+    need(" ".join(ps("-o", "stat=,lstart=", "-p", str(ch.pid)).split()[1:]) == lstart,
+         "hora de inicio estable entre consultas (identidad pid + inicio)")
+    os.killpg(ch.pid, signal.SIGKILL)  # vivo y sin recoger: nuestro
+    need(hasta(lambda: salio(ch)), f"waitid WNOWAIT detecta la salida sin recoger al hijo (en {PLAZO_ESPERA}s)")
+    stat = ps("-o", "stat=", "-p", str(ch.pid)).strip()
+    need(stat.startswith("Z"), f"el hijo sin recoger se ve como zombi en ps (stat={stat!r})")
+    resto = termina(ch)
+    if resto:
+        raise Falta(resto)
+    try:
+        os.kill(ch.pid, 0)  # sondeo sin señal: la capacidad que suite.py usa para probar ausencia
+        ausente = False
+    except ProcessLookupError:
+        ausente = True
+    need(ausente, "kill 0 demuestra la ausencia (ESRCH) de un proceso recogido")
+    tmp = tempfile.mkdtemp(prefix="capacidades.")
+    lck, marca = os.path.join(tmp, "c.lck"), os.path.join(tmp, "tomado")
+    dueno = lanza([sys.executable, "-I", "-c", "import fcntl,sys,time; f=open(sys.argv[1],'a'); "
+                   "fcntl.flock(f,fcntl.LOCK_EX); open(sys.argv[2],'w').close(); time.sleep(30)", lck, marca])
+    if not hasta(lambda: os.path.exists(marca) or salio(dueno)) or not os.path.exists(marca):
+        raise Falta(f"el proceso dueño no tomó el cerrojo en {PLAZO_ESPERA}s")
+    with open(lck, "a") as fh:
+        try:
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            excluye = False
+        except BlockingIOError:
+            excluye = True
+    resto = termina(dueno)
+    if resto:
+        raise Falta(resto)
+    with open(lck, "a") as fh:
+        try:
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            libera = True
+        except BlockingIOError:
+            libera = False
+    need(excluye and libera, f"flock excluye y se libera al morir su dueño (en {tmp})")
+    completa = True
+except Falta as exc:
+    print(f"capacidad ausente: {exc}")
+    rc = 3
+except (OSError, ImportError, ValueError, subprocess.SubprocessError) as exc:
+    print(f"capacidad ausente: comprobación incompleta ({type(exc).__name__}: {exc})")
+    rc = 3
+except Exception as exc:
+    print(f"capacidad ausente: comprobación incompleta por un error inesperado ({type(exc).__name__}: {exc})")
+    rc = 3
+finally:
+    # Desde aquí hasta la salida ninguna señal se entrega (el manejador tampoco lanzaría): quedan
+    # pendientes y cuentan como interrupción.
+    with critica():
+        signal.alarm(0)
+        if not completa and rc == 0:  # p. ej. SystemExit u otra BaseException: el sys.exit final la descarta
+            print("capacidad ausente: la comprobación no llegó a su final; el resultado no cuenta como éxito")
+            rc = 3
+        restos, errores, temporal = limpia()
+        if errores:
+            print("capacidad ausente: errores al limpiar (anotados; se intentó el resto): " + "; ".join(errores))
+            rc = 3
+        if restos or temporal:
+            print("capacidad ausente: no pude terminar o demostrar lo propio: " + "; ".join(restos + [temporal] * bool(temporal)))
+            rc = 3
+        else:
+            print(f"  limpieza: {len(hijos)} procesos propios terminados por grupo y recogidos después; grupo vacío"
+                  f" demostrado en cada uno (grupos: {' '.join(str(p.pid) for p in hijos)}); temporal retirado")
+        m = motivos() + [NOMBRE[s] + " (pendiente)" for s in sorted(signal.sigpending() & CRITICAS)]
+        if m:
+            print(f"capacidad ausente: interrumpida ({', '.join(m)}); el resultado no cuenta como éxito")
+            rc = 3
+        sys.stdout.flush()
+        sys.exit(rc)
+PY
+  cpid=$!
+  while :; do  # una señal interrumpe el wait (rc > 128): se vuelve a esperar a que Python termine
+    t=0; wait "$cpid"; rc=$?
+    [ $rc -gt 128 ] && [ $t = 1 ] && continue
+    break
+  done
+  trap - TERM INT HUP
+  rm -f "$avisos/senal"; rmdir "$avisos"
+  if [ -n "$senal" ]; then
+    echo "capacidad ausente: el envoltorio recibió ${senal% } durante el preflight; Python terminó con $rc tras su limpieza"
+  elif [ $rc -eq 0 ]; then
+    return 0
+  fi
+  [ $rc -eq 3 ] || [ $rc -eq 0 ] || echo "capacidad ausente: la comprobación terminó con $rc"
+  echo "la regresión de la suite no se ejecuta en este entorno (no es un fallo de los casos)"
+  return 3
+}
+[ "${1:-}" = "--capacidades" ] && { capacidades; exit $?; }
+capacidades || exit $?
 RAIZ=$(cd "$(dirname "$0")/../.." && pwd)
 SU="$RAIZ/scripts/suite.py"
 # Plantilla explícita: en macOS `mktemp -d` sin ella ignora TMPDIR.
@@ -75,6 +389,30 @@ except subprocess.TimeoutExpired:
         except (OSError, ValueError): pass
     os.killpg(p.pid, 9); p.wait()
     print(f"acotado: el caso no terminó en {s}s", file=sys.stderr); sys.exit(124)
+' "$@"; }
+# grupo_vacio <seg> <pgid>: espera con plazo a que el grupo no tenga miembros vivos (los zombis no
+# cuentan). La ausencia la demuestra una consulta que funcionó; si ps falla o no responde, o vence el
+# plazo con miembros, sale con 1 y lo dice. No envía señales.
+grupo_vacio() { python3 -c '
+import subprocess, sys, time
+s, g = float(sys.argv[1]), sys.argv[2]
+if not g.isdigit():
+    sys.exit(f"grupo_vacio: grupo inválido ({g!r})")
+limite = time.time() + s
+while True:
+    try:
+        r = subprocess.run(["ps", "-A", "-o", "pid=,pgid=,stat=,command="], capture_output=True, text=True, timeout=10)
+    except subprocess.TimeoutExpired:
+        sys.exit(f"grupo {g}: ps no respondió en 10s; su ausencia no está demostrada")
+    if r.returncode or not r.stdout.strip():
+        sys.exit(f"grupo {g}: la consulta falló (rc={r.returncode}: {r.stderr.strip()}); su ausencia no está demostrada")
+    vivos = [l.strip() for l in r.stdout.splitlines() if l.split()[1:2] == [g] and not l.split()[2].startswith("Z")]
+    if not vivos:
+        print(f"grupo {g} vacío")
+        sys.exit(0)
+    if time.time() >= limite:
+        sys.exit(f"grupo {g}: sigue con miembros tras {s:.0f}s: " + " | ".join(vivos))
+    time.sleep(0.1)
 ' "$@"; }
 abierta_con_grupo() { [ -n "$(ultimo)" ] && [ -n "$(campo "$(ultimo)" grupo)" ]; }
 # Toma el cerrojo del registro (flock) y avisa en <marca>; lo suelta al salir o al morir.
@@ -176,7 +514,10 @@ espera falla "... terminar se niega a enviar señales" "no termino nada" -- sh -
 espera pasa "... y el descendiente sigue vivo (no se tocó)" "" -- vivo "$(cat "$P/nieto")"
 espera falla "... una nueva ejecución sigue bloqueada (no se limpia nada)" "NO demostrable" -- corre --plazo 20 -- true
 espera pasa "... la carpeta temporal sigue ahí" "" -- test -d "$(campo "$ID" carpeta)/tmp"
-kill -9 "$(cat "$P/nieto")"; sleep 0.3
+# Solo el descendiente identificado; el `sleep 1` del bucle del líder sale solo. El reintento espera,
+# con plazo, a que la ausencia del grupo esté demostrada (no a un tiempo fijo).
+kill -9 "$(cat "$P/nieto")"
+espera pasa "... terminado a mano el descendiente, su grupo queda vacío (ausencia demostrada, con plazo)" "vacío" -- grupo_vacio 10 "$(campo "$ID" grupo)"
 espera pasa "... terminado a mano el descendiente, la siguiente ejecución recupera y corre" "recupero la ejecución $ID" -- corre --plazo 20 -- true
 
 echo "== terminación incompleta: procesos que sobreviven a KILL"

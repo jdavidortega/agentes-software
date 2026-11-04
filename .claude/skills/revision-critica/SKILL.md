@@ -99,11 +99,15 @@ el incremento y el rango del diff:
   desfase previo pendiente) y el diff lo respalda: un comando, interfaz o comportamiento que cambió
   sin su README es FALLA; un desfase previo registrado no lo es.
 - **Pruebas:** las del **plan de pruebas** del incremento (`docs/plan.md`), ni menos ni
-  más: ≥1 flujo end-to-end por criterio cubierto con datos de forma real, unitarios solo
-  donde el flujo no llega, herméticos, y cada uno capaz de fallar. **El exceso es
-  hallazgo:** una prueba que no protege un criterio, que duplica otra o que no puede
-  fallar (assert trivial, repite la implementación) se reporta igual que una faltante.
-  No exige 100% mecánico: cobertura de **comportamiento**.
+  más: ≥1 flujo end-to-end por criterio cubierto con datos de forma real, las demás en el
+  nivel donde reside su garantía (`.claude/skills/probando-con-datos-reales/SKILL.md` regla 7),
+  herméticos, y cada uno capaz de fallar. **El exceso es hallazgo:** una prueba que no
+  protege un criterio, que no puede fallar (assert trivial, repite la implementación) o que
+  repite otra sin evidencia adicional se reporta igual que una faltante; dos que matan el
+  mismo sabotaje desde fronteras distintas no son exceso. Un contrato o una grabación no
+  acreditan la compatibilidad actual con el componente real si esa es la garantía (regla 7), y un
+  sabotaje que sobrevive no queda cubierto por una revisión. No exige 100% mecánico:
+  cobertura de **comportamiento**.
 - **Funcionales:** cumple criterios de éxito y set de oro de `encuadre.md`.
 - **Seguridad (binario, es un gancho — no la auditoría):** ¿el diff toca superficie de
   riesgo (entrada no confiable, authn/authz, secretos, persistencia, IaC/despliegue,

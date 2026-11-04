@@ -341,8 +341,9 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
   `docs/MEMORIA.md`: la validación y el aprendizaje no esperan a un cierre que puede
   tardar meses.
 - **Plan de pruebas** — qué pruebas son necesarias por incremento (`docs/plan.md`): un
-  flujo end-to-end por criterio, unitarios solo donde el flujo no llega, set de oro
-  automatizado o manual explícito. La DoD exige exactamente esas; el exceso es hallazgo.
+  flujo end-to-end por criterio, las demás en el nivel donde reside su garantía con el
+  sabotaje que la mata, set de oro automatizado o manual explícito. La DoD exige exactamente
+  esas; el exceso es hallazgo (`.claude/skills/probando-con-datos-reales/SKILL.md`).
 - **Recibo de revisión** — línea estructurada en `docs/revisiones.log` (rol, tipo, alcance,
   veredicto, bloqueantes, seguridad, `huella`, ejecutor) que ata una revisión al contenido
   exacto que juzgó; el `commit-msg` lo exige por transición. No prueba la aprobación

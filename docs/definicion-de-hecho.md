@@ -35,13 +35,16 @@
 - [ ] Cumple los criterios de éxito **y el set de oro** de `docs/encuadre.md` (no
   solo "funciona": la salida tiene la calidad esperada).
 - [ ] **Las pruebas son las del plan de pruebas** del incremento (`docs/plan.md` §Plan de
-  pruebas) y pasan: ≥1 flujo end-to-end por criterio que el incremento cubre, unitarios
-  solo donde el flujo no llega, los pares del set de oro automatizables como regresión,
-  y **ninguna que no pueda fallar ni que duplique otra** (el exceso de pruebas es
-  hallazgo, no mérito; ver `.claude/skills/probando-con-datos-reales/SKILL.md`).
+  pruebas) y pasan: ≥1 flujo end-to-end por criterio que el incremento cubre, las demás en
+  el nivel donde reside su garantía, los pares del set de oro automatizables como regresión,
+  y **ninguna que no pueda fallar ni que repita otra sin evidencia adicional** (el exceso de
+  pruebas es hallazgo, no mérito; selección y redundancia: `.claude/skills/probando-con-datos-reales/SKILL.md`
+  regla 7).
 - [ ] **Cada garantía nueva fue saboteada en una copia** y la suite se puso en rojo
   (`.claude/skills/verificando-por-sabotaje/SKILL.md`, exit 0): una garantía que ninguna
-  prueba puede romper es un comentario.
+  prueba puede romper es un comentario. Un sabotaje que sobrevive se investiga (regla 7); no
+  se da por comprobado con una revisión. La evidencia sigue la regla 10 (focalizados primero;
+  reutilizada solo si ningún cambio relevante la invalida, con su versión).
 - [ ] **Tests herméticos:** ninguna prueba depende de config de entorno (`.env`) ni
   llama a servicios externos; lo externo se inyecta o se mockea.
 - [ ] **El camino principal está en la suite:** si el camino real depende de un

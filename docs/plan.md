@@ -35,14 +35,16 @@ revisión final (el commit-msg rechaza `Ref: I#` sin ella). -->
 
 <!-- OBLIGATORIO: se decide en el diseño y se ajusta por incremento. Responde "qué
 pruebas son necesarias", no "cuántas": ≥1 flujo end-to-end por criterio C# (con datos de
-forma real), unitarios SOLO donde el flujo no llega (y por qué), qué pares del set de oro
-se automatizan como regresión y cuáles quedan como verificación manual explícita. La DoD
-exige exactamente estas; una prueba fuera del plan que no proteja un criterio es exceso
-(gold-plating) y el juez la señala. Formato: .claude/skills/probando-con-datos-reales/SKILL.md -->
+forma real) y las demás por grupo, en el nivel donde reside su garantía (unidad, contrato,
+integración), con el sabotaje previsto y, al cerrar, el observado; qué pares del set de oro
+se automatizan como regresión y cuáles quedan como verificación manual explícita (con su
+procedimiento y su límite). La DoD exige exactamente estas; una prueba que no proteja un
+criterio o que repita otra sin evidencia adicional es exceso y el juez la señala.
+Selección y redundancia: .claude/skills/probando-con-datos-reales/SKILL.md regla 7 -->
 
-| Incremento | Criterio | End-to-end (qué flujo, con qué datos) | Unitarios justificados | Set de oro automatizado | Manual explícita |
-|------------|----------|----------------------------------------|------------------------|-------------------------|------------------|
-| I_ «…» | C_ | _…_ | _…_ (razón) | pares _…_ | pares _…_ |
+| Incremento | Criterio | End-to-end (qué flujo, con qué datos) | Otras por garantía (garantía · nivel · sabotaje previsto → observado) | Set de oro automatizado | Manual explícita (procedimiento · límite) |
+|------------|----------|----------------------------------------|------------------------------------------------------------------------|-------------------------|-------------------------------------------|
+| I_ «…» | C_ | _…_ | _…_ · _unidad/contrato/integración_ · _…_ → _…_ | pares _…_ | pares _…_ |
 
 ## Bitácora
 

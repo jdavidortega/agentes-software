@@ -377,8 +377,9 @@ si fuerza una elección, ADR. Rehacer un incremento cuesta más que el experimen
   de ejemplo): desde F2 el doctor las rechaza. Cada `I#` del plan lleva su alias. Los
   criterios van en `docs/encuadre.md` exactamente como `- C<n>: enunciado`.
 - [ ] **Plan de pruebas** en `docs/plan.md`: por incremento, el flujo end-to-end que cubre
-  cada criterio, los unitarios justificados, qué pares del set de oro se automatizan como
-  regresión y cuáles quedan como verificación manual explícita. Las necesarias, no más
+  cada criterio, las demás pruebas por garantía (nivel y sabotaje previsto), qué pares del
+  set de oro se automatizan como regresión y cuáles quedan como verificación manual explícita.
+  Las necesarias, no más
   (`.claude/skills/probando-con-datos-reales/SKILL.md`).
 - [ ] **Linter y formatter del stack elegidos** (los idiomáticos por defecto) y su comando
   agregado en `scripts/check.sh` + `docs/convenciones.md`, cableado al `pre-commit`;

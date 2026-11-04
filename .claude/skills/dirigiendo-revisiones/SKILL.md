@@ -48,6 +48,16 @@ allowed-tools: Read, Grep, Glob, Bash
    **nombra literalmente**: una variable (`> "$X/out"`) se rechaza aunque apunte a él. Dilo en
    el prompt; es un límite conocido del filtro, no un error del revisor. Qué escribe cada chequeo
    autorizado, y dónde: tabla §Chequeos autorizados.
+3c. Registra las **fuentes efectivas** del revisor. El agente declarado (`.claude/agents/<rol>.md`), las
+   rúbricas que precarga (`skills:` de su cabecera), el filtro (`.claude/hooks/guarda-revisor.py`) y la
+   configuración (`.claude/settings.json`) los carga la **sesión**, no el árbol revisado: anota la ruta y
+   el `git hash-object` de cada uno. Si la sesión no es el árbol revisado, o el diff toca `.claude/`,
+   cotéjalos con los del candidato (`cmp`). Si difieren y sigues en esta sesión, el informe dice
+   exactamente qué fuente rigió (la de la sesión, con su hash, y que la del candidato no se aplicó), y
+   esa revisión **no acredita** el comportamiento de la rúbrica nueva. Una sesión iniciada en el
+   candidato tampoco demuestra por sí sola qué configuración cargó: conserva lo que la sesión declara al
+   iniciar (p. ej. su lista de agentes) y nombra las fuentes que no se pueden inspeccionar (configuración
+   gestionada remota, plugins internos).
 
 ## Invocación
 
@@ -101,7 +111,8 @@ allowed-tools: Read, Grep, Glob, Bash
    `aislamiento=ninguno|sandbox-configurado|sandbox-verificado`, ver §Modalidades): es lo
    **declarado**, no prueba que el aislamiento se aplicara; eso lo sostienen la evidencia y los
    controles efectivos. El informe al gate añade directorio autorizado, comprobaciones (huellas,
-   inventario) y **límites**; sin aislamiento verificado: «no se garantiza la ausencia de
+   inventario), las fuentes efectivas del paso 3c cuando no coinciden con las del candidato o no se
+   pudieron inspeccionar, y **límites**; sin aislamiento verificado: «no se garantiza la ausencia de
    escrituras fuera del repositorio». No va a la bitácora (`plan.md` está en la huella).
 8b. **Rutea los obstáculos a `docs/MEMORIA.md`** (sección «Operativa») y la línea de
    consumo a `MEMORIA.md` §Consumo: `python3 scripts/consumo.py` (acumulado por modelo y por
@@ -163,6 +174,11 @@ allowed-tools: Read, Grep, Glob, Bash
   "filesystem": {"allowWrite": ["<dir>"]}}}`; por defecto ya permite escribir en el directorio de
   trabajo y en un temporal por usuario. «Sandbox configurado» no equivale a «ejecución aislada»:
   solo se declara `verificado` si una escritura fuera de lo permitido se intentó y el sistema la negó.
+  `aislamiento=` describe la **sesión**: un arnés que envuelve solo algunos comandos (p. ej.
+  `sandbox-exec` alrededor de los casos del revisor) no la aísla, y el recibo dice
+  `aislamiento=ninguno`; el informe puede acreditar aparte qué comandos corrieron restringidos y con
+  qué comprobación externa. La prueba de bloqueo la rechaza el filtro antes de que el comando llegue
+  al sistema: verifica el filtro, no el aislamiento de la sesión.
 - **Suites:** `PYTHONDONTWRITEBYTECODE=1` (o el equivalente del stack) evita el bytecode, no
   garantiza una suite sin escrituras; una suite que escribe fuera de los destinos declarados en
   `docs/convenciones.md` §Pruebas, llama servicios o lee un `.env` real se corre en **copia

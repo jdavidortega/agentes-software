@@ -21,14 +21,14 @@ afectados siguen en `pendiente`.
         lo llama el pre-commit tras un check.sh en 0: valida ese registro (gramática de arriba).
     python3 -I scripts/fallos_previos.py destinos [--cierre]
         lo llama scripts/check_docs.sh desde F2: cada fila declarada tiene destino, un I<n> PENDIENTE de
-        docs/plan.md (leído con `check_docs.sh plan`) o un ADR aceptado que la nombra; un I<n> cerrado con
+        docs/plan.md (leído con `check_docs.sh plan`) o un ADR aceptado, no retrospectivo, que la nombra; un I<n> cerrado con
         su fila viva FALLA. Con --cierre (F4/F5) FALLA toda fila viva: ningún destino, tampoco un ADR,
         habilita una excepción al cierre ni verifica un criterio.
     python3 -I scripts/fallos_previos.py guarda <base> <candidato|INDICE>
         lo llama scripts/guardas.sh (pre-commit y replay): la línea base no cambia ni se añade tras un
         `Ref: F2` (en NINGÚN padre, también en un merge; el F2 se reconoce como `ultimo_f2` del commit-msg),
         el registro no desaparece, cada fila es un fallo de la línea base con su firma y cada
-        retirada del inventario cita un ADR aceptado que la nombra.
+        retirada del inventario cita un ADR aceptado, no retrospectivo, que la nombra.
 
 Línea base: inmutable una vez versionada; su inventario (cada prueba, ejecutada u omitida) y sus fallos son
 la ÚNICA fuente de «previo». Fija también DÓNDE se ejecuta la suite (`inicio` y `superior`, resueltos y
@@ -255,10 +255,15 @@ def adr_aceptado(decisiones, adr):
 
 
 def adr_decide(decisiones, adr, i):
-    """None si `adr` es un ADR aceptado de decisiones.md que nombra la prueba `i`; si no, el motivo."""
+    """None si `adr` es un ADR aceptado de decisiones.md que nombra la prueba `i` y no es retrospectivo; si no,
+    el motivo. Un ADR cuyo campo **Aprobación:** empieza por `retrospectivo` documenta una decisión anterior
+    al método: no decide el tratamiento de una prueba (decisiones.md, «Aceptación»). Un ADR sin el campo
+    (anterior a él) se lee como antes; la guarda solo comprueba lo escrito, no autentica la aprobación."""
     texto = adr_aceptado(decisiones, adr) if re.fullmatch(r"ADR-\d{3}", adr) else None
     if texto is None:
         return "«%s», que no es un ADR en estado «aceptada» de %s (sección «## ADR-NNN» con «- **Estado:** aceptada»)" % (adr, DECISIONES)
+    if re.search(r"^[-*][ \t]+\*\*Aprobación:\*\*[ \t]*`?retrospectivo\b", texto, re.M):
+        return "%s, que es un registro retrospectivo (Aprobación «retrospectivo»): documenta lo vigente y no decide retirar ni tratar la prueba; eso es una decisión nueva con su aprobación" % adr
     if not re.search(r"(?<![\w.])%s(?![\w.])" % re.escape(i), texto):
         return "%s, que no nombra esa prueba: el ADR aceptado tiene que decidirla" % adr
     return None

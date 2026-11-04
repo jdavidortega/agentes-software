@@ -772,6 +772,32 @@ espera pasa "adoptado: un nombre Unicode no produce un falso rechazo" "" -- nota
 copia adoptado-f3 at1; suite_es "$D" 'cp README.md c && rm README.md && ln -s c README.md'
 espera falla "adoptado: sustituir un archivo regular por un enlace se rechaza" "README.md \(tipo" -- nota_f1 "$D" at1
 
+echo "== fallos previos: un ADR retrospectivo no decide una prueba (decisiones.md «Aceptación»)"
+# Fixtures del focal H1–M01: la misma prueba declarada y un ADR aceptado que la nombra; solo cambia su Aprobación.
+FPP=tests.test_calc.TestCalc.test_redondeo
+fp_adr() {  # fp_adr <dir> <aprobación>: docs/decisiones.md con ADR-001 aceptado que nombra la prueba
+  mkdir -p "$1/docs"; printf '# Decisiones\n\n## ADR-001 — Tratamiento de la prueba\n\n- **Estado:** aceptada\n- **Aprobación:** %s\n- **Contexto:** la prueba `%s` falla en la línea base.\n' "$2" "$FPP" > "$1/docs/decisiones.md"; }
+fp_retirada() {  # fp_retirada <aprobación>: la guarda (coherencia) con una retirada que cita ADR-001
+  d="$W/fp-ret-$(printf '%s' "$1" | cksum | cut -d' ' -f1)"; fp_adr "$d" "$1"
+  python3 -I - "$RAIZ/scripts/fallos_previos.py" "$d/docs/decisiones.md" "$FPP" <<'PY2'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("fp", sys.argv[1]); fp = importlib.util.module_from_spec(spec); spec.loader.exec_module(fp)
+e = fp.coherencia({sys.argv[3]: ("falla", "fallo · AssertionError · 000000000000")}, {}, {sys.argv[3]: "ADR-001"}, open(sys.argv[2]).read())
+print("\n".join(e)); sys.exit(1 if e else 0)
+PY2
+}
+fp_destino() {  # fp_destino <aprobación>: check_docs desde F2 (fallos_previos.py destinos) con destino ADR-001
+  d="$W/fp-dest-$(printf '%s' "$1" | cksum | cut -d' ' -f1)"; fp_adr "$d" "$1"; mkdir -p "$d/scripts"
+  cp "$RAIZ/scripts/fallos_previos.py" "$RAIZ/scripts/check_docs.sh" "$d/scripts/"
+  printf '# Plan\n\n## Incrementos\n\n- [ ] I1 «x» · C1\n' > "$d/docs/plan.md"
+  printf '# Fallos previos\n\n## Fallos previos declarados\n\n| Prueba | Firma | Destino |\n|---|---|---|\n| `%s` | fallo · AssertionError · 000000000000 | ADR-001 |\n\n## Retiradas del inventario\n\n| Prueba | Motivo | ADR |\n|---|---|---|\n' "$FPP" > "$d/docs/fallos-previos.md"
+  ( cd "$d" && python3 -I scripts/fallos_previos.py destinos ); }
+NUEVA='«sí, retírala» (chat 2026-11-04, sobre ADR-001)'; RETRO='`retrospectivo: evidencia (tests/test_calc.py)`'
+espera pasa "decisión nueva aceptada y pertinente: vale para retirar la prueba" "" -- fp_retirada "$NUEVA"
+espera pasa "... y como destino del fallo declarado" "" -- fp_destino "$NUEVA"
+espera falla "ADR retrospectivo como retirada: rechazado" "registro retrospectivo" -- fp_retirada "$RETRO"
+espera falla "ADR retrospectivo como destino: rechazado" "registro retrospectivo" -- fp_destino "$RETRO"
+
 echo
 echo "regresion-adopcion: $((TOTAL-MAL))/$TOTAL casos en verde"
 if [ "$MAL" -gt 0 ]; then echo "FALLARON:$FALLIDOS"; exit 1; fi

@@ -108,7 +108,10 @@ el incremento y el rango del diff:
   mismo sabotaje desde fronteras distintas no son exceso. Un contrato o una grabación no
   acreditan la compatibilidad actual con el componente real si esa es la garantía (regla 7), y un
   sabotaje que sobrevive no queda cubierto por una revisión. No exige 100% mecánico:
-  cobertura de **comportamiento**.
+  cobertura de **comportamiento**. Con fallos previos declarados (adopción), el reporte dice «sin fallos
+  nuevos; N fallos previos declarados», no «suite aprobada»: los `C#` afectados siguen pendientes y un PASA
+  de la revisión no significa que todas las pruebas del producto estén en verde
+  (`docs/arranque-existente.md` §G).
 - **Funcionales:** cumple criterios de éxito y set de oro de `encuadre.md`.
 - **Seguridad (binario, es un gancho — no la auditoría):** ¿el diff toca superficie de
   riesgo (entrada no confiable, authn/authz, secretos, persistencia, IaC/despliegue,

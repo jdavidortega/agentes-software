@@ -28,7 +28,9 @@
 > - **Retrospectivo (adopción).** Un ADR que documenta una decisión anterior al método lleva en
 >   **Aprobación** `retrospectivo` y su base, que se mantiene distinta: **evidencia** (archivo),
 >   **explicación confirmada** por la persona o **hipótesis**; la fecha es la de documentación en UTC.
->   Documentar el estado previo no acredita una aprobación histórica ni autoriza modificarlo.
+>   Se registra en estado `aceptada` solo como documentación retrospectiva de lo vigente: ese estado no
+>   acredita una aprobación histórica, no autoriza una acción nueva (p. ej. retirar una prueba o decidir su
+>   tratamiento) ni verifica una garantía, y no autoriza modificarlo.
 > - **Sustitución.** Cambiar una decisión vigente, también una retrospectiva, es una decisión nueva: su ADR
 >   queda `propuesta` hasta su autorización (lo anterior) y enlaza el ADR que sustituiría. El anterior pasa
 >   a `reemplazada-por: ADR-###` solo cuando la sustitución está `aceptada` y entra en vigor; hasta

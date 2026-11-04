@@ -242,10 +242,10 @@ una regresión posterior nunca, tampoco por reentrada F2.
   aprobada**. Los `C#` afectados siguen en `pendiente`, `CHECK_ESTRICTO=1` termina en 2, y el cierre (F4/F5)
   no tiene excepción por ellos. Cada fila se retira en el commit que corrige su prueba (si pasa y sigue
   declarada, FALLA). Retirar una prueba del inventario es sacarla de la suite: exige una fila que cite un
-  ADR **aceptado** de `docs/decisiones.md` que la nombre, revisada en ese commit; una prueba no puede estar
+  ADR **aceptado**, no retrospectivo, de `docs/decisiones.md` que la nombre, revisada en ese commit; una prueba no puede estar
   a la vez declarada y retirada. En `unittest`, una subprueba fallida hace fallar a su prueba, y una
   omisión dentro de `subTest` no está soportada (FALLA). **Desde F2** cada fila declarada tiene destino: un
-  `I<n>` pendiente de `docs/plan.md` o un ADR aceptado que la nombre; un `I<n>` cerrado con su fila viva
+  `I<n>` pendiente de `docs/plan.md` o un ADR aceptado, no retrospectivo, que la nombre; un `I<n>` cerrado con su fila viva
   FALLA, y **al cierre (F4/F5) no queda ninguna fila**: un ADR como destino no verifica criterios ni
   habilita excepciones. El pre-commit comprueba además que `check.sh` ejecutó el comparador, que cada
   llamada terminó en la raíz del candidato y que propagó su fallo. **No autentica al comparador:** un

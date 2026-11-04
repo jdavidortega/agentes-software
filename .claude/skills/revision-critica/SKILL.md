@@ -82,7 +82,8 @@ el incremento y el rango del diff:
 - **Definición de Hecho:** corre la **lista A** de `docs/definicion-de-hecho.md` punto por
   punto (binario). La lista B (commit, compactación, gate) es del principal, después.
 - **Consistencia de arquitectura:** el cambio respeta el enfoque/arquitectura de
-  `plan.md`; no introduce dependencias ni abstracciones sin ADR; el **lenguaje/stack es el
+  `plan.md`; no introduce dependencias ni abstracciones sin ADR, y cada ADR nuevo o modificado del
+  incremento cumple «Aceptación» de `docs/decisiones.md`; el **lenguaje/stack es el
   de `encuadre.md`** (no se coló otro por inercia).
 - **Estilo, clean y concisión:** **lint y formatter pasan** (`scripts/check.sh`) —base
   determinista—; **nombres idiomáticos y consistentes**, **código en inglés ASCII**

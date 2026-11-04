@@ -113,12 +113,8 @@ agente **se detiene** y pide resolverla.
 - **Las decisiones, aparte.** Una decisión de alto impacto que sigue pendiente de autorización
   (stack, despliegue, alcance de lo que se versiona, datos personales) va en su propia pregunta,
   separada del ruteo y de los datos. Una decisión que la persona ya expresó se cita y se registra
-  (ADR `aceptada` con la cita), sin pedirle que la apruebe otra vez. Un ADR queda `aceptada` solo
-  si identifica la decisión autorizada y cita la respuesta de la persona que la aprueba: la
-  elección dicha por ella, o una aprobación inequívoca de una propuesta concreta que el ADR
-  referencia («sí, sigue con tu recomendación» sobre esa propuesta). Si para llegar a la opción
-  hay que deducirla de otra frase (p. ej. un motor de base de datos a partir de «que guarde el
-  histórico»), queda `propuesta` y se pregunta aparte.
+  (ADR `aceptada` con la cita), sin pedirle que la apruebe otra vez. Antes de marcar un ADR `aceptada`,
+  consulta «Aceptación» en `docs/decisiones.md`: qué cita basta y cuándo queda `propuesta`.
 - **Todo gate del arranque** (completitud, ruteo, encuadre, diseño, registro) se pide con la
   plantilla de `docs/convenciones.md` §Redacción, copiada y llena: los ocho campos, en ≤15
   líneas lógicas. El detalle va en su

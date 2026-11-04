@@ -98,11 +98,10 @@ Después, el agente principal **valida si el dato ya está presente**:
 - Si no hubo insumo real (caso 2 de la ingesta): el **bosquejo del modelo de datos**
   está en `docs/plan.md`, con ejemplo concreto por entrada/salida, y fue validado por
   la persona.
-- Decisiones de alto impacto registradas como ADR. Cada ADR `aceptada` identifica la decisión
-  autorizada y cita la respuesta de la persona que la aprueba —la elección dicha por ella, o la
-  aprobación inequívoca de una propuesta concreta que el ADR referencia—; contrasta esa cita con
-  su fuente (`contexto/`, el brief o el registro de la conversación). Un ADR `aceptada` cuya
-  opción haya que deducir de otra frase es un vacío: vuelve a `propuesta`.
+- Decisiones de alto impacto registradas como ADR. Cada ADR `aceptada` cumple «Aceptación» de
+  `docs/decisiones.md`; contrasta su cita con la fuente (`contexto/`, el brief o el registro de la
+  conversación). Un ADR `aceptada` cuya opción haya que deducir de otra frase es un vacío: vuelve a
+  `propuesta`.
 - Ningún `[inferido]` sin confirmar. Ningún `[FALTA]` abierto salvo un diferido que cumple
   `docs/convenciones.md` §Hechos pendientes: sus tres datos, listado en «Pendiente» y sin una decisión
   siguiente, un trabajo construido ni una garantía declarada verificada que dependa de él. Uno
@@ -160,8 +159,10 @@ documenta, no se decide). Lo propio del revisor en este modo:
   o comprobado es vacío.
 - **Desconocidos:** un `[pendiente]` se juzga con `docs/convenciones.md` §Hechos pendientes, igual
   que un `[FALTA · diferido]` en la rúbrica normal; solo una **elección** exige ADR `propuesta`.
-- **Decisiones:** ADR retrospectivos con evidencia, explicación confirmada o hipótesis; no se
-  juzgan como decisiones nuevas.
+- **Decisiones:** ADR retrospectivos con evidencia, explicación confirmada o hipótesis (campo
+  Aprobación `retrospectivo`, «Aceptación» de `docs/decisiones.md`); no se juzgan como decisiones
+  nuevas ni se les exige una aprobación histórica. Una decisión nueva o una sustitución de la
+  adopción sigue la regla de decisión nueva.
 - **Alcance proporcional** (ruta de trabajo elegido): contrasta con el código que el mapa del área
   afectada incluya lo que depende del cambio y aquello con lo que interactúa; una dependencia o
   interacción omitida, o un `C#` `conserva` que solo cubre lo que se edita, es vacío.

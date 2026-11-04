@@ -418,7 +418,9 @@ del que depende que el sistema actúe o no sobre equipos, personas o el mundo re
 6. **Decisiones visibles** en `docs/decisiones.md`: ADR retrospectivos de lo que condiciona un
    cambio (algoritmos, parámetros, persistencia, políticas de reintento, nombres de salida),
    cada uno con **evidencia** (archivo), **explicación confirmada** por la persona o
-   **hipótesis**; fecha de documentación en UTC, nunca una fecha original inventada.
+   **hipótesis**; fecha de documentación en UTC, nunca una fecha original inventada. En su campo
+   **Aprobación**, `retrospectivo` y esa base (`docs/decisiones.md`, «Aceptación»): documentar el
+   estado no acredita una aprobación histórica ni autoriza cambiarlo.
 
 **Revisión:** el revisor funcional en **modo adopción, alcance Fase 1** (rúbrica:
 `.claude/skills/revision-funcional/SKILL.md` §En una adopción), antes del gate.
@@ -523,8 +525,8 @@ separa la **protección necesaria por criterio** (lo que hace verificable cada `
 de las **mejoras seleccionadas por riesgo** (nacen de filas del diagnóstico), y explica qué queda fuera y
 por qué puede esperar. Plan de pruebas por incremento
 (solo lo que cierra brechas). Decisiones con opciones (alcance del linter sobre lo existente,
-tolerancia del set de oro…) como ADR; los ADR `propuesta` de la Fase 1 se resuelven o se
-reasignan a su actividad. `docs/trazabilidad.md`: una fila por `C#` con su incremento.
+tolerancia del set de oro…) como ADR (aceptación y sustitución: `docs/decisiones.md`, «Aceptación»);
+los ADR `propuesta` de la Fase 1 se resuelven o se reasignan a su actividad. `docs/trazabilidad.md`: una fila por `C#` con su incremento.
 **Reglas compartidas que se comprueban aquí** (no se repiten): `AGENTS.md` §1 sin marcadores
 (el doctor los rechaza desde F2); el plan respeta la regla de **hito** (`docs/convenciones.md`,
 «Hito»: uno cada tres incrementos cerrados); el consumo de cada etapa se anota en

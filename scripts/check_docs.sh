@@ -146,6 +146,17 @@ if [ "$INICIADO" -eq 1 ]; then
   has scripts/check.sh || err "falta scripts/check.sh (lint+formato+tests; salida obligatoria del diseño, F2)"
 fi
 
+# --- 0a'') Fallos previos de una adopción (M01): desde F2, cada fila declarada de docs/fallos-previos.md
+#     tiene destino (un I<n> pendiente del plan o un ADR aceptado que la nombra) y al cierre no queda
+#     ninguna. Lo lee scripts/fallos_previos.py: el mismo lector del registro que la guarda y el comparador.
+if [ "$INICIADO" -eq 1 ] && has docs/fallos-previos.md; then
+  if ! has scripts/fallos_previos.py; then
+    err "existe docs/fallos-previos.md y falta scripts/fallos_previos.py, su lector"
+  elif ! m=$(python3 -I scripts/fallos_previos.py destinos $([ "$MODE" = cierre ] && echo --cierre) 2>&1); then
+    FAIL=1; printf '%s\n' "${m:-no pude leer los destinos de docs/fallos-previos.md}" | sed 's/^/  ✗ check_docs: fallos previos: /' >&2
+  fi
+fi
+
 # --- 0a') Suite vigilada (docs/convenciones.md §Comandos clave): desde que existe, en cualquier fase
 #     (también F_ en el Paso 0 de una adopción y F1), scripts/check.sh empieza por el bloque que la
 #     corre bajo scripts/suite.py, y el plazo común está declarado. El pre-commit corre esto ANTES de

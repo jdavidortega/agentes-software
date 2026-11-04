@@ -600,6 +600,7 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 │   ├── recibos.sh           parser único de revisiones.log (hook y doctor)
 │   ├── trazabilidad.sh      lector único de trazabilidad.md (doctor, hook y replay)
 │   ├── contrato.py          lector único del contrato revisado: criterios, set de oro y archivos que enlaza
+│   ├── fallos_previos.py    fallos previos de una adopción: línea base inicial, comparación (check.sh) y guarda
 │   ├── guardas.sh           guardas de contenido entre dos estados (pre-commit y replay)
 │   ├── consumo.py           tokens por modelo y origen (principal, subagentes, sin atribuir) desde los transcripts locales
 │   ├── buscar.sh            búsquedas registradas (git grep contra un commit; evidencia

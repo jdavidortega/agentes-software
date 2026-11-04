@@ -165,6 +165,16 @@ for f in (reg.iterdir() if reg.exists() else []):
   # repositorio REAL, compartido con el uso directo y el sabotaje (una suite a la vez). El informe
   # distingue el fallo de pruebas del plazo vencido, el bloqueo y la terminación incompleta.
   inf="$snap/informe-suite"
+  # Con docs/fallos-previos.md (adopción con fallos previos, M01), el comparador anota cada llamada en un
+  # TESTIGO fuera del árbol, NUEVO en cada ejecución del hook (en la instantánea recién creada) y con una
+  # FICHA aleatoria propia: lo que no lleva esta ficha no cuenta. Detecta que check.sh no lo ejecutó, que
+  # ocultó su fallo, que una llamada no terminó o que corrió fuera de la raíz de la instantánea; no la
+  # falsificación (no autentica al comparador: check.sh es de confianza).
+  testigo=""; ficha=""
+  if [ -f "$tmp/docs/fallos-previos.md" ]; then
+    testigo="$snap/testigo-fallos-previos"; ficha=$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')
+    { [ ${#ficha} -eq 32 ] && [ ! -e "$testigo" ]; } || { echo "✗ pre-commit: no pude preparar el testigo del comparador de fallos previos." >&2; exit 1; }
+  fi
   # El lanzamiento se ANUNCIA en la reclamación antes de empezar, y el proceso de lanzamiento deja su
   # identidad (pid y hora de inicio) ANTES de ejecutar check.sh; con «exec» ese pid es el mismo hasta
   # suite.py. Si el hook muere con el lanzador atascado antes de registrarse, el anuncio conserva la
@@ -176,7 +186,7 @@ for f in (reg.iterdir() if reg.exists() else []):
       || { echo "✗ pre-commit: no pude anunciar el lanzamiento en la reclamación de la instantánea (motivo arriba); no lancé la suite." >&2; exit 1; }
     lanza='python3 -I "$0" sumar "$SUITE_PROPIA" --pid $$ || echo "⚠ pre-commit: no pude registrar el lanzador; la instantánea quedará conservada (no comprobable) si el hook muere antes de cerrar." >&2; exec sh scripts/check.sh'
   fi
-  ( cd "$snap/r" && exec env $LIMPIA SUITE_REGISTRO="$sreg" SUITE_INFORME="$inf" SUITE_PROPIA="$propia" sh -c "$lanza" "$tmp/scripts/suite.py" ) || {
+  ( cd "$snap/r" && exec env $LIMPIA SUITE_REGISTRO="$sreg" SUITE_INFORME="$inf" SUITE_PROPIA="$propia" FALLOS_PREVIOS_TESTIGO="$testigo" FALLOS_PREVIOS_FICHA="$ficha" sh -c "$lanza" "$tmp/scripts/suite.py" ) || {
     sid=$(sed -n 's/^id=\([^ ]*\).*/\1/p' "$inf" 2>/dev/null)
     case "$(sed -n 's/.* estado=\([^ ]*\).*/\1/p' "$inf" 2>/dev/null)" in
       excedida) m="scripts/check.sh EXCEDIÓ su plazo (ejecución $sid) y se terminó su grupo de procesos. No es un fallo de pruebas sino de tiempo, y no cuenta como aprobada: mira su última salida (python3 scripts/suite.py estado $sid) e identifica qué se colgó antes de subir el plazo (docs/convenciones.md §Comandos clave)." ;;
@@ -212,7 +222,12 @@ for f in (reg.iterdir() if reg.exists() else []):
     echo "  Lo que se commitea no es lo que se probó: la suite no puede reescribir archivos versionados." >&2
     exit 1
   fi
+  if [ -n "$testigo" ]; then
+    m=$(python3 -I "$tmp/scripts/fallos_previos.py" testigo "$testigo" "$ficha" "$snap/r" 2>&1) \
+      || { printf '%s\n' "${m:-no pude validar el testigo del comparador de fallos previos}" | sed 's/^/✗ pre-commit: /' >&2; exit 1; }
+  fi
 else
+  [ -f "$tmp/docs/fallos-previos.md" ] && { echo "✗ pre-commit: existe docs/fallos-previos.md y no hay scripts/check.sh que ejecute el comparador de fallos previos." >&2; exit 1; }
   case "$fase" in
     F2|F3|F4|F5)
       echo "✗ pre-commit: no hay scripts/check.sh y el proyecto está en $fase. Es salida obligatoria del diseño (docs/convenciones.md §Comandos clave)." >&2

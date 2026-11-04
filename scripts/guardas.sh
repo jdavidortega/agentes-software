@@ -28,6 +28,10 @@
 #      scripts/check_docs.sh con la línea exacta «# contrato-set-de-oro: 1», el candidato también, y
 #      conserva scripts/contrato.py (retirar o alterar el marcador, o borrar el lector, devolvería el
 #      árbol a la comparación previa). El marcador identifica la versión; no autentica a los validadores.
+#   9) fallos previos de una adopción (scripts/fallos_previos.py guarda, si el candidato o algún padre
+#      tiene la línea base contexto/exploracion/linea-base-pruebas.xml o el registro docs/fallos-previos.md):
+#      la línea base no cambia ni desaparece, ni se añade después de un `Ref: F2`; el registro no
+#      desaparece; cada fila es un fallo de la línea base con su firma y cada retirada cita un ADR.
 # La excepción histórica (5) se deriva del CANDIDATO: un commit cuyo propio recibos.sh no conoce el
 # marcador; el índice (pre-commit) nunca la tiene. No se lee del entorno.
 # No corre check_docs ni check.sh: eso lo hacen el pre-commit y el replay por su cuenta.
@@ -129,4 +133,20 @@ for p in $padres; do
   tiene_c scripts/contrato.py || fail "scripts/contrato.py desaparece y $q ya declaraba «# contrato-set-de-oro: 1»: sin el lector no hay contrato del set de oro (se restaura con adoptar.sh actualizar o desde la plantilla)."
   break
 done
+
+# 9) Fallos previos: solo los de la línea base inicial, que no cambia (scripts/fallos_previos.py guarda).
+fp=0
+for p in $padres; do
+  git cat-file -e "$p:contexto/exploracion/linea-base-pruebas.xml" 2>/dev/null && fp=1
+  git cat-file -e "$p:docs/fallos-previos.md" 2>/dev/null && fp=1
+done
+tiene_c contexto/exploracion/linea-base-pruebas.xml && fp=1
+tiene_c docs/fallos-previos.md && fp=1
+if [ "$fp" -eq 1 ]; then
+  if [ ! -f scripts/fallos_previos.py ]; then
+    fail "hay línea base o registro de fallos previos y falta scripts/fallos_previos.py, que los comprueba (viene con la plantilla)."
+  else
+    python3 -I scripts/fallos_previos.py guarda "$B" "$C" || fail "los fallos previos declarados no se sostienen (arriba): solo valen los de la línea base inicial de la adopción, que no cambia (docs/arranque-existente.md §G)."
+  fi
+fi
 exit $FAIL

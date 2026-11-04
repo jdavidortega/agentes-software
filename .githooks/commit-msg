@@ -139,7 +139,7 @@ trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
 #   (README, guías de contribución, conducta, seguridad, soporte y plantillas de issue y de PR en
 #   Markdown). Los demás workflows, acciones y archivos de .github/ son configuración operativa del
 #   producto (CI, despliegue, dependencias, propietarios, instrucciones de agentes).
-METODO='^(\.github/workflows/metodo\.yml|\.githooks/(commit-msg|pre-commit)|scripts/pruebas/(regresion|regresion-suite|regresion-adopcion|validar_historial)\.sh|scripts/(check_docs|adoptar|buscar|huella|recibos|trazabilidad|guardas)\.sh|scripts/(consumo|suite|contrato)\.py)$'
+METODO='^(\.github/workflows/metodo\.yml|\.githooks/(commit-msg|pre-commit)|scripts/pruebas/(regresion|regresion-suite|regresion-adopcion|validar_historial)\.sh|scripts/(check_docs|adoptar|buscar|huella|recibos|trazabilidad|guardas)\.sh|scripts/(consumo|suite|contrato|fallos_previos)\.py)$'
 SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents)/|^\.github/((README|CONTRIBUTING|CODE_OF_CONDUCT|SECURITY|SUPPORT|PULL_REQUEST_TEMPLATE|pull_request_template)\.md|(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE)/[^/]+\.md)$|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check\.sh)$|(^|/)\.env\.example$|'"$METODO"
 # Siempre producto aunque viva en una carpeta del rastro: CODEOWNERS decide quién aprueba y GitHub
 # lo lee de .github/, la raíz o docs/ (las dos primeras ya están fuera de SIN_REVISION).

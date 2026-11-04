@@ -210,6 +210,12 @@ quedan pendientes** por no haberse ejecutado; no es un `pasa`. Se registra tal c
 **con el procedimiento exacto para repetirlo**: comando, directorio desde el que corre,
 qué se copió y qué se neutralizó (archivos, variables, red) y la salida resumida. Un
 inventario de paquetes describe el entorno observado; no prueba que pueda reconstruirse.
+**Con `pruebas fallidas`** (hoy solo `unittest` de Python; ningún otro stack está probado), la línea
+base inicial se **captura una vez**, vigilada: `python3 scripts/suite.py correr --dir . -- python3 -I
+scripts/fallos_previos.py capturar --adaptador unittest --inicio <carpeta de pruebas>`. Escribe
+`contexto/exploracion/linea-base-pruebas.xml` (inmutable: inventario y fallos con su firma) y
+`docs/fallos-previos.md` (una fila por fallo, con su destino). Solo esos fallos pueden declararse previos;
+una regresión posterior nunca, tampoco por reentrada F2.
 **No se corrige nada.** Un `.env` versionado es un hallazgo con propuesta aparte.
 
 **G. Controles.**
@@ -227,6 +233,24 @@ inventario de paquetes describe el entorno observado; no prueba que pueda recons
   no una frase del log); la CI lo invoca así (`.github/workflows/metodo.yml`), y el commit del
   rastro conserva el comportamiento normal. El **linter no se activa todavía**: su alcance sobre
   código preexistente se decide en la Fase 2 con la línea base.
+  **Con fallos previos capturados**, `check.sh` corre las pruebas con `python3 -I scripts/fallos_previos.py
+  comprobar --adaptador unittest --inicio <carpeta>`. Pasa si los fallos son exactamente los declarados, con su
+  firma; no hay pruebas del inventario que desaparezcan ni ejecutadas que ahora se omitan; y el ejecutor
+  completó la suite. Imprime «sin fallos nuevos; N fallos previos declarados»: **no es una suite
+  aprobada**. Los `C#` afectados siguen en `pendiente`, `CHECK_ESTRICTO=1` termina en 2, y el cierre (F4/F5)
+  no tiene excepción por ellos. Cada fila se retira en el commit que corrige su prueba (si pasa y sigue
+  declarada, FALLA). Retirar una prueba del inventario es sacarla de la suite: exige una fila que cite un
+  ADR **aceptado** de `docs/decisiones.md` que la nombre, revisada en ese commit; una prueba no puede estar
+  a la vez declarada y retirada. En `unittest`, una subprueba fallida hace fallar a su prueba, y una
+  omisión dentro de `subTest` no está soportada (FALLA). **Desde F2** cada fila declarada tiene destino: un
+  `I<n>` pendiente de `docs/plan.md` o un ADR aceptado que la nombre; un `I<n>` cerrado con su fila viva
+  FALLA, y **al cierre (F4/F5) no queda ninguna fila**: un ADR como destino no verifica criterios ni
+  habilita excepciones. El pre-commit comprueba además que `check.sh` ejecutó el comparador, que cada
+  llamada terminó en la raíz del candidato y que propagó su fallo. **No autentica al comparador:** un
+  `check.sh` que falsifica su registro, o que cambia las pruebas y las restaura antes de terminar, no se
+  detecta (`check.sh` es de confianza). La línea base solo puede llegar antes del primer `Ref: F2` de TODA la
+  historia, también la anterior a la base del método: una readopción sobre una historia con `Ref: F2` se
+  rechaza.
   `check.sh` corre con el intérprete y las dependencias **del proyecto** (su entorno
   virtual, por ejemplo); con otro intérprete falla en rojo, y es lo correcto: el pre-commit lo
   ejecuta en cada commit, sobre una instantánea de lo que se commitea. Por eso el entorno virtual

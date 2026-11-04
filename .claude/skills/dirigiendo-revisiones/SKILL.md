@@ -193,8 +193,8 @@ Distinguir quién escribe no autoriza nada; que git ignore un destino, tampoco.
 
 | Chequeo | Escribe en (efectos completos) |
 |---|---|
-| `sh scripts/check.sh` (corre bajo `suite.py correr`) | Registro `<git common dir>/suite-runs/`: crea el directorio si no existe, escribe `<id>.json` de la corrida y, **antes de lanzarla, recupera** ejecuciones abandonadas y carpetas reclamadas anteriores: borra sus temporales y cierra sus registros cuando puede demostrar que son suyos; cuando no puede, los conserva y se bloquea. Carpeta propia `suite-<id>-*` bajo el temporal del sistema (el `TMPDIR` de la corrida); se borra al cerrar **salvo** que queden procesos o el registro no sea comprobable: entonces se conserva con su motivo. Más los destinos de la suite del proyecto declarados en `docs/convenciones.md` §Pruebas |
-| `sh scripts/check_docs.sh` | Desde F2, un `mktemp -d "$TMPDIR/check-docs-suite.XXXXXX"` con registro propio; se borra solo si `suite.py estado --abiertas` demuestra que quedó cerrado; si no puede demostrarlo, **se conserva** y lo dice |
+| `sh scripts/check.sh` (corre bajo `suite.py correr`) | Registro `<git common dir>/suite-runs/`: crea el directorio si no existe, escribe `<id>.json` de la corrida y, **antes de lanzarla, recupera** ejecuciones abandonadas y carpetas reclamadas anteriores: borra sus temporales y cierra sus registros cuando puede demostrar que son suyos; cuando no puede, los conserva y se bloquea. Carpeta propia `suite-<id>-*` bajo el temporal del sistema (el `TMPDIR` de la corrida): al cerrar se borran sus temporales (`tmp/`) y se **conserva** la carpeta con su `salida.log` (y `salida.log.1` si rotó; hasta `SUITE_LOG_MAX` bytes entre los dos); el registro guarda las 10 últimas ejecuciones cerradas y, al cerrar otra, borra la carpeta y el `<id>.json` de las más antiguas (no las de una carpeta aún reclamada). Si quedan procesos o el registro no es comprobable, la carpeta entera se conserva con su motivo. Más los destinos de la suite del proyecto declarados en `docs/convenciones.md` §Pruebas |
+| `sh scripts/check_docs.sh` | En cualquier fase, desde que existen `scripts/check.sh` y `scripts/suite.py` (también antes de F2), un `mktemp -d "$TMPDIR/check-docs-suite.XXXXXX"` con registro propio; se borra solo si `suite.py estado --abiertas` demuestra que quedó cerrado; si no puede demostrarlo, **se conserva** y lo dice. Su ejecución de prueba deja además su carpeta `suite-<id>-*` con `salida.log` bajo `TMPDIR`: su registro se borra con el `mktemp`, así que ninguna poda la retira |
 | `python3 scripts/suite.py estado` | Puede **crear** el directorio del registro si no existe; nada más |
 | `sh scripts/huella.sh …`, `sh scripts/recibos.sh linea …` | Nada (salida estándar) |
 | Suites de la plantilla, `validar_historial.sh`, `sabotear.py` | Solo en **experimentos**, con `TMPDIR="$D"` delante |
@@ -202,7 +202,10 @@ Distinguir quién escribe no autoriza nada; que git ignore un destino, tampoco.
 La tabla no promete «no escribe» ni «se borra al cerrar» de forma incondicional: la conservación
 ante lo no comprobable es deliberada y se declara como efecto autorizado. Tras la revisión, el
 principal mira `python3 scripts/suite.py estado --abiertas` y las carpetas conservadas, y anota en
-`docs/estado.md` las que queden (`docs/convenciones.md` §Recursos). **Límite:** una escritura
+`docs/estado.md` las que queden (`docs/convenciones.md` §Recursos). Una lectura como `git status` también
+puede escribir: reescribe `.git/index` para refrescar su caché de estado cuando cambió la fecha o el tamaño de un
+archivo. No cambia los archivos versionados, el contenido preparado ni las huellas, pero no es ausencia de escrituras.
+**Límite:** una escritura
 ignorada por git y no declarada no la ve ningún control —ni el filtro, que solo ve comandos del
 revisor, ni la huella, que excluye lo ignorado—; la prohíbe el encargo y la detecta solo el
 revisor que la observa.

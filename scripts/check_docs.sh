@@ -162,7 +162,8 @@ fi
 #     corre bajo scripts/suite.py, y el plazo común está declarado. El pre-commit corre esto ANTES de
 #     lanzar check.sh: un check.sh sin el bloque no llega a ejecutarse desde el hook. El bloque se
 #     PRUEBA aislado: en un proyecto temporal mínimo (copia de suite.py + un check.sh ficticio = el
-#     bloque + un eco del identificador), con registro propio, sin las SUITE_* heredadas y con un
+#     bloque + un eco del identificador), con registro y temporales propios (TMPDIR dentro de él, así la
+#     carpeta de la ejecución se borra con él o se conserva con él), sin las SUITE_* heredadas y con un
 #     límite propio (no depende del envoltorio que comprueba). El cuerpo real nunca se ejecuta.
 #     Antes de ejecutar nada, un único validador (python3 -I) lee check.sh y docs/convenciones.md como
 #     BYTES (sin awk ni variables de shell que los transformen) y exige: ningún NUL ni CR en ninguno de
@@ -225,6 +226,9 @@ import json, os, re, signal, subprocess, sys
 d = sys.argv[1]
 env = {k: v for k, v in os.environ.items() if not k.startswith("SUITE_")}
 env["SUITE_REGISTRO"] = os.path.join(d, "reg")
+tmp = os.path.join(d, "tmp")  # temporales propios: la carpeta de la ejecución nace dentro de $aisl, no en el TMPDIR heredado
+os.makedirs(tmp, exist_ok=True)
+env.update(TMPDIR=tmp, TMP=tmp, TEMP=tmp)
 def corre(extra):
     p = subprocess.Popen(["sh", os.path.join(d, "p/scripts/check.sh")], cwd=os.path.join(d, "p"), env={**env, **extra},
                          stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)

@@ -956,15 +956,22 @@ PY
 COPIA_REG='import json,os,sys; r=os.environ["SUITE_REGISTRO"]; d=json.load(open(os.path.join(r, os.environ["SUITE_ID"] + ".json"))); d.update(json.loads(sys.argv[1])); open(os.path.join(r, d["id"] + ".json"), "w").write(json.dumps(d, separators=(",", ":")))'
 doc_t() { mkdir -p "$W/tmpcd-$2"; en "$1" env TMPDIR="$W/tmpcd-$2" sh scripts/check_docs.sh; }   # doc_t <dir> <caso>
 conservadas() { ls -d "$W/tmpcd-$1"/check-docs-suite.* 2>/dev/null | wc -l | tr -d ' '; }
+# Carpetas de ejecución de la prueba aislada: «dentro» de su mktemp y «fuera», en el TMPDIR del caso.
+dentro_fuera() { echo "$(ls -d "$W/tmpcd-$1"/check-docs-suite.*/tmp/suite-* 2>/dev/null | wc -l | tr -d ' ') $(ls -d "$W/tmpcd-$1"/suite-* 2>/dev/null | wc -l | tr -d ' ')"; }
+copia f3 cd14
+espera pasa "prueba aislada cerrada con TMPDIR propio: pasa" "" -- doc_t "$D" cd14
+espera pasa "... no deja carpeta de ejecución en el TMPDIR del llamador ni su mktemp" "^0 0$" -- sh -c 'echo "$(ls -d "$1"/suite-* 2>/dev/null | wc -l | tr -d " ") $(ls -d "$1"/check-docs-suite.* 2>/dev/null | wc -l | tr -d " ")"' _ "$W/tmpcd-cd14"
 copia f3 cd11; inyecta "$D" "[ -z \"\${SUITE_ID:-}\" ] || python3 -c '$COPIA_REG' '{\"id\": \"compacta\"}'"
 espera falla "registro abierto en JSON compacto («\"estado\":\"abierta\"»): se detecta y la prueba aislada se conserva" "dejó una ejecución abierta \\(compacta" -- doc_t "$D" cd11
 espera pasa "... (conservada)" "^1$" -- conservadas cd11
+espera pasa "... con la carpeta de su ejecución dentro, ninguna fuera (temporales propios)" "^1 0$" -- dentro_fuera cd11
 copia f3 cd12; inyecta "$D" "[ -z \"\${SUITE_ID:-}\" ] || echo '{roto' > \"\$SUITE_REGISTRO/zz.json\""
 espera falla "registro temporal dañado: no acredita la limpieza, se conserva" "no pude comprobar el registro temporal .*conservo" -- doc_t "$D" cd12
 espera pasa "... (conservada)" "^1$" -- conservadas cd12
+espera pasa "... con la carpeta de su ejecución dentro, ninguna fuera (temporales propios)" "^1 0$" -- dentro_fuera cd12
 copia f3 cd13; inyecta "$D" "[ -z \"\${SUITE_ID:-}\" ] || { python3 -c '$COPIA_REG' '{\"id\": \"falsa\", \"estado\": \"fallida\", \"rc\": 1, \"nota\": \"aprobada\"}'; echo vigilada:falsa; }"
 espera falla "«aprobada» en otro campo de un registro fallido: no cuenta como aprobada" "la ejecución falsa no quedó registrada como aprobada" -- doc_t "$D" cd13
-rm -rf "$W"/tmpcd-cd1[123]
+rm -rf "$W"/tmpcd-cd1[1234]
 # Límite propio: un bloque que se cuelga ANTES de llegar a suite.py no cuelga check_docs.
 copia f3 cd8; en_ambos "$D" "awk '{ print } /^# --- suite vigilada/ { print \"sleep 300\" }' \"\$1\""
 espera falla "bloque que se cuelga fuera del envoltorio: check_docs vence su propio límite" "no terminó en 60 s" -- acotado 90 sh -c 'cd "$1" && sh scripts/check_docs.sh' _ "$D"

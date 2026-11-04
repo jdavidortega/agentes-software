@@ -47,8 +47,9 @@ cada pieza está en «Cómo está armado el sistema» y en el glosario de «Defi
    `git config --unset core.hooksPath` y `git reset -q`.
 2. El agente ejecuta primero el **Bootstrap (paso 0)**: verifica que git esté
    configurado, que los hooks estén activos (`git config core.hooksPath .githooks`),
-   que `.env*` esté ignorado y que exista un **remoto** con push inicial (sin
-   excepciones: todo proyecto, grande o pequeño, sigue el mismo método). Se hace un
+   que `.env*` esté ignorado (sin excepciones: todo proyecto, grande o pequeño, sigue el
+   mismo método). El remoto no es condición del arranque: se exige, con su CI, cuando el
+   repositorio se comparte o el producto se despliega en remoto (`docs/convenciones.md` §Git). Se hace un
    commit **al cierre de cada fase y de cada incremento** (no solo en la ejecución).
 3. **Deja primero tus entradas en `contexto/`.** Es la **única carpeta de entrada**:
    documentos (antecedentes, specs, notas), datos de entrada y de salida, notebooks y
@@ -269,7 +270,8 @@ Glosario de los términos y siglas que usa la metodología (y el diagrama):
 - **Gate / compuerta** — punto donde la persona **aprueba explícitamente** antes de
   avanzar. No se sigue sin su OK.
 - **Bootstrap (paso 0)** — precondición del arranque: hooks activos y ejecutables,
-  `.env` ignorado, remoto con push inicial y `check_docs` en PASA. Sin esto, el agente se
+  `.env` ignorado y `check_docs` en PASA (el remoto, solo si el repositorio se comparte o se
+  despliega en remoto: `docs/convenciones.md` §Git). Sin esto, el agente se
   detiene. No hay modo "prueba de concepto" con menos rigor: la distinción complicaba
   sin aportar; un proyecto pequeño se encuadra igual, solo que con menos contenido.
 - **`contexto/`** — la **única carpeta de entrada** (obligatoria, ≥1 archivo): documentos
@@ -433,9 +435,11 @@ git config core.hooksPath .githooks
   hook no ejecutable).
 - **`.editorconfig`** — estilo base (charset, espacios) que aplican los editores.
 
-Los hooks son locales y esquivables (`git commit --no-verify`): con remoto compartido,
-`scripts/check.sh`, `scripts/check_docs.sh`, `scripts/pruebas/validar_historial.sh` y
-`scripts/pruebas/regresion.sh` se cablean también en CI (ver `docs/convenciones.md` §Git).
+Los hooks son locales y esquivables (`git commit --no-verify`). Por eso cada gate desde el
+primer incremento presenta el replay local (`validar_historial.sh`), y con un repositorio
+compartido o un despliegue remoto `scripts/check.sh`, `scripts/check_docs.sh`,
+`scripts/pruebas/validar_historial.sh` y `scripts/pruebas/regresion.sh` se cablean también en
+CI, cuya ejecución se comprueba (regla principal: `docs/convenciones.md` §Git).
 **`validar_historial.sh`** reejecuta el contrato de los hooks sobre cada commit de un rango
 (`origin/main..HEAD` por defecto): trailers, recibos vigentes por huella, hito, código solo
 con `Ref: I<n>`, las mismas guardas de contenido del `pre-commit` (`scripts/guardas.sh`:

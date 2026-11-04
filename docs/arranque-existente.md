@@ -111,7 +111,8 @@ tapa una regla amplia del proyecto (p. ej. `*.log` sobre `docs/revisiones.log`) 
 `--aplicar`, como integración explícita. Si lo excluido es la carpeta, una negación no la rescata y el
 bloqueo se resuelve con la persona. Git se informa punto por punto (identidad, rama, remoto
 solo por nombre, commit actual, cambios pendientes, hooks) y se pregunta solo lo que falte;
-publicar es una decisión de la persona, no un dato, y sin remoto el trabajo sigue en local.
+publicar es una decisión de la persona, no un dato, y sin remoto el trabajo sigue en local (replay, remoto y
+CI: `docs/convenciones.md` §Git).
 **Ramas:** el proyecto ya tiene una estrategia; se identifica y se respeta, sin suponer qué papel
 cumplen `main`, `dev` o `develop`. `inspeccionar <ruta> <rama-de-integración>` añade el inventario
 (solo lectura, sin fetch): por rama local y remota, fecha del último commit, commits fuera del

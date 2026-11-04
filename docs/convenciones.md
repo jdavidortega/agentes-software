@@ -227,8 +227,8 @@ del proyecto (README) no acredita la configuración desplegada. Cambiar producci
 - **Recibos aparte y para siempre:** `docs/revisiones.log` es append-only (el
   `pre-commit` exige que lo ya guardado en HEAD sea prefijo exacto de lo nuevo) y no
   entra en ninguna compactación; es lo que el `commit-msg` lee. Un FALLA no se borra: la
-  revisión nueva se añade debajo. Reparar un registro corrupto es una excepción con
-  `--no-verify` y su lección escrita en `MEMORIA.md`.
+  revisión nueva se añade debajo. Un registro corrupto se recupera según «Replay, remoto y CI»
+  (§Git, recuperación), con su lección en `MEMORIA.md`.
 - **Obstáculos de una revisión → `docs/MEMORIA.md` §Operativa**, no a este archivo en
   ese momento: `convenciones.md` es contenido revisado y cambiarlo tras el PASA
   invalidaría el recibo; su promoción aquí va en el siguiente incremento.
@@ -369,8 +369,56 @@ revertir) vive en docs/despliegue.md. -->
   (inventario de `adoptar.sh inspeccionar`, `docs/arranque-existente.md` paso A). Al cerrar cada
   incremento se dice una de tres: integración recomendada ahora (destino y motivo), mantener la
   rama (qué falta) o ya incorporado (referencia). Fusionar, publicar y borrar ramas tienen su propia
-  autorización; la antigüedad sola no justifica borrar. Con **remoto compartido**, CI mínimo (se decide en el diseño): los hooks locales se
-  esquivan con `--no-verify`, el CI no. **Al montar el CI**: la política de rango de commits está en la
+  autorización; la antigüedad sola no justifica borrar.
+- **Replay, remoto y CI (regla principal).** Los hooks son locales: `--no-verify` o unos hooks desactivados los esquivan. El
+  *replay* (`scripts/pruebas/validar_historial.sh`) vuelve a validar los commits ya hechos, y puede detectar esos
+  incumplimientos cuando se ejecuta sobre el rango completo que corresponde. Esta regla exige ejecutarlo como procedimiento:
+  no impide mecánicamente omitirlo ni autentica sus validadores.
+  - **Replay local en cada gate.** Desde el primer incremento, el resumen de cada gate de incremento, hito, F4 y F5 dice en
+    «Verificación» el resultado del replay, su rango y el commit evaluado (`HEAD` en ese momento). Un fallo bloquea el gate.
+    - El rango empieza en el commit que evaluó el replay del gate anterior (`<sha>..HEAD`), y así incluye todos los commits
+      nuevos, también los que entraron por ramas laterales.
+    - En el primer gate, o si ese commit ya no es ancestro de `HEAD`, el rango es `HEAD` entero. En un proyecto adoptado, el
+      script excluye por sí mismo lo anterior a la «Base del método».
+    - El rango no se elige para dejar fuera un commit que falla.
+  - **El replay no es la suite.** Valida el contrato de los commits (trailers, recibos, guardas, doctor por commit) y no corre las
+    pruebas del producto, que se informan aparte (`check.sh`).
+    - Con fallos previos **declarados y comprobados** según `docs/arranque-existente.md` §G, `check.sh` pasa, pero
+      `CHECK_ESTRICTO=1`, que es como lo corre la CI, termina en 2. Una CI estricta en rojo **solo** por esos fallos se informa
+      así, sin presentar la CI como aprobada.
+    - Para avanzar un gate de incremento o de hito, el replay y los demás controles exigibles cumplen sus reglas. Un fallo nuevo,
+      una ejecución incompleta o un control necesario que no se ejecutó no quedan dispensados porque la CI tenga también fallos
+      previos.
+    - F4 y F5 siguen bloqueados mientras queden fallos declarados, igual que el cierre.
+  - **Exclusivamente local:** si el destino del encuadre es solo local y nadie más trabaja en el repositorio, se trabaja sin
+    remoto. La decisión y su límite (los commits se verifican con los hooks y el replay en la misma máquina) quedan una vez en
+    `docs/estado.md` y en el ADR del modelo de despliegue. Si la persona ya lo expresó, se cita, sin pedirle que lo apruebe otra
+    vez.
+  - **Compartido o desplegado en remoto:**
+    - Antes del primer push de código a un repositorio compartido (otra persona o un remoto común) o del primer despliegue
+      remoto, se preparan el remoto y la CI.
+    - Un remoto propio que solo guarda una copia (respaldo personal) no es un repositorio compartido, y un remoto por sí solo no
+      es CI independiente.
+    - Después del primer push autorizado y antes del gate que lo sigue, se comprueba la ejecución. La evidencia nombra el commit
+      o árbol que la CI evaluó, la ejecución (id o URL) y su conclusión. Una referencia local `origin/*` o un workflow presente no
+      demuestran que la ejecución ocurrió.
+    - Consultar esa evidencia es una lectura. Publicar, fusionar y desplegar conservan cada uno su autorización, que esta regla
+      no da.
+  - **Alcance:** esta regla dice cuándo se ejecutan y se comprueban los controles. No acredita que el workflow funcione en Linux,
+    que los validadores sean auténticos (el replay aplica los del checkout actual; la CI, los del commit) ni que la rama esté
+    protegida.
+  - **`--no-verify`** sigue siendo el escape autorizado. Un commit correcto hecho sin hooks pasa el replay; uno que incumple el
+    contrato o una guarda falla y bloquea el gate. `--no-verify` no vuelve válida una modificación de un registro ni permite
+    dejarla fuera de la validación.
+  - **Recuperación de un commit que falla el replay** (p. ej. una línea corrupta en `docs/revisiones.log`, que bloquea además
+    todos los commits siguientes):
+    - **Historia no publicada:** la recuperación puede requerir reescribir los commits locales afectados, con autorización
+      explícita de la persona para ese caso. La regla no autoriza al agente a hacerlo por su cuenta. Antes se conservan una
+      referencia recuperable (una rama con la historia anterior) y la evidencia del fallo. Después se valida el rango resultante
+      desde el último commit validado.
+    - **Historia compartida:** el gate queda bloqueado y se presenta a la persona una propuesta de recuperación para que
+      decida. No hay autorización implícita de force-push ni excepción que salte commits del replay.
+  **Al montar el CI**: la política de rango de commits está en la
   cabecera de `.github/workflows/metodo.yml` y los comandos, en sus pasos (`steps`); en otro CI se
   copian ambos. Un merge limpio no lleva trailer; lo que se añade al fusionar es contenido nuevo
   (cabecera del `commit-msg`, texto «MERGE LIMPIO»). Las guardas de contenido son una sola, `scripts/guardas.sh`.

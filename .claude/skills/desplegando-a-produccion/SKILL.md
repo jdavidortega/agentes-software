@@ -45,7 +45,8 @@ description: "Procedimiento de la rebanada de Operación/Despliegue: réplica lo
    la reversión futura queda **en el backlog** de `docs/plan.md`, no solo en las
    Consecuencias del ADR.
 8. **Secretos solo por entorno**, nunca en bundles ni en el repo; uno expuesto se
-   **rota**. El repo tiene **remoto** desde el Bootstrap: el ensamblado se reconstruye
+   **rota**. Antes del primer despliegue remoto el repo tiene **remoto** y su CI comprobada
+   (`docs/convenciones.md` §Git, «Replay, remoto y CI»): el ensamblado se reconstruye
    desde él, nunca desde un bundle generado en producción.
 
 ## Sección del modelo de despliegue (lee solo la tuya)

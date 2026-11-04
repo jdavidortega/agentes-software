@@ -90,9 +90,11 @@ agente **se detiene** y pide resolverla.
 - [ ] `.env*` está en `.gitignore` (excepto `.env.example`) — dura, siempre.
 - [ ] Existe la carpeta `scripts/` con `check_docs.sh` (viene con la plantilla; el
   `check.sh` del stack llega en el diseño).
-- [ ] **Remoto:** `git remote -v` devuelve ≥1 remoto **y** el push inicial fue exitoso
-  — dura, siempre: nada llega a producción desde un repo sin remoto, y los hooks locales
-  se esquivan; el remoto (y su CI, si lo hay) es la copia que no.
+- [ ] **Remoto:** no es condición del Bootstrap. Si la persona ya dijo que el repositorio se
+  comparte, se prepara aquí; si no, se decide con el destino en el Encuadre. Se exige, con su CI,
+  antes del primer push de código compartido o del primer despliegue remoto; un proyecto
+  exclusivamente local sigue sin remoto (`docs/convenciones.md` §Git, «Replay, remoto y CI»).
+  Publicar tiene su propia autorización.
 
 ## Transversal (durante todo el arranque)
 
@@ -309,7 +311,8 @@ marcador `-` ni el comentario `<!-- -->`— las secciones:
   como producción: todo cambio se valida en local primero y llega vía la rebanada de
   Operación/Despliegue— y **empaquetado** —contenedor (default recomendado: aislamiento
   y paridad dev/prod), host directo o serverless; desviarse del contenedor lleva razón
-  registrada—.
+  registrada—. Queda dicho también si el repositorio se comparte o es exclusivamente local
+  (`docs/convenciones.md` §Git, «Replay, remoto y CI»).
 - [ ] `docs/despliegue.md` **sembrado** con el modelo decidido (destino, empaquetado, ADR)
   y la sección «Cómo se ejecuta en local»; el resto se completa en la rebanada de
   Operación/Despliegue.

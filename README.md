@@ -20,10 +20,22 @@ cada pieza está en «Cómo está armado el sistema» y en el glosario de «Defi
 
 ## Cómo usarla
 
-**Requisitos:** git, un `sh` POSIX, `ps` y **Python ≥ 3.10** como `python3` (los usan los hooks y
-`scripts/suite.py`; con 3.9 la suite vigilada no arranca). `sh scripts/pruebas/regresion-suite.sh
---capacidades` comprueba en segundos lo que la suite necesita del sistema e imprime la versión de
-Python encontrada; si falta algo, sale con 3 y dice qué. Verificado en macOS.
+**Requisitos técnicos:** git, un `sh` POSIX, `ps` y **Python ≥ 3.10** como `python3` (los usan los
+hooks y `scripts/suite.py`; con 3.9 la suite vigilada no arranca), con las primitivas POSIX de
+procesos que usa la suite vigilada: sesión y grupo propios, `waitid` con `WNOWAIT`, señales por grupo
+y `flock`. `sh scripts/pruebas/regresion-suite.sh --capacidades` comprueba en segundos lo que la
+suite necesita del sistema e imprime la versión de Python encontrada; si falta algo, sale con 3 y
+dice qué.
+
+**Entornos.** Cada fila tiene su propia evidencia; no se suman ni se extienden a otros entornos.
+
+| Entorno | Qué se comprobó | Qué no consta |
+|---|---|---|
+| macOS, Darwin arm64 | Batería de la suite vigilada 160/160, con el cuerpo que integró `ffcfcfd`, y su preflight, con Python 3.14.5 (2026-11-04); con Python 3.9.6 el preflight lo rechaza. `regresion.sh` 552/552 sobre el árbol de `3ac7475` (2026-11-04) | Versión de macOS y de Python de esa corrida de `regresion.sh`; macOS x86_64 |
+| Ubuntu 24.04.5 LTS aarch64 en contenedor (Docker Desktop), Python 3.12.3 | Batería de la suite vigilada 160/160, con el mismo cuerpo, y su preflight (2026-11-04) | Las regresiones de hooks y de adopción en ese entorno; otras distribuciones |
+| GitHub Actions, etiqueta `ubuntu-latest` | Una ejecución del workflow del método sobre `ffcfcfd` (2026-11-04): todos sus pasos terminaron en 0, incluidas las tres regresiones | Imagen, versión del sistema, arquitectura, Python y recuento de casos: los registros no fueron accesibles |
+| Windows nativo | Nada | **No validado** |
+| WSL | Nada | Sin comprobar: puede plantearse como entorno POSIX alternativo, pero no está soportado |
 
 1. Crea la carpeta del proyecto nuevo, entra en ella y copia la plantilla con
    `git archive`: trae exactamente lo versionado en el último commit, sin `.git`, sin

@@ -27,7 +27,11 @@ que el consumidor real ejecuta, y cambiarlo después requiere ADR. -->
 <!-- Pasos pequeños y revisables, en orden. ID I# con su alias «slug» (aquí vive el
 alias de los incrementos); indica qué criterio(s) C# satisface (enlace en
 docs/trazabilidad.md). La casilla pasa a [x] al cerrar el incremento, antes de pedir la
-revisión final (el commit-msg rechaza `Ref: I#` sin ella). -->
+revisión final, para que entre en la huella (el commit-msg rechaza `Ref: I#` sin ella). Por sí
+sola no significa revisión en PASA, commit aceptado ni gate aprobado: eso lo acreditan el recibo
+vigente en docs/revisiones.log, el commit `Ref: I#` y la aprobación de la persona. Con una
+revisión en FALLA o una aprobación pendiente, la casilla sigue en [x] y docs/estado.md lo dice en
+«Pendiente». -->
 - [ ] I1 «…» — _…_ (satisface: C_)
 - [ ] I2 «…» — _…_ (satisface: C_)
 

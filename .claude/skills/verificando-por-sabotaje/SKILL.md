@@ -6,8 +6,8 @@ allowed-tools: Read, Grep, Glob, Bash
 # Skill: Verificando por sabotaje
 
 > Una garantía que ninguna prueba puede romper es un comentario. La forma de saber cuál de
-> las dos cosas es: **romperla a propósito y ver si la suite se entera.** El procedimiento
-> es de minutos y es la diferencia entre creer y saber. Nació de dos proyectos reales que
+> las dos cosas es: **romperla a propósito y ver si la suite se entera.** Cuesta una corrida
+> de la suite por mutación y es la diferencia entre creer y saber. Nació de dos proyectos reales que
 > pagaron caro no tenerlo: garantías que ningún test rompía (cinco veces en uno), asertos
 > que no podían fallar (tres veces en el otro, dos *después* de escrita la lección —saber
 > la regla no la ejecuta; hace falta el paso mecánico—).
@@ -67,7 +67,7 @@ allowed-tools: Read, Grep, Glob, Bash
    para dar la garantía por buena—.
 4. **Copia la mutación a la fila del hallazgo** en `docs/trazabilidad.md`, en la celda de
    resolución. Cuesta una línea y convierte tu convicción privada en un artefacto que otro
-   re-ejecuta en segundos, sin conocer tu sesión.
+   re-ejecuta sin conocer tu sesión.
 
 ## Protocolo del aserto falsable (antes de publicar una comprobación)
 

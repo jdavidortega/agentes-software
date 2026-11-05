@@ -103,6 +103,33 @@ description: "Estrategia de pruebas del proyecto: el camino principal siempre en
       repetición dependen de los requisitos aplicables y de la incertidumbre que resuelven.
     - Un hallazgo ajeno al alcance se registra aparte, salvo que contradiga la garantía o revele
       una regresión relevante.
+    - **Qué invalida una evidencia es el efecto del cambio, no su tamaño.** Una evidencia acredita
+      lo que ejecutó: componentes, entradas, configuración, entorno y criterio. La invalida un
+      cambio en cualquiera de ellos, incluido el texto que se ejecuta, se compara o se lee como
+      instrucción: un comentario dentro de un bloque que se compara byte a byte, de un heredoc o de
+      un programa `awk`, una rúbrica, un prompt. Un cambio que no toca nada de eso la deja vigente,
+      y se dice por qué. No hay exención por número de líneas ni por llamarlo «higiene».
+    - **La suite pertinente** es la que ejecuta el componente cambiado y a cada uno de sus
+      consumidores (quién lo llama, quién lee su salida). `scripts/check.sh` corre en cada commit;
+      lo que se elige es la evidencia adicional: flujos e2e, sabotaje, mutation testing o, si cambia
+      la instrumentación del método, la regresión que la cubre (inventario en `README.md`
+      §Enforcement). Va completa cuando cambia el comportamiento o el contrato de un mecanismo
+      compartido (un lector único, un hook, la vigilancia de procesos) del que dependen sus
+      consumidores, no por el solo hecho de editar el archivo que lo contiene: un comentario
+      explicativo fuera de lo que se ejecuta o se compara no cambia ese contrato; uno dentro de un
+      bloque comparado byte a byte, sí. Los focalizados la preceden, no la sustituyen.
+    - **Reutilizar pruebas no reutiliza un recibo.** Si cambia lo revisable, la huella caduca y hace
+      falta otra revisión. Puede acotarse al cambio y sus efectos, como la repasada
+      (`dirigiendo-revisiones` paso 9), pero su recibo acredita el contenido vigente.
+    - **Fallos y su alcance.** Un fallo inesperado, una regresión o un sabotaje pertinente que
+      sobrevive impiden dar por comprobada la garantía afectada hasta resolver la incertidumbre. La
+      evidencia de otras garantías conserva su vigencia si el cambio no la alcanza. Un resultado
+      esperado (un negativo correctamente rechazado, o un fallo previo declarado y comprobado según
+      `docs/arranque-existente.md` §G) no invalida por sí otra evidencia; tampoco convierte una suite
+      con fallos previos en aprobada ni dispensa sus condiciones de cierre. Que un control no haya
+      encontrado defectos en pocos casos no basta para retirarlo.
+    - **Duraciones:** se citan como mediciones, con fecha, entorno y número de casos; ningún
+      documento promete cuánto tarda una suite, porque crece con sus casos.
 
 ## Pasos
 

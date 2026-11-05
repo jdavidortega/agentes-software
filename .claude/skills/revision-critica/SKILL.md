@@ -72,7 +72,8 @@ el incremento y el rango del diff:
    incluida en él; asignarle un destino posterior no basta para diferirla, y una garantía ya
    prometida no se aplaza unilateralmente.
 6. **Repasada** (tras un FALLA): revisa el cambio desde el recibo anterior y sus efectos, corre
-   la suite completa y comprueba las filas de interacción del plan de pruebas; no re-revises lo
+   la suite completa del proyecto (`scripts/check.sh`) y comprueba las filas de interacción del
+   plan de pruebas; no re-revises lo
    ya juzgado sin cambios. Acotar no es ignorar: un defecto relevante que encuentres al
    comprobar se reporta. Si el alcance exige ejecutar mutaciones, eso pide modalidad
    experimentos; en lectura, dilo como pendiente.

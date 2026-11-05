@@ -16,7 +16,8 @@
 > bitácora del incremento ya colapsada a una línea y su casilla en `[x]`, README); después del PASA solo se
 > tocan los **registros** fuera de la huella (`revisiones.log`, la evidencia en `revisiones/`,
 > `trazabilidad.md`, `estado.md`, `MEMORIA.md`). Si algo revisable cambia después, el recibo caduca y la
-> revisión se repite; eso no es un defecto del control, es su razón de ser.
+> revisión se repite, acotada al cambio y sus efectos, con un recibo que cubre la huella vigente; eso no es
+> un defecto del control, es su razón de ser.
 >
 > **Si el conjunto NO cumple (Fase 4):** vuelve atrás según la causa. Defecto o
 > cobertura faltante (requisitos correctos) → Fase 3, incremento de corrección.

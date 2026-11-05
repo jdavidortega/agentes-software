@@ -1,7 +1,8 @@
 #!/bin/sh
 # Regresión del envoltorio de la suite (scripts/suite.py). Cada caso en un repositorio temporal propio;
 # los procesos de prueba escriben sus PID en archivos para comprobar que de verdad terminaron. Sin red.
-# Verificado en macOS. Tarda alrededor de un minuto: hay plazos y márgenes reales.
+# Verificado en macOS. Sin duración garantizada: hay plazos y márgenes reales (mediciones en
+# README §Enforcement).
 #
 #   sh scripts/pruebas/regresion-suite.sh       → 0 si todos los casos pasan; 1 y la lista si no
 #   sh scripts/pruebas/regresion-suite.sh -v    → además imprime la salida de cada caso

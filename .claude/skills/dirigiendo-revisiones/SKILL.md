@@ -135,7 +135,9 @@ allowed-tools: Read, Grep, Glob, Bash
    familia ya había aparecido, la corrección es estructural (tabla o contrato compartido del plan
    de pruebas, `probando-con-datos-reales` regla 9), no otro caso suelto. La **repasada** se pide
    acotada al cambio desde el recibo anterior y a sus efectos (quién lo llama, qué datos comparte),
-   **más** la suite completa y las filas de interacción del incremento: lo ya juzgado sin cambios
+   **más** la suite completa del proyecto (`scripts/check.sh`) y las filas de interacción del
+   incremento; otra evidencia (regresiones del método, mutation testing) se repite solo si el
+   cambio la alcanza (`probando-con-datos-reales` regla 10). Lo ya juzgado sin cambios
    no se vuelve a revisar, pero las regresiones sí se comprueban, y el revisor reporta cualquier
    defecto relevante que encuentre al hacerlo.
    Resuelve los bloqueantes como subtareas, deja en cada fila la mutación
@@ -146,7 +148,9 @@ allowed-tools: Read, Grep, Glob, Bash
    rol, tipo y alcance).
 10. Con **PASA**: cierra con la lista B de la DoD y el commit enlazado. El `commit-msg`
     verificará el recibo contra la huella del índice; si rechaza por huella, algo cambió
-    después del PASA: no lo "arregles" editando el recibo, repite la revisión.
+    después del PASA: no lo "arregles" editando el recibo, repite la revisión. Puede acotarse como
+    la repasada del paso 9, al cambio desde el recibo y sus efectos; su recibo nuevo cubre la
+    huella vigente.
 
 ## Modalidades de escritura (qué garantiza cada control)
 

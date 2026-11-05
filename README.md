@@ -496,8 +496,19 @@ repositorio solo la instrumentación y genera un proyecto sintético), crea repo
 temporales sin red ni credenciales y comprueba cada regla con su caso negativo y su caso
 positivo (fase ilegible, código sin recibo, suite en rojo, recibo caducado, hito sin
 cobertura, fila invisible, cierre vacío, rol ausente, YAML ilegal, mutante no acreditado…).
-Da el mismo resultado en la plantilla vacía y dentro de un proyecto con código; es lo que se
-ejecuta antes de tocar un hook o un script de la plantilla.
+Da el mismo resultado en la plantilla vacía y dentro de un proyecto con código.
+
+Qué ejercita cada regresión del método. Cuál corre ante un cambio lo decide la regla 10 de
+`probando-con-datos-reales` (por efecto, no por tamaño). Ninguna tiene duración garantizada: las
+cifras son mediciones históricas con la versión, la fecha y el entorno que constan, no la duración
+de la versión actual, y crecen con los casos.
+
+| Regresión | Ejercita | Duración observada |
+|---|---|---|
+| `regresion.sh` | hooks, `check_docs`, guardas, lectores únicos (recibos, trazabilidad, plan, contrato), comparador de fallos previos y la suite vigilada a través del `pre-commit` | 548 casos: ~19 min sobre la corrección M14 de base `18e8926`, en macOS sin versión ni arquitectura registradas (2026-11-04). 16 min 8 s sobre `ffcfcfd` en la CI `ubuntu-latest`, imagen y recuento de casos no registrados (2026-11-04) |
+| `regresion-suite.sh` | `scripts/suite.py`: plazos, señales, grupos de procesos, registro | 2 min 3 s sobre `ffcfcfd`, misma CI, recuento no registrado (2026-11-04). `--capacidades`: 1,8 s sobre `b13d784`, macOS 26.6.2 arm64, Python 3.14.5 (2026-11-05) |
+| `regresion-adopcion.sh` | `adoptar.sh`, recorte por «Base del método» y los controles que usa la adopción (recibos, contrato, fallos previos) | 78 casos: 1 min 17 s sobre `ba98f19`, entorno no registrado (2026-10-26). 3 min 36 s sobre `ffcfcfd`, misma CI, recuento no registrado (2026-11-04) |
+| `validar_historial.sh` | replay del contrato sobre un rango de commits | depende del rango |
 
 **Límites declarados** (lo que ningún hook local prueba): quién ejecutó una revisión
 (`ejecutor=` es dato declarado; el recibo ata el veredicto al contenido, no a una sesión),

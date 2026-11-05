@@ -2,8 +2,9 @@
 # Regresión de los HOOKS y SCRIPTS de la plantilla (viene con ella; README §Enforcement).
 # Crea repositorios temporales y comprueba cada regla con su caso NEGATIVO (el hook
 # rechaza) y su caso POSITIVO (acepta). Sin red, sin credenciales, sin clientes de IA:
-# solo git, sh, awk y python3. Corre en segundos. Se ejecuta antes de tocar un hook o un
-# script de la plantilla, y en CI de cada proyecto.
+# solo git, sh, awk y python3. Sin duración garantizada: crece con los casos (mediciones en
+# README §Enforcement). Se ejecuta al cambiar lo que cubre (probando-con-datos-reales regla 10)
+# y en CI de cada proyecto.
 #
 #   sh scripts/pruebas/regresion.sh        → 0 si todos los casos pasan; 1 y la lista si no
 #   sh scripts/pruebas/regresion.sh -v     → además imprime la salida de cada caso

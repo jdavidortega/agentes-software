@@ -169,7 +169,9 @@ por las **entradas y salidas del sistema**: todo proceso de software las tiene (
 varias: archivos, tablas, respuestas de API, pantallas, artefactos); si de alguna no hay
 muestra en la carpeta, pide la muestra o el **acceso** (servicio, base de datos) para
 obtenerla. No inviertas en analizar hasta que la persona cierre el set de entrada. Si
-`contexto/` está vacía → aplica la precondición de arranque y detente.
+`contexto/` está vacía → aplica la precondición de arranque y detente. Antes de pedir este gate y
+el de ruteo, commit preparatorio `Ref: F1` (`docs/convenciones.md` §Git, «Gates intermedios del
+arranque»).
 
 **b. Clasifica y rutea (gate de ruteo).** Para cada entrada, **propón** a dónde va
 con su razón y espera el OK antes de escribir en los archivos oficiales. La ingesta

@@ -446,6 +446,32 @@ revertir) vive en docs/despliegue.md. -->
   - al cerrar la **validación** (Fase 4) y el **cierre/aprendizaje** (Fase 5).
 - Regla operativa: **ningún gate se cruza con cambios sin commitear**. Antes de pedir
   aprobación, el trabajo de esa fase ya está en un commit.
+  - **Gates intermedios del arranque** (completitud y ruteo, antes del cierre de F1): la regla
+    también rige. Cada uno lleva un **commit preparatorio `Ref: F1`** de la misma fase; el hook
+    admite varios y no hay trailer propio. No es el cierre del encuadre ni su aprobación: el cierre
+    es el último `Ref: F1` antes del gate del encuadre.
+    - *Completitud:* el commit guarda la plantilla instalada, las entradas de `contexto/` que se
+      versionan y `docs/estado.md` en F1, con el gate en «Esperando de la persona». El inventario
+      va en el chat.
+    - *Ruteo:* guarda la propuesta en `contexto/exploracion/ruteo.md` y `docs/estado.md` al día.
+    - Hasta aprobar el ruteo, sus conclusiones no se escriben en `docs/encuadre.md`,
+      `docs/decisiones.md`, `docs/convenciones.md` ni en el manifiesto de `contexto/README.md`.
+      Solo cambian los registros operativos que explican qué gate está pendiente: `docs/estado.md`
+      y `contexto/exploracion/`.
+    - **Entrada con versionado pendiente** (datos personales, volumen): no se commitea antes de que
+      la persona decida. Antes del commit se ignora como provisional por su **ruta concreta**, con
+      el comentario en su propia línea (en `.gitignore` un `#` a mitad de línea no comenta), y se
+      comprueba que la regla la cubre (`git check-ignore -v <ruta>`) y que no está ya rastreada ni
+      preparada para commit (`git ls-files --error-unmatch <ruta>` debe fallar). `.gitignore` no
+      protege un archivo rastreado o ya en el índice: si lo está, **detente** y presenta el
+      tratamiento; no lo retires del índice ni reescribas la historia por tu cuenta. La entrada se
+      nombra en `docs/estado.md` y en la pregunta del gate.
+    - **Secretos** (credenciales, claves, tokens): no son una decisión de versionar o no; nunca
+      entran al historial. Si llegan a `contexto/`, se excluyen por ruta con la misma comprobación y
+      se avisa a la persona; para trabajar se usa una muestra saneada o una configuración de ejemplo
+      sin valores secretos.
+    - Aprobar la completitud permite analizar y proponer el ruteo; aprobar el ruteo, registrar lo
+      aprobado. Ninguna de las dos aprueba el encuadre ni autoriza publicar las entradas.
 - Mensaje concreto y suficiente: qué cambió y por qué (no "varios cambios"). **Asunto
   con alias** cuando resuelve un ID: `I5 «motor-indicadores»: qué cambió y por qué`.
   Con el trailer, `git log --oneline` queda como índice legible y

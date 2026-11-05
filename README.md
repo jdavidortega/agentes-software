@@ -30,26 +30,55 @@ Python encontrada; si falta algo, sale con 3 y dice qué. Verificado en macOS.
    `mejoras/` ni archivos locales, y con los permisos de ejecución de los hooks.
 
    ```sh
-   mkdir mi-proyecto && cd mi-proyecto
-   git -C /ruta/a/agente-software archive HEAD | tar -x
-   git init
-   git config core.hooksPath .githooks
-   git add -A
+   mkdir mi-proyecto && cd mi-proyecto &&
+   git -C /ruta/a/agente-software archive HEAD | tar -x &&
+   git init &&
+   git config core.hooksPath .githooks &&
+   git add -A &&
    sh scripts/check_docs.sh      # debe terminar en verde
    ```
 
-   Si lo extrajiste donde no era, mira antes qué hay (`pwd`, `ls -A`). Si la carpeta solo
-   tenía lo de la plantilla, sal y bórrala entera (`cd .. && rm -rf mi-proyecto`). Si ya
-   tenía otras cosas, borra solo lo que trajo la plantilla:
+   El bloque es una sola orden encadenada: si `mkdir` falla porque la carpeta ya existe, o falla
+   el `cd`, no se extrae, no se inicializa git ni se añade nada. La protección depende de conservar
+   la cadena completa de `&&`: si quitas uno de ellos o cambias `mkdir` por `mkdir -p`, se pierde.
+
+   Si lo extrajiste donde no era, **detente**: no hagas commit ni borres nada. Mira dónde estás
+   (`pwd`, `ls -A`) y compara con lo que trae la plantilla; esto no modifica la carpeta:
 
    ```sh
-   git -C /ruta/a/agente-software archive HEAD | tar -t | grep -v '/$' | xargs rm -f
-   rm -rf .claude .githooks .github contexto docs scripts
+   control=$(mktemp -d)
+   git -C /ruta/a/agente-software archive HEAD | tar -x -C "$control"
+   diff -rq -x .git . "$control"
    ```
 
-   Y el `.git`: si `git init` dijo «Initialized empty…», lo creó la receta y se quita con
-   `rm -rf .git`; si dijo «Reinitialized existing…», **ya existía y no se borra**: solo
-   `git config --unset core.hooksPath` y `git reset -q`.
+   - **Carpeta nueva:** la creó el `mkdir` de este paso, `git init` dijo «Initialized empty…» y
+     `diff` no lista nada. Solo tiene lo de la plantilla: sal y bórrala entera
+     (`cd .. && rm -rf mi-proyecto`).
+   - **Carpeta que ya existía, o si dudas:** no hay limpieza automática segura. Que `diff` no liste
+     un archivo no prueba que sea de la plantilla: la extracción sobrescribe sin avisar un archivo
+     tuyo con el mismo nombre. Y quitar `core.hooksPath` o hacer `git reset` no devuelve la
+     configuración ni el stage que tenías. En su lugar:
+     1. Conserva el estado actual fuera de la carpeta antes de tocar nada, en un destino nuevo
+        (`mktemp -d` nunca reutiliza uno existente), e incluye `.git`:
+
+        ```sh
+        respaldo=$(mktemp -d "$(cd .. && pwd)/tras-la-extraccion.XXXXXX") &&
+        tar -cf "$respaldo/estado.tar" . &&
+        tar -tf "$respaldo/estado.tar" > /dev/null &&
+        echo "respaldo: $respaldo/estado.tar"
+        ```
+
+        Si no imprime la ruta del respaldo, no sigas.
+     2. Busca una base verificable de cómo estaba: el último commit, si ya era un repositorio
+        (`git status --short`, `git show HEAD:<ruta>`), o una copia tuya de antes de extraer
+        (`diff -rq -x .git <copia-de-antes> .`).
+     3. Con esa base, separa lo que añadió la extracción (está en la plantilla y no en la base), lo
+        que sobrescribió (está en las dos y cambió) y lo que no se puede saber (la base no lo
+        cubre). Lo que `diff` lista como «Only in .…» no vino de la plantilla: no se toca.
+        Recupera archivo por archivo, nunca borrando carpetas enteras.
+     4. Lo sobrescrito solo vuelve si la base lo contiene. Un archivo homónimo sin commit ni
+        respaldo, el valor anterior de `core.hooksPath` y lo que tenías en el stage no se pueden
+        reconstruir sin una copia de antes de la extracción.
 2. El agente ejecuta primero el **Bootstrap (paso 0)**: verifica que git esté
    configurado, que los hooks estén activos (`git config core.hooksPath .githooks`),
    que `.env*` esté ignorado (sin excepciones: todo proyecto, grande o pequeño, sigue el

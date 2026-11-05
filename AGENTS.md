@@ -92,7 +92,9 @@ enviarlo se verifica que dicen lo mismo. Igual para cualquier decisión fuera de
    **Salida de la fase (cuándo termina el bucle):** cuando **todos los criterios `C#`
    están en estado `verificado`** en `docs/trazabilidad.md` y todo hallazgo `R-I#.n`,
    `R-S#.n` (y `R-F4.n`, si la Fase 4 devolvió trabajo) cerró su ciclo completo (ninguno
-   `abierto`). **`verificado` nunca se marca a mano.** Regla escalonada: si la remediación
+   `abierto`). **`verificado` nunca se marca a mano:** el de un criterio lo da el PASA del juez
+   que lo comprobó (`.claude/skills/revision-critica/SKILL.md` paso 5); el de un hallazgo sigue
+   esta regla escalonada: si la remediación
    es **mecanizable**, la fila lleva la mutación exacta que ahora muere y un revisor
    independiente la re-ejecuta en una copia **añadiendo una que el autor no nombró**
    (`.claude/skills/verificando-por-sabotaje/SKILL.md`); si es una **decisión, un proceso o
@@ -123,8 +125,9 @@ enviarlo se verifica que dicen lo mismo. Igual para cualquier decisión fuera de
      de encuadre). La Fase 4 valida contra lo **acordado**, no contra ideas nuevas.
    → Gate: la persona confirma que el conjunto cumple la Definición de Hecho.
 5. **Cierre y aprendizaje** — retrospectiva breve; lecciones a `docs/MEMORIA.md`. La
-   retro incluye la **tabla de consumo de tokens por fase** (de las líneas de
-   `docs/MEMORIA.md` §Consumo; formato en `.claude/skills/dirigiendo-revisiones/SKILL.md` paso 8b): es el dato que permite afinar el
+   retro incluye la **tabla de consumo de tokens por fase** (una fila por fase, armada con las
+   líneas de `docs/MEMORIA.md` §Consumo, sin sumar fuentes ni campos distintos; el formato de cada
+   línea está en `.claude/skills/dirigiendo-revisiones/SKILL.md` paso 8b): es el dato que permite afinar el
    método y detectar sobredimensionamiento. **El aprendizaje no espera al cierre:** las
    lecciones se anotan al cerrar cada incremento, y la síntesis «Lo crítico» de
    `docs/MEMORIA.md` (§7) se rehace en cada hito y al cierre de cada fase, porque un

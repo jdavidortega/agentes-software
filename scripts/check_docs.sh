@@ -51,6 +51,8 @@ if [ "$MODE" = "fase-historica" ]; then fase_historica "${2:-HEAD}"; exit 0; fi
 #   I <id> pendiente|hecho <sección>   línea canónica (sección: inc | backlog | otra)
 #   MAL <nlínea> <sección>             parece un incremento (casilla con I<n>, o ítem I<n> bajo
 #                                      ## Incrementos) pero no tiene la forma canónica
+# Una línea de bitácora `- [AAAA-MM-DD] …` (docs/plan.md §Bitácora) no es casilla fuera de
+# ## Incrementos, aunque empiece por el incremento que registra (`- [2026-11-04] I1 «…»: …`).
 # Así un incremento no se vuelve invisible por su formato ni por el encabezado bajo el que esté.
 # Lo que NO se renderiza como plan no es plan: comentarios HTML (`<!-- … -->`, de una o varias
 # líneas) y bloques de código cercados (``` o ~~~, ejemplos) se excluyen del inventario.
@@ -80,6 +82,7 @@ leer_plan() {
     { linea = quita_comentarios($0); if (linea ~ /^[ \t]*$/) next }
     linea ~ /^## / { l=tolower(linea); sec = (l ~ /^## incrementos/) ? "inc" : (l ~ /backlog|fuera de alcance/) ? "backlog" : "otra"; next }
     linea ~ /^- \[[ xX]\] I[0-9]+ / { st = (linea ~ /^- \[ \]/) ? "pendiente" : "hecho"; id = substr(linea, 7); sub(/ .*$/, "", id); print "I", id, st, (sec==""?"otra":sec); next }
+    sec!="inc" && linea ~ /^- \[[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\] / { next }
     linea ~ /^[ \t]*[-*+]?[ \t]*\[[^]]*\][ \t]*[*_`]*I[0-9]+/ { print "MAL", NR, (sec==""?"otra":sec); next }
     sec=="inc" && linea ~ /^[ \t]*[-*+][ \t]+[*_`]*I[0-9]+/ { print "MAL", NR, sec }
   ' "$1"

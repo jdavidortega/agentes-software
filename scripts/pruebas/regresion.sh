@@ -1604,6 +1604,16 @@ recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
 espera falla "un incremento activo tras un comentario vacío no se esconde: forma no canónica" "parece un incremento" -- commitea "$D" "cierre
 
 Ref: F5"
+copia cierre z16; printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — (satisface: C1)\n\n## Bitácora\n\n- [2026-11-04] I1 «suma»: cerrado\n\n## Fuera de alcance / backlog\n\n- nada\n' > "$D/docs/plan.md"
+recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+espera pasa "cierre con una línea de bitácora que empieza por el incremento (- [fecha] I1 «…») se acepta" "" -- commitea "$D" "cierre
+
+Ref: F5"
+copia cierre z17; printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — (satisface: C1)\n- [2026-11-04] I2 «resta» — (satisface: C1)\n\n## Bitácora\n\n- [2026-11-04] I1 «suma»: cerrado\n\n## Fuera de alcance / backlog\n\n- nada\n' > "$D/docs/plan.md"
+recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+espera falla "un incremento con fecha en lugar de casilla bajo ## Incrementos sigue sin forma canónica" "parece un incremento" -- commitea "$D" "cierre
+
+Ref: F5"
 copia cierre z2; trazabilidad "$D" "$C1_VERIF
 | C999 | «fantasma» | I1 | verificado | |" "" ""
 espera falla "criterio huérfano C999 en trazabilidad se rechaza" "huérfano" -- commitea "$D" "docs

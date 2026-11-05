@@ -429,6 +429,8 @@ Confirma que el rastro quedó guardado antes de empezar a construir.
   tipo".
 - [ ] `docs/estado.md` **sembrado** (primera versión: fase, criterios con alias,
   próximo paso).
+- [ ] `AGENTS.md` §1 completado con el nombre y el propósito del proyecto, sin marcadores
+  `_[...]_` (el doctor los rechaza desde que `docs/estado.md` declara F2).
 - [ ] El plan, los ADRs, la trazabilidad inicial y `estado.md` quedaron en un
   **commit** (`Ref: F2`) antes de pedir el gate de diseño.
 

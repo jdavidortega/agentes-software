@@ -44,7 +44,8 @@
 
 <!-- Forward: qué incremento satisface cada criterio y si está verificado.
 Backward: de un criterio se llega a su incremento. Una fila por criterio.
-`verificado` se marca pieza a pieza en la Fase 3; la Fase 4 (conjunto) no cambia
+`verificado` se marca pieza a pieza en la Fase 3, según el PASA del juez que lo comprobó (si
+su reporte deja una brecha, el criterio queda `cubierto`); la Fase 4 (conjunto) no cambia
 estados en ESTA tabla: su veredicto queda en la bitácora de plan.md y el commit
 `Ref: F4`, y sus bloqueantes `R-F4.n` en el registro del juez, abajo. -->
 

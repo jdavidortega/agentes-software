@@ -259,7 +259,12 @@ def assertion_evidence(output: str, pattern: str) -> bool:
       terminal exception there); `FAILED x::t - RuntimeError` is an error inside a test.
     * Anything else: `pattern` (the runner's assertion signature), matched without quoted
       source lines; a Go/Rust `panic:` that is not an assertion is not evidence.
+    * Under the prior-failures comparator its own lines decide (COMPARATOR above): a NEW failure
+      is a kill, whatever else the output says; any other comparator complaint is not.
     """
+    new = comparator_new_failures(output)
+    if new is not None:
+        return bool(new)
     lines = strip_quoted_source(output)
     text = "\n".join(lines)
     pytest_like = any(re.match(r"^(FAILED|ERROR) \S+::", l) or re.match(r"^E\s{2,}\S", l) for l in lines)
@@ -446,8 +451,37 @@ def workspace(watch: Watch):
                   f"(python3 {watch.script} estado explains why it stays)", file=sys.stderr)
 
 
+# scripts/fallos_previos.py (the comparator a project with declared prior failures runs inside
+# check.sh) does not echo the test runner: it prints its own verdict, one line per problem, prefixed
+# by COMPARATOR. A new failure names the test and the kind of red: `fallo NUEVO: <id> (fallo · <Type> ·
+# <hash>)` for a failed assertion, `(error · <Type> · <hash>)` for an exception raised inside that test.
+# Both are detections (an exception inside the test of the guarantee can BE the defect: measured, an
+# empty total that no longer has a Decimal start crashes in its own test). A run the comparator could
+# not complete (collection, interrupted, no report) never reached any test: it is a broken mutant, even
+# though its line starts with the same mark that jest uses for a failed test (measured: a RuntimeError
+# at import read as DIES).
+COMPARATOR = "✗ fallos_previos: "
+COMPARATOR_NEW = re.compile(r"^✗ fallos_previos: fallo NUEVO: (\S+) \((fallo|error) · ([^ ]+) · ")
+COMPARATOR_INCOMPLETE = ("el ejecutor no completó la suite", "falta el informe de esta ejecución",
+                         "la ejecución no tiene ninguna prueba", "el informe registra errores de recolección",
+                         "el informe no está completo")
+
+
+def comparator_new_failures(output: str) -> list[tuple[str, str, str]] | None:
+    """(test id, fallo|error, exception type) of each NEW failure the comparator reported, or None when
+    the output carries no comparator verdict (the ordinary runner output decides then)."""
+    lines = [l.strip() for l in output.splitlines()]
+    if not any(l.startswith(COMPARATOR) for l in lines):
+        return None
+    return [m.groups() for m in (COMPARATOR_NEW.match(l) for l in lines) if m]
+
+
 def looks_invalid(run: Run) -> str | None:
     """The pattern that marks this red run as a broken mutant rather than a detection."""
+    for line in run.output.splitlines():
+        line = line.strip()
+        if line.startswith(COMPARATOR) and any(x in line for x in COMPARATOR_INCOMPLETE):
+            return line[len(COMPARATOR):][:120]
     for pattern in INVALID_PATTERNS:
         if pattern in run.output:
             return pattern
@@ -808,7 +842,12 @@ def main() -> int:
                           f"(pass --kill-pattern for this stack, or --trust-exit-code deliberately) -- {run.tail(2)}")
                     invalid.append(label)
                     continue
-                print(f"  DIES     {label} -- {run.tail(2)}")
+                new = comparator_new_failures(run.output)
+                if new:
+                    how = "; ".join(f"{t} by {'assertion' if k == 'fallo' else 'EXCEPTION ' + e}" for t, k, e in new)
+                    print(f"  DIES     {label} -- new failure: {how}")
+                else:
+                    print(f"  DIES     {label} -- {run.tail(2)}")
                 died.append(label)
 
     except Stop as exc:

@@ -132,6 +132,11 @@ allowed-tools: Read, Grep, Glob, Bash
   `PYTHONDONTWRITEBYTECODE`). El arnés no copia cachés a la copia del mutante y adelanta el
   mtime del archivo mutado; si usas otro arnés, borra `__pycache__`/`build/` antes de cada
   corrida.
+- **Con fallos previos declarados, el comparador decide.** Si `check.sh` envuelve
+  `scripts/fallos_previos.py comprobar`, cuenta como muerte solo un `fallo NUEVO`, y el resumen dice si
+  cayó por aserción o por una EXCEPCIÓN dentro de la prueba (puede ser el defecto; compruébalo). Una
+  suite que no se completa (importación, recolección) es `INVALID`, y arreglar el fallo declarado no
+  es una detección.
 - **Un guarda con falso negativo es peor que uno ausente**, porque da permiso. Cuando un
   chequeo afirma algo sobre texto ("no hay `DELETE`"), sabotéalo con la forma que el
   lenguaje admite y tu regex no: palabra al final de la cláusula, otra indentación,

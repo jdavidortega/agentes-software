@@ -1833,6 +1833,25 @@ pytest_falso "'ERROR tests/test_x.py - ModuleNotFoundError: No module named x' '
 espera falla "pytest: error de colección/importación no acredita: INVALID o UNVERIFIED" "INVALID|UNVERIFIED" -- en "$S2" python3 -I "$SAB" m.json
 espera falla "resumen: lo no verificado figura como aplicado sin veredicto válido (exit 2)" "applied, no valid verdict" -- en "$S2" python3 -I "$SAB" m.json
 espera falla "resumen: un ancla perdida figura como no aplicada (exit 2)" "not applied \(stale or unsafe spec" -- en "$S2" python3 -I "$SAB" perdida.json
+# M14: con el comparador de fallos previos dentro de check.sh, sus líneas deciden. Una excepción al importar
+# (la suite no se completa) y arreglar el fallo declarado no son detecciones; un fallo NUEVO por aserción, o
+# por una excepción dentro de la prueba de la garantía (el total vacío sin valor inicial), sí.
+S3="$W/sab3"; mkdir -p "$S3/scripts" "$S3/docs" "$S3/tests"; en "$S3" git init -q
+cp "$RAIZ/scripts/suite.py" "$RAIZ/scripts/fallos_previos.py" "$S3/scripts/"
+printf -- '- **Plazo de la suite:** 60 s\n' > "$S3/docs/convenciones.md"
+printf 'from decimal import Decimal\ndef total(xs):\n    return sum((Decimal(x) for x in xs), Decimal("0")).quantize(Decimal("0.01"))\ndef doble(x):\n    return x * 2\ndef mitad(x):\n    return x / 3\n' > "$S3/mod.py"
+: > "$S3/tests/__init__.py"
+printf 'import unittest\nimport mod\nclass T(unittest.TestCase):\n    def test_doble(self):\n        self.assertEqual(mod.doble(2), 4)\n    def test_vacio(self):\n        self.assertEqual(str(mod.total([])), "0.00")\n    def test_mitad(self):\n        self.assertEqual(mod.mitad(4), 2)\n' > "$S3/tests/test_mod.py"
+printf '#!/bin/sh\npython3 -I scripts/fallos_previos.py comprobar --adaptador unittest --inicio tests\n' > "$S3/scripts/check.sh"
+en "$S3" python3 -I scripts/fallos_previos.py capturar --adaptador unittest --inicio tests >/dev/null || die "no pude capturar la línea base de sab3"
+printf '[{"label":"aserto","file":"mod.py","before":"return x * 2","after":"return x * 3"}]\n' > "$S3/aserto.json"
+printf '[{"label":"excepcion-defecto","file":"mod.py","before":", Decimal(\\"0\\")).quantize","after":").quantize"}]\n' > "$S3/excepcion.json"
+printf '[{"label":"importacion","file":"mod.py","before":"def doble(x):","after":"raise RuntimeError(\\"x\\")\\ndef doble(x):"}]\n' > "$S3/importa.json"
+printf '[{"label":"arregla-previo","file":"mod.py","before":"return x / 3","after":"return x / 2"}]\n' > "$S3/arregla.json"
+espera pasa "comparador: un fallo NUEVO por aserción es DIES y lo dice" "by assertion" -- en "$S3" python3 -I "$SAB" aserto.json
+espera pasa "comparador: una excepción dentro de la prueba de la garantía es DIES y lo dice" "by EXCEPTION AttributeError" -- en "$S3" python3 -I "$SAB" excepcion.json
+espera falla "comparador: una excepción al importar (suite incompleta) es INVALID, no DIES" "INVALID .*no completó la suite" -- en "$S3" python3 -I "$SAB" importa.json
+espera falla "comparador: arreglar el fallo previo declarado no es una detección" "UNVERIFIED" -- en "$S3" python3 -I "$SAB" arregla.json
 printf 'import sys, cfg\nassert sys.argv[1:] == ["dos palabras"], sys.argv\nassert cfg.VALUE == 1, "VALUE cambió"\n' > "$S2/args.py"
 espera pasa "--suite con argumento entrecomillado llega entero (ejecución real): DIES" "DIES" -- en "$S2" python3 -I "$SAB" m.json --suite 'python3 args.py "dos palabras"'
 espera falla "--suite con comillas sin cerrar se rechaza sin ejecutar" "cannot be split" -- en "$S2" python3 -I "$SAB" m.json --suite 'python3 args.py "dos'

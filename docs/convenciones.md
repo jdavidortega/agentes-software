@@ -427,6 +427,14 @@ revertir) vive en docs/despliegue.md. -->
   adopción**. `validar_historial.sh` resta lo alcanzable desde ahí: el historial anterior no
   se juzga y el commit de instalación sí. Una sola declaración; duplicada, malformada, ajena
   a la historia o movida a un commit con fase, falla. Sin ella, el replay es el de siempre.
+- **Plantilla de origen (proyectos nuevos):** el Bootstrap añade aquí `- **Plantilla de origen:**
+  <sha>`, el commit de la plantilla que se extrajo (la receta del README lo deja en
+  `.git/plantilla-origen`). Si falta y nadie lo sabe con evidencia, se declara `desconocida`: no se
+  deduce del HEAD actual de la plantilla. Es el **origen**, no el estado actual: las adaptaciones
+  locales y las actualizaciones posteriores no las describe este SHA. Tampoco fija la versión de cada
+  contrato, que la dan sus marcadores (`CHANGELOG.md` de la plantilla). Depende del procedimiento: el
+  doctor no la exige. En un proyecto adoptado no se añade: lo dicen `contexto/adopcion.md` y
+  `contexto/adopcion-actualizaciones.md`.
 - **Contrato revisado y límites del modelo de cierre:** la *verdad acordada* son las líneas
   `- C<n>:` y la sección «Set de oro» de `docs/encuadre.md` tal como quedaron en el **último
   commit `Ref: F2`** (en un proyecto adoptado, posterior a la «Base del método»). Todo commit de

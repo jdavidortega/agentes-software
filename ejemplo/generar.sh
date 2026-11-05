@@ -30,6 +30,8 @@ case "$DEST/" in "$RAIZ"/*) falla "el destino no puede estar dentro de la planti
 # Solo lo versionado: el ejemplo y la plantilla deben estar sin cambios respecto de HEAD.
 LIMPIO=$(git -C "$RAIZ" status --porcelain -- .) || falla "$RAIZ no es un repositorio git" 2
 [ -z "$LIMPIO" ] || falla "$RAIZ tiene cambios sin commitear; genera desde una copia limpia" 2
+# La entrega se lee UNA vez: lo que se extrae y lo que se registra como origen son el mismo commit.
+ORIGEN=$(git -C "$RAIZ" rev-parse HEAD) || falla "no puedo leer el commit de la plantilla" 2
 
 # Git aislado de la configuración del usuario (sin hooks globales, firmas ni alias).
 CFG=$(mktemp -d "${TMPDIR:-/tmp}/ejemplo-git.XXXXXX"); trap 'rm -rf "$CFG"' EXIT
@@ -125,13 +127,24 @@ mkdir "$DEST" || falla "no pude crear $DEST"
 cd "$DEST" || falla "no pude entrar en $DEST"
 # Antes de escribir nada: estamos en la carpeta recién creada, y está vacía.
 [ "$(pwd -P)" = "$DEST" ] && [ -z "$(ls -A)" ] || falla "no estoy en $DEST recién creada; me detengo antes de escribir"
-git -C "$RAIZ" archive HEAD > "$CFG/plantilla.tar" || falla "git archive falló"
+git -C "$RAIZ" archive "$ORIGEN" > "$CFG/plantilla.tar" || falla "git archive falló"
 tar -xf "$CFG/plantilla.tar" || falla "no pude extraer la plantilla"
 git init -q || falla "git init falló"
+printf '%s\n' "$ORIGEN" > .git/plantilla-origen || falla "no pude registrar el origen"
 git config core.hooksPath .githooks || falla "no pude activar los hooks"
 git add -A || falla "git add falló"
 sh scripts/check_docs.sh > /dev/null || falla "el doctor falla sobre la plantilla recién instalada"
 echo "   plantilla instalada; doctor en verde"
+
+paso "Bootstrap: la plantilla de origen se declara en convenciones §Git (docs/arranque.md, Paso 0)"
+python3 -I - docs/convenciones.md "$(cat .git/plantilla-origen)" <<'PY' || falla "no pude declarar la plantilla de origen"
+import re, sys
+p, sha = sys.argv[1:]; s = open(p, encoding="utf-8").read()
+m = re.search(r"(?m)^- \*\*Contrato revisado y límites", s)
+assert m and re.fullmatch(r"[0-9a-f]{40}", sha)
+open(p, "w", encoding="utf-8").write(s[:m.start()] + f"- **Plantilla de origen:** {sha}\n" + s[m.start():])
+PY
+echo "   - **Plantilla de origen:** $(cat .git/plantilla-origen)"
 
 paso "F1 · Ingesta: gate de completitud (docs/arranque.md §Fase 1 a; convenciones §Git, gates intermedios)"
 cp "$EJ/entrada/brief.md" "$EJ/entrada/gastos.csv" "$EJ/entrada/gastos-invalido.csv" contexto/ \

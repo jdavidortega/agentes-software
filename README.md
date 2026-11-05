@@ -42,25 +42,40 @@ dice qué.
    `mejoras/` ni archivos locales, y con los permisos de ejecución de los hooks.
 
    ```sh
+   origen=$(git -C /ruta/a/agente-software rev-parse HEAD) &&
    mkdir mi-proyecto && cd mi-proyecto &&
-   git -C /ruta/a/agente-software archive HEAD | tar -x &&
+   git -C /ruta/a/agente-software archive "$origen" | tar -x &&
    git init &&
+   printf '%s\n' "$origen" > .git/plantilla-origen &&
    git config core.hooksPath .githooks &&
    git add -A &&
    sh scripts/check_docs.sh      # debe terminar en verde
    ```
 
    El bloque es una sola orden encadenada: si `mkdir` falla porque la carpeta ya existe, o falla
-   el `cd`, no se extrae, no se inicializa git ni se añade nada. La protección depende de conservar
+   el `cd`, no se extrae, no se inicializa git ni se añade nada. El commit de la plantilla se lee una
+   sola vez (`origen`): lo extraído y lo que se registra en `.git/plantilla-origen` son el mismo,
+   aunque la plantilla avance mientras tanto. La protección depende de conservar
    la cadena completa de `&&`: si quitas uno de ellos o cambias `mkdir` por `mkdir -p`, se pierde.
 
    Si lo extrajiste donde no era, **detente**: no hagas commit ni borres nada. Mira dónde estás
-   (`pwd`, `ls -A`) y compara con lo que trae la plantilla; esto no modifica la carpeta:
+   (`pwd`, `ls -A`) y compara con el commit que se extrajo; esto no modifica la carpeta. La
+   comparación solo vale contra un origen registrado (`.git/plantilla-origen`) o demostrado (el SHA
+   que anotaste al extraer; ponlo en la primera línea). Sin esa evidencia el origen es
+   **desconocido**: el bloque se detiene sin comparar, y el `HEAD` actual de la plantilla no lo
+   sustituye, porque puede no ser lo que se extrajo.
 
    ```sh
-   control=$(mktemp -d)
-   git -C /ruta/a/agente-software archive HEAD | tar -x -C "$control"
-   diff -rq -x .git . "$control"
+   origen=$(cat .git/plantilla-origen 2>/dev/null)   # o: origen=<SHA demostrado>
+   if [ -n "$origen" ] &&
+      [ "$(git -C /ruta/a/agente-software rev-parse --verify --quiet "$origen^{commit}")" = "$origen" ]
+   then
+     control=$(mktemp -d) &&
+     git -C /ruta/a/agente-software archive "$origen" | tar -x -C "$control" &&
+     diff -rq -x .git . "$control"
+   else
+     echo "Origen desconocido: no hay un SHA completo registrado o demostrado. No compares; sigue el caso «si dudas»." >&2
+   fi
    ```
 
    - **Carpeta nueva:** la creó el `mkdir` de este paso, `git init` dijo «Initialized empty…» y
@@ -156,6 +171,13 @@ Qué pasa con lo que el proyecto ya tiene:
 | `CLAUDE.md`, `AGENTS.md`, hooks o CI propios | Se conservan; el agente propone cómo convivir y tú apruebas. |
 | `.gitignore` | No lo toca la copia; `adoptar.sh gitignore` propone las entradas (y una negación precisa si una regla amplia del proyecto tapa un archivo del método) y se niega si ocultarían un archivo ya versionado. |
 | El código, las pruebas y los datos | **Nada cambia.** Cualquier cambio posterior entra como incremento con revisión. |
+
+**Qué entrega usas y qué cambió.** Una entrega es un commit de la plantilla. Un proyecto adoptado la
+tiene en `contexto/adopcion.md` y sus actualizaciones en `contexto/adopcion-actualizaciones.md`; uno
+nuevo, en `docs/convenciones.md` §Git («Plantilla de origen»), que el Bootstrap copia de
+`.git/plantilla-origen`. Es el origen: las adaptaciones locales y las actualizaciones posteriores no
+quedan descritas por ese SHA. Los cambios, su efecto y lo que debe hacer un proyecto existente están
+en `CHANGELOG.md`, en la copia de la plantilla (no viaja a los proyectos).
 
 Lo copiado y lo omitido queda registrado en `contexto/adopcion.md`. Si algo salió mal y
 no has commiteado, ese manifiesto dice exactamente qué archivos añadió la copia.

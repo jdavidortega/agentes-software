@@ -1,3 +1,4 @@
-# Lo que no viaja a los proyectos con git archive (README §Cómo usarla): el ejemplo y este archivo.
+# Lo que no viaja a los proyectos con git archive (README §Cómo usarla): el ejemplo, el registro de cambios y este archivo.
 /ejemplo export-ignore
+/CHANGELOG.md export-ignore
 /.gitattributes export-ignore

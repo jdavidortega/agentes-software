@@ -90,6 +90,9 @@ agente **se detiene** y pide resolverla.
 - [ ] `.env*` está en `.gitignore` (excepto `.env.example`) — dura, siempre.
 - [ ] Existe la carpeta `scripts/` con `check_docs.sh` (viene con la plantilla; el
   `check.sh` del stack llega en el diseño).
+- [ ] `docs/convenciones.md` §Git declara la **Plantilla de origen**: el commit de
+  `.git/plantilla-origen`; si no existe, se pregunta a la persona, y sin evidencia queda
+  `desconocida` (no se deduce del HEAD actual de la plantilla).
 - [ ] **Remoto:** no es condición del Bootstrap. Si la persona ya dijo que el repositorio se
   comparte, se prepara aquí; si no, se decide con el destino en el Encuadre. Se exige, con su CI,
   antes del primer push de código compartido o del primer despliegue remoto; un proyecto

@@ -466,6 +466,8 @@ Actívalos una vez por proyecto:
 git config core.hooksPath .githooks
 ```
 
+Esto rige en cada proyecto. Quien cambia la propia plantilla sigue §Desarrollo de la plantilla.
+
 - **`pre-commit`** — bloquea versionar un `.env`/secreto; exige que **lo verificado sea
   lo versionado** (rechaza si hay archivos rastreados con cambios sin stagear); corre
   `scripts/check_docs.sh` sobre una **exportación del índice** (contrato documental por
@@ -570,6 +572,50 @@ el replay sigue aceptando los commits hechos con esa versión (los juzga con el 
 hicieron) y la instrumentación del contrato no puede retroceder. Los campos se separan con un espacio.
 Y la **regla del segundo hallazgo** (`AGENTS.md` §8) convierte en linter/hook todo
 hallazgo mecanizable que se repita.
+
+## Desarrollo de la plantilla
+
+Para quien cambia el método en este repositorio, no para quien lo usa: un producto se inicia con
+§Cómo usarla.
+
+- **La plantilla no es un producto.** El clon donde se desarrolla no tiene encuadre, plan ni fase
+  (`docs/estado.md` dice `F_`), y no se rellenan para que lo parezca. Un proyecto recién instalado
+  también está en `F_`, y ahí no exime de nada: la receta activa los hooks, el Bootstrap lo
+  verifica y su doctor debe terminar en verde. `F_` no es una excepción general.
+- **El doctor en el clon de desarrollo.** Sin hooks activos, `scripts/check_docs.sh` lo informa y
+  termina con error: es una detección correcta, no algo que corregir rebajando el doctor. Tampoco
+  es un PASA: que no informe nada más no prueba que el resto esté bien. Los hooks de proyecto no se
+  usan para versionar la plantilla, porque exigen trailers de fase o de incremento que ella no tiene.
+- **La instalación se comprueba en una copia desechable configurada:** una carpeta nueva instalada
+  con la receta de §Cómo usarla, o un clon nuevo con `git config core.hooksPath .githooks` en su
+  propia configuración. Ahí los hooks y el doctor deben funcionar. No se activan en el clon de
+  desarrollo ni se toca la configuración global.
+- **La CI existente** (`.github/workflows/metodo.yml`, en cada push o pull request, si el remoto la
+  ejecuta) comprueba las capacidades del entorno, el doctor con los hooks activos en el runner,
+  `regresion.sh`, `regresion-suite.sh` y `regresion-adopcion.sh`. El replay de commits no corre en
+  la plantilla, porque nunca se inició. Que un commit concreto pasó la CI se afirma solo tras ver su
+  ejecución; la verificada consta en §Cómo usarla, «Entornos».
+
+**Comprobaciones por efecto.** Qué corre ante un cambio, y cuándo una evidencia se reutiliza, lo
+decide la regla 10 de `probando-con-datos-reales`; qué ejercita cada regresión, la tabla de
+§Enforcement. Estos efectos no los cubre ninguna regresión ni la CI: si el cambio los alcanza, se
+comprueban aparte, porque no corren solos.
+
+| Si cambia… | Evidencia | Se reutiliza mientras… |
+|---|---|---|
+| La receta de instalación o de recuperación (§Cómo usarla) | Sus bloques ejecutados literalmente, tal como están en el README, en carpetas desechables: el caso positivo y los negativos (carpeta existente, padre inexistente; recuperación con y sin origen registrado) | el bloque ejecutado sea idéntico byte a byte al comprobado |
+| Lo que usa el ejemplo (`ejemplo/`, la receta, hooks, scripts y los documentos que escribe) | `sh ejemplo/generar.sh <carpeta-nueva>` desde una copia limpia: termina en «Listo», con replay, doctor y parser de recibos en verde | ninguno de esos insumos haya cambiado |
+| Los archivos distribuidos o sus exclusiones (`.gitattributes`, rutas nuevas o retiradas) | La lista de `git archive <base> \| tar -t` frente a la del candidato: cada ruta que entra o sale es intencionada | no cambien `.gitattributes` ni las rutas versionadas |
+| La identificación de la entrega, las instrucciones o una migración | Su fila en `CHANGELOG.md`, con su efecto y qué hacer, cotejada con los archivos que toca el commit. Si cambia cómo se registra el origen, la receta, `docs/convenciones.md` §Git y el ejemplo dicen lo mismo | no se reutiliza: cada entrega con efecto lleva su fila |
+
+Las condiciones de la última columna son necesarias, pero no suficientes. Según la regla 10, la
+evidencia solo se reutiliza si además ningún cambio relevante de dependencias, configuración,
+entorno o alcance la invalida.
+
+Esta sección no autoriza `--no-verify`, ni saltar una revisión, ni omitir un control pertinente.
+El procedimiento depende de ejecutarlo y de registrar su evidencia: qué se corrió, sobre qué commit y
+con qué resultado. Ningún mecanismo lo garantiza, y que una comprobación no esté en la CI no
+significa que se haya ejecutado.
 
 ## Portabilidad: pensada para Claude Code, con adaptador para Codex
 

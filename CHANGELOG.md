@@ -42,7 +42,7 @@ Su referencia es el commit que contiene esta sección.
 
 | Cambio | Efecto | Qué hacer |
 |---|---|---|
-| Identificación de la entrega: la receta del README captura el SHA una vez, extrae ese mismo commit y lo deja en `.git/plantilla-origen`; el Bootstrap lo declara en `docs/convenciones.md` §Git. Este registro de cambios. | Instrucciones | Proyecto nuevo ya instalado: declarar la plantilla de origen solo si hay evidencia (p. ej. el SHA anotado al instalar); si no, `desconocida`. El doctor no lo exige: depende del procedimiento. |
+| Sección «Desarrollo de la plantilla» del README: cómo se verifica un cambio del método mismo. Solo para quien desarrolla la plantilla. | Sin acción | — |
 
 ## Cambios desde el 2026-11-01
 
@@ -50,6 +50,7 @@ Lo anterior está en la historia de git.
 
 | Commit | Fecha | Cambio | Efecto | Qué hacer |
 |---|---|---|---|---|
+| `37a4c26` | 2026-11-05 | Identificación de la entrega: la receta del README captura el SHA una vez, extrae ese mismo commit y lo deja en `.git/plantilla-origen`; el Bootstrap lo declara en `docs/convenciones.md` §Git. La recuperación compara solo contra un origen registrado o demostrado. Este registro de cambios. | Instrucciones | Proyecto nuevo ya instalado: declarar la plantilla de origen solo si hay evidencia (p. ej. el SHA anotado al instalar); si no, `desconocida`. El doctor no lo exige: depende del procedimiento. |
 | `4b4eb81` | 2026-11-05 | Ejemplo completo de un ciclo (`ejemplo/`), solo en la plantilla. | Sin acción | — |
 | `33734d3` | 2026-11-05 | La casilla `[x]` del plan no es un PASA (plantilla de `docs/plan.md`); requisitos y entornos probados en el README. | Instrucciones | El significado de la casilla rige también en proyectos existentes; su `docs/plan.md` no se sustituye. |
 | `a3c2aa0` | 2026-11-05 | Regla 10: qué invalida una evidencia, qué suite corresponde, la repasada usa `scripts/check.sh`, duraciones como mediciones. | Instrucciones | Actualizar las skills `probando-con-datos-reales`, `dirigiendo-revisiones` y `revision-critica`, y la DoD. Las cabeceras de las regresiones solo cambian comentarios. |

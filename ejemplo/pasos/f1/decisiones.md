@@ -1,0 +1,11 @@
+## ADR-001 — Python con la biblioteca estándar
+- **Fecha y hora (UTC):** 2026-11-05 12:00
+- **Estado:** aceptada
+- **Aprobación:** elección dicha por la persona en `contexto/brief.md`: «Lo prefiero en Python, sin instalar nada.»
+- **Contexto:** hace falta un lenguaje y un ejecutor de pruebas para una herramienta de terminal local.
+- **Opciones consideradas:**
+  - A) Python 3 con la biblioteca estándar y `unittest`.
+  - B) Python 3 con dependencias (pandas, pytest).
+- **Decisión:** A.
+- **Razón:** la persona lo eligió y nada en los criterios necesita dependencias.
+- **Consecuencias:** sin instalaciones; el CSV se lee con el módulo `csv` y los importes con `decimal`.

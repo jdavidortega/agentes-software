@@ -181,6 +181,13 @@ Además, cuando el proyecto llega a producción, se abre la rebanada de
 protección de datos y autorización explícita, con su propia pasada de juez
 (`.claude/skills/desplegando-a-produccion/SKILL.md`).
 
+**Un ciclo completo, de ejemplo:** en la copia de la plantilla desde la que se instala (la
+`/ruta/a/agente-software` del paso 1 de «Cómo usarla»), `ejemplo/README.md` lo explica y
+`sh ejemplo/generar.sh <carpeta-nueva>` genera un proyecto pequeño que recorre las cinco fases con los
+hooks reales, un hito incluido. Sus recibos son sintéticos: enseña el procedimiento, no demuestra
+revisiones. No viaja a los proyectos (`.gitattributes`), así que dentro de un proyecto esa ruta no
+existe: está en la plantilla.
+
 ## Cómo está armado el sistema
 
 Una foto de las piezas y sus relaciones permanentes (sin tiempo: quién invoca, quién

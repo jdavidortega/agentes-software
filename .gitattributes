@@ -1,0 +1,3 @@
+# Lo que no viaja a los proyectos con git archive (README §Cómo usarla): el ejemplo y este archivo.
+/ejemplo export-ignore
+/.gitattributes export-ignore

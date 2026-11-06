@@ -500,7 +500,7 @@ Esto rige en cada proyecto. Quien cambia la propia plantilla sigue §Desarrollo 
   nombra un criterio existente) y ningún vacío abierto; `F4` →
   juez de conjunto, no un hito; `F5` → el de F4 sigue vigente), **solo deja entrar código
   del producto con `Ref: I<n>`** (un `Cierra:` o un `Ref: F#` no acreditan revisión), y un
-  `Ref: F4|F5` dispara `scripts/check_docs.sh cierre` (condiciones de salida del ciclo:
+  `Ref: F4|F5` dispara `scripts/check_docs.sh cierre` (global; o, con `cubre=`/`excluye=` en el recibo del conjunto, el cierre de un ciclo posterior con pendientes históricos: `docs/arranque.md` §Reentrada) (condiciones de salida del ciclo:
   nada `abierto` ni `resuelto` sin `verificado`, al menos un `C#` y todos verificados con
   incremento, sin ADR en `propuesta` ni ADR-000). Ata además el trabajo al **contrato
   revisado**: `Ref: I<n>|hito|F4|F5` exigen que los `- C<n>:` y el set de oro de

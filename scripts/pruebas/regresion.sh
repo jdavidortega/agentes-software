@@ -2439,6 +2439,181 @@ en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-edit rama || die "
 espera pasa "positivo: merge limpio con la rama del hito e I4, anclado en la principal" "ok .*\(merge\).*resultado PASA" -- anclado_t "$D" "$A" "$A" HEAD
 espera pasa "la orden de entrada no dejó carpetas en su TMPDIR" "" -- vacia "$TA"
 
+echo "== Cierre acotado de un ciclo posterior: pendientes históricos, ramas y alcance de F5"
+C1L='- C1: la función suma devuelve a+b para enteros.'; C2L='- C2: la función resta devuelve a-b.'
+RI11='| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | verificado | 2026-10-19 10:00 · app.py:1 |'
+encc() { printf '# Encuadre\n\n## Criterios de éxito\n\n%s\n## Set de oro\n\n- suma(1, 2) → 3\n%s' "$2" "${3:-}" > "$1/docs/encuadre.md"; }
+planc() { printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — función suma (satisface: C1)\n- [%s] I2 «resta» — función resta (satisface: C2)\n\n## Fuera de alcance / backlog\n\n- multiplica: fuera de este ciclo (ADR-001)\n' "${2:- }" > "$1/docs/plan.md"; }
+decc() { printf '# Decisiones\n\n## ADR-001 — Alcance del primer ciclo\n\n- **Estado:** aceptada\n\n## ADR-002 — C1 queda como pendiente histórico\n\n- **Estado:** aceptada\n- **Contexto:** su evidencia dependía de un insumo retirado, ajeno al trabajo de este ciclo.\n' > "$1/docs/decisiones.md"; }
+trazc() { trazabilidad "$1" "| C1 | «suma» | I1 | $2 | ${4:-} |
+| C2 | «resta» | I2 | $3 | |" "" "$RI11"; }
+cierra_c1() { fase "$1" F5 "— «ninguno»"; commitea "$1" "cierre del ciclo 1
+
+Ref: F5"; }
+# abre_c2 <dir> <estado C1 en la apertura> [línea C1] [extra del encuadre] → reentrada Ref: F2 (la apertura R)
+abre_c2() { encc "$1" "${3:-$C1L}
+$C2L
+" "${4:-}"; planc "$1"; decc "$1"; trazc "$1" "$2" pendiente "$([ "$2" = verificado ] || echo 'pendiente histórico: ADR-002')"
+  fase "$1" F2 "I2 «resta»"; recibo "$1" revisor-funcional encuadre F2 PASA 0; commitea "$1" "apertura del ciclo 2
+
+Ref: F2"; }
+construye_c2() { fase "$1" F3 "I2 «resta»"; printf '\ndef resta(a, b):\n    return a - b\n' >> "$1/app.py"; trazc "$1" "$2" verificado "$([ "$2" = verificado ] || echo 'pendiente histórico: ADR-002')"
+  recibo "$1" juez-codigo incremento I2 PASA 0 seguridad=no-aplica; commitea "$1" "I2
+
+Ref: I2"; }
+cierra_f4() { fase "$1" F4 "— «ninguno»"; shift_d=$1; shift; recibo "$shift_d" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica "$@"; }
+f4() { commitea "$1" "validación del ciclo
+
+Ref: F4"; }
+ciclo2() {  # ciclo2 <nombre> <estado C1 en R y al cerrar>: ciclo 1 cerrado (P5), ciclo 2 abierto (R) y C2 construido
+  copia cierre "$1"; cierra_c1 "$D" || die "no pude cerrar el ciclo 1 en $1"
+  abre_c2 "$D" "$2" || die "no pude abrir el ciclo 2 en $1"; construye_c2 "$D" "$2" || die "no pude construir C2 en $1"; }
+
+ciclo2 ca1 verificado; cierra_f4 "$D"
+espera pasa "B1 reentrada ordinaria con todo vigente: cierre global como siempre" "" -- f4 "$D"
+ciclo2 ca2 verificado; cierra_f4 "$D" cubre=C1,C2 excluye=ninguno
+espera pasa "B1/C1' cierre con cubre=C1,C2 excluye=ninguno: C1 se da por vigente sin repetir sus pruebas (regla 10)" "" -- f4 "$D"
+ciclo2 ca3 pendiente; cierra_f4 "$D" cubre=C2 excluye=C1
+espera pasa "C1 pendiente histórico (pendiente en la apertura, ADR) excluido del cierre del ciclo" "" -- f4 "$D"
+fase "$D" F5 "— «ninguno»"
+espera pasa "C1 ... y F5 con el mismo recibo y alcance de su F4" "" -- commitea "$D" "cierre del ciclo 2
+
+Ref: F5"
+espera pasa "C1 ... estado.md sigue mostrando C1 pendiente (estado global del producto)" "" -- sh -c 'grep -qE "^\| C1 \| «suma» \| pendiente" "$1/docs/estado.md"' _ "$D"
+ciclo2 ca4 pendiente; cierra_f4 "$D"
+espera falla "C2 cierre global solicitado con un pendiente histórico se rechaza" "C1 no está en Estado 'verificado'" -- f4 "$D"
+# A2: primer ciclo (sin Ref: F5 previo) con exclusiones
+copia cierre ca5; printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — función suma (satisface: C1)\n\n## Fuera de alcance / backlog\n\n- [ ] I2 «resta» — función resta (satisface: C2), fuera de este ciclo (ADR-001)\n' > "$D/docs/plan.md"; encc "$D" "$C1L
+$C2L
+"; trazabilidad "$D" "$C1_VERIF
+| C2 | «resta» | I2 | pendiente | |" "" "$RI11"; fase "$D" F2 "I2 «resta»"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+commitea "$D" "C2 en el primer ciclo
+
+Ref: F2" || die "no pude preparar ca5"
+cierra_f4 "$D" cubre=C1 excluye=C2
+espera falla "A2 primer ciclo con excluye=: se cierra completo" "no hay un ciclo cerrado anterior" -- f4 "$D"
+# N1: C1 verificado al abrir; una segunda reentrada lo pasa a pendiente
+ciclo2 ca6 verificado; fase "$D" F2 "I2 «resta»"; trazc "$D" pendiente verificado "pasado a pendiente después de abrir el ciclo"
+recibo "$D" revisor-funcional encuadre F2 PASA 0; commitea "$D" "segunda reentrada
+
+Ref: F2" || die "no pude preparar la segunda reentrada"
+cierra_f4 "$D" cubre=C2 excluye=C1
+espera falla "N1 regresión seguida de una segunda reentrada: no se excluye" "C1 está en excluye= pero estaba verificado al abrir el ciclo" -- f4 "$D"
+# N2: criterio nuevo del ciclo, con un F5 antiguo en la historia
+copia cierre ca7; cierra_c1 "$D" || die "ca7"; abre_c2 "$D" verificado "$C1L" || die "ca7 apertura"
+construye_c2 "$D" verificado || die "ca7 C2"
+encc "$D" "$C1L
+$C2L
+- C9: la función eleva devuelve a**b.
+"; trazabilidad "$D" "$C1_VERIF
+| C2 | «resta» | I2 | verificado | |
+| C9 | «eleva» | I2 | pendiente | |" "" "$RI11"; fase "$D" F2 "I2 «resta»"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+commitea "$D" "C9 nuevo
+
+Ref: F2" || die "ca7 C9"
+cierra_f4 "$D" cubre=C1,C2 excluye=C9
+espera falla "N2 criterio nuevo con un F5 antiguo en la historia: no es pendiente histórico" "C9 está en excluye= pero no estaba en el contrato del ciclo anterior" -- f4 "$D"
+# N3: garantía reemplazada en el ciclo; N3': cambio por otra vía (set de oro), solo aviso
+copia cierre ca8; cierra_c1 "$D" || die ca8; abre_c2 "$D" pendiente "- C1: la función suma devuelve a+b para enteros y para reales." || die "ca8 apertura"
+construye_c2 "$D" pendiente || die "ca8 C2"; cierra_f4 "$D" cubre=C2 excluye=C1
+espera falla "N3 garantía reemplazada (otro texto de C1 en el ciclo): no se excluye" "C1 está en excluye= pero su criterio cambió" -- f4 "$D"
+copia cierre ca9; cierra_c1 "$D" || die ca9; abre_c2 "$D" pendiente "$C1L" "- resta(3, 1) → 2
+" || die "ca9 apertura"; construye_c2 "$D" pendiente || die "ca9 C2"; cierra_f4 "$D" cubre=C2 excluye=C1
+espera pasa "N3' set de oro cambiado sin tocar C1: se acepta con aviso (lo deciden revisor y juez)" "set de oro o los archivos del contrato cambiaron" -- f4 "$D"
+# N5: F5 conserva el alcance de su F4
+ciclo2 ca10 pendiente; cierra_f4 "$D" cubre=C2 excluye=C1; f4 "$D" || die "ca10 F4"
+fase "$D" F5 "— «ninguno»"; recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica cubre=C1,C2 excluye=ninguno
+espera falla "N5 F5 con un recibo de otro alcance que el de su F4: se rechaza por el alcance (aquí C1 tampoco está verificado; el control aislado de esta regla es N5b)" "conserva el alcance de su F4" -- commitea "$D" "cierre
+
+Ref: F5"
+# N5b: el F4 cubre C1 (pendiente histórico al abrir el ciclo, arreglado y verificado en él). Antes del F5, C1
+# vuelve a pendiente con un recibo nuevo excluye=C1, que por sí solo sería admisible (a, b, c, d): solo la
+# comparación con el alcance del F4 impide cerrar sin lo que el F4 validó.
+ciclo2 ca18 pendiente; trazc "$D" verificado verificado "verificado en este ciclo"; cierra_f4 "$D" cubre=C1,C2 excluye=ninguno
+f4 "$D" || die "ca18 F4"
+rm -rf "$W/ca18b"; cp -R "$D" "$W/ca18b"
+fase "$D" F5 "— «ninguno»"
+espera pasa "N5b positivo: el F5 conserva el alcance de su F4 (cubre=C1,C2 excluye=ninguno)" "" -- commitea "$D" "cierre del ciclo 2
+
+Ref: F5"
+D="$W/ca18b"; trazc "$D" pendiente verificado "vuelve a pendiente antes del F5"; fase "$D" F5 "— «ninguno»"
+recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica cubre=C2 excluye=C1
+espera falla "N5b el F5 que cambia el alcance (excluye=C1, que el F4 cubría) se rechaza aunque esa exclusión sería admisible" "conserva el alcance de su F4" -- commitea "$D" "cierre del ciclo 2 sin C1
+
+Ref: F5"
+
+# G1: forma de la partición y gramática del recibo
+for v in "C1,C2 excluye=C1" "C2 excluye=ninguno" "C1,C2 excluye=C7"; do
+  ciclo2 "ca-g$(printf '%s' "$v" | cksum | cut -c1-6)" pendiente; cierra_f4 "$D" "cubre=${v%% *}" "${v#* }"
+  espera falla "G1 forma: cubre=$v" "a la vez en cubre= y excluye=|no está ni en cubre= ni en excluye=|no está definido en docs/encuadre.md" -- f4 "$D"
+done
+ciclo2 ca11 pendiente; cierra_f4 "$D" cubre=C2
+espera falla "G1 recibo con cubre= sin excluye=: no es un recibo válido" "cubre= y excluye= van juntos" -- f4 "$D"
+# Ramas. S1: el cierre de una rama lateral, integrado sin Ref: F5, no es el cierre anterior de la línea integrada
+copia cierre ca12; en "$D" git checkout -q -b lado; cierra_c1 "$D" || die "ca12 lado"; principal "$D"
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-commit lado >/dev/null 2>&1; en "$D" git checkout -q HEAD -- docs/estado.md
+commitea "$D" "integra la rama sin cerrar el ciclo
+
+Ref: F1" || die "ca12 merge"
+abre_c2 "$D" pendiente || die "ca12 apertura"; construye_c2 "$D" pendiente || die "ca12 C2"; cierra_f4 "$D" cubre=C2 excluye=C1
+espera falla "S1 el F5 de una rama lateral no cuenta como cierre anterior" "no hay un ciclo cerrado anterior" -- f4 "$D"
+# S3: la apertura en una rama que sale de P5, integrada con un merge limpio
+copia cierre ca13; cierra_c1 "$D" || die ca13; en "$D" git checkout -q -b apertura; abre_c2 "$D" pendiente || die "ca13 apertura"
+principal "$D"; printf -- '- nota\n' >> "$D/docs/MEMORIA.md"; commitea "$D" "nota
+
+Ref: F1" || die "ca13 nota"
+en "$D" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit apertura || die "ca13 merge limpio"
+construye_c2 "$D" pendiente || die "ca13 C2"; cierra_f4 "$D" cubre=C2 excluye=C1
+espera pasa "S3 apertura en una rama desde P5 integrada con merge limpio: es R" "" -- f4 "$D"
+# S4: dos aperturas independientes desde P5
+copia cierre ca14; cierra_c1 "$D" || die ca14; P5=$(en "$D" git rev-parse HEAD)
+en "$D" git checkout -q -b ap-a; abre_c2 "$D" pendiente || die "ca14 a"
+en "$D" git checkout -q -b ap-b "$P5"; abre_c2 "$D" pendiente "$C1L" "- resta(2, 2) → 0
+" || die "ca14 b"
+principal "$D"; en "$D" git merge -q --ff-only ap-a || die "ca14 ff"
+fusiona_resuelve "$D" ap-b "$C1L
+$C2L
+" "| C1 | «suma» | I1 | pendiente | pendiente histórico: ADR-002 |
+$F_C2"; encc "$D" "$C1L
+$C2L
+" "- resta(2, 2) → 0
+"; planc "$D"; decc "$D"; trazc "$D" pendiente pendiente "pendiente histórico: ADR-002"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+commitea "$D" "integra las dos aperturas
+
+Ref: F2" || die "ca14 merge"
+construye_c2 "$D" pendiente || die "ca14 C2"; cierra_f4 "$D" cubre=C2 excluye=C1
+espera falla "S4 aperturas independientes: diagnóstico y sin elegir" "aperturas independientes" -- f4 "$D"
+# S5: fechas invertidas respecto de la topología (la apertura con fecha antigua, el cierre con fecha futura)
+copia cierre ca15; fase "$D" F5 "— «ninguno»"; en "$D" git add -A && GIT_COMMITTER_DATE=2030-01-01T00:00:00Z en "$D" git -c core.hooksPath=.githooks commit -q -m "cierre del ciclo 1
+
+Ref: F5" || die "ca15 F5"
+encc "$D" "$C1L
+$C2L
+"; planc "$D"; decc "$D"; trazc "$D" pendiente pendiente "pendiente histórico: ADR-002"; fase "$D" F2 "I2 «resta»"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+en "$D" git add -A && GIT_COMMITTER_DATE=2001-01-01T00:00:00Z en "$D" git -c core.hooksPath=.githooks commit -q -m "apertura
+
+Ref: F2" || die "ca15 apertura"
+construye_c2 "$D" pendiente || die "ca15 C2"; cierra_f4 "$D" cubre=C2 excluye=C1
+espera pasa "S5 fechas invertidas: mismo P5 y misma R" "" -- f4 "$D"
+# S6: N1 con ramas: la segunda reentrada en una rama lateral, integrada después
+ciclo2 ca16 verificado; en "$D" git checkout -q -b baja; fase "$D" F2 "I2 «resta»"; trazc "$D" pendiente verificado "pasado a pendiente en una rama"
+recibo "$D" revisor-funcional encuadre F2 PASA 0; commitea "$D" "segunda reentrada en una rama
+
+Ref: F2" || die "ca16 rama"
+principal "$D"; printf -- '- nota\n' >> "$D/docs/MEMORIA.md"; commitea "$D" "nota
+
+Ref: F1" || die "ca16 nota"
+en "$D" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit baja || die "ca16 merge"
+cierra_f4 "$D" cubre=C2 excluye=C1
+espera falla "S6 la segunda reentrada en una rama lateral tampoco convierte C1 en pendiente histórico" "estaba verificado al abrir el ciclo" -- f4 "$D"
+# Errores del cálculo de P5/R: rechazo con diagnóstico, nunca «no hay cierre anterior».
+REAL_PY2=$(command -v python3); mkdir -p "$W/py-ciclo"
+printf '#!/bin/sh\ncase "$*" in *"F2, F4, F5 = trailer"*) echo "fallo simulado" >&2; exit 1 ;; esac\nexec "%s" "$@"\n' "$REAL_PY2" > "$W/py-ciclo/python3"; chmod +x "$W/py-ciclo/python3"
+ciclo2 ca17 pendiente; cierra_f4 "$D" cubre=C2 excluye=C1
+espera falla "errores: si el cálculo de P5/R falla, el cierre acotado se rechaza con diagnóstico" "no pude determinar el cierre anterior y la apertura del ciclo" -- env PATH="$W/py-ciclo:$PATH" sh -c 'cd "$1" && git add -A && git -c core.hooksPath=.githooks commit -q -m "validación
+
+Ref: F4"' _ "$D"
+
 # --- Filtro preventivo de revisores (.claude/hooks/guarda-revisor.py): NO es frontera; se prueba
 #     que rechaza patrones evidentes, permite lecturas y respeta la modalidad «experimentos».
 echo "== filtro preventivo de revisores"

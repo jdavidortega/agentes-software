@@ -136,6 +136,11 @@ Después, el agente principal **valida si el dato ya está presente**:
   ningún incremento que dependa del supuesto se construye antes de validarlo; un plan que
   construye sobre él antes es un vacío.
 
+- **Apertura de un ciclo posterior:** si la reentrada pasa a `pendiente` un criterio que estaba
+  verificado, exige su motivo y su evidencia, ajenos al trabajo de este ciclo (una regresión del ciclo
+  se corrige, no se vuelve pendiente), con su ADR. Es el único momento en que se admite: después
+  queda fijo (`docs/arranque.md` §Reentrada, «Cierre de un ciclo posterior»).
+
 ## En una adopción (proyecto existente)
 
 Aplica cuando el principal pide la revisión **en modo adopción** e indica la **fase y el

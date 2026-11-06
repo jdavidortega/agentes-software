@@ -485,8 +485,11 @@ except NoCalculable as e:
 for k in sorted(r): print(k, r[k])
 '
 if [ "$HAY_HISTORIAL" -eq 1 ]; then
-  IFS_PREVIO=$IFS; IFS='
-'   # las listas de este bloque son por líneas («C<n> <sha>»)
+  # Las listas de este bloque son por líneas («C<n> <sha>»). Al salir se deja IFS como estaba, también
+  # si estaba sin definir (un IFS vacío desactivaría la separación de palabras en el resto del hook).
+  if [ -n "${IFS+x}" ]; then IFS_PREVIO=$IFS; IFS_DEFINIDO=1; else IFS_DEFINIDO=0; fi
+  IFS='
+'
   bm=$(base_metodo); bm=$([ -n "$bm" ] && git rev-parse --verify -q "$bm^{commit}" 2>/dev/null)
   lista_padres=$(printf '%s\n' "$padres" | tr ' ' '\n' | grep .)
   if [ "$(printf '%s\n' "$lista_padres" | grep -c .)" -ge 2 ]; then
@@ -508,13 +511,129 @@ if [ "$HAY_HISTORIAL" -eq 1 ]; then
     c=${l%% *}; src=${l#* }
     printf '%s\n' "$ids_enc" | grep -qx "$c" || fail "$c estaba en $donde (commit $(git rev-parse --short "$src"), 'Ref: F2') y desaparece de docs/encuadre.md: un criterio no se borra ni se renumera para cerrar. Su texto se ajusta por reentrada; la retirada de un requisito obsoleto aún no tiene política propia (docs/arranque.md §Reentrada) y, mientras tanto, se conserva con su estado real."
   done
-  IFS=$IFS_PREVIO
+  if [ "$IFS_DEFINIDO" -eq 1 ]; then IFS=$IFS_PREVIO; else unset IFS; fi
 fi
 
 # Código sin revisión: cambios fuera del rastro/plantilla exigen `Ref: I<n>` (y, con él, el
 # recibo del juez sobre esta huella). Un `Cierra:` solo o un `Ref: F#` no bastan.
 if [ -n "$codigo" ] && [ "$con_incremento" -eq 0 ] && [ "$MERGE_LIMPIO" -eq 0 ]; then
   fail "el commit cambia código fuera del rastro ($(printf '%s\n' "$codigo" | head -3 | tr '\n' ' ')…) sin 'Ref: I<n>': el código entra solo como incremento con recibo del juez. Un 'Cierra:' o un 'Ref: F#' no acreditan revisión del código."
+fi
+
+# --- Cierre acotado de un ciclo posterior (Ref: F4 | F5) -----------------------------------------
+# Con cubre= y excluye= en el recibo del conjunto, el cierre es del CICLO, no del producto: check_docs
+# cierre exige verificado solo lo de cubre= y que lo de excluye= no figure como verificado. Sin esos
+# campos rige el cierre global. excluye= admite solo pendientes históricos (docs/arranque.md §Reentrada):
+#   P5  el último `Ref: F5` por PRIMER PADRE desde el padre (el cierre anterior de la línea integrada);
+#   R   la apertura del ciclo: entre los `Ref: F2` que descienden de P5, el MÍNIMO por ascendencia (una
+#       reentrada posterior desciende de él y no lo mueve); varios mínimos = aperturas independientes:
+#       se detiene con diagnóstico y no elige (el cierre global sigue disponible);
+#   a) el criterio estaba en el encuadre de P5; b) en R no estaba verificado; c) su línea es idéntica a
+#   la de P5; d) hoy no está verificado. Un cambio de su garantía por otra vía (set de oro, archivos del
+#   contrato) solo se avisa: lo juzgan el revisor funcional y el juez de conjunto.
+# Nada de esto toca los fallos previos (M01): su comprobación de cierre sigue bloqueando F4/F5.
+# Un error al calcular P5/R o al leer un contrato rechaza con diagnóstico; nunca equivale a «no hay».
+CICLO_PY='
+import re, subprocess, sys
+class NoCalculable(Exception): pass
+bm, base = sys.argv[1], sys.argv[2]
+def trailer(n): return re.compile(r"^Ref:[ \t]*%s[ \t]*$" % n, re.M)
+F2, F4, F5 = trailer("F2"), trailer("F4"), trailer("F5")
+def git(*a, validos=(0,)):
+    r = subprocess.run(["git", *a], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if r.returncode not in validos:
+        raise NoCalculable("git %s salió con %d: %s" % (" ".join(a), r.returncode, r.stderr.decode("utf-8", "replace").strip()))
+    return r.returncode, r.stdout.decode("utf-8", "replace")
+def previo_a_base(c): return bool(bm) and git("merge-base", "--is-ancestor", c, bm, validos=(0, 1))[0] == 0
+def mensaje(c): return git("log", "-1", "--format=%B", c)[1]
+def ancestro(a, b): return git("merge-base", "--is-ancestor", a, b, validos=(0, 1))[0] == 0
+try:
+    p5 = p4 = None; x = base
+    while x and not previo_a_base(x):
+        m = mensaje(x)
+        if F5.search(m): p5 = x; break
+        if p4 is None and F4.search(m): p4 = x
+        ps = git("rev-list", "--parents", "-n", "1", x)[1].split()[1:]
+        x = ps[0] if ps else None
+    r = []
+    if p5:
+        cands = [c for c in git("rev-list", "--ancestry-path", p5 + ".." + base)[1].split() if F2.search(mensaje(c)) and not previo_a_base(c)]
+        r = [c for c in cands if not any(o != c and ancestro(o, c) for o in cands)]
+except NoCalculable as e:
+    sys.stderr.write("%s\n" % e); sys.exit(2)
+print("P5", p5 or "-"); print("P4", p4 or "-")
+print("R", r[0] if len(r) == 1 else ("-" if not r else "AMBIGUO"))
+for c in sorted(r) if len(r) > 1 else []: print("APERTURA", c)
+'
+CIERRE_CUBRE=""; CIERRE_EXCLUYE=""
+alcance_f4() { printf '%s %s' "$(campo "$1" cubre)" "$(campo "$1" excluye)"; }
+if [ "$cierre" -eq 1 ]; then
+  rec_c=$(ultimo_recibo juez-conjunto conjunto F4); cu=$(campo "$rec_c" cubre); ex=$(campo "$rec_c" excluye)
+  ciclo=""; rc_ciclo=0
+  if [ "$HAY_HISTORIAL" -eq 1 ]; then
+    bm_c=$(base_metodo); bm_c=$([ -n "$bm_c" ] && git rev-parse --verify -q "$bm_c^{commit}" 2>/dev/null)
+    ciclo=$(python3 -I -c "$CICLO_PY" "$bm_c" "$BASE" 2>&1); rc_ciclo=$?
+    if [ "$rc_ciclo" -ne 0 ] || ! printf '%s\n' "$ciclo" | grep -qE '^P5 ([0-9a-f]{40}([0-9a-f]{24})?|-)$' \
+       || ! printf '%s\n' "$ciclo" | grep -qE '^R ([0-9a-f]{40}([0-9a-f]{24})?|-|AMBIGUO)$'; then
+      fail "no pude determinar el cierre anterior y la apertura del ciclo (salida $rc_ciclo): $(printf '%s' "$ciclo" | tr '\n' ' ' | cut -c1-240). Sin ese cálculo no se valida el alcance del cierre."
+      ciclo=""
+    fi
+  fi
+  P5=$(printf '%s\n' "$ciclo" | sed -n 's/^P5 //p'); P4=$(printf '%s\n' "$ciclo" | sed -n 's/^P4 //p'); RC=$(printf '%s\n' "$ciclo" | sed -n 's/^R //p')
+  # F5 conserva el alcance del Ref: F4 de este ciclo (el recibo que este fijó), en un sentido y en otro.
+  if [ "$con_f5" -eq 1 ] && [ -n "$P4" ] && [ "$P4" != "-" ]; then
+    log_p4=$(git show "$P4:docs/revisiones.log" 2>/dev/null) || fail "no pude leer docs/revisiones.log del Ref: F4 $(git rev-parse --short "$P4") para comparar el alcance del cierre."
+    lp4=$(mktemp 2>/dev/null || mktemp -t f4); printf '%s\n' "$log_p4" > "$lp4"
+    prev_p4=""; git show "$P4:scripts/recibos.sh" 2>/dev/null | grep -q 'contrato-recibos: 2' || prev_p4=previo
+    rec_p4=$(sh "$MET/scripts/recibos.sh" ultimo juez-conjunto conjunto F4 "$lp4" $prev_p4 2>/dev/null); rm -f "$lp4"
+    [ "$(alcance_f4 "$rec_p4")" = "$(alcance_f4 "$rec_c")" ] || fail "el Ref: F5 usa un recibo del conjunto con alcance '$(alcance_f4 "$rec_c")' y el Ref: F4 de este ciclo ($(git rev-parse --short "$P4")) fijó '$(alcance_f4 "$rec_p4")': el cierre conserva el alcance de su F4."
+  elif [ "$con_f5" -eq 1 ] && [ -n "$cu$ex" ]; then
+    fail "un cierre acotado (cubre=/excluye= en el recibo del conjunto) exige el Ref: F4 de este ciclo que fija ese alcance; no hay ninguno desde el cierre anterior."
+  fi
+  if [ -n "$cu$ex" ]; then
+    ids_c=$(idx docs/encuadre.md | grep -oE '^- C[0-9]+:' | grep -oE 'C[0-9]+' | sort -u)
+    printf '%s' "$cu" | grep -qxE 'C[0-9]+(,C[0-9]+)*' || fail "cubre='$cu' del recibo del conjunto no tiene la forma C<n>[,C<n>…]: un cierre acotado valida al menos un criterio."
+    printf '%s' "$ex" | grep -qxE 'ninguno|C[0-9]+(,C[0-9]+)*' || fail "excluye='$ex' del recibo del conjunto no es 'ninguno' ni una lista C<n>[,C<n>…]."
+    l_cu=$(printf '%s' "$cu" | tr ',' '\n' | grep -E '^C[0-9]+$'); l_ex=$(printf '%s' "$ex" | tr ',' '\n' | grep -E '^C[0-9]+$')
+    for c in $l_cu $l_ex; do printf '%s\n' "$ids_c" | grep -qx "$c" || fail "$c aparece en cubre=/excluye= del recibo del conjunto y no está definido en docs/encuadre.md."; done
+    for c in $l_cu; do printf '%s\n' "$l_ex" | grep -qx "$c" && fail "$c aparece a la vez en cubre= y excluye= del recibo del conjunto."; done
+    for c in $ids_c; do printf '%s\n' "$l_cu" "$l_ex" | grep -qx "$c" || fail "$c no está ni en cubre= ni en excluye= del recibo del conjunto: cada criterio del encuadre se nombra en una de las dos."; done
+    if [ -n "$l_ex" ]; then
+      if [ -z "$ciclo" ]; then :   # ya rechazado arriba (sin historial o sin cálculo)
+      elif [ "$P5" = "-" ]; then
+        fail "excluye=$ex: no hay un ciclo cerrado anterior (ningún Ref: F5 en la línea integrada); el primer ciclo se cierra completo."
+      elif [ "$RC" = "AMBIGUO" ]; then
+        fail "excluye=$ex: el ciclo tiene aperturas independientes ($(printf '%s\n' "$ciclo" | sed -n 's/^APERTURA //p' | cut -c1-7 | tr '\n' ' ')): el cierre acotado no está disponible; el cierre global (recibo sin cubre=/excluye=) sigue disponible."
+      elif [ "$RC" = "-" ]; then
+        fail "excluye=$ex: no se abrió ningún ciclo después del cierre anterior ($(git rev-parse --short "$P5")): no hay pendientes históricos que excluir."
+      else
+        enc_p5=$(git show "$P5:docs/encuadre.md" 2>/dev/null) || fail "no pude leer docs/encuadre.md del cierre anterior ($(git rev-parse --short "$P5"))."
+        traz_r=$(git show "$RC:docs/trazabilidad.md" 2>/dev/null | sh "$MET/scripts/trazabilidad.sh" -) || fail "no pude leer docs/trazabilidad.md de la apertura del ciclo ($(git rev-parse --short "$RC"))."
+        for c in $l_ex; do
+          lp5=$(printf '%s\n' "$enc_p5" | grep -E "^- $c:" | sed 's/[[:space:]]*$//')
+          lnow=$(idx docs/encuadre.md | grep -E "^- $c:" | sed 's/[[:space:]]*$//')
+          er=$(printf '%s\n' "$traz_r" | awk -v c="$c" '$1=="C" && $2==c {print $4; exit}')
+          if [ -z "$lp5" ]; then
+            fail "$c está en excluye= pero no estaba en el contrato del ciclo anterior cerrado ($(git rev-parse --short "$P5")): un criterio nuevo no es un pendiente histórico; se verifica o el cierre es global con él pendiente."
+          elif [ -z "$er" ]; then
+            fail "$c está en excluye= y no pude leer su estado en la apertura del ciclo ($(git rev-parse --short "$RC")): sin ese dato no se admite como pendiente histórico."
+          elif [ "$er" = "verificado" ]; then
+            fail "$c está en excluye= pero estaba verificado al abrir el ciclo ($(git rev-parse --short "$RC")): si se rompió durante el ciclo, se corrige; una reentrada posterior no lo convierte en pendiente histórico."
+          elif [ "$lp5" != "$lnow" ]; then
+            fail "$c está en excluye= pero su criterio cambió en este ciclo respecto del cierre anterior: con otra garantía no es un pendiente histórico."
+          elif [ "$(estado_fila "$c")" = "verificado" ]; then
+            fail "$c está en excluye= y figura como verificado: va en cubre=."
+          fi
+        done
+        # c') Cambios de garantía por otra vía: solo aviso (lo juzgan el revisor funcional y el juez de conjunto).
+        if o_p5=$(contrato "$P5" 2>/dev/null) && o_now=$(contrato "${REV:-INDICE}" 2>/dev/null); then
+          d=$( { printf '%s\n' "$o_p5"; printf '%s\n' "$o_now"; } | grep -E '^(ORO|REF)' | sort | uniq -u | head -2 | cut -c1-80 | tr '\n' '|')
+          [ -n "$d" ] && echo "⚠ commit-msg: el set de oro o los archivos del contrato cambiaron desde el cierre anterior ($d): comprueba que no altera la garantía de los excluidos ($ex); no lo decide el hook." >&2
+        fi
+      fi
+    fi
+    CIERRE_CUBRE=$cu; CIERRE_EXCLUYE=$ex
+  fi
 fi
 
 if [ "$cierre" -eq 1 ] && [ "$FAIL" -eq 0 ]; then
@@ -524,7 +643,7 @@ if [ "$cierre" -eq 1 ] && [ "$FAIL" -eq 0 ]; then
   # En el replay, el árbol del commit se materializa desde sus blobs (validar_historial.sh --materializa:
   # sin atributos que oculten o transformen); check_docs es el del commit o, anclado, el de METODO_DIR.
   if [ -n "${REV:-}" ]; then sh "$MET/scripts/pruebas/validar_historial.sh" --materializa "$REV" "$tmp"; else git checkout-index -a --prefix="$tmp/"; fi \
-    && ( cd "$tmp" && env -u GIT_DIR FASE_PREVIA="$prev" sh "${METODO_DIR:+$METODO_DIR/}scripts/check_docs.sh" cierre ) \
+    && ( cd "$tmp" && env -u GIT_DIR FASE_PREVIA="$prev" CIERRE_CUBRE="$CIERRE_CUBRE" CIERRE_EXCLUYE="$CIERRE_EXCLUYE" sh "${METODO_DIR:+$METODO_DIR/}scripts/check_docs.sh" cierre ) \
     || fail "el trailer declara cierre de fase (Ref: F4|F5) pero check_docs.sh cierre no da PASA sobre lo que se commitea."
 fi
 [ "$FAIL" -eq 1 ] && exit 1

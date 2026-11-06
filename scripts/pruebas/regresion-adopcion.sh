@@ -855,6 +855,24 @@ espera falla "fallos previos + replay anclado: el cierre (Ref: F4) no pasa mient
 espera falla "... y la causa es esa: los destinos al cierre rechazan los fallos que quedan" "" -- en "$D" python3 -I scripts/fallos_previos.py destinos --cierre
 espera pasa "la orden de entrada no dejó carpetas en su TMPDIR" "" -- sh -c '[ -z "$(ls -A "$1")" ]' _ "$TA"
 
+# M01 con cierre acotado: excluir el criterio al que apuntan los fallos previos no elude su bloqueo.
+copia fp-anclado fpc1; fase "$D" F5 "— «ninguno»"; sin_hooks "$D" "cierre de un ciclo anterior (colado: simula un ciclo cerrado)
+
+Ref: F5"
+python3 -I - "$D/docs/encuadre.md" <<'EOF'
+import sys; p = sys.argv[1]; s = open(p).read(); a = "- C1: suma devuelve a+b (comportamiento que se conserva).\n"
+assert s.count(a) == 1; open(p, "w").write(s.replace(a, a + "- C2: resta devuelve a-b.\n"))
+EOF
+trazabilidad "$D" "$C1A
+| C2 | «resta» | I1 | verificado | |" "" ""; fase "$D" F2; recibo "$D" revisor-funcional encuadre F2 PASA 0
+commitea "$D" "apertura de un ciclo posterior
+
+Ref: F2" || die "no pude abrir el ciclo posterior en fpc1"
+fase "$D" F4; recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica cubre=C2 excluye=C1
+espera falla "M01 + cierre acotado: con C1 excluido como pendiente histórico, los fallos previos siguen bloqueando F4" "sigue declarada como fallo previo al cierre" -- commitea "$D" "validación
+
+Ref: F4"
+
 echo
 echo "regresion-adopcion: $((TOTAL-MAL))/$TOTAL casos en verde"
 if [ "$MAL" -gt 0 ]; then echo "FALLARON:$FALLIDOS"; exit 1; fi

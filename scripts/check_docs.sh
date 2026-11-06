@@ -741,8 +741,21 @@ if [ "$MODE" = "cierre" ]; then
     [ "$n_resueltos" -gt 0 ] && err "hay $n_resueltos hallazgo(s) con Estado 'resuelto' que nunca pasaron a 'verificado' (condición de salida de las Fases 3 y 4)"
     # Un conjunto vacío de criterios no se "cumple": al cierre hay al menos uno, real.
     [ -n "$CRIT" ] || err "encuadre.md no define ningún criterio '- C<n>: …': no hay nada que validar ni cerrar"
-    # Todo C# con incremento (columna Incremento) y Estado 'verificado' (columna Estado).
-    for c in $CRIT; do
+    # Todo C# con incremento (columna Incremento) y Estado 'verificado' (columna Estado). En un cierre
+    # ACOTADO (CIERRE_CUBRE/CIERRE_EXCLUYE, que solo fija el commit-msg con el recibo del conjunto: ver
+    # scripts/recibos.sh, «CIERRE ACOTADO»), solo los de cubre=; los excluidos siguen sin verificar.
+    CRIT_CIERRE=$CRIT
+    if [ -n "${CIERRE_CUBRE:-}" ]; then
+      CRIT_CIERRE=$(printf '%s' "$CIERRE_CUBRE" | tr ',' ' ')
+      for c in $(printf '%s' "${CIERRE_EXCLUYE:-}" | tr ',' ' '); do
+        [ "$c" = ninguno ] && continue
+        row=$(printf '%s\n' "$FILAS" | awk -v c="$c" '$1=="C" && $2==c' | head -1)
+        [ -n "$row" ] || { err "$c (excluido del cierre del ciclo) no tiene fila en trazabilidad.md: su estado real se declara, no se omite"; continue; }
+        printf '%s' "$row" | awk '{exit ($4=="verificado") ? 1 : 0}' \
+          || err "$c está excluido del cierre del ciclo pero figura como 'verificado': un excluido es un pendiente histórico, no una garantía"
+      done
+    fi
+    for c in $CRIT_CIERRE; do
       row=$(printf '%s\n' "$FILAS" | awk -v c="$c" '$1=="C" && $2==c' | head -1)
       [ -n "$row" ] || { err "$c no tiene fila en trazabilidad.md al cierre"; continue; }
       printf '%s' "$row" | awk '{exit ($3 ~ /I[0-9]+/) ? 0 : 1}' \

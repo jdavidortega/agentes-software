@@ -107,6 +107,10 @@ la usan:
 **Detalle:** <dónde está>
 ```
 
+En el gate de cierre (F4/F5) de un **cierre del ciclo** (recibo con `excluye=`), «Resultado» dice «cierre del ciclo,
+no del producto»: los criterios de `cubre=` como vigentes y cada excluido como pendiente con su motivo, nunca como
+garantía; el estado global es el de `docs/estado.md` §Criterios.
+
 Los ocho campos van siempre, en este orden; uno sin contenido lleva «—» o «no aplica». **≤15
 líneas lógicas** (separadas por saltos de línea; el ancho de pantalla no cuenta), y cada campo en
 una o dos frases: un párrafo largo dentro de un campo incumple la brevedad aunque cumpla el

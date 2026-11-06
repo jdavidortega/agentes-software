@@ -134,5 +134,11 @@ el incremento y el rango del diff:
   invariante de un módulo deja de valer cuando otro falla o cuando ambos corren juntos?
   Orden de efectos, encadenamientos transitivos, simetrías a medio cubrir: no se
   re-revisa cada diff ya juzgado.
+- **Cierre de un ciclo posterior (F4 con `cubre=`/`excluye=`):** en `cubre=` va lo que das por vigente
+  en este conjunto, con evidencia nueva o reutilizada y por qué sigue aplicando (regla 10 de
+  `probando-con-datos-reales`); no hace falta repetir las pruebas de un criterio que nada invalidó. Si
+  un criterio verificado al abrir el ciclo ya no se sostiene, no va en ninguno de los dos: es un
+  `R-F4.n`. `excluye=` solo nombra pendientes históricos (`docs/arranque.md` §Reentrada); si el set de
+  oro o un archivo del contrato cambió y afecta a uno, dilo: el hook solo lo avisa.
 - **No infles:** una sugerencia que no sirve a un criterio acordado es gold-plating.
 - Se afina con el tiempo: si una verificación se repite, súmala a la rúbrica.

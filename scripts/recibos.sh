@@ -28,13 +28,23 @@
 #   tipo=encuadre|incremento|hito|conjunto   alcance=F2|F4|I<n>|hito:I<a>-I<b>|reentrada:C<n>
 #   veredicto=PASA|FALLA  bloqueantes=<entero sin ceros a la izquierda>  huella=<12 hex>  ejecutor=<quién>
 #   seguridad=requerida|no-aplica   (obligatorio en juez-codigo y juez-conjunto)
-#   cubre=<C..>  excluye=<C..|ninguno>  componentes=<..>   (obligatorios en tipo=hito)
+#   cubre=<C..>  excluye=<C..|ninguno>  componentes=<..>   (obligatorios en tipo=hito; en tipo=conjunto,
+#                                       cubre= y excluye= van juntos o ninguno: ver CIERRE ACOTADO)
 #   modalidad=lectura|experimentos  filtro=comprobado|desactivado|sin-verificar
 #   aislamiento=ninguno|sandbox-configurado|sandbox-verificado   (los tres juntos; ver abajo)
 #   evidencia=docs/revisiones/<id>@<12 hex>   (opcional: carpeta con lo que sostiene el veredicto
 #                                              y su huella, `sh scripts/huella.sh evidencia <carpeta>`)
 # Relaciones: PASA ⇒ bloqueantes=0; FALLA ⇒ bloqueantes≥1; rol↔tipo↔alcance coherentes.
 #
+# CIERRE ACOTADO (rol=juez-conjunto tipo=conjunto alcance=F4; semántica DISTINTA de la del hito):
+#   sin cubre= ni excluye=            cierre GLOBAL: todo criterio del encuadre, verificado (como siempre).
+#   cubre=C<n>[,C<n>…]                los criterios cuya evidencia el juez da por VIGENTE en este conjunto,
+#                                     nueva o reutilizada con justificación (regla 10).
+#   excluye=ninguno | C<n>[,C<n>…]    solo PENDIENTES HISTÓRICOS admisibles: criterios del contrato del ciclo
+#                                     anterior cerrado, no verificados al abrir este ciclo y sin cambios en
+#                                     él. Las condiciones las comprueba el commit-msg (docs/arranque.md
+#                                     §Reentrada, «Cierre de un ciclo posterior»); los fallos previos (M01)
+#                                     siguen bloqueando el cierre aunque se excluya su criterio.
 # HITO (rol=juez-conjunto tipo=hito alcance=hito:I<a>-I<b>; fuente canónica de esta gramática):
 #   cubre=C<n>[,C<n>…]               los criterios CONSTRUIDOS: todo incremento de su fila de Cobertura
 #                                     (docs/trazabilidad.md) ya tiene su commit `Ref: I`. Nunca vacío ni
@@ -136,6 +146,7 @@ function fecha_valida(d,   y, m, dd, mx) {
   if (f["veredicto"]=="FALLA" && f["bloqueantes"]=="0") ok=bad("FALLA exige bloqueantes>=1")
   if ((r=="juez-codigo" || r=="juez-conjunto") && f["seguridad"] !~ /^(requerida|no-aplica)$/) ok=bad("juez-codigo/juez-conjunto deben declarar seguridad=requerida|no-aplica")
   if (t=="hito" && (!("cubre" in f) || !("excluye" in f) || !("componentes" in f))) ok=bad("tipo=hito exige cubre=, excluye= y componentes=")
+  if (t=="conjunto" && (("cubre" in f) != ("excluye" in f))) ok=bad("tipo=conjunto: cubre= y excluye= van juntos (cierre acotado) o ninguno de los dos (cierre global)")
   nm = ("modalidad" in f) + ("filtro" in f) + ("aislamiento" in f)
   if (nm==0 && marca && !previo) ok=bad("recibo posterior al marcador sin modalidad=, filtro= y aislamiento=")
   if (nm==0 && !hm && !previo) ok=bad("recibo sin modalidad=, filtro= y aislamiento= en un registro sin marcador. Si son recibos de una versión anterior de la plantilla, añade al FINAL del registro (sin tocar lo existente) la línea «# contrato-recibos: 2»: lo anterior queda histórico y lo nuevo declara los tres campos")

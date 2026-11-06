@@ -42,6 +42,19 @@ una sola pregunta:
     cerrar ni en una reentrada; se ajusta su texto y su estado real queda en su fila de trazabilidad. El `commit-msg`
     lo comprueba en todo commit desde el primer `Ref: F2`. Retirar un requisito obsoleto aún **no tiene política
     propia** (pendiente): hasta que la tenga, el criterio se conserva y su estado dice que no aplica o está pendiente.
+  - **Cierre de un ciclo posterior.** El cierre (Ref: F4/F5) es **global** por defecto: todos los `C#` verificados.
+    Si quedan **pendientes históricos** ajenos a este ciclo, el cierre puede ser **del ciclo**: el recibo del juez de
+    conjunto lleva `cubre=` (los criterios cuya evidencia da por vigente, nueva o reutilizada con justificación,
+    regla 10) y `excluye=` (los pendientes). Un criterio solo es excluible si:
+    a) estaba en el contrato del ciclo anterior cerrado (el último `Ref: F5` por primer padre);
+    b) no estaba verificado en la apertura del ciclo (el primer `Ref: F2` que desciende de ese cierre; una reentrada
+       posterior no la mueve), lo que el revisor funcional revisó en esa apertura con su motivo y su ADR;
+    c) su criterio no cambió en el ciclo; y d) sigue sin verificar.
+    Lo comprueba el `commit-msg`; un cambio de su garantía por otra vía (set de oro, archivos del contrato) solo se
+    avisa y lo juzgan el revisor funcional y el juez de conjunto. Si el ciclo tiene aperturas independientes (dos
+    ramas con su propio `Ref: F2` desde el cierre), no hay cierre acotado: queda el global. El F5 usa el alcance que
+    fijó su F4. Los **fallos previos** de una adopción siguen bloqueando F4/F5 aunque se excluya su criterio. El
+    gate de cierre dice «cierre del ciclo, no del producto» y nombra cada excluido como pendiente, no como garantía.
   - **Requisito nuevo** (añade un `C#`/capacidad): ingiere el nuevo insumo, **añade** el
     `C#` (+ set de oro si aplica), suma ≥1 incremento al plan, revisor funcional sobre lo
     nuevo, gate. Sigue siendo una rebanada, no una re-ingesta de lo ya encuadrado.

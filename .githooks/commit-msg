@@ -427,6 +427,90 @@ if [ "$HAY_HISTORIAL" -eq 1 ]; then
   done
 fi
 
+# --- Criterios históricos: lo que el último contrato revisado definía se conserva ----------------
+# Todo `C<n>` del contrato revisado vigente sigue definido en docs/encuadre.md en cualquier commit
+# (también un `Ref: F1`, una reentrada `Ref: F2` o un merge). Renumerar cuenta como desaparecer. Su fila
+# de Cobertura la exige ya check_docs (un criterio sin fila o una fila huérfana); lo que solo se ve aquí
+# es el borrado coherente de los dos.
+# El contrato vigente se busca por la ESTRUCTURA de la historia, nunca por fechas: desde el padre, por
+# primer padre, hasta el `Ref: F2` más cercano (en un adoptado, posterior a la Base del método). Un merge
+# que no es `Ref: F2` cuenta en tres vías: lo que define el contrato vigente de cualquiera de sus padres,
+# salvo lo que alguno de ellos ya había quitado respecto del de su base común. Así no se pierde un criterio
+# del contrato que se integra, una rama vieja no pasa a mandar por ser más reciente, y un requisito
+# retirado antes de esta regla no se vuelve a exigir (quitarlo después lo rechaza esta guarda en la rama
+# donde ocurra). La historia previa no se reescribe. El texto del criterio sí se ajusta por reentrada. No
+# decide sobre requisitos obsoletos: su retirada legítima no tiene todavía política propia
+# (docs/arranque.md §Reentrada), y hasta entonces se conservan con su estado real.
+EXIGIDOS_PY='
+import re, subprocess, sys
+# Ausencia legítima (no hay contrato anterior: ningún Ref: F2 en el recorrido, raíz, sin base común, antes
+# de la Base del método) ≠ imposibilidad de calcular (un error de git, un contrato que debe existir y no se
+# lee). Lo segundo termina con 2 y un diagnóstico; nunca se convierte en «sin criterios exigidos».
+class NoCalculable(Exception): pass
+bm = sys.argv[1]; inicio = sys.argv[2:]
+F2 = re.compile(r"^Ref:[ \t]*F2[ \t]*$", re.M)
+def git(*a, validos=(0,)):
+    r = subprocess.run(["git", *a], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if r.returncode not in validos:
+        raise NoCalculable("git %s salió con %d: %s" % (" ".join(a), r.returncode, r.stderr.decode("utf-8", "replace").strip()))
+    return r.returncode, r.stdout.decode("utf-8", "replace")
+def previo_a_base(c):
+    return bool(bm) and git("merge-base", "--is-ancestor", c, bm, validos=(0, 1))[0] == 0
+def ids(c):  # un Ref: F2 es un contrato revisado: su encuadre tiene que poder leerse
+    return {m.group(1): c for m in re.finditer(r"^- (C[0-9]+):", git("show", c + ":docs/encuadre.md")[1], re.M)}
+memo = {}
+def vigente(c):  # el contrato vigente en c: el Ref: F2 más cercano por primer padre; un merge, en tres vías
+    if c in memo: return memo[c]
+    x = c
+    while True:
+        if previo_a_base(x): r = {}; break
+        if F2.search(git("log", "-1", "--format=%B", x)[1]): r = ids(x); break
+        ps = git("rev-list", "--parents", "-n", "1", x)[1].split()[1:]
+        if not ps: r = {}; break
+        if len(ps) >= 2: r = tres_vias(ps); break
+        x = ps[0]
+    memo[c] = r; return r
+def tres_vias(ps):
+    a = vigente(ps[0]); r = dict(a); quitados = set()
+    for p in ps[1:]:
+        b = vigente(p); rc, mb = git("merge-base", ps[0], p, validos=(0, 1))
+        m = vigente(mb.strip()) if rc == 0 and mb.strip() else {}
+        quitados |= {k for k in m if k not in a or k not in b}
+        for k, v in b.items(): r.setdefault(k, v)
+    return {k: v for k, v in r.items() if k not in quitados}
+try:
+    r = tres_vias(inicio) if len(inicio) >= 2 else (vigente(inicio[0]) if inicio else {})
+except NoCalculable as e:
+    sys.stderr.write("%s\n" % e); sys.exit(2)
+for k in sorted(r): print(k, r[k])
+'
+if [ "$HAY_HISTORIAL" -eq 1 ]; then
+  IFS_PREVIO=$IFS; IFS='
+'   # las listas de este bloque son por líneas («C<n> <sha>»)
+  bm=$(base_metodo); bm=$([ -n "$bm" ] && git rev-parse --verify -q "$bm^{commit}" 2>/dev/null)
+  lista_padres=$(printf '%s\n' "$padres" | tr ' ' '\n' | grep .)
+  if [ "$(printf '%s\n' "$lista_padres" | grep -c .)" -ge 2 ]; then
+    donde="un contrato revisado que este merge integra"
+    # shellcheck disable=SC2086
+    exigidos=$(python3 -I -c "$EXIGIDOS_PY" "$bm" $lista_padres 2>&1); rc_exig=$?
+  else
+    donde="el último contrato revisado"
+    exigidos=$(python3 -I -c "$EXIGIDOS_PY" "$bm" "$BASE" 2>&1); rc_exig=$?
+  fi
+  # El cálculo solo vale si terminó bien y cada línea es «C<n> <sha>»: un error, una excepción o una
+  # salida incompleta rechazan el commit; nunca equivalen a «sin criterios exigidos».
+  if [ "$rc_exig" -ne 0 ] || printf '%s\n' "$exigidos" | grep . | grep -qvE '^C[0-9]+ [0-9a-f]{40}([0-9a-f]{24})?$'; then
+    fail "no pude calcular los criterios que exige el contrato revisado (salida $rc_exig): $(printf '%s' "$exigidos" | tr '\n' ' ' | cut -c1-240). Sin ese cálculo no se puede comprobar que ningún criterio desaparece; revisa el repositorio (objetos de git, docs/encuadre.md de los Ref: F2)."
+    exigidos=""
+  fi
+  ids_enc=$(idx docs/encuadre.md | grep -oE '^- C[0-9]+:' | grep -oE 'C[0-9]+' | sort -u)
+  for l in $(printf '%s\n' "$exigidos" | grep .); do
+    c=${l%% *}; src=${l#* }
+    printf '%s\n' "$ids_enc" | grep -qx "$c" || fail "$c estaba en $donde (commit $(git rev-parse --short "$src"), 'Ref: F2') y desaparece de docs/encuadre.md: un criterio no se borra ni se renumera para cerrar. Su texto se ajusta por reentrada; la retirada de un requisito obsoleto aún no tiene política propia (docs/arranque.md §Reentrada) y, mientras tanto, se conserva con su estado real."
+  done
+  IFS=$IFS_PREVIO
+fi
+
 # Código sin revisión: cambios fuera del rastro/plantilla exigen `Ref: I<n>` (y, con él, el
 # recibo del juez sobre esta huella). Un `Cierra:` solo o un `Ref: F#` no bastan.
 if [ -n "$codigo" ] && [ "$con_incremento" -eq 0 ] && [ "$MERGE_LIMPIO" -eq 0 ]; then

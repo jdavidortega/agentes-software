@@ -319,6 +319,169 @@ espera falla "estado.md pasa a F5 con Ref: F1 (sin cierre) se rechaza" "entrar a
 
 Ref: F1"
 
+echo "== Criterios históricos: lo que el último contrato revisado definía no se borra ni se renumera"
+sin_c1() { python3 -I - "$1/docs/encuadre.md" <<'EOF'
+import sys; p = sys.argv[1]; l = open(p).read().split("\n"); n = [x for x in l if not x.startswith("- C1:")]
+assert len(n) == len(l) - 1; open(p, "w").write("\n".join(n))
+EOF
+}
+copia f3 ch1; sin_c1 "$D"; printf -- '- C2: la función resta devuelve a-b.\n' >> "$D/docs/encuadre.md"; trazabilidad "$D" '| C2 | «resta» | I2 | pendiente | |' "" ""
+espera falla "borrar C1 y su fila a la vez (coherente para el doctor) en un commit Ref: F1 se rechaza" "C1 estaba en el último contrato revisado.*desaparece" -- commitea "$D" "sin C1
+
+Ref: F1"
+copia f3 ch2; sed -i.bak 's/^- C1: /- C7: /' "$D/docs/encuadre.md" && rm -f "$D/docs/encuadre.md.bak"; trazabilidad "$D" '| C7 | «suma» | I1 | pendiente | |' "" ""
+fase "$D" F2 "I2 «resta»"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "renumerar C1 como C7 en una reentrada Ref: F2 con revisor funcional se rechaza" "C1 estaba en el último contrato revisado.*desaparece" -- commitea "$D" "renumera
+
+Ref: F2"
+copia f3 ch3; trazabilidad "$D" "" "" ""
+espera falla "quitar solo la fila de Cobertura de C1 ya lo rechaza el doctor" "C1 está en encuadre.md pero no tiene fila" -- commitea "$D" "sin fila
+
+Ref: F1"
+copia f3 ch4; sin_c1 "$D"; printf -- '- C2: la función resta devuelve a-b.\n' >> "$D/docs/encuadre.md"; trazabilidad "$D" '| C2 | «resta» | I2 | pendiente | |' "" ""; sin_hooks "$D" "sin C1 colado
+
+Ref: F1"
+espera falla "validar_historial rechaza el criterio borrado con --no-verify" "C1 estaba en el último contrato revisado" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia f3 ch5; reescribe_c1 "$D"; fase "$D" F2 "I2 «resta»"; recibo "$D" revisor-funcional encuadre reentrada:C1 PASA 0
+espera pasa "ajustar el texto de C1 por reentrada (mismo identificador) se acepta" "" -- commitea "$D" "reentrada C1
+
+Ref: F2"
+copia f3 ch6; printf -- '- C2: la función resta devuelve a-b.\n' >> "$D/docs/encuadre.md"; trazabilidad "$D" "$C1_PEND
+| C2 | «resta» | I2 | pendiente | |" "" ""
+fase "$D" F2 "I2 «resta»"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera pasa "añadir C2 por reentrada conservando C1 se acepta" "" -- commitea "$D" "requisito nuevo
+
+Ref: F2"
+# Ramas con contratos revisados distintos: al fusionarlas no desaparece un criterio de ninguno de los dos.
+enc_crit() { printf '# Encuadre\n\n## Criterios de éxito\n\n%s\n## Set de oro\n\n- suma(1, 2) → 3\n' "$2" > "$1/docs/encuadre.md"; }
+CR1='- C1: la función suma devuelve a+b para enteros.
+'; CR2='- C2: la función resta devuelve a-b.
+'; CR3='- C3: la función multiplica devuelve a*b.
+'; CR4='- C4: la función divide devuelve a/b.
+'
+F_C2='| C2 | «resta» | I2 | pendiente | |'; F_C3='| C3 | «multiplica» | I3 | pendiente | |'; F_C4='| C4 | «divide» | I4 | pendiente | |'
+principal() { en "$1" git checkout -q master 2>/dev/null || en "$1" git checkout -q main; }
+contrato_f2() {  # contrato_f2 <dir> "<criterios>" "<filas>": reentrada Ref: F2 revisada (con hooks)
+  enc_crit "$1" "$2"; trazabilidad "$1" "$3" "" ""; fase "$1" F2 "I2 «resta»"; recibo "$1" revisor-funcional encuadre F2 PASA 0
+  commitea "$1" "contrato
+
+Ref: F2"; }
+ramas_contratos() {  # rama-a añade C2, rama-b añade C3, ambas desde el contrato con C1; deja rama-b activa
+  en "$1" git checkout -q -b rama-a && contrato_f2 "$1" "$CR1$CR2" "$C1_PEND
+$F_C2" || die "no pude preparar rama-a"
+  principal "$1"; en "$1" git checkout -q -b rama-b && contrato_f2 "$1" "$CR1$CR3" "$C1_PEND
+$F_C3" || die "no pude preparar rama-b"; }
+# fusiona_resuelve <dir> <rama> "<criterios>" "<filas>": merge con conflictos, resuelto así; recibos de ambos lados
+fusiona_resuelve() {
+  log_p=$(en "$1" git show HEAD:docs/revisiones.log); en "$1" git -c core.hooksPath=/dev/null merge -q --no-ff --no-commit "$2" >/dev/null 2>&1
+  { printf '%s\n' "$log_p"; en "$1" git show "$2:docs/revisiones.log" | grep -vxF "$log_p"; } > "$1/docs/revisiones.log"
+  enc_crit "$1" "$3"; trazabilidad "$1" "$4" "" ""; fase "$1" F2 "I2 «resta»"; recibo "$1" revisor-funcional encuadre F2 PASA 0; }
+copia f3 rm1; ramas_contratos "$D"; fusiona_resuelve "$D" rama-a "$CR1$CR2$CR3" "$C1_PEND
+$F_C2
+$F_C3"
+espera pasa "ramas: el merge que conserva C1, C2 y C3 de los dos contratos se acepta" "" -- commitea "$D" "integra rama-a
+
+Ref: F2"
+copia f3 rm2; ramas_contratos "$D"; fusiona_resuelve "$D" rama-a "$CR1$CR3" "$C1_PEND
+$F_C3"
+espera falla "ramas: el merge que pierde C2 (del contrato de la rama integrada) se rechaza" "C2 .*contrato revisado" -- commitea "$D" "integra rama-a sin C2
+
+Ref: F2"
+copia f3 rm3; ramas_contratos "$D"; fusiona_resuelve "$D" rama-a "$CR1$CR3" "$C1_PEND
+$F_C3"; en "$D" git add -A && en "$D" git -c core.hooksPath=/dev/null commit -q --no-verify -m "integra rama-a sin C2 (colado)
+
+Ref: F2" || die "no pude colar el merge"
+espera falla "ramas: el replay rechaza el merge colado que pierde C2" "C2 .*contrato revisado" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia f3 rm4; ramas_contratos "$D"; fusiona_resuelve "$D" rama-a "$CR1$CR2" "$C1_PEND
+$F_C2"
+espera falla "ramas: el merge que pierde C3 (del contrato del primer padre) se rechaza" "C3 .*contrato revisado" -- commitea "$D" "integra rama-a sin C3
+
+Ref: F2"
+# Un requisito retirado ANTES de esta regla (aquí, un Ref: F2 colado en la principal que quita C1) no se
+# vuelve a exigir al integrar una rama que se abrió antes de esa retirada.
+copia f3 rm5; en "$D" git checkout -q -b rama-a && contrato_f2 "$D" "$CR1$CR2" "$C1_PEND
+$F_C2" || die "no pude preparar rama-a en rm5"
+principal "$D"; enc_crit "$D" "$CR4"; trazabilidad "$D" "$F_C4" "" ""; fase "$D" F2 "I2 «resta»"
+sin_hooks "$D" "retira C1 antes de la regla (colado)
+
+Ref: F2"
+fusiona_resuelve "$D" rama-a "$CR2$CR4" "$F_C2
+$F_C4"
+espera pasa "ramas: un criterio retirado antes de la regla (C1) no se vuelve a exigir al integrar una rama antigua" "" -- commitea "$D" "integra rama-a
+
+Ref: F2"
+
+# Selección del contrato sin depender de fechas: una rama antigua con un Ref: F2 de fecha POSTERIOR,
+# integrada por un merge que no es Ref: F2, no pasa a ser «el último contrato» de la línea integrada.
+copia f3 rm6; en "$D" git checkout -q -b vieja; principal "$D"
+contrato_f2 "$D" "$CR1$CR2" "$C1_PEND
+$F_C2" || die "no pude preparar el contrato con C2 en la principal"
+en "$D" git checkout -q vieja; reescribe_c1 "$D"; fase "$D" F2 "I2 «resta»"; recibo "$D" revisor-funcional encuadre reentrada:C1 PASA 0
+en "$D" git add -A && GIT_COMMITTER_DATE="2030-01-01T00:00:00Z" GIT_AUTHOR_DATE="2030-01-01T00:00:00Z" en "$D" git -c core.hooksPath=.githooks commit -q -m "reentrada C1 en una rama vieja (fecha posterior)
+
+Ref: F2" || die "no pude preparar la rama vieja"
+principal "$D"; C1V=$(en "$D" git show vieja:docs/encuadre.md | grep '^- C1:')
+fusiona_resuelve "$D" vieja "$C1V
+$CR2" "$C1_PEND
+$F_C2"
+commitea "$D" "integra la rama vieja conservando C2 (sin nueva revisión)
+
+Ref: F1" || die "no pude integrar la rama vieja"
+sin_c2() { python3 -I - "$1/docs/encuadre.md" <<'EOF'
+import sys; p = sys.argv[1]; l = open(p).read().split("\n"); n = [x for x in l if not x.startswith("- C2:")]
+assert len(n) == len(l) - 1; open(p, "w").write("\n".join(n))
+EOF
+}
+sin_c2 "$D"; trazabilidad "$D" "$C1_PEND" "" ""
+espera falla "ramas: tras integrar una rama vieja con un Ref: F2 de fecha posterior, quitar C2 se rechaza (no se elige el contrato por fecha)" "C2 estaba en el último contrato revisado" -- commitea "$D" "quita C2
+
+Ref: F1"
+
+# Errores del cálculo de criterios exigidos: una lectura imposible o un calculador que falla rechazan el
+# commit con diagnóstico; nunca equivalen a «sin criterios exigidos».
+copia f3 ce1; printf -- '- C2: la función resta devuelve a-b.\n' >> "$D/docs/encuadre.md"; trazabilidad "$D" "$C1_PEND
+$F_C2" "" ""
+commitea "$D" "borrador con C2
+
+Ref: F1" || die "no pude preparar ce1"
+b=$(en "$D" git rev-parse HEAD~1:docs/encuadre.md); o="$D/.git/objects/$(printf '%s' "$b" | cut -c1-2)/$(printf '%s' "$b" | cut -c3-)"
+[ "$b" != "$(en "$D" git rev-parse HEAD:docs/encuadre.md)" ] && [ -f "$o" ] && rm -f "$o" || die "PREPARACIÓN: no pude retirar el encuadre del contrato en ce1"
+rm -rf "$W/ce1b"; cp -R "$D" "$W/ce1b"
+printf -- '- nota\n' >> "$D/docs/MEMORIA.md"
+espera falla "errores: si el encuadre del contrato revisado no se puede leer, el commit se rechaza con diagnóstico" "no pude calcular los criterios que exige el contrato revisado \(salida 2\).*git show" -- commitea "$D" "nota
+
+Ref: F1"
+printf -- '- nota\n' >> "$W/ce1b/docs/MEMORIA.md"; sin_hooks "$W/ce1b" "nota colada
+
+Ref: F1"
+espera falla "errores: el replay también rechaza ese commit con diagnóstico" "no pude calcular los criterios que exige el contrato revisado" -- en "$W/ce1b" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+# Un python3 de prueba que solo intercepta el calculador (lo reconoce por su código) y simula su fallo.
+REAL_PY=$(command -v python3); mkdir -p "$W/py-falla" "$W/py-parcial" "$W/py-forma"
+for m in falla parcial forma; do
+  printf '#!/bin/sh\ncase "$*" in *"class NoCalculable"*)\n  case %s in falla) echo "Traceback: fallo simulado" >&2; exit 1 ;; parcial) echo "C1 0123456789abcdef0123456789abcdef01234567"; exit 137 ;; forma) echo "C1"; exit 0 ;; esac ;;\nesac\nexec "%s" "$@"\n' "$m" "$REAL_PY" > "$W/py-$m/python3"; chmod +x "$W/py-$m/python3"
+done
+copia f3 ce2; printf -- '- nota\n' >> "$D/docs/MEMORIA.md"
+espera falla "errores: un calculador que termina con error rechaza el commit" "no pude calcular los criterios que exige el contrato revisado \(salida 1\)" -- env PATH="$W/py-falla:$PATH" sh -c 'cd "$1" && git add -A && git -c core.hooksPath=.githooks commit -q -m "nota
+
+Ref: F1"' _ "$D"
+copia f3 ce3; printf -- '- nota\n' >> "$D/docs/MEMORIA.md"
+espera falla "errores: una salida parcial seguida de un error no vale como resultado" "no pude calcular los criterios que exige el contrato revisado \(salida 137\)" -- env PATH="$W/py-parcial:$PATH" sh -c 'cd "$1" && git add -A && git -c core.hooksPath=.githooks commit -q -m "nota
+
+Ref: F1"' _ "$D"
+copia f3 ce4; printf -- '- nota\n' >> "$D/docs/MEMORIA.md"
+espera falla "errores: una salida sin la forma «C<n> sha» no vale aunque termine con 0" "no pude calcular los criterios que exige el contrato revisado \(salida 0\)" -- env PATH="$W/py-forma:$PATH" sh -c 'cd "$1" && git add -A && git -c core.hooksPath=.githooks commit -q -m "nota
+
+Ref: F1"' _ "$D"
+copia f3 ce5; printf -- '- nota\n' >> "$D/docs/MEMORIA.md"
+espera pasa "errores: control del envoltorio: sin interceptar, el mismo commit se acepta" "" -- commitea "$D" "nota
+
+Ref: F1"
+
+copia plantilla ch7; sin_c1 "$D"
+espera pasa "sin contrato anterior (antes del primer Ref: F2) no se exige ningún criterio: el borrador se edita libremente" "" -- commitea "$D" "borrador
+
+Ref: F1"
+
 echo "== Transiciones de trazabilidad: nada desaparece; resuelto|verificado con referencia que resuelve"
 copia f3 hd1; trazabilidad "$D" "$C1_PEND" "" '| R-I2.1 | «bug» | I2 | C1 | falta prueba | abierto | — |'; sin_hooks "$D" "hallazgo abierto"
 trazabilidad "$D" "$C1_PEND" "" ""; printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
@@ -1568,7 +1731,11 @@ echo "== Cierre: criterios, IDs, alcance funcional"
 copia cierre z1; printf '# Encuadre\n\n- Objetivo: sumar\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$D/docs/encuadre.md"
 trazabilidad "$D" "" "" '| R-I1.1 | «sin-prueba» | I1 | general | falta prueba | verificado | 2026-10-19 10:00 · app.py:1 |'
 recibo "$D" revisor-funcional encuadre F2 PASA 0
-commitea "$D" "encuadre sin criterios
+espera falla "quitar todos los criterios en una reentrada Ref: F2 se rechaza (criterios históricos)" "C1 estaba en el último contrato revisado" -- commitea "$D" "encuadre sin criterios
+
+Ref: F2"
+# Para probar la guarda del cierre, el estado sin criterios se cuela (preparación).
+sin_hooks "$D" "encuadre sin criterios (colado)
 
 Ref: F2" || die "no pude preparar el encuadre sin criterios"
 recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica

@@ -528,7 +528,7 @@ revertir) vive en docs/despliegue.md. -->
 - **Enlaza** cada commit en el footer con la gramática cerrada de la cabecera del
   `commit-msg`: `Ref: F1|F2|F4|F5`, `Ref: I<n>`, `Ref: hito:I<a>-I<b>`, `Cierra: R-<ID>` (familias
   de IDs: `docs/trazabilidad.md` §IDs). **Transiciones:** ningún hallazgo con fila o entrada del
-  Histórico en HEAD desaparece, y una fila que pasa a `resuelto` o `verificado` lleva en «Resuelto»
+  Histórico en HEAD desaparece, ningún `C<n>` del último `Ref: F2` desaparece del encuadre (`docs/arranque.md` §Reentrada), y una fila que pasa a `resuelto` o `verificado` lleva en «Resuelto»
   una referencia que **resuelve** (ruta `archivo:línea` del índice o commit del historial); que
   **demuestre** la resolución lo juzga el revisor. **El código del producto** —todo lo que no es
   rastro, plantilla ni configuración del repositorio: lista `SIN_REVISION` del `commit-msg`; la

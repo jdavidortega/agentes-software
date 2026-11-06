@@ -38,6 +38,10 @@ una sola pregunta:
   - **Ajuste** (edita un `C#` o un par del set de oro): ingiere solo el nuevo insumo,
     **edita** el dato en `encuadre.md`, ADR del cambio, y el **revisor funcional** revisa
     *solo lo afectado*.
+  - **Criterios históricos:** un `C#` del último contrato revisado (`Ref: F2`) no se borra ni se renumera, ni para
+    cerrar ni en una reentrada; se ajusta su texto y su estado real queda en su fila de trazabilidad. El `commit-msg`
+    lo comprueba en todo commit desde el primer `Ref: F2`. Retirar un requisito obsoleto aún **no tiene política
+    propia** (pendiente): hasta que la tenga, el criterio se conserva y su estado dice que no aplica o está pendiente.
   - **Requisito nuevo** (añade un `C#`/capacidad): ingiere el nuevo insumo, **añade** el
     `C#` (+ set de oro si aplica), suma ≥1 incremento al plan, revisor funcional sobre lo
     nuevo, gate. Sigue siendo una rebanada, no una re-ingesta de lo ya encuadrado.

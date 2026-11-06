@@ -286,7 +286,7 @@ solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo u
   contra el índice (casilla `[x]` y `docs/estado.md` en `Ref: I<n>`; fila para todo `Cierra:`) y
   exige el recibo vigente de cada transición. **El código del producto entra solo con
   `Ref: I<n>`** y su recibo. **Ata el trabajo al contrato revisado:** `Ref: I<n>|hito|F4|F5`
-  exigen los `C#` y el set de oro del último `Ref: F2`; ningún hallazgo desaparece; entrar a F5
+  exigen los `C#` y el set de oro del último `Ref: F2`; ningún hallazgo desaparece, ni un `C#` de ese contrato; entrar a F5
   exige `Ref: F5`, y `Ref: F4|F5` dispara el modo cierre de `check_docs`. Qué exige cada
   trailer: la cabecera del hook; resumen en `docs/convenciones.md` §Git.
 - **`pre-commit`** bloquea versionar un `.env`/secreto; **rechaza si hay cambios sin

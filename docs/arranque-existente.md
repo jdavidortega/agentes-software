@@ -91,7 +91,7 @@ se decide con la persona antes de seguir.
      declara verificado.
    **La elección de ruta vale solo en la primera adopción**, cuando aún no hay `C#` acordados. Con criterios ya acordados,
    el trabajo nuevo sigue la reentrada vigente (`AGENTS.md` §2): ningún `C#` se retira ni se
-   renumera para facilitar el cierre. Cerrar un ciclo con criterios históricos pendientes que no
+   renumera para facilitar el cierre (lo comprueba el `commit-msg`, `docs/arranque.md` §Reentrada). Cerrar un ciclo con criterios históricos pendientes que no
    aplican al trabajo actual no está resuelto en esta guía.
 
 ## Paso 0 · Adopción (instalar el método sin tocar el producto)

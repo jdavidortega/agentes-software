@@ -506,7 +506,7 @@ Esto rige en cada proyecto. Quien cambia la propia plantilla sigue §Desarrollo 
   revisado**: `Ref: I<n>|hito|F4|F5` exigen que los `- C<n>:` y el set de oro de
   `encuadre.md` sean los del último commit `Ref: F2` (en adoptados, posterior a la Base del
   método; una `reentrada:C<n>` solo puede haber cambiado ese criterio), ningún hallazgo con
-  fila en HEAD desaparece, `resuelto|verificado` llevan una referencia que resuelve (ruta del
+  fila en HEAD desaparece, ningún `C<n>` del último `Ref: F2` desaparece del encuadre (ni se renumera), `resuelto|verificado` llevan una referencia que resuelve (ruta del
   índice o commit) y `estado.md` no entra a F5 sin `Ref: F5`. Escape puntual: `git commit --no-verify`.
 - **`scripts/check_docs.sh`** a mano, al **inicio de cada sesión**: además de lo anterior
   verifica `core.hooksPath` y el bit ejecutable de los hooks (git ignora en silencio un

@@ -2062,6 +2062,216 @@ espera pasa "un merge que solo añade rastro (docs/) con su trailer se acepta" "
 
 Ref: F1"
 
+echo "== Replay anclado: juzgan los validadores del ancla, no los del checkout (docs/convenciones.md §Git)"
+# La orden de entrada se toma LITERAL de docs/convenciones.md (el bloque ```sh que nombra replay_anclado.sh), sin
+# sus tres líneas de asignación: así lo que se prueba es lo que la regla manda escribir.
+ENTRADA=$(awk '/^ *```sh$/ { b = ""; f = 1; next }
+  f && /^ *```$/ { if (b ~ /replay_anclado\.sh/) { printf "%s", b; exit } f = 0; next }
+  f { sub(/^      /, ""); b = b $0 "\n" }' "$RAIZ/docs/convenciones.md" | grep -vE '^(ancla|inicio|fin)=')
+printf '%s' "$ENTRADA" | grep -q 'cat-file blob "\${ancla}:scripts/pruebas/replay_anclado.sh"' || die "no encontré la orden de entrada del replay anclado en docs/convenciones.md"
+TA="$W/tmp-anclado"; TR="$W/trampas"; mkdir -p "$TA" "$TR"
+# anclado <dir> <ancla> <inicio> <fin> [shell] → ejecuta la orden de entrada en <dir> con esos valores
+anclado() { ( cd "$1" && TMPDIR="$TA" ancla="$2" inicio="$3" fin="$4" "${5:-sh}" -c "$ENTRADA" ); }
+sha() { en "$1" git rev-parse "$2"; }
+# anclado_t: la misma ejecución, con la salida en una línea (para patrones entre líneas) y su código de salida.
+anclado_t() { out=$(anclado "$@" 2>&1); rc=$?; printf '%s' "$out" | tr '\n' ' '; return $rc; }
+vacia() { [ -z "$(ls -A "$1")" ]; }
+
+copia f3 an1; A=$(sha "$D" HEAD~1)   # el commit del gate F2: el rango trae I1 (producto con recibo)
+printf '\n# adaptación local: comentario\n' >> "$D/scripts/check_docs.sh"; commitea "$D" "adaptación local del doctor
+
+Ref: F1" || die "no pude preparar la adaptación"
+espera pasa "válido: producto con recibo y una adaptación de check_docs, juzgados con el ancla" "resultado PASA" -- anclado "$D" "$A" "$A" HEAD
+espera pasa "válido: el informe da el final como SHA completo y lista el validador que el rango modifica" "final:  [0-9a-f]{40}.*modifica validadores.*scripts/check_docs.sh" -- anclado_t "$D" "$A" "$A" HEAD
+espera pasa "la orden no deja carpetas en su TMPDIR" "" -- vacia "$TA"
+
+copia f3 an2; A=$(sha "$D" HEAD)
+printf '#!/bin/sh\nexit 0\n' > "$D/.githooks/commit-msg"; printf 'x = 1\n' >> "$D/app.py"
+sin_hooks "$D" "commit-msg debilitado y código
+
+Ref: F1"
+espera falla "manipulado (sonda M10): commit-msg reducido a exit 0 junto con código → FALLA con el ancla" "fuera del rastro.*resultado FALLA" -- anclado_t "$D" "$A" "$A" HEAD
+espera pasa "límite conocido: el replay sin ancla juzga con el commit-msg debilitado del checkout" "1/1 commits cumplen" -- en "$D" sh scripts/pruebas/validar_historial.sh "$A..HEAD"
+if command -v zsh >/dev/null 2>&1; then
+  espera falla "la misma orden de entrada, en zsh, también FALLA (las llaves de \${ancla}: evitan el modificador :s)" "resultado FALLA" -- anclado "$D" "$A" "$A" HEAD zsh
+fi
+
+copia f3 an3; A=$(sha "$D" HEAD)
+printf '#!/bin/sh\n# contrato-set-de-oro: 1\nexit 0\n' > "$D/scripts/check_docs.sh"; sin_hooks "$D" "doctor debilitado
+
+Ref: F1"
+printf '#!/bin/sh\n# pruebas sin la suite vigilada\nexit 0\n' > "$D/scripts/check.sh"; sin_hooks "$D" "check.sh sin el bloque vigilado
+
+Ref: F1"
+espera falla "manipulado: el doctor debilitado en un commit ANTERIOR del rango no juzga el siguiente" "no EMPIEZA por el bloque.*" -- anclado "$D" "$A" "$A" HEAD
+espera pasa "límite conocido: sin ancla, el doctor debilitado del checkout lo deja pasar" "2/2 commits cumplen" -- en "$D" sh scripts/pruebas/validar_historial.sh "$A..HEAD"
+
+copia plantilla an4; A=$(sha "$D" HEAD)
+printf '#!/bin/sh\n# pruebas sin la suite vigilada\nexit 0\n' > "$D/scripts/check.sh"; printf '/scripts/check.sh export-ignore\n' >> "$D/.gitattributes"
+sin_hooks "$D" "check.sh sin bloque, oculto con export-ignore
+
+Ref: F1"
+espera falla "H2: export-ignore no oculta check.sh al replay anclado" "no EMPIEZA por el bloque" -- anclado "$D" "$A" "$A" HEAD
+espera falla "H2: tampoco al replay sin ancla (la materialización es por blobs en los dos modos)" "no EMPIEZA por el bloque" -- en "$D" sh scripts/pruebas/validar_historial.sh "$A..HEAD"
+
+copia f3 an5; A=$(sha "$D" HEAD)
+printf 'docs/convenciones.md text eol=crlf export-subst\ndocs/estado.md ident\n' >> "$D/.gitattributes"
+sin_hooks "$D" "atributos que transforman al extraer
+
+Ref: F1"
+espera pasa "fidelidad: eol=crlf, export-subst e ident no cambian el veredicto del replay anclado" "resultado PASA" -- anclado "$D" "$A" "$A" HEAD
+mkdir "$W/mat-an5"
+espera pasa "fidelidad: lo materializado tiene el id guardado (hash-object --no-filters)" "" -- sh -c 'cd "$1" && sh scripts/pruebas/validar_historial.sh --materializa HEAD "$2" && for f in docs/convenciones.md docs/estado.md; do [ "$(git hash-object --no-filters "$2/$f")" = "$(git rev-parse "HEAD:$f")" ] || exit 1; done' _ "$D" "$W/mat-an5"
+espera pasa "contraste: git archive sí transforma docs/convenciones.md (CR añadidos)" "" -- sh -c 'cd "$1" && n=$(git archive HEAD docs/convenciones.md | tar -xOf - | tr -dc "\r" | wc -c) && [ "$n" -gt 0 ]' _ "$D"
+
+# Materialización: enlaces, submódulos y nombres especiales (se conservan o se detiene; nada en silencio).
+copia plantilla an6
+ln -s estado.md "$D/docs/enlace.md"; printf 'x\n' > "$D/docs/con
+salto.md"; sin_hooks "$D" "enlace interno y nombre con salto de línea
+
+Ref: F1"
+en "$D" git update-index --add --cacheinfo "160000,$(sha "$D" HEAD),sub" && en "$D" git -c core.hooksPath=/dev/null commit -q --no-verify -m "submódulo
+
+Ref: F1" || die "no pude preparar el submódulo"
+mkdir "$W/mat-an6"
+espera pasa "materializa: enlace interno conservado, nombre con salto y submódulo como carpeta vacía avisada" "submódulo sub" -- sh -c 'cd "$1" && sh scripts/pruebas/validar_historial.sh --materializa HEAD "$2" && [ "$(readlink "$2/docs/enlace.md")" = estado.md ] && [ -f "$2/docs/con
+salto.md" ] && [ -d "$2/sub" ] && [ -z "$(ls -A "$2/sub")" ]' _ "$D" "$W/mat-an6"
+copia plantilla an7; ln -s ../../.. "$D/docs/fuera"; sin_hooks "$D" "enlace que sale
+
+Ref: F1"
+mkdir "$W/mat-an7"
+espera falla "materializa: un enlace que resuelve fuera de la carpeta detiene" "resuelve fuera" -- en "$D" sh scripts/pruebas/validar_historial.sh --materializa HEAD "$W/mat-an7"
+espera falla "replay: ese enlace es un FALLO con su motivo, no se omite" "resuelve fuera" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia plantilla an8; ln -s /etc/hosts "$D/docs/absoluto"; sin_hooks "$D" "enlace absoluto
+
+Ref: F1"
+mkdir "$W/mat-an8"
+espera falla "materializa: un enlace con destino absoluto detiene" "destino absoluto" -- en "$D" sh scripts/pruebas/validar_historial.sh --materializa HEAD "$W/mat-an8"
+copia plantilla an9
+b=$(printf '[core]\n\tfsmonitor = touch %s/fsmonitor\n' "$TR" | en "$D" git hash-object -w --stdin)
+t=$(printf '100644 blob %s\tconfig\n' "$b" | en "$D" git mktree)
+r=$( { en "$D" git ls-tree HEAD; printf '040000 tree %s\t.GIT\n' "$t"; } | en "$D" git mktree --missing)
+c=$(en "$D" git commit-tree "$r" -p HEAD -m "nombre .GIT
+
+Ref: F1"); en "$D" git update-ref HEAD "$c"
+mkdir "$W/mat-an9"
+espera falla "materializa: un componente .git (sin distinguir mayúsculas) detiene" "no materializable" -- en "$D" sh scripts/pruebas/validar_historial.sh --materializa HEAD "$W/mat-an9"
+espera pasa "materializa: nada se escribió en la carpeta ni se ejecutó el fsmonitor del árbol" "" -- sh -c '[ -z "$(ls -A "$1")" ] && ! ls -A "$2" | grep -q fsmonitor' _ "$W/mat-an9" "$TR"
+
+# Prueba de bloqueo: todas las copias del candidato de la lista cerrada son trampas; ninguna debe ejecutarse.
+trampa_sh() { printf '#!/bin/sh\n# contrato-recibos: 2\n# contrato-set-de-oro: 1\necho "$0" >> %s/disparos; exit 1\n' "$TR"; }
+trampa_py() { printf '# contrato-recibos: 2\nimport sys\nopen("%s/disparos", "a").write(sys.argv[0] + "\\n"); sys.exit(1)\n' "$TR"; }
+LISTA_T05="scripts/pruebas/replay_anclado.sh scripts/pruebas/validar_historial.sh .githooks/commit-msg scripts/guardas.sh scripts/check_docs.sh scripts/recibos.sh scripts/huella.sh scripts/trazabilidad.sh scripts/contrato.py scripts/fallos_previos.py scripts/suite.py"
+copia f3 an10; A=$(sha "$D" HEAD)
+for f in $LISTA_T05; do case "$f" in *.py) trampa_py > "$D/$f" ;; *) trampa_sh > "$D/$f" ;; esac; done
+sin_hooks "$D" "trampas en la lista cerrada
+
+Ref: F1"
+copia f3 an11; A2=$(sha "$D" HEAD)
+for f in $LISTA_T05; do printf '\n# comentario\n' >> "$D/$f"; done
+sin_hooks "$D" "copias íntegras con un comentario
+
+Ref: F1"
+espera pasa "prueba de bloqueo: con las copias íntegras, el veredicto es PASA" "resultado PASA" -- anclado "$W/an11" "$A2" "$A2" HEAD
+espera pasa "prueba de bloqueo: con trampas, el mismo veredicto" "resultado PASA" -- anclado "$W/an10" "$A" "$A" HEAD
+espera pasa "prueba de bloqueo: ninguna trampa del candidato se ejecutó" "" -- vacia "$TR"
+espera falla "control de la trampa: sin ancla, el replay sí las ejecuta" "" -- en "$W/an10" sh scripts/pruebas/validar_historial.sh "$A..HEAD"
+espera pasa "control de la trampa: quedó su registro de disparos" "" -- test -s "$TR/disparos"
+rm -f "$TR/disparos"
+
+# Anclas inválidas, historia reescrita, inicio posterior: sin veredicto y con su motivo.
+copia f3 an12; A=$(sha "$D" HEAD)
+espera falla "ancla abreviada" "Ancla inválida" -- anclado "$D" "$(en "$D" git rev-parse --short HEAD)" "$A" HEAD
+espera falla "ancla como referencia (HEAD)" "Ancla inválida" -- anclado "$D" HEAD "$A" HEAD
+espera falla "ancla que es un árbol, no un commit" "Ancla inválida" -- anclado "$D" "$(sha "$D" 'HEAD^{tree}')" "$A" HEAD
+printf -- '- nota\n' >> "$D/docs/MEMORIA.md"; commitea "$D" "nota
+
+Ref: F1" || die "no pude avanzar an12"
+espera falla "inicio posterior al ancla" "posterior al ancla" -- anclado "$D" "$A" "$(sha "$D" HEAD)" HEAD
+en "$D" git reset -q --hard HEAD~2; printf -- '- otra\n' >> "$D/docs/MEMORIA.md"; commitea "$D" "historia reescrita
+
+Ref: F1" || die "no pude reescribir an12"
+espera falla "historia reescrita: el ancla ya no es antecesora; se detiene con la base común y sin elegir otra" "no es antecesora.*Base común.*decide en un gate" -- anclado_t "$D" "$A" "$A" HEAD
+copia plantilla an13; rm "$D/scripts/pruebas/replay_anclado.sh"; sin_hooks "$D" "ancla anterior al replay anclado
+
+Ref: F1"
+X=$(sha "$D" HEAD); printf -- '- nota\n' >> "$D/docs/MEMORIA.md"; commitea "$D" "nota
+
+Ref: F1" || die "no pude avanzar an13"
+espera falla "ancla sin replay_anclado.sh (primera adopción o transición): se detiene y remite a «Primera ancla»" "no contiene scripts/pruebas/replay_anclado.sh.*Primera ancla" -- anclado "$D" "$X" "$X" HEAD
+copia plantilla an14; rm "$D/scripts/fallos_previos.py"; sin_hooks "$D" "ancla incompleta
+
+Ref: F1"
+X=$(sha "$D" HEAD); printf -- '- nota\n' >> "$D/docs/MEMORIA.md"; commitea "$D" "nota
+
+Ref: F1" || true
+espera falla "ancla incompleta: falta un validador de la lista" "está incompleta" -- anclado "$D" "$X" "$X" HEAD
+
+# Retirada de la protección en el candidato: no afecta al rango que se juzga.
+copia f3 an15; A=$(sha "$D" HEAD)
+rm "$D/scripts/pruebas/replay_anclado.sh"; printf '#!/bin/sh\nexit 0\n' > "$D/scripts/pruebas/validar_historial.sh"; printf '#!/bin/sh\nexit 0\n' > "$D/.githooks/commit-msg"; printf 'y = 2\n' >> "$D/app.py"
+sin_hooks "$D" "retira el replay anclado y cuela código
+
+Ref: F1"
+espera falla "retirada en el candidato: se juzga con el ancla y FALLA" "fuera del rastro" -- anclado "$D" "$A" "$A" HEAD
+
+# Actualización legítima del contrato: U trae la regla R; V la incumple.
+copia plantilla an16; A=$(sha "$D" HEAD)
+python3 - "$D/scripts/check_docs.sh" <<'EOF'
+import sys; p = sys.argv[1]; s = open(p).read()
+a = "MET=${METODO_DIR:-.}\n"; assert a in s
+open(p, "w").write(s.replace(a, a + '[ "$MODE" = commit ] && ! grep -q "Riesgos:" docs/estado.md 2>/dev/null && err "regla R: docs/estado.md no declara Riesgos:"\n', 1))
+EOF
+sin_hooks "$D" "U: regla R en el doctor
+
+Ref: F1"
+U=$(sha "$D" HEAD); printf -- '- nota\n' >> "$D/docs/MEMORIA.md"; sin_hooks "$D" "V: trabajo que incumple R
+
+Ref: F1"
+espera pasa "actualización: con el ancla anterior el rango pasa y el informe dice que R no se ejercitó" "scripts/check_docs.sh.*resultado PASA.*no acredita las reglas nuevas" -- anclado_t "$D" "$A" "$A" HEAD
+espera falla "actualización: con U como ancla, V se juzga con R y FALLA" "regla R" -- anclado "$D" "$U" "$U" HEAD
+mkdir "$W/r-sin" "$W/r-con"
+en "$D" sh scripts/pruebas/validar_historial.sh --materializa HEAD "$W/r-sin" >/dev/null 2>&1; cp -R "$W/r-sin/." "$W/r-con/"; printf -- '- Riesgos: ninguno\n' >> "$W/r-con/docs/estado.md"
+en "$D" git show "$U:scripts/check_docs.sh" > "$W/check_docs-U.sh"
+espera falla "prueba aparte de R: el doctor de U rechaza un árbol sin Riesgos:" "regla R" -- en "$W/r-sin" sh "$W/check_docs-U.sh"
+espera pasa "prueba aparte de R: el doctor de U acepta un árbol con Riesgos:" "" -- en "$W/r-con" sh "$W/check_docs-U.sh"
+
+# Informe: un validador modificado y después restaurado sigue apareciendo (no basta la diferencia entre extremos).
+copia f3 an20; A=$(sha "$D" HEAD)
+printf '\n# cambio temporal\n' >> "$D/scripts/check_docs.sh"; commitea "$D" "cambia el doctor
+
+Ref: F1" || die "no pude preparar an20"
+en "$D" git checkout -q "$A" -- scripts/check_docs.sh; commitea "$D" "lo restaura
+
+Ref: F1" || die "no pude restaurar en an20"
+espera pasa "informe: modificado y restaurado, los extremos no difieren" "" -- sh -c 'cd "$1" && [ -z "$(git diff --name-only "$2" HEAD -- scripts/check_docs.sh)" ]' _ "$D" "$A"
+espera pasa "informe: aun así lista el validador con los dos commits" "scripts/check_docs.sh \([0-9a-f]+ [0-9a-f]+\).*resultado PASA" -- anclado_t "$D" "$A" "$A" HEAD
+copia f3 an21; A=$(sha "$D" HEAD)
+en "$D" git checkout -q -b lateral
+printf '\n# cambio en la rama\n' >> "$D/scripts/guardas.sh"; commitea "$D" "rama: cambia las guardas
+
+Ref: F1" || die "no pude preparar la rama de an21"
+en "$D" git checkout -q "$A" -- scripts/guardas.sh; commitea "$D" "rama: las restaura
+
+Ref: F1" || die "no pude restaurar en la rama de an21"
+en "$D" git checkout -q master 2>/dev/null || en "$D" git checkout -q main
+printf -- '- nota\n' >> "$D/docs/MEMORIA.md"; commitea "$D" "principal: nota
+
+Ref: F1" || die "no pude avanzar la principal de an21"
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-edit lateral || die "no pude integrar la rama de an21"
+espera pasa "informe: el cambio y la restauración en una rama lateral integrada también aparecen" "scripts/guardas.sh \([0-9a-f]+ [0-9a-f]+\).*\(merge\).*resultado PASA" -- anclado_t "$D" "$A" "$A" HEAD
+
+# Controles positivos: historia completa F1→F2→I1 y merge limpio con rama.
+copia f3 an17
+R0=$(en "$D" git rev-list --max-parents=0 HEAD)
+espera pasa "positivo: el historial de la etapa F3 (F2 e I1 con recibos), anclado en su primer commit" "2/2 commits cumplen.*resultado PASA" -- anclado_t "$D" "$R0" "$R0" HEAD
+copia cierre an19; R0=$(en "$D" git rev-list --max-parents=0 HEAD)
+espera pasa "positivo: la etapa de cierre (Ref: F4 lanza check_docs cierre, el del ancla) anclada en su primer commit" "3/3 commits cumplen.*resultado PASA" -- anclado_t "$D" "$R0" "$R0" HEAD
+copia ramas an18; A=$(sha "$D" HEAD)
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-edit rama || die "no pude hacer el merge en an18"
+espera pasa "positivo: merge limpio con la rama del hito e I4, anclado en la principal" "ok .*\(merge\).*resultado PASA" -- anclado_t "$D" "$A" "$A" HEAD
+espera pasa "la orden de entrada no dejó carpetas en su TMPDIR" "" -- vacia "$TA"
+
 # --- Filtro preventivo de revisores (.claude/hooks/guarda-revisor.py): NO es frontera; se prueba
 #     que rechaza patrones evidentes, permite lecturas y respeta la modalidad «experimentos».
 echo "== filtro preventivo de revisores"

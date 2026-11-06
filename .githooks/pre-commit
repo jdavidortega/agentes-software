@@ -1,6 +1,8 @@
 #!/bin/sh
 # Hook de la plantilla. Guardas DURAS e independientes del lenguaje antes de cada commit.
 # Principio: lo que se verifica es lo que se versiona (el ÍNDICE), no el árbol de trabajo.
+# METODO_DIR es solo del replay anclado (validar_historial.sh --metodo): aquí no se hereda.
+unset METODO_DIR
 
 # En el PRIMER commit del proyecto HEAD aún no existe: se compara contra el árbol
 # vacío (patrón canónico) para que las guardas apliquen también ahí.

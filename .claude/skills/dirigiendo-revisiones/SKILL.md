@@ -201,7 +201,7 @@ Distinguir quién escribe no autoriza nada; que git ignore un destino, tampoco.
 | `sh scripts/check_docs.sh` | En cualquier fase, desde que existen `scripts/check.sh` y `scripts/suite.py` (también antes de F2), un `mktemp -d "$TMPDIR/check-docs-suite.XXXXXX"` con registro propio; se borra solo si `suite.py estado --abiertas` demuestra que quedó cerrado; si no puede demostrarlo, **se conserva** y lo dice. Su ejecución de prueba usa como `TMPDIR` una carpeta dentro de ese `mktemp`, así que su carpeta `suite-<id>-*` (con `salida.log`) queda dentro y se borra o se conserva con él; no queda nada suyo en el `TMPDIR` de quien lo llama |
 | `python3 scripts/suite.py estado` | Puede **crear** el directorio del registro si no existe; nada más |
 | `sh scripts/huella.sh …`, `sh scripts/recibos.sh linea …` | Nada (salida estándar) |
-| Suites de la plantilla, `validar_historial.sh`, `sabotear.py` | Solo en **experimentos**, con `TMPDIR="$D"` delante |
+| Suites de la plantilla, `validar_historial.sh`, la orden de entrada del replay anclado, `sabotear.py` | Solo en **experimentos**, con `TMPDIR="$D"` delante |
 
 La tabla no promete «no escribe» ni «se borra al cerrar» de forma incondicional: la conservación
 ante lo no comprobable es deliberada y se declara como efecto autorizado. Tras la revisión, el

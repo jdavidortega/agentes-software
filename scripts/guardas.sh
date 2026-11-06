@@ -143,10 +143,14 @@ done
 tiene_c contexto/exploracion/linea-base-pruebas.xml && fp=1
 tiene_c docs/fallos-previos.md && fp=1
 if [ "$fp" -eq 1 ]; then
-  if [ ! -f scripts/fallos_previos.py ]; then
-    fail "hay línea base o registro de fallos previos y falta scripts/fallos_previos.py, que los comprueba (viene con la plantilla)."
+  # Dos cosas distintas: el candidato conserva su lector (dato) y existe el que se ejecuta (el del
+  # repositorio en el hook; el del ancla, METODO_DIR, en el replay anclado).
+  if ! tiene_c scripts/fallos_previos.py; then
+    fail "hay línea base o registro de fallos previos y el candidato no conserva scripts/fallos_previos.py, que los comprueba (viene con la plantilla)."
+  elif [ ! -f "${METODO_DIR:-.}/scripts/fallos_previos.py" ]; then
+    fail "hay línea base o registro de fallos previos y no encuentro el scripts/fallos_previos.py que debe comprobarlos (${METODO_DIR:-.})."
   else
-    python3 -I scripts/fallos_previos.py guarda "$B" "$C" || fail "los fallos previos declarados no se sostienen (arriba): solo valen los de la línea base inicial de la adopción, que no cambia (docs/arranque-existente.md §G)."
+    python3 -I "${METODO_DIR:-.}/scripts/fallos_previos.py" guarda "$B" "$C" || fail "los fallos previos declarados no se sostienen (arriba): solo valen los de la línea base inicial de la adopción, que no cambia (docs/arranque-existente.md §G)."
   fi
 fi
 exit $FAIL

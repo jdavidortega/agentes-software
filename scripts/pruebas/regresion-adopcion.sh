@@ -798,6 +798,63 @@ espera pasa "... y como destino del fallo declarado" "" -- fp_destino "$NUEVA"
 espera falla "ADR retrospectivo como retirada: rechazado" "registro retrospectivo" -- fp_retirada "$RETRO"
 espera falla "ADR retrospectivo como destino: rechazado" "registro retrospectivo" -- fp_destino "$RETRO"
 
+echo "== replay anclado en un adoptado con fallos previos declarados (M01 con T05)"
+# La orden de entrada, literal de docs/convenciones.md (como en regresion.sh).
+ENTRADA=$(awk '/^ *```sh$/ { b = ""; f = 1; next }
+  f && /^ *```$/ { if (b ~ /replay_anclado\.sh/) { printf "%s", b; exit } f = 0; next }
+  f { sub(/^      /, ""); b = b $0 "\n" }' "$RAIZ/docs/convenciones.md" | grep -vE '^(ancla|inicio|fin)=')
+[ -n "$ENTRADA" ] || die "no encontré la orden de entrada del replay anclado en docs/convenciones.md"
+TA="$W/tmp-anclado"; mkdir -p "$TA"
+anclado_t() { out=$( cd "$1" && TMPDIR="$TA" ancla="$2" inicio="$3" fin="$4" sh -c "$ENTRADA" 2>&1 ); rc=$?; printf '%s' "$out" | tr '\n' ' '; return $rc; }
+# Proyecto con dos pruebas en rojo desde antes de adoptar; la instalación captura la línea base y es la primera ancla.
+X="$W/etapas/fp-anclado"; mkdir -p "$X/tests"; en "$X" git init -q
+printf '# Proyecto con pruebas\n' > "$X/README.md"; printf '__pycache__/\n' > "$X/.gitignore"; : > "$X/tests/__init__.py"
+printf 'def suma(a, b):\n    return a + b\n\ndef redondea(x):\n    return int(x)\n' > "$X/app.py"
+printf 'import unittest\nfrom app import suma, redondea\n\n\nclass T(unittest.TestCase):\n    def test_suma(self):\n        self.assertEqual(suma(1, 2), 3)\n\n    def test_redondeo(self):\n        self.assertEqual(redondea(2.6), 3)\n\n    def test_falla(self):\n        self.fail("roto desde antes")\n' > "$X/tests/test_app.py"
+sin_hooks "$X" "código y pruebas (dos rojas desde siempre)"
+PREVIO_FP=$(en "$X" git rev-parse HEAD)
+adoptar "$P" copiar "$X" >/dev/null || die "no pude instalar en fp-anclado"
+base_decl "$X" "- **Base del método:** $PREVIO_FP"; fase "$X" F1
+printf '#!/bin/sh\n%s\npython3 -I scripts/fallos_previos.py comprobar --adaptador unittest --inicio tests || exit $?\nexit 0\n' "$BLOQUE" > "$X/scripts/check.sh"
+en "$X" git config core.hooksPath .githooks
+en "$X" python3 -I scripts/fallos_previos.py capturar --adaptador unittest --inicio tests >/dev/null || die "no pude capturar la línea base de fp-anclado"
+commitea "$X" "Instalación del método (adopción) con fallos previos
+
+Ref: F1" || die "no pude commitear la instalación de fp-anclado"
+ANC_FP=$(en "$X" git rev-parse HEAD)
+printf '# AGENTS.md\n\nProyecto adoptado con fallos previos (regresión). Ver docs/.\n' > "$X/AGENTS.md"
+printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: suma devuelve a+b (comportamiento que se conserva).\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$X/docs/encuadre.md"
+printf '# Plan\n\n## Incrementos\n\n- [ ] I1 «caracteriza» — prueba de caracterización (satisface: C1)\n- [ ] I2 «redondeo» — corrige los fallos previos (satisface: C1)\n' > "$X/docs/plan.md"
+printf '# Decisiones\n\n(ninguna todavía)\n' > "$X/docs/decisiones.md"
+trazabilidad "$X" "$C1A" "" ""
+sed -i.bak 's/_pendiente: I<n> que la corrige o ADR_/I2/' "$X/docs/fallos-previos.md" && rm -f "$X/docs/fallos-previos.md.bak"
+grep -q 'Plazo de la suite' "$X/docs/convenciones.md" || printf -- '- **Plazo de la suite:** 60 s\n' >> "$X/docs/convenciones.md"
+fase "$X" F2; recibo "$X" revisor-funcional encuadre F2 PASA 0
+commitea "$X" "Plan de adopción
+
+Ref: F2" || die "no pude commitear el plan de fp-anclado"
+fase "$X" F3; printf '\ndef resta(a, b):\n    return a - b\n' >> "$X/app.py"; recibo "$X" juez-codigo incremento I1 PASA 0 seguridad=no-aplica
+commitea "$X" "I1
+
+Ref: I1" || die "no pude cerrar I1 en fp-anclado"
+espera pasa "fallos previos + replay anclado en la instalación (primera ancla): el plan e I1 pasan" "2/2 commits cumplen.*resultado PASA" -- anclado_t "$X" "$ANC_FP" "$ANC_FP" HEAD
+espera pasa "... sin presentar la suite como aprobada: check.sh lo dice y CHECK_ESTRICTO=1 termina en 2" "" -- sh -c 'cd "$1" && sh scripts/check.sh 2>&1 | grep -q "no es una suite aprobada" && { CHECK_ESTRICTO=1 sh scripts/check.sh >/dev/null 2>&1; [ $? -eq 2 ]; }' _ "$X"
+copia fp-anclado fpa1; printf '<!-- retoque -->\n' >> "$D/contexto/exploracion/linea-base-pruebas.xml"
+sin_hooks "$D" "línea base modificada
+
+Ref: F1"
+espera falla "fallos previos + replay anclado: modificar la línea base se rechaza" "fallos previos declarados no se sostienen.*resultado FALLA" -- anclado_t "$D" "$ANC_FP" "$ANC_FP" HEAD
+copia fp-anclado fpa2
+printf '# Plan\n\n## Incrementos\n\n- [x] I1 «caracteriza» — prueba de caracterización (satisface: C1)\n- [ ] I2 «redondeo» — corrige los fallos previos (satisface: C1)\n' > "$D/docs/plan.md"
+trazabilidad "$D" '| C1 | «arranca» | I1 | verificado | |' "" ""
+fase "$D" F4 "— «ninguno»"; recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+sin_hooks "$D" "validación con fallos previos pendientes
+
+Ref: F4"
+espera falla "fallos previos + replay anclado: el cierre (Ref: F4) no pasa mientras queden fallos declarados" "sigue declarada como fallo previo al cierre.*resultado FALLA" -- anclado_t "$D" "$ANC_FP" "$ANC_FP" HEAD
+espera falla "... y la causa es esa: los destinos al cierre rechazan los fallos que quedan" "" -- en "$D" python3 -I scripts/fallos_previos.py destinos --cierre
+espera pasa "la orden de entrada no dejó carpetas en su TMPDIR" "" -- sh -c '[ -z "$(ls -A "$1")" ]' _ "$TA"
+
 echo
 echo "regresion-adopcion: $((TOTAL-MAL))/$TOTAL casos en verde"
 if [ "$MAL" -gt 0 ]; then echo "FALLARON:$FALLIDOS"; exit 1; fi

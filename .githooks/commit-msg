@@ -53,18 +53,22 @@
 # lo que un --no-verify local se saltó. El argumento $1 se ignora en ese modo.
 msg_file="$1"
 FAIL=0
+# Auxiliares: en el hook local, los del repositorio; en el replay anclado (REV y METODO_DIR, que
+# fija scripts/pruebas/validar_historial.sh --metodo), los de esa carpeta. Nunca se heredan fuera de REV.
+[ -n "${REV:-}" ] || unset METODO_DIR
+MET=${METODO_DIR:-.}
 fail() { echo "✗ commit-msg: $1" >&2; FAIL=1; }
 if [ -n "${REV:-}" ]; then
   REV=$(git rev-parse --verify "$REV^{commit}" 2>/dev/null) || { fail "REV=$REV no es un commit"; exit 1; }
   msg_file=$(mktemp 2>/dev/null || mktemp -t msg); git log -1 --format=%B "$REV" > "$msg_file"
   BASE=$(git rev-parse --verify -q "$REV^" 2>/dev/null || git hash-object -t tree /dev/null)
   idx() { git show "$REV:$1" 2>/dev/null; }
-  HUELLA=$(sh scripts/huella.sh commit "$REV" 2>/dev/null)
+  HUELLA=$(sh "$MET/scripts/huella.sh" commit "$REV" 2>/dev/null)
   cambios=$(git -c core.quotePath=false diff --name-only --no-renames "$BASE" "$REV")
 else
   BASE=$(git rev-parse --verify -q HEAD 2>/dev/null || git hash-object -t tree /dev/null)
   idx() { git show ":$1" 2>/dev/null || cat "$1" 2>/dev/null; }
-  HUELLA=$(sh scripts/huella.sh indice 2>/dev/null)
+  HUELLA=$(sh "$MET/scripts/huella.sh" indice 2>/dev/null)
   cambios=$(git -c core.quotePath=false diff --cached --name-only --no-renames "$BASE")
 fi
 # ¿BASE es un commit (hay historial) o el árbol vacío?
@@ -139,7 +143,7 @@ trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
 #   (README, guías de contribución, conducta, seguridad, soporte y plantillas de issue y de PR en
 #   Markdown). Los demás workflows, acciones y archivos de .github/ son configuración operativa del
 #   producto (CI, despliegue, dependencias, propietarios, instrucciones de agentes).
-METODO='^(\.github/workflows/metodo\.yml|\.githooks/(commit-msg|pre-commit)|scripts/pruebas/(regresion|regresion-suite|regresion-adopcion|validar_historial)\.sh|scripts/(check_docs|adoptar|buscar|huella|recibos|trazabilidad|guardas)\.sh|scripts/(consumo|suite|contrato|fallos_previos)\.py)$'
+METODO='^(\.github/workflows/metodo\.yml|\.githooks/(commit-msg|pre-commit)|scripts/pruebas/(regresion|regresion-suite|regresion-adopcion|validar_historial|replay_anclado)\.sh|scripts/(check_docs|adoptar|buscar|huella|recibos|trazabilidad|guardas)\.sh|scripts/(consumo|suite|contrato|fallos_previos)\.py)$'
 SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents)/|^\.github/((README|CONTRIBUTING|CODE_OF_CONDUCT|SECURITY|SUPPORT|PULL_REQUEST_TEMPLATE|pull_request_template)\.md|(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE)/[^/]+\.md)$|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check\.sh)$|(^|/)\.env\.example$|'"$METODO"
 # Siempre producto aunque viva en una carpeta del rastro: CODEOWNERS decide quién aprueba y GitHub
 # lo lee de .github/, la raíz o docs/ (las dos primeras ya están fuera de SIN_REVISION).
@@ -166,9 +170,9 @@ idx docs/revisiones.log > "$LOGTMP"
 # ESE commit; en local nunca hay excepción, venga lo que venga en el entorno.
 PREVIO=""
 if [ -n "${REV:-}" ] && ! git show "$REV:scripts/recibos.sh" 2>/dev/null | grep -q 'contrato-recibos: 2'; then PREVIO=previo; fi
-sh scripts/recibos.sh validar "$LOGTMP" $PREVIO || fail "docs/revisiones.log tiene líneas inválidas (arriba): corrígelas; mientras tanto ningún recibo cuenta."
+sh "$MET/scripts/recibos.sh" validar "$LOGTMP" $PREVIO || fail "docs/revisiones.log tiene líneas inválidas (arriba): corrígelas; mientras tanto ningún recibo cuenta."
 campo() { printf '%s' "$1" | tr ' ' '\n' | sed -n "s/^$2=//p" | head -1; }
-ultimo_recibo() { sh scripts/recibos.sh ultimo "$1" "$2" "$3" "$LOGTMP" $PREVIO 2>/dev/null; }
+ultimo_recibo() { sh "$MET/scripts/recibos.sh" ultimo "$1" "$2" "$3" "$LOGTMP" $PREVIO 2>/dev/null; }
 exige_recibo() {  # $1 rol $2 tipo $3 alcance $4 descripción para el error → 0 si vigente
   rec=$(ultimo_recibo "$1" "$2" "$3")
   if [ -z "$rec" ]; then
@@ -194,8 +198,8 @@ exige_conjunto() {  # F4 y F5 exigen lo MISMO: conjunto PASA vigente + seguridad
 # Lectura de docs/trazabilidad.md con el lector ÚNICO (scripts/trazabilidad.sh, el mismo del
 # doctor): filas C/E/R por encabezado y columna, Histórico como Estado verificado|desconocido.
 # Incrementos del plan con el lector ÚNICO (`check_docs.sh plan`, la misma gramática del doctor).
-en_plan() { idx docs/plan.md | sh scripts/check_docs.sh plan - | awk -v i="$1" '$1=="I" && $2==i {f=1} END {exit f ? 0 : 1}'; }
-filas() { idx docs/trazabilidad.md | sh scripts/trazabilidad.sh - | awk '$1 ~ /^(C|E|R|H)$/ {print $2, $4}'; }
+en_plan() { idx docs/plan.md | sh "$MET/scripts/check_docs.sh" plan - | awk -v i="$1" '$1=="I" && $2==i {f=1} END {exit f ? 0 : 1}'; }
+filas() { idx docs/trazabilidad.md | sh "$MET/scripts/trazabilidad.sh" - | awk '$1 ~ /^(C|E|R|H)$/ {print $2, $4}'; }
 estado_fila() { filas | awk -v id="$1" '$1==id {print $2; exit}'; }
 abiertos() { filas | awk -v re="$1" '$1 ~ re && $2=="abierto" {print $1}' | tr '\n' ' '; }
 # ¿Hay en el historial (antes de este commit) un commit cuyo trailer sea exactamente $1?
@@ -212,7 +216,7 @@ cerrados_desde_hito() {
 }
 # Contrato revisado de <INDICE|commit> con el lector único (scripts/contrato.py, el mismo de check_docs):
 # registros C, ORO, REF (archivo referenciado y su blob) y ERR. Si no puede leer, el código no es 0.
-contrato() { python3 -I scripts/contrato.py objetos "$1"; }
+contrato() { python3 -I "$MET/scripts/contrato.py" objetos "$1"; }
 # El candidato declara su versión del contrato en SU scripts/check_docs.sh (la línea exacta
 # «# contrato-set-de-oro: 1»). Sin ella (un commit anterior a M03, en el replay) rige la comparación de
 # entonces, conservada tal cual; con ella, solo el lector, y un error de lectura FALLA (nunca vuelve a la
@@ -337,7 +341,7 @@ for line in $trailers; do
       # incrementos de su fila de Cobertura tienen commit) va en cubre=; excluye= es solo
       # para lo futuro.
       printf '%s\n' "$cu" | grep -qxE 'C[0-9]+' || fail "'$line': cubre= del recibo del hito no nombra ningún criterio; un hito revisa al menos un criterio construido ('ninguno' solo vale en excluye=)."
-      cov=$(idx docs/trazabilidad.md | sh scripts/trazabilidad.sh - | awk '$1=="C" {print $2, $3}')
+      cov=$(idx docs/trazabilidad.md | sh "$MET/scripts/trazabilidad.sh" - | awk '$1=="C" {print $2, $3}')
       for c in $(idx docs/encuadre.md | grep -oE '^- C[0-9]+:' | grep -oE 'C[0-9]+' | sort -u); do
         en_cu=0; en_ex=0
         printf '%s\n' "$cu" | grep -qx "$c" && en_cu=1
@@ -361,7 +365,7 @@ for line in $trailers; do
     ab=$(abiertos "^R-(I|S)${id#I}[.][0-9]+$")
     [ -z "$ab" ] || fail "'$line' con hallazgo(s) de $id en Estado abierto en docs/trazabilidad.md ($ab): resuélvelos (fila en resuelto, con su evidencia) antes de cerrar el incremento."
     # El avance queda a la vista en el mismo commit: la casilla del plan y el resumen vivo.
-    idx docs/plan.md | sh scripts/check_docs.sh plan - | awk -v i="$id" '$1=="I" && $2==i && $3=="hecho" {f=1} END {exit f ? 0 : 1}' \
+    idx docs/plan.md | sh "$MET/scripts/check_docs.sh" plan - | awk -v i="$id" '$1=="I" && $2==i && $3=="hecho" {f=1} END {exit f ? 0 : 1}' \
       || fail "'$line' pero $id sigue como '- [ ]' en docs/plan.md: márcalo '- [x] $id' antes de pedir la revisión final (plan.md entra en la huella: marcarlo después caduca el recibo)."
     printf '%s\n' "$cambios" | grep -qx 'docs/estado.md' \
       || fail "'$line' sin regenerar docs/estado.md: el cierre de cada incremento lo regenera (fase, próximo paso y pendiente) en este mismo commit."
@@ -408,8 +412,8 @@ if [ "$fase_cand" = "F5" ] && [ "$fase_prev" != "F5" ] && [ "$con_f5" -eq 0 ]; t
 fi
 # --- Transiciones de trazabilidad: nada desaparece; resuelto|verificado con referencia que resuelve --
 if [ "$HAY_HISTORIAL" -eq 1 ]; then
-  T_ANTES=$(git show "$BASE:docs/trazabilidad.md" 2>/dev/null | sh scripts/trazabilidad.sh -)
-  T_AHORA=$(idx docs/trazabilidad.md | sh scripts/trazabilidad.sh -)
+  T_ANTES=$(git show "$BASE:docs/trazabilidad.md" 2>/dev/null | sh "$MET/scripts/trazabilidad.sh" -)
+  T_AHORA=$(idx docs/trazabilidad.md | sh "$MET/scripts/trazabilidad.sh" -)
   ids_ahora=$(printf '%s\n' "$T_AHORA" | awk '$1 ~ /^(E|R|H)$/ {print $2}' | sort -u)
   for id in $(printf '%s\n' "$T_ANTES" | awk '$1 ~ /^(E|R|H)$/ {print $2}' | sort -u); do
     printf '%s\n' "$ids_ahora" | grep -qx "$id" || fail "el hallazgo $id tenía fila o entrada del Histórico en docs/trazabilidad.md (HEAD) y aquí desaparece: un hallazgo no se borra; se resuelve, se verifica y se compacta al Histórico."
@@ -433,8 +437,10 @@ if [ "$cierre" -eq 1 ] && [ "$FAIL" -eq 0 ]; then
   tmp=$(mktemp -d 2>/dev/null || mktemp -d -t commitmsg)
   trap 'rm -rf "$tmp" "$LOGTMP"' EXIT INT TERM
   prev=$(git show "$BASE:docs/estado.md" 2>/dev/null | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' | grep -oE 'F[1-5]' | head -1)
-  if [ -n "${REV:-}" ]; then git archive "$REV" | tar -x -C "$tmp"; else git checkout-index -a --prefix="$tmp/"; fi \
-    && ( cd "$tmp" && FASE_PREVIA="$prev" sh scripts/check_docs.sh cierre ) \
+  # En el replay, el árbol del commit se materializa desde sus blobs (validar_historial.sh --materializa:
+  # sin atributos que oculten o transformen); check_docs es el del commit o, anclado, el de METODO_DIR.
+  if [ -n "${REV:-}" ]; then sh "$MET/scripts/pruebas/validar_historial.sh" --materializa "$REV" "$tmp"; else git checkout-index -a --prefix="$tmp/"; fi \
+    && ( cd "$tmp" && env -u GIT_DIR FASE_PREVIA="$prev" sh "${METODO_DIR:+$METODO_DIR/}scripts/check_docs.sh" cierre ) \
     || fail "el trailer declara cierre de fase (Ref: F4|F5) pero check_docs.sh cierre no da PASA sobre lo que se commitea."
 fi
 [ "$FAIL" -eq 1 ] && exit 1

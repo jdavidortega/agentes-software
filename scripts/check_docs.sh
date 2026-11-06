@@ -25,6 +25,10 @@ MODE="${1:-commit}"
 FAIL=0
 err() { echo "  ✗ check_docs: $1" >&2; FAIL=1; }
 has() { [ -f "$1" ]; }
+# Auxiliares que se EJECUTAN (y la referencia del bloque de la suite): los del árbol actual o, en el
+# replay anclado, los de METODO_DIR (validar_historial.sh --metodo). Lo que se LEE como dato
+# (docs/, scripts/check.sh, la presencia de cada archivo, sus marcadores) es siempre del árbol actual.
+MET=${METODO_DIR:-.}
 # Del árbol validado (en el pre-commit, la exportación del índice; en el replay, el commit), nunca del entorno.
 M03=0; grep -qx '# contrato-set-de-oro: 1' scripts/check_docs.sh 2>/dev/null && M03=1
 
@@ -155,7 +159,7 @@ fi
 if [ "$INICIADO" -eq 1 ] && has docs/fallos-previos.md; then
   if ! has scripts/fallos_previos.py; then
     err "existe docs/fallos-previos.md y falta scripts/fallos_previos.py, su lector"
-  elif ! m=$(python3 -I scripts/fallos_previos.py destinos $([ "$MODE" = cierre ] && echo --cierre) 2>&1); then
+  elif ! m=$(python3 -I "$MET/scripts/fallos_previos.py" destinos $([ "$MODE" = cierre ] && echo --cierre) 2>&1); then
     FAIL=1; printf '%s\n' "${m:-no pude leer los destinos de docs/fallos-previos.md}" | sed 's/^/  ✗ check_docs: fallos previos: /' >&2
   fi
 fi
@@ -178,7 +182,7 @@ fi
 #     pueden cambiar en el mismo commit, ni impide que otro código del candidato se ejecute.
 INICIO_BLOQUE='# --- suite vigilada'
 FIN_BLOQUE='# --- fin suite vigilada ---'
-if has scripts/check.sh && has scripts/suite.py; then
+if has scripts/check.sh && [ -f "$MET/scripts/suite.py" ]; then
   grep -qE '^- \*\*Plazo de la suite:\*\* [0-9]+ s' docs/convenciones.md \
     || err "docs/convenciones.md no declara el plazo común de la suite («- **Plazo de la suite:** N s», §Comandos clave)"
   aisl=$(mktemp -d "${TMPDIR:-/tmp}/check-docs-suite.XXXXXX") && mkdir -p "$aisl/p/scripts" "$aisl/p/docs" \
@@ -207,7 +211,7 @@ if len(i) != 1 or len(f) != 1: sys.exit(print("duplicados"))
 if b"\n".join(l[i[0]:f[0] + 1]) != canonico: sys.exit(print("difiere"))
 with open(sys.argv[3], "wb") as o: o.write(b"#!/bin/sh\n" + canonico + b"\n" + b"echo \"vigilada:${SUITE_ID:-}\"\n")
 print("ok")
-' scripts/check.sh docs/convenciones.md "$aisl/p/scripts/check.sh" 2>&1)
+' scripts/check.sh "$MET/docs/convenciones.md" "$aisl/p/scripts/check.sh" 2>&1)
   case "$v" in
     ok) ;;
     sin-referencia) err "docs/convenciones.md no tiene UNA definición completa del bloque de la suite vigilada (un «${INICIO_BLOQUE}» y un «${FIN_BLOQUE}», §Comandos clave): sin referencia no ejecuto el de scripts/check.sh" ;;
@@ -221,7 +225,7 @@ print("ok")
   if [ "$v" != ok ]; then
     rm -rf "$aisl"
   else
-    cp scripts/suite.py "$aisl/p/scripts/suite.py" \
+    cp "$MET/scripts/suite.py" "$aisl/p/scripts/suite.py" \
       && printf -- '- **Plazo de la suite:** 30 s\n' > "$aisl/p/docs/convenciones.md" \
       || err "no pude preparar el proyecto temporal para probar el bloque de la suite vigilada"
     r=$(python3 -I -c '
@@ -272,8 +276,8 @@ fi
 
 # --- 0a'') Al inicio de sesión (dentro del repo): ejecuciones abiertas o carpetas propias que siguen
 #     conservadas se AVISAN (no fallan): son lo primero que se revisa antes de lanzar otra suite.
-if has scripts/suite.py && git rev-parse --git-dir >/dev/null 2>&1 && [ -d "$(git rev-parse --git-common-dir)/suite-runs" ]; then
-  if pend=$(python3 -I scripts/suite.py estado --abiertas 2>&1); then
+if [ -f "$MET/scripts/suite.py" ] && git rev-parse --git-dir >/dev/null 2>&1 && [ -d "$(git rev-parse --git-common-dir)/suite-runs" ]; then
+  if pend=$(python3 -I "$MET/scripts/suite.py" estado --abiertas 2>&1); then
     [ -z "$pend" ] || printf '⚠ check_docs: hay ejecuciones de la suite abiertas o carpetas propias conservadas (python3 scripts/suite.py estado):\n%s\n' "$pend" >&2
   else
     printf '⚠ check_docs: no pude leer el registro de la suite: %s\n' "$pend" >&2
@@ -296,8 +300,8 @@ fi
 
 # --- Trazabilidad: lector ÚNICO (scripts/trazabilidad.sh), el mismo del commit-msg y del replay.
 #     Produce "TIPO ID INCR ESTADO"; aquí se juzgan las filas, no se vuelven a leer.
-if has scripts/trazabilidad.sh; then
-  FILAS=$(sh scripts/trazabilidad.sh docs/trazabilidad.md)
+if [ -f "$MET/scripts/trazabilidad.sh" ]; then
+  FILAS=$(sh "$MET/scripts/trazabilidad.sh" docs/trazabilidad.md)
 else
   err "falta scripts/trazabilidad.sh (viene con la plantilla): sin él no se puede leer docs/trazabilidad.md"; FILAS=""
 fi
@@ -432,7 +436,7 @@ fi
 # del repositorio, FALLAN. Aquí se mira el directorio sobre el que corre (en el pre-commit, la exportación
 # del índice). La plantilla sin iniciar (F_) no se mira, ni un árbol sin el marcador (contrato previo).
 if [ "$M03" -eq 1 ] && has docs/encuadre.md && { [ "$FASE" = F1 ] || [ "$INICIADO" -eq 1 ]; }; then
-  if ORO_ERR=$(python3 -I scripts/contrato.py revisa docs/encuadre.md); then
+  if ORO_ERR=$(python3 -I "$MET/scripts/contrato.py" revisa docs/encuadre.md); then
     oro_n=$(printf '%s\n' "$ORO_ERR" | grep -c '^ERR	'); oro_k=1
     while [ "$oro_k" -le "$oro_n" ]; do err "$(printf '%s\n' "$ORO_ERR" | grep '^ERR	' | sed -n "${oro_k}p" | cut -f2-)"; oro_k=$((oro_k+1)); done
   else
@@ -708,8 +712,8 @@ fi
 
 # --- 7) Recibos de revisión: el parser ÚNICO (scripts/recibos.sh), el mismo del commit-msg --
 if has docs/revisiones.log; then
-  if has scripts/recibos.sh; then
-    sh scripts/recibos.sh validar docs/revisiones.log || err "docs/revisiones.log tiene recibos inválidos (arriba); el commit-msg no aceptará ninguno hasta corregirlos"
+  if [ -f "$MET/scripts/recibos.sh" ]; then
+    sh "$MET/scripts/recibos.sh" validar docs/revisiones.log || err "docs/revisiones.log tiene recibos inválidos (arriba); el commit-msg no aceptará ninguno hasta corregirlos"
   else
     err "falta scripts/recibos.sh (viene con la plantilla): sin él no se pueden validar los recibos"
   fi

@@ -42,7 +42,7 @@ Su referencia es el commit que contiene esta sección.
 
 | Cambio | Efecto | Qué hacer |
 |---|---|---|
-| Sección «Desarrollo de la plantilla» del README: cómo se verifica un cambio del método mismo. Solo para quien desarrolla la plantilla. | Sin acción | — |
+| Replay anclado: cada gate juzga el rango con los validadores del commit aprobado en el gate anterior (`scripts/pruebas/replay_anclado.sh`, `validar_historial.sh --metodo`); los validadores resuelven sus auxiliares desde esa carpeta. El replay materializa cada commit desde sus blobs: `.gitattributes` (`export-ignore`, `export-subst`, `eol`, `ident`) ya no oculta ni transforma lo que se juzga. | Instrumentación; Instrucciones | Traer los scripts y hooks (`adoptar.sh actualizar` o a mano) y la regla de `docs/convenciones.md` §Git. El primer gate con la versión nueva es la «Primera ancla»: compara los validadores con la entrega por blob, ejecuta el replay sin ancla y registra el ancla. Desde el siguiente, la «Verificación» registra ancla, rango, final y resultado. La CI no cambia. |
 
 ## Cambios desde el 2026-11-01
 
@@ -50,6 +50,7 @@ Lo anterior está en la historia de git.
 
 | Commit | Fecha | Cambio | Efecto | Qué hacer |
 |---|---|---|---|---|
+| `e09b610` | 2026-11-05 | Sección «Desarrollo de la plantilla» del README: cómo se verifica un cambio del método mismo. Solo para quien desarrolla la plantilla. | Sin acción | — |
 | `37a4c26` | 2026-11-05 | Identificación de la entrega: la receta del README captura el SHA una vez, extrae ese mismo commit y lo deja en `.git/plantilla-origen`; el Bootstrap lo declara en `docs/convenciones.md` §Git. La recuperación compara solo contra un origen registrado o demostrado. Este registro de cambios. | Instrucciones | Proyecto nuevo ya instalado: declarar la plantilla de origen solo si hay evidencia (p. ej. el SHA anotado al instalar); si no, `desconocida`. El doctor no lo exige: depende del procedimiento. |
 | `4b4eb81` | 2026-11-05 | Ejemplo completo de un ciclo (`ejemplo/`), solo en la plantilla. | Sin acción | — |
 | `33734d3` | 2026-11-05 | La casilla `[x]` del plan no es un PASA (plantilla de `docs/plan.md`); requisitos y entornos probados en el README. | Instrucciones | El significado de la casilla rige también en proyectos existentes; su `docs/plan.md` no se sustituye. |

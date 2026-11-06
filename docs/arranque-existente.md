@@ -277,7 +277,8 @@ una regresión posterior nunca, tampoco por reentrada F2.
   esa cita no acredita permiso, y no se registra una autorización que no existió. Es la evidencia del
   primer ítem del validador.
 - Commit con `Ref: F1`, sin tocar código del producto (el hook lo rechazaría). Comprueba
-  `sh scripts/pruebas/validar_historial.sh HEAD`: debe validar solo el commit de instalación.
+  `sh scripts/pruebas/validar_historial.sh HEAD`: debe validar solo el commit de instalación. Es el replay sin ancla:
+  todavía no hay un ancla aprobada, y este gate es la «Primera ancla» de `docs/convenciones.md` §Git.
 - Se trabaja según la estrategia de ramas del proyecto y el destino de integración acordado (paso
   A); si el remoto es compartido y no hay estrategia, trabaja en una rama y acuerda con la persona
   cuándo se integra.

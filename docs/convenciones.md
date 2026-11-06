@@ -374,13 +374,53 @@ revertir) vive en docs/despliegue.md. -->
   *replay* (`scripts/pruebas/validar_historial.sh`) vuelve a validar los commits ya hechos, y puede detectar esos
   incumplimientos cuando se ejecuta sobre el rango completo que corresponde. Esta regla exige ejecutarlo como procedimiento:
   no impide mecánicamente omitirlo ni autentica sus validadores.
-  - **Replay local en cada gate.** Desde el primer incremento, el resumen de cada gate de incremento, hito, F4 y F5 dice en
-    «Verificación» el resultado del replay, su rango y el commit evaluado (`HEAD` en ese momento). Un fallo bloquea el gate.
-    - El rango empieza en el commit que evaluó el replay del gate anterior (`<sha>..HEAD`), y así incluye todos los commits
-      nuevos, también los que entraron por ramas laterales.
-    - En el primer gate, o si ese commit ya no es ancestro de `HEAD`, el rango es `HEAD` entero. En un proyecto adoptado, el
-      script excluye por sí mismo lo anterior a la «Base del método».
-    - El rango no se elige para dejar fuera un commit que falla.
+  - **Replay anclado en cada gate.** Desde el primer incremento, cada gate de incremento, hito, F4 y F5 ejecuta el replay
+    anclado y dice en «Verificación»: ancla, rango, commit final evaluado (SHA completo) y resultado. FALLA o «sin veredicto»
+    bloquean el gate.
+    - **Ancla:** el commit final aprobado en el gate anterior, con el SHA completo que consta en su «Verificación». Sus
+      validadores juzgan el rango; los del checkout no, así que el candidato no puede debilitar las reglas que lo juzgan. No se
+      toma `origin/main` ni otra referencia en su lugar.
+    - **Rango:** `<ancla>..<final>`. El inicio puede ser anterior al ancla, nunca posterior. `HEAD` se resuelve a un SHA completo
+      al empezar. El rango no se elige para dejar fuera un commit que falla. En un proyecto adoptado, el script excluye por sí
+      mismo lo anterior a la «Base del método».
+    - **Orden de entrada.** Se escribe tal cual, sustituyendo el ancla. Hasta extraer el ancla solo intervienen `git` y la shell;
+      del checkout no se ejecuta nada:
+
+      ```sh
+      ancla=<SHA completo del commit aprobado en el gate anterior>
+      inicio=$ancla
+      fin=HEAD
+      if ! printf '%s\n' "$ancla" | grep -Eqx '[0-9a-f]{40}([0-9a-f]{24})?' || [ "$(git cat-file -t "$ancla" 2>/dev/null)" != commit ]; then
+        echo "Ancla inválida: debe ser el SHA completo de un commit aprobado en un gate." >&2; false
+      elif ! git cat-file -e "${ancla}:scripts/pruebas/replay_anclado.sh" 2>/dev/null; then
+        echo "El ancla no contiene scripts/pruebas/replay_anclado.sh: no uses la copia del candidato ni otra ancla; sigue «Primera ancla» (docs/convenciones.md §Git)." >&2; false
+      else
+        d=$(mktemp -d "${TMPDIR:-/tmp}/replay-anclado.XXXXXX") &&
+        git cat-file blob "${ancla}:scripts/pruebas/replay_anclado.sh" > "$d/entrada.sh" &&
+        sh "$d/entrada.sh" "$ancla" "$inicio" "$fin" "$d"
+      fi
+      ```
+
+      Las llaves de `${ancla}:` son necesarias: en zsh, `$ancla:s…` se leería como un modificador.
+    - **Validadores modificados en el rango.** El informe los lista. Pasar con el contrato del ancla no acredita las reglas
+      nuevas: su comportamiento se prueba aparte, con los casos de la regresión del método, y rigen desde que el gate que las
+      acepta deja su commit como ancla. Lo que dependa de ellas se juzga con esa ancla nueva.
+    - **Primera ancla.** Si el ancla no contiene `scripts/pruebas/replay_anclado.sh` (primera adopción o transición desde una
+      versión anterior del método), la orden se detiene y no se sustituye por otra ancla ni por la copia del candidato. En ese
+      gate:
+      1. los validadores se comparan por blob con los de la entrega de la plantilla de la que vienen (`git rev-parse
+         <commit>:<ruta>`), o la adaptación local se presenta con su diff;
+      2. se ejecuta el replay sin ancla (`sh scripts/pruebas/validar_historial.sh <rango>`), declarando que juzga con los
+         validadores del checkout;
+      3. se cita la evidencia de la plantilla para esa entrega.
+
+      Al aprobarse, su «Verificación» dice «Ancla de validación: `<sha>` (primera)».
+    - **Historia reescrita.** Si el ancla no es antecesora del final (force-push, rebase o una rama que no sale de ella), el
+      replay se detiene sin veredicto y da la base común solo como dato. No se elige otra ancla por cuenta propia: la persona
+      revisa el rango desde esa base y decide la nueva ancla en un gate.
+    - **Límites.** La raíz de confianza es el SHA aprobado, más `git`, la configuración local y el entorno de la máquina: no
+      protege frente a quien los controla. La CI (`metodo.yml`) sigue ejecutando el workflow y los validadores del checkout,
+      así que el replay anclado no da garantía remota.
   - **El replay no es la suite.** Valida el contrato de los commits (trailers, recibos, guardas, doctor por commit) y no corre las
     pruebas del producto, que se informan aparte (`check.sh`).
     - Con fallos previos **declarados y comprobados** según `docs/arranque-existente.md` §G, `check.sh` pasa, pero

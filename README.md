@@ -514,7 +514,9 @@ Esto rige en cada proyecto. Quien cambia la propia plantilla sigue §Desarrollo 
 - **`.editorconfig`** — estilo base (charset, espacios) que aplican los editores.
 
 Los hooks son locales y esquivables (`git commit --no-verify`). Por eso cada gate desde el
-primer incremento presenta el replay local (`validar_historial.sh`), y con un repositorio
+primer incremento presenta el replay **anclado**: juzga el rango con los validadores del commit aprobado en el gate anterior, no
+con los del checkout (`scripts/pruebas/replay_anclado.sh`; regla, orden de entrada y límites solo en `docs/convenciones.md` §Git,
+«Replay anclado en cada gate»). Con un repositorio
 compartido o un despliegue remoto `scripts/check.sh`, `scripts/check_docs.sh`,
 `scripts/pruebas/validar_historial.sh` y `scripts/pruebas/regresion.sh` se cablean también en
 CI, cuya ejecución se comprueba (regla principal: `docs/convenciones.md` §Git).
@@ -522,7 +524,7 @@ CI, cuya ejecución se comprueba (regla principal: `docs/convenciones.md` §Git)
 (`origin/main..HEAD` por defecto): trailers, recibos vigentes por huella, hito, código solo
 con `Ref: I<n>`, las mismas guardas de contenido del `pre-commit` (`scripts/guardas.sh`:
 secretos, append-only, registros y suite que no desaparecen) y `check_docs` sobre el árbol
-del commit. Un merge **limpio** (su árbol es exactamente la fusión automática de sus padres)
+del commit, materializado desde sus blobs (sus atributos no ocultan ni transforman archivos). Un merge **limpio** (su árbol es exactamente la fusión automática de sus padres)
 pasa sin trailer; uno que **añade contenido al fusionar** (resolución de conflictos, archivo
 nuevo) se valida como cualquier commit, local y remotamente. Es lo que hace que un
 `--no-verify` local falle en el remoto. («Doctor» es `scripts/check_docs.sh`, el validador
@@ -744,7 +746,8 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 │   │                        append-only citable como B-<n>; usado en la adopción)
 │   └── pruebas/
 │       ├── regresion.sh     regresión de los hooks y scripts (repos temporales; sin red)
-│       └── validar_historial.sh  el contrato de los hooks sobre cada commit de un rango (CI)
+│       ├── validar_historial.sh  el contrato de los hooks sobre cada commit de un rango (CI)
+│       └── replay_anclado.sh  el replay con los validadores de un ancla aprobada (convenciones §Git)
 ├── .githooks/           hooks versionados (commit-msg enlazado; pre-commit: secretos + checks)
 ├── .github/workflows/   metodo.yml: la CI mínima (doctor, contrato por commit, regresión, suite)
 ├── .editorconfig        estilo base agnóstico del lenguaje

@@ -418,7 +418,9 @@ def destinos(cierre):
         return 0
     dest = {}
     dec, _, e = tablas(texto, dest)
-    plan = subprocess.run(["sh", "scripts/check_docs.sh", "plan", "docs/plan.md"], capture_output=True, text=True)
+    # El lector del plan es el del método que juzga (METODO_DIR en el replay anclado), no el del árbol.
+    plan = subprocess.run(["sh", os.path.join(os.environ.get("METODO_DIR") or ".", "scripts/check_docs.sh"), "plan", "docs/plan.md"],
+                          capture_output=True, text=True)
     if plan.returncode != 0:
         e.append("no pude leer docs/plan.md con su parser (sh scripts/check_docs.sh plan)")
     incs = {c[1]: (c[2], c[3]) for c in (l.split() for l in plan.stdout.splitlines()) if len(c) >= 4 and c[0] == "I"}

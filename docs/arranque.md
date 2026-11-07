@@ -101,8 +101,8 @@ Antes de la Ingesta. Condición de salida binaria; si una condición dura falla,
 agente **se detiene** y pide resolverla.
 
 **Validador (PASA/FALLA):**
-- [ ] `git config core.hooksPath` devuelve `.githooks` y `.githooks/pre-commit` y
-  `.githooks/commit-msg` son **ejecutables** (git ignora en silencio un hook sin bit de
+- [ ] `git config core.hooksPath` devuelve `.githooks` y `.githooks/pre-commit`,
+  `.githooks/pre-merge-commit` y `.githooks/commit-msg` son **ejecutables** (git ignora en silencio un hook sin bit de
   ejecución); `sh scripts/check_docs.sh` da PASA — dura, siempre.
 - [ ] `.env*` está en `.gitignore` (excepto `.env.example`) — dura, siempre.
 - [ ] Existe la carpeta `scripts/` con `check_docs.sh` (viene con la plantilla; el

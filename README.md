@@ -478,6 +478,20 @@ Esto rige en cada proyecto. Quien cambia la propia plantilla sigue §Desarrollo 
   no versionado que necesite, como el entorno virtual, se declara en `docs/convenciones.md`), y
   rechaza que la suite cambie el contenido, el modo o la existencia de un archivo versionado. Los scripts se invocan con
   intérprete explícito: su ausencia es fallo, no aviso.
+- **`pre-merge-commit`** — git no ejecuta el `pre-commit` en un merge que termina solo (sin
+  conflictos): este hook lo ejecuta tal cual, sobre el índice que ya es el resultado de la fusión. Así
+  las guardas, `check_docs` y `check.sh` juzgan lo que el merge guarda, también cuando dos ramas pasan
+  por separado y fallan juntas. Si rechaza, el merge queda en curso: se corrige y se termina con `git
+  commit` (que ejecuta `pre-commit` y `commit-msg`, como un merge con conflictos) o se descarta con
+  `git merge --abort`. Lo exige el doctor cuando su `check_docs.sh` declara `# contrato-merges: 1`, así
+  que un commit anterior a esa entrega sigue siendo válido; `guardas.sh` impide retirar el marcador o el hook.
+  **Límites:** un fast-forward no crea commit y no ejecuta hooks; `--no-verify` los salta; y no limpia lo
+  que ya estuviera en la historia de una rama. Con git 2.50.1, un `cherry-pick` sin conflicto y un `rebase`
+  no ejecutaron `pre-commit`, `pre-merge-commit` ni `commit-msg`: los commits que crean no pasan por las
+  guardas, `check_docs`, `check.sh` ni el contrato de trailers del método. El replay del gate
+  (`validar_historial.sh`) comprueba después el contrato de cada commit (trailers, recibos, guardas de
+  contenido y `check_docs` sobre su árbol), pero **no ejecuta las pruebas del producto** sobre cada
+  resultado integrado: no equivale a este hook.
 - **Suite vigilada (`scripts/suite.py`)** — `scripts/check.sh` empieza por un bloque que lo
   corre siempre bajo `suite.py`: plazo común (`docs/convenciones.md`), una ejecución a la vez,
   registro en `<git common dir>/suite-runs` y el grupo de procesos terminado al vencer; lo que no
@@ -754,7 +768,7 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 │       ├── regresion.sh     regresión de los hooks y scripts (repos temporales; sin red)
 │       ├── validar_historial.sh  el contrato de los hooks sobre cada commit de un rango (CI)
 │       └── replay_anclado.sh  el replay con los validadores de un ancla aprobada (convenciones §Git)
-├── .githooks/           hooks versionados (commit-msg enlazado; pre-commit: secretos + checks)
+├── .githooks/           hooks versionados (commit-msg enlazado; pre-commit: secretos + checks; pre-merge-commit: el pre-commit en los merges)
 ├── .github/workflows/   metodo.yml: la CI mínima (doctor, contrato por commit, regresión, suite)
 ├── .editorconfig        estilo base agnóstico del lenguaje
 └── .gitignore

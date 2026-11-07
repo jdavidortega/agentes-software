@@ -363,7 +363,9 @@ revertir) vive en docs/despliegue.md. -->
   activos**: `git config core.hooksPath .githooks` (versionados en `.githooks/`;
   `commit-msg` exige el trailer de enlace —y que todo `Cierra:` nombre un hallazgo
   con fila en `docs/trazabilidad.md`—, `pre-commit` bloquea `.env`/secretos y corre
-  `scripts/check.sh` + `scripts/check_docs.sh`).
+  `scripts/check.sh` + `scripts/check_docs.sh`, y `pre-merge-commit` lo ejecuta en un merge que
+  termina solo). Un fast-forward no ejecuta hooks, y un `cherry-pick` o un `rebase` no ejecutan los del
+  método: el replay comprueba después el contrato de esos commits, pero no ejecuta `check.sh` sobre ellos.
 - **Sin `assume-unchanged` ni `skip-worktree`:** esos flags hacen que git dé por idéntico
   un archivo que cambió; la huella y los hooks se calcularían sobre contenido viejo. El
   `pre-commit`, `huella.sh` y el doctor los rechazan; si aparecen, `git update-index

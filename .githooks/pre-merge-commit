@@ -1,0 +1,13 @@
+#!/bin/sh
+# Hook de la plantilla. git NO ejecuta pre-commit en un merge que termina solo (sin conflictos ni
+# --no-commit): ejecuta este. Delega en el pre-commit, sin duplicar sus controles: el índice ya es el
+# resultado de la fusión y HEAD su primer padre, así que las guardas de contenido, el rastro
+# (check_docs) y la suite (check.sh) juzgan lo que el merge va a guardar. Si rechaza, git deja el
+# merge en curso: se corrige y se termina con `git commit` (que ejecuta pre-commit y commit-msg) o
+# se descarta con `git merge --abort`.
+# Límites: un fast-forward no crea commit y no ejecuta hooks; --no-verify los salta; no limpia lo que ya
+# estuviera en la historia de una rama. El replay del gate comprueba después el contrato de los commits,
+# pero no ejecuta check.sh sobre el resultado de cada merge: no sustituye a este hook.
+h="$(dirname "$0")/pre-commit"
+[ -f "$h" ] || { echo "✗ pre-merge-commit: no existe $h. Viene con la plantilla; sin él el merge no tiene guardas." >&2; exit 1; }
+exec sh "$h"

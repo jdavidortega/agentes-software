@@ -301,7 +301,8 @@ solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo u
   Fase 2**: ningún commit con el estilo roto o tests en rojo. La única excepción son los fallos
   previos declarados de una adopción (`docs/arranque-existente.md` §G): un fallo nuevo, una ejecución
   incompleta o sin comparador y el cierre con fallos vivos siguen bloqueando. Ambos scripts se
-  invocan con intérprete explícito; su ausencia es fallo.
+  invocan con intérprete explícito; su ausencia es fallo. En un merge que termina solo lo
+  ejecuta **`pre-merge-commit`**.
 - **Al inicio de cada sesión** el agente corre `sh scripts/check_docs.sh`: con ello
   verifica también que los hooks están activos (`core.hooksPath`) y son ejecutables.
 

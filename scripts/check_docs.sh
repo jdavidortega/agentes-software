@@ -20,6 +20,10 @@
 # (scripts/contrato.py y §1a) rige para el árbol cuyo PROPIO scripts/check_docs.sh la lleva: un commit
 # anterior se valida con sus reglas, y una vez instalada guardas.sh (regla 8) impide retirarla.
 # contrato-set-de-oro: 1
+# Versión del contrato de los merges: con esta línea, el árbol trae .githooks/pre-merge-commit (el pre-commit en un
+# merge que termina solo). Rige igual que la de arriba: un commit anterior a la entrega que la añadió se valida sin
+# ella, y una vez instalada guardas.sh (regla 8b) impide retirarla o borrar el hook.
+# contrato-merges: 1
 
 MODE="${1:-commit}"
 FAIL=0
@@ -31,6 +35,7 @@ has() { [ -f "$1" ]; }
 MET=${METODO_DIR:-.}
 # Del árbol validado (en el pre-commit, la exportación del índice; en el replay, el commit), nunca del entorno.
 M03=0; grep -qx '# contrato-set-de-oro: 1' scripts/check_docs.sh 2>/dev/null && M03=1
+MERGES=0; grep -qx '# contrato-merges: 1' scripts/check_docs.sh 2>/dev/null && MERGES=1
 
 # --- Última fase legible del HISTORIAL --------------------------------------------------------
 # Un commit que borra o estropea la fase no puede devolver el proyecto a «plantilla»: lo que
@@ -141,6 +146,7 @@ for f in AGENTS.md README.md contexto/README.md docs/estado.md docs/encuadre.md 
   has "$f" || err "falta $f (viene con la plantilla y el método lo necesita: los cuatro roles, sus rúbricas, el procedimiento del principal, los registros y los hooks)"
 done
 # Con el marcador, el lector es obligatorio: una instalación parcial FALLA (nunca vuelve a las reglas previas).
+[ "$MERGES" -eq 0 ] || has .githooks/pre-merge-commit || err "falta .githooks/pre-merge-commit: scripts/check_docs.sh declara «# contrato-merges: 1» y sin el hook un merge que termina solo no pasa por el pre-commit (instalación parcial; se instala con adoptar.sh copiar o desde la plantilla)"
 [ "$M03" -eq 0 ] || has scripts/contrato.py || err "falta scripts/contrato.py: scripts/check_docs.sh declara «contrato-set-de-oro: 1» y sin el lector no hay contrato (instalación parcial; se instala con adoptar.sh actualizar o desde la plantilla)"
 # Adaptador Codex (si se usa): los mismos cuatro roles.
 if [ -d .codex/agents ]; then
@@ -291,7 +297,9 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
     || err "core.hooksPath no es .githooks: los hooks de la plantilla no están activos (git config core.hooksPath .githooks)"
   flags=$(git ls-files -v | grep -E '^[a-z]|^S' || true)
   [ -z "$flags" ] || err "hay archivos con assume-unchanged/skip-worktree ($(printf '%s' "$flags" | head -1 | cut -c3-)…): ocultan cambios a la huella y a los hooks; quítalos"
-  for h in .githooks/pre-commit .githooks/commit-msg; do
+  hooks=".githooks/pre-commit .githooks/commit-msg"
+  { [ "$MERGES" -eq 1 ] || has .githooks/pre-merge-commit; } && hooks="$hooks .githooks/pre-merge-commit"
+  for h in $hooks; do
     [ -x "$h" ] || err "$h no es ejecutable: git lo IGNORA en silencio (chmod +x $h && git update-index --chmod=+x $h)"
     git ls-files -s "$h" 2>/dev/null | grep -q '^100755' \
       || err "$h está versionado sin bit ejecutable (git update-index --chmod=+x $h): un clon nuevo lo recibiría ignorado"

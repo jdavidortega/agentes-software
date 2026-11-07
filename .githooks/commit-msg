@@ -136,14 +136,14 @@ trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
 # Rutas que un commit puede tocar SIN `Ref: I<n>`: el rastro documental, las entradas, las
 # notas locales, la instrumentación del método y la configuración del repositorio. Ampliarla es
 # una decisión (ADR), no un atajo. Una carpeta que mezcla método y producto no se exime entera:
-# - METODO: la instrumentación del método, archivo por archivo. De .githooks/ solo sus dos hooks;
+# - METODO: la instrumentación del método, archivo por archivo. De .githooks/ solo sus tres hooks;
 #   un hook propio del proyecto (pre-push, hooks previos integrados) es código y entra con Ref: I<n>.
 #   De scripts/pruebas/, solo las regresiones y el validador; las pruebas propias son producto.
 # - .github/: además de metodo.yml, solo los documentos puramente informativos, nombrados uno a uno
 #   (README, guías de contribución, conducta, seguridad, soporte y plantillas de issue y de PR en
 #   Markdown). Los demás workflows, acciones y archivos de .github/ son configuración operativa del
 #   producto (CI, despliegue, dependencias, propietarios, instrucciones de agentes).
-METODO='^(\.github/workflows/metodo\.yml|\.githooks/(commit-msg|pre-commit)|scripts/pruebas/(regresion|regresion-suite|regresion-adopcion|validar_historial|replay_anclado)\.sh|scripts/(check_docs|adoptar|buscar|huella|recibos|trazabilidad|guardas)\.sh|scripts/(consumo|suite|contrato|fallos_previos)\.py)$'
+METODO='^(\.github/workflows/metodo\.yml|\.githooks/(commit-msg|pre-commit|pre-merge-commit)|scripts/pruebas/(regresion|regresion-suite|regresion-adopcion|validar_historial|replay_anclado)\.sh|scripts/(check_docs|adoptar|buscar|huella|recibos|trazabilidad|guardas)\.sh|scripts/(consumo|suite|contrato|fallos_previos)\.py)$'
 SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents)/|^\.github/((README|CONTRIBUTING|CODE_OF_CONDUCT|SECURITY|SUPPORT|PULL_REQUEST_TEMPLATE|pull_request_template)\.md|(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE)/[^/]+\.md)$|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check\.sh)$|(^|/)\.env\.example$|'"$METODO"
 # Siempre producto aunque viva en una carpeta del rastro: CODEOWNERS decide quién aprueba y GitHub
 # lo lee de .github/, la raíz o docs/ (las dos primeras ya están fuera de SIN_REVISION).

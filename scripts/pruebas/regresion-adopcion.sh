@@ -169,7 +169,7 @@ espera pasa "copiar: crea el manifiesto" "Manifiesto creado" -- adoptar "$P" cop
 espera pasa "copiar: README del proyecto idéntico byte a byte" "" -- cmp "$W/readme.orig" "$D/README.md"
 espera pasa "copiar: runbook propio idéntico byte a byte" "" -- cmp "$W/runbook.orig" "$D/docs/despliegue.md"
 espera pasa "copiar: adoptar.sh y su regresión no se distribuyen" "" -- sh -c "[ ! -e '$D/scripts/adoptar.sh' ] && [ ! -e '$D/scripts/pruebas/regresion-adopcion.sh' ]"
-espera pasa "copiar: los hooks quedan ejecutables" "" -- sh -c "[ -x '$D/.githooks/pre-commit' ] && [ -x '$D/.githooks/commit-msg' ]"
+espera pasa "copiar: los hooks quedan ejecutables" "" -- sh -c "[ -x '$D/.githooks/pre-commit' ] && [ -x '$D/.githooks/pre-merge-commit' ] && [ -x '$D/.githooks/commit-msg' ]"
 espera pasa "copiar: el lector del contrato (scripts/contrato.py) se distribuye idéntico" "" -- cmp "$P/scripts/contrato.py" "$D/scripts/contrato.py"
 espera pasa "copiar: manifiesto registra hash por archivo y la colisión" "" -- sh -c "grep -qE '^- AGENTS\.md · [0-9a-f]{40}$' '$D/contexto/adopcion.md' && grep -qx -- '- docs/despliegue.md' '$D/contexto/adopcion.md'"
 huella_arbol "$D" > "$W/h1"; cp "$D/contexto/adopcion.md" "$W/m1"
@@ -228,6 +228,19 @@ espera pasa "copiar tras la instalación: el manifiesto inicial no cambia" "" --
 espera pasa "copiar tras la instalación: el archivo añadido figura como instalado sin cambios" "Instalado sin cambios" -- sh -c "sh '$P4/scripts/adoptar.sh' vista-previa '$D' | awk '/^-- /{s=\$0} /scripts\/nuevo\.sh/{print s}'"
 adoptar "$P4" copiar "$D" >/dev/null
 espera pasa "copiar repetido: no duplica la adición" "" -- sh -c "[ \"\$(grep -c 'scripts/nuevo.sh' '$D/contexto/adopcion-actualizaciones.md')\" -eq 1 ]"
+echo "== adoptar.sh: un hook nuevo del método llega a un proyecto ya adoptado (pre-merge-commit)"
+# La entrega anterior: sin el hook y con el doctor que no lo exigía. actualizar trae el doctor nuevo, que señala la
+# instalación parcial; copiar añade el hook (ejecutable, registrado en el log) y el doctor deja de señalarlo.
+cp -R "$P" "$W/plantilla5"; P5="$W/plantilla5"; en "$P5" git rm -q .githooks/pre-merge-commit
+sed '/^# contrato-merges: 1$/d' "$P5/scripts/check_docs.sh" > "$W/cd5" && cat "$W/cd5" > "$P5/scripts/check_docs.sh"
+grep -qx '# contrato-merges: 1' "$P5/scripts/check_docs.sh" && die "no pude preparar la entrega anterior"
+sin_hooks "$P5" "entrega anterior: sin pre-merge-commit" || die "no pude versionar la entrega anterior"
+copia existente c15; adoptar "$P5" copiar "$D" >/dev/null; sin_hooks "$D" "instala el método (entrega anterior)" || die "c15"
+adoptar "$P" actualizar "$D" "trae el doctor nuevo" >/dev/null; sin_hooks "$D" "actualiza" || die "c15 actualizar"
+espera falla "hook nuevo: con el doctor nuevo y sin el hook, el doctor señala la instalación parcial" "falta \.githooks/pre-merge-commit" -- en "$D" sh scripts/check_docs.sh
+espera pasa "hook nuevo: copiar lo añade ejecutable y lo registra en el log" "" -- sh -c "sh '$P/scripts/adoptar.sh' copiar '$D' >/dev/null && [ -x '$D/.githooks/pre-merge-commit' ] && grep -qE '^- \.githooks/pre-merge-commit · \(ausente\) → [0-9a-f]{40} · plantilla ' '$D/contexto/adopcion-actualizaciones.md'"
+sin_hooks "$D" "añade el hook" || die "c15 copiar"
+espera pasa "hook nuevo: versionado con bit ejecutable y el doctor ya no lo señala" "" -- sh -c "cd '$D' && git ls-files -s .githooks/pre-merge-commit | grep -q '^100755' && ! sh scripts/check_docs.sh 2>&1 | grep -q 'pre-merge-commit'"
 echo "== adoptar.sh: bloqueos (enlaces simbólicos y rutas ignoradas)"
 copia existente c4; mkdir -p "$W/fuera"; mv "$D/docs" "$W/fuera/docs"; ln -s "$W/fuera/docs" "$D/docs"; sin_hooks "$D" "docs enlazado"
 espera falla "enlace simbólico en docs/: la inspección bloquea" "enlace simbólico" -- adoptar "$P" inspeccionar "$D"

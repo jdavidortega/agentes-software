@@ -157,7 +157,7 @@ rm -rf "$B/mejoras"
 en "$B" git init -q && en "$B" git config core.hooksPath .githooks
 chmod +x "$B"/.githooks/* "$B"/scripts/*.sh "$B"/scripts/pruebas/*.sh 2>/dev/null
 en "$B" git add -A >/dev/null
-for x in .githooks/pre-commit .githooks/commit-msg scripts/check_docs.sh scripts/huella.sh scripts/recibos.sh scripts/trazabilidad.sh scripts/guardas.sh; do
+for x in .githooks/pre-commit .githooks/pre-merge-commit .githooks/commit-msg scripts/check_docs.sh scripts/huella.sh scripts/recibos.sh scripts/trazabilidad.sh scripts/guardas.sh; do
   en "$B" git update-index --chmod=+x "$x"
 done
 echo "== etapa: plantilla recién copiada ($([ "$PRISTINA" -eq 1 ] && echo 'documentos de la plantilla' || echo 'documentos sintéticos'))"
@@ -862,7 +862,7 @@ espera pasa "un enlace versionado sin cambios no se rechaza" "" -- nota_f1 "$D" 
 N="$W/primer"; rm -rf "$N"; mkdir -p "$N"; ( cd "$W/etapas/plantilla" && tar cf - --exclude ./.git . ) | ( cd "$N" && tar xf - )
 printf '#!/bin/sh\n%s\ngit ls-files --error-unmatch README.md >/dev/null && [ -z "$(git status --porcelain --untracked-files=no)" ]\n' "$BLOQUE" > "$N/scripts/check.sh"
 en "$N" git init -q; en "$N" git config core.hooksPath .githooks; chmod +x "$N"/.githooks/*; en "$N" git add -A
-for x in .githooks/pre-commit .githooks/commit-msg; do en "$N" git update-index --chmod=+x "$x"; done
+for x in .githooks/pre-commit .githooks/pre-merge-commit .githooks/commit-msg; do en "$N" git update-index --chmod=+x "$x"; done
 espera pasa "primer commit del repositorio (sin HEAD): la suite corre en la instantánea" "" -- commitea "$N" "Encuadre inicial
 
 Ref: F1"
@@ -1301,7 +1301,7 @@ copia f3 b24; printf '* @equipo\n' > "$D/CODEOWNERS"
 espera falla "CODEOWNERS en la raíz con Ref: F1 se rechaza" "CODEOWNERS" -- commitea "$D" "propietarios
 
 Ref: F1"
-# .githooks/: solo los dos hooks del método; un hook propio del proyecto es código.
+# .githooks/: solo los tres hooks del método; un hook propio del proyecto es código.
 copia f3 b25; printf '#!/bin/sh\nexit 0\n' > "$D/.githooks/pre-push"; chmod +x "$D/.githooks/pre-push"
 espera falla "hook propio (.githooks/pre-push) con Ref: F1 se rechaza" "pre-push" -- commitea "$D" "hook propio
 
@@ -2229,6 +2229,92 @@ espera pasa "un merge que solo añade rastro (docs/) con su trailer se acepta" "
 
 Ref: F1"
 
+echo "== Merges automáticos: el pre-commit también corre en ellos (pre-merge-commit)"
+# git no ejecuta pre-commit en un merge que termina solo; pre-merge-commit delega en él. Un rechazo deja el
+# merge en curso (MERGE_HEAD) sin mover HEAD. corridas: ejecuciones de la suite en el registro del repositorio.
+corridas() { find "$1/.git/suite-runs" -name '*.json' 2>/dev/null | wc -l | tr -d ' '; }
+en_curso() { en "$1" git rev-parse -q --verify MERGE_HEAD >/dev/null && [ "$(en "$1" git rev-parse HEAD)" = "$2" ]; }
+fusiona() { en "$1" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit "$2"; }
+rama_con_env() {  # rama_con_env <dir> <rama nueva o existente>: un .env colado en esa rama; vuelve a la principal
+  pr=$(en "$1" git branch --show-current); en "$1" git checkout -q "$2" 2>/dev/null || en "$1" git checkout -q -b "$2"
+  printf 'SECRETO=x\n' > "$1/.env"; en "$1" git add -f .env; sin_hooks "$1" "cuela un .env en la rama
+
+Ref: F1" || die "no pude colar el .env en $2"; en "$1" git checkout -q "$pr"
+}
+copia ramas pm1; N0=$(corridas "$D")
+espera pasa "merge automático correcto se acepta" "" -- fusiona "$D" rama
+espera pasa "... y la suite corrió una vez sobre su resultado" "" -- sh -c "[ \"\$(find '$D/.git/suite-runs' -name '*.json' | wc -l)\" -eq $((N0+1)) ]"
+copia ramas pm2; rama_con_env "$D" rama; H0=$(en "$D" git rev-parse HEAD)
+espera falla "merge automático que trae un .env (colado en la rama) se rechaza por las guardas" "guardas: intenta versionar un \.env" -- fusiona "$D" rama
+espera pasa "... HEAD no avanza y el merge queda en curso (corregir y git commit, o git merge --abort)" "" -- en_curso "$D" "$H0"
+copia ramas pm3; en "$D" git checkout -q rama; printf -- '- [ ] I2 «resta-bis» — duplicado (satisface: C1)\n' >> "$D/docs/plan.md"; sin_hooks "$D" "plan roto en la rama
+
+Ref: F1" || die "pm3"; en "$D" git checkout -q -; H0=$(en "$D" git rev-parse HEAD)
+espera falla "merge automático que trae un rastro inválido (I2 duplicado en el plan) se rechaza por check_docs" "I2 está definido más de una vez" -- fusiona "$D" rama
+espera pasa "... y queda en curso" "" -- en_curso "$D" "$H0"
+copia ramas pm4; en "$D" git checkout -q rama; printf 'assert suma(2, 2) == 5\n' >> "$D/app.py"; sin_hooks "$D" "prueba nueva en rojo en la rama
+
+Ref: I4" || die "pm4"; en "$D" git checkout -q -; H0=$(en "$D" git rev-parse HEAD)
+espera falla "merge automático con una prueba nueva en rojo se rechaza por la suite" "check\.sh falló \(lint/formato/tests\)" -- fusiona "$D" rama
+espera pasa "... y queda en curso" "" -- en_curso "$D" "$H0"
+# Dos ramas que pasan solas y fallan juntas: lado-a cambia la firma de total(); lado-b añade una prueba con la firma vieja.
+copia ramas pm5; PRIN=$(en "$D" git branch --show-current)
+suite_es "$D" 'for t in pruebas/t_*.py; do python3 "$t" || exit 1; done'
+mkdir -p "$D/pruebas"; printf 'def total(xs):\n    return sum(xs)\n' > "$D/pruebas/lib.py"; printf 'from lib import total\nassert total([1, 2]) == 3\n' > "$D/pruebas/t_total.py"
+sin_hooks "$D" "base: total() y su prueba
+
+Ref: F1" || die "pm5 base"
+en "$D" git checkout -q -b lado-a; printf 'def total(xs, impuesto):\n    return sum(xs) * (1 + impuesto)\n' > "$D/pruebas/lib.py"; printf 'from lib import total\nassert total([1, 2], 0) == 3\n' > "$D/pruebas/t_total.py"
+sin_hooks "$D" "lado-a: total() exige el impuesto
+
+Ref: F1" || die "pm5 lado-a"
+en "$D" git checkout -q "$PRIN"; en "$D" git checkout -q -b lado-b; printf 'from lib import total\nassert total([2, 2]) == 4\n' > "$D/pruebas/t_informe.py"
+sin_hooks "$D" "lado-b: prueba del informe
+
+Ref: F1" || die "pm5 lado-b"
+en "$D" git checkout -q "$PRIN"
+for l in lado-a lado-b; do
+  espera pasa "combinado: $l pasa la suite sola" "" -- sh -c "cd '$D' && git checkout -q $l && sh scripts/check.sh; r=\$?; git checkout -q '$PRIN'; exit \$r"
+done
+espera pasa "combinado: el merge de lado-a se acepta" "" -- fusiona "$D" lado-a
+H0=$(en "$D" git rev-parse HEAD)
+espera falla "combinado: el merge de lado-b, que pasa sola, se rechaza porque el resultado combinado falla" "check\.sh falló \(lint/formato/tests\)" -- fusiona "$D" lado-b
+espera pasa "... y queda en curso" "" -- en_curso "$D" "$H0"
+# Conflicto: git se detiene sin hooks; el commit que lo termina ejecuta pre-commit y commit-msg, como antes.
+# La rama «notas» sale de antes de la nota de la principal y solo trae rastro (con código, el conflicto exige Ref: I<n>).
+copia ramas pm6; PRIN=$(en "$D" git branch --show-current)
+en "$D" git checkout -q -b notas HEAD~1; printf -- '- nota de la rama\n' >> "$D/docs/MEMORIA.md"; sin_hooks "$D" "nota en la rama
+
+Ref: F1" || die "pm6 rama"; en "$D" git checkout -q "$PRIN"; N0=$(corridas "$D")
+espera falla "conflicto: git se detiene antes de los hooks de commit" "CONFLICT" -- en "$D" git -c core.hooksPath=.githooks merge --no-ff --no-edit notas
+espera pasa "... y no corrió ninguna suite" "" -- sh -c "[ \"\$(find '$D/.git/suite-runs' -name '*.json' 2>/dev/null | wc -l)\" -eq $N0 ]"
+en "$D" git checkout -q --ours docs/MEMORIA.md; printf -- '- nota de la rama\n' >> "$D/docs/MEMORIA.md"; en "$D" git add docs/MEMORIA.md
+espera falla "conflicto resuelto, commit sin trailer: lo rechaza el commit-msg, como antes" "cambia contenido respecto de la fusión" -- en "$D" git -c core.hooksPath=.githooks commit -q --no-edit
+espera pasa "conflicto resuelto, commit con trailer: se acepta, como antes" "" -- en "$D" git -c core.hooksPath=.githooks commit -q -m "integra notas resolviendo MEMORIA
+
+Ref: F1"
+espera pasa "... y la suite corrió en cada uno de esos dos commits (pre-commit)" "" -- sh -c "[ \"\$(find '$D/.git/suite-runs' -name '*.json' | wc -l)\" -eq $((N0+2)) ]"
+copia ramas pm7; printf 'local\n' >> "$D/README.md"
+espera falla "merge automático con un archivo rastreado modificado sin stagear (ajeno al merge) se rechaza" "cambios sin stagear" -- fusiona "$D" rama
+# Límites declarados: --no-verify y el fast-forward no ejecutan hooks; el replay del gate sí lo ve.
+copia ramas pm8; rama_con_env "$D" rama
+espera pasa "límite: con --no-verify el merge con el .env entra (git salta los hooks)" "" -- en "$D" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit --no-verify rama
+espera falla "... y el replay del gate lo rechaza" "guardas: .*\.env" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+copia ramas pm9; rama_con_env "$D" ff-rama; N0=$(corridas "$D")
+espera pasa "límite: un fast-forward no crea commit y no ejecuta hooks (entra el .env de la rama)" "" -- sh -c "cd '$D' && git -c core.hooksPath=.githooks merge -q --ff-only ff-rama && [ \"\$(find .git/suite-runs -name '*.json' 2>/dev/null | wc -l)\" -eq $N0 ]"
+espera falla "... y el replay del gate lo rechaza" "guardas: .*\.env" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+# Instalación: obligatorio, ejecutable en el árbol y en el índice, y del método (no código del producto).
+copia f3 pmx1; rm "$D/.githooks/pre-merge-commit"
+espera falla "doctor: sin .githooks/pre-merge-commit falla" "falta \.githooks/pre-merge-commit" -- en "$D" sh scripts/check_docs.sh
+copia f3 pmx2; chmod -x "$D/.githooks/pre-merge-commit"
+espera falla "doctor: pre-merge-commit sin bit de ejecución (git lo ignoraría en silencio)" "pre-merge-commit no es ejecutable" -- en "$D" sh scripts/check_docs.sh
+copia f3 pmx3; en "$D" git update-index --chmod=-x .githooks/pre-merge-commit
+espera falla "doctor: pre-merge-commit versionado sin bit ejecutable" "pre-merge-commit está versionado sin bit ejecutable" -- en "$D" sh scripts/check_docs.sh
+copia f3 pmx4; printf '\n# comentario\n' >> "$D/.githooks/pre-merge-commit"
+espera pasa "pre-merge-commit es instrumentación del método: cambiarlo con Ref: F1 se acepta" "" -- commitea "$D" "actualiza el hook
+
+Ref: F1"
+
 echo "== Replay anclado: juzgan los validadores del ancla, no los del checkout (docs/convenciones.md §Git)"
 # La orden de entrada se toma LITERAL de docs/convenciones.md (el bloque ```sh que nombra replay_anclado.sh), sin
 # sus tres líneas de asignación: así lo que se prueba es lo que la regla manda escribir.
@@ -2264,7 +2350,7 @@ if command -v zsh >/dev/null 2>&1; then
 fi
 
 copia f3 an3; A=$(sha "$D" HEAD)
-printf '#!/bin/sh\n# contrato-set-de-oro: 1\nexit 0\n' > "$D/scripts/check_docs.sh"; sin_hooks "$D" "doctor debilitado
+printf '#!/bin/sh\n# contrato-set-de-oro: 1\n# contrato-merges: 1\nexit 0\n' > "$D/scripts/check_docs.sh"; sin_hooks "$D" "doctor debilitado
 
 Ref: F1"
 printf '#!/bin/sh\n# pruebas sin la suite vigilada\nexit 0\n' > "$D/scripts/check.sh"; sin_hooks "$D" "check.sh sin el bloque vigilado
@@ -2326,7 +2412,7 @@ espera falla "materializa: un componente .git (sin distinguir mayúsculas) detie
 espera pasa "materializa: nada se escribió en la carpeta ni se ejecutó el fsmonitor del árbol" "" -- sh -c '[ -z "$(ls -A "$1")" ] && ! ls -A "$2" | grep -q fsmonitor' _ "$W/mat-an9" "$TR"
 
 # Prueba de bloqueo: todas las copias del candidato de la lista cerrada son trampas; ninguna debe ejecutarse.
-trampa_sh() { printf '#!/bin/sh\n# contrato-recibos: 2\n# contrato-set-de-oro: 1\necho "$0" >> %s/disparos; exit 1\n' "$TR"; }
+trampa_sh() { printf '#!/bin/sh\n# contrato-recibos: 2\n# contrato-set-de-oro: 1\n# contrato-merges: 1\necho "$0" >> %s/disparos; exit 1\n' "$TR"; }
 trampa_py() { printf '# contrato-recibos: 2\nimport sys\nopen("%s/disparos", "a").write(sys.argv[0] + "\\n"); sys.exit(1)\n' "$TR"; }
 LISTA_T05="scripts/pruebas/replay_anclado.sh scripts/pruebas/validar_historial.sh .githooks/commit-msg scripts/guardas.sh scripts/check_docs.sh scripts/recibos.sh scripts/huella.sh scripts/trazabilidad.sh scripts/contrato.py scripts/fallos_previos.py scripts/suite.py"
 copia f3 an10; A=$(sha "$D" HEAD)
@@ -2438,6 +2524,102 @@ copia ramas an18; A=$(sha "$D" HEAD)
 en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-edit rama || die "no pude hacer el merge en an18"
 espera pasa "positivo: merge limpio con la rama del hito e I4, anclado en la principal" "ok .*\(merge\).*resultado PASA" -- anclado_t "$D" "$A" "$A" HEAD
 espera pasa "la orden de entrada no dejó carpetas en su TMPDIR" "" -- vacia "$TA"
+
+echo "== Actualización desde la entrega anterior: una historia con los dos contratos de los merges"
+# La entrega anterior (sin pre-merge-commit) son los validadores de este repositorio sin lo que añadió PR-1: sin el
+# hook, sin el marcador «# contrato-merges: 1» y con el commit-msg que no lo nombraba. Un proyecto válido hecho entero
+# con ella (F1, F2, I1 y un merge) se actualiza y sigue (I2 y otro merge); el replay actual y el anclado juzgan rangos
+# que atraviesan los dos contratos.
+anterior() {
+  rm -f "$1/.githooks/pre-merge-commit"
+  sed -e 's/(commit-msg|pre-commit|pre-merge-commit)/(commit-msg|pre-commit)/' -e 's#De \.githooks/ solo sus tres hooks;#De .githooks/ solo sus dos hooks;#' "$1/.githooks/commit-msg" > "$W/ant-cm" && cat "$W/ant-cm" > "$1/.githooks/commit-msg"
+  sed '/^# contrato-merges: 1$/d' "$1/scripts/check_docs.sh" > "$W/ant-cd" && cat "$W/ant-cd" > "$1/scripts/check_docs.sh"
+  sed '/^# 8b) La versión del contrato de los merges/,/^done$/d' "$1/scripts/guardas.sh" > "$W/ant-gu" && cat "$W/ant-gu" > "$1/scripts/guardas.sh"
+  grep -v '^#' "$1/scripts/guardas.sh" | grep -q 'contrato-merges' && die "anterior: guardas.sh conserva la regla 8b"
+  return 0
+}
+nota_en() { printf -- '- %s\n' "$3" >> "$1/$2"; }
+trae() { d=$1; shift; for f in "$@"; do cp "$RAIZ/$f" "$d/$f"; done; chmod +x "$d"/.githooks/*; }   # trae <dir> <archivos del método nuevo>
+proyecto_anterior() {  # proyecto_anterior <dir>: F1, F2, I1 y un merge, todo con la entrega anterior; deja A_ANT (gate de I1)
+  rm -rf "$1"; mkdir -p "$1"; ( cd "$W/etapas/plantilla" && tar cf - --exclude ./.git . ) | ( cd "$1" && tar xf - )
+  anterior "$1"; en "$1" git init -q; en "$1" git config core.hooksPath .githooks
+  commitea "$1" "Encuadre inicial
+
+Ref: F1" || die "anterior: F1"
+  for f in AGENTS.md docs/encuadre.md docs/plan.md docs/decisiones.md docs/trazabilidad.md docs/estado.md scripts/check.sh; do cp "$W/etapas/f2/$f" "$1/$f"; done
+  recibo "$1" revisor-funcional encuadre F2 PASA 0
+  commitea "$1" "Plan
+
+Ref: F2" || die "anterior: F2"
+  fase "$1" F3 "I1 «suma»"; cp "$W/etapas/f3/app.py" "$1/app.py"; recibo "$1" juez-codigo incremento I1 PASA 0 seguridad=no-aplica
+  commitea "$1" "I1
+
+Ref: I1" || die "anterior: I1"
+  A_ANT=$(sha "$1" HEAD); PRIN=$(en "$1" git branch --show-current)
+  en "$1" git checkout -q -b notas-ant; nota_en "$1" docs/MEMORIA.md "nota de la rama (entrega anterior)"; commitea "$1" "nota
+
+Ref: F1" || die "anterior: rama"
+  en "$1" git checkout -q "$PRIN"; nota_en "$1" docs/despliegue.md "nota de la principal (entrega anterior)"; commitea "$1" "nota
+
+Ref: F1" || die "anterior: principal"
+  en "$1" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit notas-ant || die "anterior: merge"
+  git -C "$1" cat-file -e HEAD:.githooks/pre-merge-commit 2>/dev/null && die "anterior: el proyecto ya tiene pre-merge-commit"
+  return 0
+}
+sigue_nuevo() {  # sigue_nuevo <dir>: I2 y un merge con la entrega nueva
+  printf 'y2 = 2\n' >> "$1/app.py"; recibo "$1" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+  espera pasa "actualiza: I2 después de actualizar" "" -- commitea "$1" "I2
+
+Ref: I2"
+  en "$1" git checkout -q -b notas-nue; nota_en "$1" docs/MEMORIA.md "nota de la rama (entrega nueva)"; commitea "$1" "nota
+
+Ref: F1" || die "nuevo: rama"
+  en "$1" git checkout -q "$PRIN"; nota_en "$1" docs/despliegue.md "nota de la principal (entrega nueva)"; commitea "$1" "nota
+
+Ref: F1" || die "nuevo: principal"
+  espera pasa "actualiza: merge con la entrega nueva (pre-merge-commit)" "" -- fusiona "$1" notas-nue
+}
+NUEVOS=".githooks/commit-msg .githooks/pre-merge-commit scripts/check_docs.sh scripts/guardas.sh"
+# Un paso: todo junto.
+U="$W/actualiza"; proyecto_anterior "$U"
+espera pasa "actualiza: el doctor nuevo da por válido el árbol de la entrega anterior (sin el marcador)" "" -- sh -c "d=\$(mktemp -d '$W/ant.XXXXXX') && git -C '$U' archive HEAD | tar -x -C \"\$d\" && cp '$RAIZ/scripts/check_docs.sh' \"\$d/scripts/check_docs.sh.nuevo\" && cd \"\$d\" && ! grep -qx '# contrato-merges: 1' scripts/check_docs.sh && sh scripts/check_docs.sh.nuevo commit"
+trae "$U" $NUEVOS
+espera pasa "actualiza (un paso): hooks, doctor y guardas nuevos entran con Ref: F1" "" -- commitea "$U" "actualiza el método
+
+Ref: F1"
+A_NUE=$(sha "$U" HEAD); sigue_nuevo "$U"
+espera pasa "actualiza (un paso): el replay actual juzga toda la historia, con los dos contratos" "commits cumplen" -- en "$U" sh scripts/pruebas/validar_historial.sh HEAD
+espera pasa "actualiza (un paso): replay anclado en la actualización, desde el gate de I1 (commits de los dos contratos)" "resultado PASA" -- anclado_t "$U" "$A_NUE" "$A_ANT" HEAD
+espera falla "actualiza (un paso): con el ancla anterior, su commit-msg no conoce el hook y lo trata como producto (la regla nueva rige desde su gate)" "código fuera del rastro \(\.githooks/pre-merge-commit" -- anclado_t "$U" "$A_ANT" "$A_ANT" HEAD
+# Dos pasos, con un gate entre ambos: primero el commit-msg (la regla nueva), después lo que depende de ella.
+U2="$W/actualiza2"; proyecto_anterior "$U2"
+trae "$U2" .githooks/commit-msg
+espera pasa "actualiza (dos pasos): primero el commit-msg, con Ref: F1" "" -- commitea "$U2" "actualiza el commit-msg
+
+Ref: F1"
+A_P1=$(sha "$U2" HEAD)
+espera pasa "actualiza (dos pasos): el ancla anterior acepta el primer paso" "resultado PASA" -- anclado_t "$U2" "$A_ANT" "$A_ANT" HEAD
+trae "$U2" $NUEVOS
+espera pasa "actualiza (dos pasos): después el hook, el doctor y las guardas" "" -- commitea "$U2" "trae pre-merge-commit
+
+Ref: F1"
+sigue_nuevo "$U2"
+espera pasa "actualiza (dos pasos): con el ancla del primer paso, el rango desde el gate de I1 pasa" "resultado PASA" -- anclado_t "$U2" "$A_P1" "$A_ANT" HEAD
+espera pasa "actualiza (dos pasos): el replay actual juzga toda la historia" "commits cumplen" -- en "$U2" sh scripts/pruebas/validar_historial.sh HEAD
+# Fingir la entrega anterior en un proyecto ya actualizado. En local, git ejecuta los hooks del árbol: quien revierte
+# también sus validadores ya no tiene la guarda nueva. Lo que lo detecta es el replay anclado en la actualización.
+F="$W/finge1"; rm -rf "$F"; cp -R "$U" "$F"; rm "$F/.githooks/pre-merge-commit"; nota_en "$F" docs/MEMORIA.md "x"
+espera falla "fingir: borrar el hook en un proyecto actualizado se rechaza" "pre-merge-commit" -- commitea "$F" "quita el hook
+
+Ref: F1"
+F="$W/finge2"; rm -rf "$F"; cp -R "$U" "$F"; anterior "$F"
+espera falla "fingir: volver entera a la entrega anterior (hook, marcador, guarda y commit-msg) se rechaza en local (el commit-msg anterior trata el borrado del hook como producto)" "código fuera del rastro \(\.githooks/pre-merge-commit" -- commitea "$F" "vuelve a la entrega anterior
+
+Ref: F1"
+sin_hooks "$F" "vuelve a la entrega anterior
+
+Ref: F1" || die "fingir: no pude colar la vuelta atrás"
+espera falla "fingir: el replay anclado en la actualización rechaza esa vuelta atrás colada" "deja de declarar «# contrato-merges: 1».*resultado FALLA" -- anclado_t "$F" "$A_NUE" "$A_NUE" HEAD
 
 echo "== Cierre acotado de un ciclo posterior: pendientes históricos, ramas y alcance de F5"
 C1L='- C1: la función suma devuelve a+b para enteros.'; C2L='- C2: la función resta devuelve a-b.'

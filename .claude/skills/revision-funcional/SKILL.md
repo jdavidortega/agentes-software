@@ -87,6 +87,12 @@ Después, el agente principal **valida si el dato ya está presente**:
 
 - Contexto, objetivos y no-objetivos con contenido real (no marcador ni `<!-- -->`).
 - Criterios de aceptación `C#` medibles.
+- **Contrato frente a estado:** una línea `C#` con información de implementación o de estado que
+  caduca con el trabajo (la prueba y su línea, dónde está implementado, que hoy se incumple o está
+  pendiente, una brecha) es vacío: va a su fila de `docs/trazabilidad.md`. Se juzga lo que puede
+  caducar, no palabras: un ejemplo, una salida esperada o una referencia normativa que forma parte
+  del comportamiento acordado o del set de oro es contrato. En un contrato ya revisado, separarlo es
+  una migración por reentrada, nunca automática.
 - **Set de oro con ≥5 pares `entrada → salida esperada`**, e incluye **al menos un
   ejemplo concreto de entrada y de salida** —inline en el `.md` o como archivo
   referenciado en `contexto/`)—. No basta describir el formato: tiene que haber

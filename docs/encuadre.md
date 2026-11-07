@@ -24,7 +24,10 @@
 
 ## Criterios de éxito
 <!-- ¿Cómo sabremos que está terminado y bien hecho? Medibles si es posible.
-Da a cada criterio un ID (C1, C2…) para enlazarlo en docs/trazabilidad.md. -->
+Da a cada criterio un ID (C1, C2…) para enlazarlo en docs/trazabilidad.md.
+El criterio dice el comportamiento acordado (con sus ejemplos de salida, si forman parte de él) y de
+dónde sale el acuerdo; su estado, pruebas, defectos y brechas van en docs/trazabilidad.md §Cobertura.
+Lo que se escriba aquí solo cambia por reentrada. -->
 - C1:
 
 ## Set de oro (ejemplos de salida esperada)

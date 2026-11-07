@@ -47,7 +47,13 @@ Backward: de un criterio se llega a su incremento. Una fila por criterio.
 `verificado` se marca pieza a pieza en la Fase 3, según el PASA del juez que lo comprobó (si
 su reporte deja una brecha, el criterio queda `cubierto`); la Fase 4 (conjunto) no cambia
 estados en ESTA tabla: su veredicto queda en la bitácora de plan.md y el commit
-`Ref: F4`, y sus bloqueantes `R-F4.n` en el registro del juez, abajo. -->
+`Ref: F4`, y sus bloqueantes `R-F4.n` en el registro del juez, abajo.
+Estado: solo los de la columna. La Nota lleva lo que caduca y no es contrato (docs/encuadre.md):
+la prueba, la brecha, el defecto o lo bloqueado y su causa, con la versión observada: un commit
+existente, o «el árbol de este commit» si se evaluó lo que este commit registra (no se exige el SHA
+de un commit aún por hacer). La versión observada identifica qué se miró; no acredita vigencia:
+reutilizar esa evidencia lo decide la regla 10 de probando-con-datos-reales. Actualizar la Nota no
+es reentrada; si sustituye un diagnóstico, conserva su referencia. -->
 
 | Criterio | Alias | Incremento(s) | Estado | Nota |
 |----------|-------|---------------|--------|------|

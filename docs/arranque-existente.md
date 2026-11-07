@@ -68,7 +68,13 @@ se decide con la persona antes de seguir.
    elegido, cláusula 9): `- C2: [nuevo] …`. Cada `conserva` tiene una prueba que demuestra la
    garantía o una brecha nombrada; una prueba cuenta por lo que ejecuta, no por su nombre. Un
    `nuevo` se aprueba como alcance, no como algo que ya funciona: queda `pendiente` hasta que su
-   incremento lo verifique.
+   incremento lo verifique. **Contrato frente a estado:** la línea `C#` dice el comportamiento
+   acordado y de dónde sale el acuerdo (el brief, o la documentación o el código que lo define),
+   con los ejemplos y salidas esperadas que formen parte de él. La prueba que lo ejecuta (con su
+   `archivo:línea`), la brecha, el defecto que hoy lo incumple y lo pendiente van en su fila de
+   `docs/trazabilidad.md` §Cobertura: el estado, con los de esa tabla; lo demás, en la Nota, con la
+   versión observada. Una corrección actualiza la fila sin cambiar el requisito; cambiar el
+   comportamiento acordado sigue siendo reentrada.
 7. **Qué basta para cerrar el ciclo de adopción.** Cada `C#` del ciclo verificado, los límites
    conocidos escritos como no-objetivos, lo observado fuera del alcance del ciclo declarado con su
    estado real y las mejoras en el backlog ordenadas por impacto. Diagnosticar no obliga a
@@ -84,7 +90,7 @@ se decide con la persona antes de seguir.
    - **Trabajo elegido con protección proporcional:** una capacidad nueva o una corrección
      concreta. Los `C#` del ciclo (al menos uno) son los `nuevo` de una capacidad o, en una
      corrección, el `conserva` que el defecto incumple (con la prueba que lo demuestra en rojo o su
-     brecha), más los `conserva` de lo que el cambio **afecta**: el área tocada, lo que depende de
+     brecha, en su fila de trazabilidad), más los `conserva` de lo que el cambio **afecta**: el área tocada, lo que depende de
      ella y aquello con lo que interactúa (consumidores, datos o configuración compartidos, orden
      de ejecución). No basta con lo que se edita. El resto de lo observado va a `docs/encuadre.md` §Fuera del alcance de este
      ciclo con su estado real (qué prueba lo cubre, sin verificar o brecha); no es `C#` y no se
@@ -440,9 +446,11 @@ del que depende que el sistema actúe o no sobre equipos, personas o el mundo re
   dependencias e interacciones y §Fuera del alcance de este ciclo da el estado real de lo demás.
 - [ ] Cada `C#` está marcado `conserva` o `nuevo`: de 3 a 8 en protección general, al menos uno
   en trabajo elegido. Cada estado terminal del alcance tiene `C#` o está declarado fuera; cada
-  `conserva` tiene una prueba que lo ejecuta de verdad o una brecha nombrada, y cita
-  `archivo:línea`; cada `nuevo` cita el brief y está `pendiente`; el `conserva` que una corrección
-  restaura cita el defecto y la prueba que lo demuestra en rojo, o su brecha. Con la verificación bloqueada, cada `C#` está en `pendiente` con la nota
+  `conserva` tiene, en su fila de `docs/trazabilidad.md`, una prueba que lo ejecuta de verdad o una
+  brecha nombrada, con su `archivo:línea`; cada `nuevo` cita el brief y está `pendiente`; el
+  `conserva` que una corrección restaura tiene en esa fila el defecto y la prueba que lo demuestra
+  en rojo, o su brecha. La línea `C#` dice solo el comportamiento acordado y su procedencia
+  (cláusula 6). Con la verificación bloqueada, cada `C#` está en `pendiente` con la nota
   «verificación dinámica bloqueada: <causa>».
 - [ ] Cada par del set de oro tiene procedencia y referencia persistida (la de un `nuevo`: salida
   esperada acordada con la persona) (o reproducción

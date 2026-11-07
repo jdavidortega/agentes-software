@@ -558,9 +558,12 @@ de la versión actual, y crecen con los casos.
 **Límites declarados** (lo que ningún hook local prueba): quién ejecutó una revisión
 (`ejecutor=` es dato declarado; el recibo ata el veredicto al contenido, no a una sesión),
 que el revisor no usó red (las huellas no la ven), y la aprobación humana (vive en el
-chat, no en un archivo). Lo primero se cubre con CI y hooks del cliente (`SessionStart`,
-`PreToolUse`) que **cada proyecto integra**: la plantilla trae el workflow de ejemplo, no
-los instala ni los activa en el remoto; lo último es deliberado.
+chat, no en un archivo). Lo primero se cubre con CI y hooks del cliente que **cada proyecto
+integra**: la plantilla trae el workflow de ejemplo, no lo instala ni lo activa en el remoto; trae
+configurados en `.claude/settings.json` el filtro de revisores (`PreToolUse`, heurístico) y el aviso
+de inicio (`SessionStart`, que ejecuta el doctor con plazo y resume el estado), que solo corren si el
+cliente carga la configuración del proyecto y se comprueban en él (`dirigiendo-revisiones`, prueba de
+bloqueo); lo último es deliberado.
 
 Que el juez y el revisor funcional corrieron se exige por su rastro: cada revisión deja
 su **recibo** en `docs/revisiones.log` (rol, alcance, veredicto, huella; también con PASA
@@ -730,8 +733,11 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 │   ├── skills/          las skills, en su ubicación nativa de Claude Code — una carpeta
 │   │   └── <nombre>/        por skill con SKILL.md (frontmatter name + description) y
 │   │       └── SKILL.md     references/ si aplica; se cargan solo cuando disparan
-│   └── agents/          roles de revisión declarados (revisor funcional, juez de código,
-│                        juez de conjunto, juez de seguridad) con su skill precargada
+│   ├── agents/          roles de revisión declarados (revisor funcional, juez de código,
+│   │                    juez de conjunto, juez de seguridad) con su skill precargada
+│   ├── hooks/           guarda-revisor.py (filtro heurístico de los revisores) e inicio-sesion.py
+│   │                    (aviso de inicio: doctor con plazo y resumen; no repara ni modifica)
+│   └── settings.json    registra los dos hooks del proyecto (PreToolUse y SessionStart)
 ├── scripts/
 │   ├── check_docs.sh        integridad del rastro documental (pre-commit, commit-msg y a mano)
 │   ├── huella.sh            huellas: vigencia (lo revisable: todo salvo revisiones.log,

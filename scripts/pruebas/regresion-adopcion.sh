@@ -179,6 +179,12 @@ huella_arbol "$D" > "$W/h2"
 espera pasa "repetir: cero escrituras (árbol idéntico) y manifiesto idéntico" "" -- sh -c "cmp -s '$W/h1' '$W/h2' && cmp -s '$W/m1' '$D/contexto/adopcion.md'"
 espera pasa "repetir: nada se clasifica como idéntico sin registro" "sin instalación registrada: 0" -- adoptar "$P" vista-previa "$D"
 
+espera pasa "copiar: el aviso de inicio se distribuye con su configuración (SessionStart), idénticos" "" -- sh -c "cmp '$P/.claude/hooks/inicio-sesion.py' '$D/.claude/hooks/inicio-sesion.py' && cmp '$P/.claude/settings.json' '$D/.claude/settings.json' && [ -x '$D/.claude/hooks/inicio-sesion.py' ]"
+copia existente c1s; mkdir -p "$D/.claude"; printf '{\n  "permissions": {"allow": ["Bash(make:*)"]}\n}\n' > "$D/.claude/settings.json"; cp "$D/.claude/settings.json" "$W/settings-adaptado.json"
+sin_hooks "$D" "configuración propia de Claude Code" || die "no pude preparar c1s"
+espera pasa "copiar: una .claude/settings.json propia se conserva como colisión, no se sobrescribe" "" -- sh -c "sh '$P/scripts/adoptar.sh' copiar '$D' >/dev/null && cmp '$W/settings-adaptado.json' '$D/.claude/settings.json' && grep -qx -- '- .claude/settings.json' '$D/contexto/adopcion.md'"
+espera pasa "copiar: ... y el script del aviso se instala igual (su entrada en esa configuración la integra la persona)" "" -- test -x "$D/.claude/hooks/inicio-sesion.py"
+
 echo "== adoptar.sh: plantilla actualizada, destino modificado, añadidos posteriores"
 cp -R "$P" "$W/plantilla2"; P2="$W/plantilla2"
 printf '\nlínea nueva de la plantilla\n' >> "$P2/docs/MEMORIA.md"

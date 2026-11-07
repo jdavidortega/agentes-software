@@ -78,7 +78,10 @@ allowed-tools: Read, Grep, Glob, Bash
    si no hubo) · **Recibo** (la línea para `docs/revisiones.log`, con la huella que él
    mismo calculó con `sh scripts/huella.sh`, y `modalidad=`, `filtro=` y `aislamiento=`: la
    modalidad y el aislamiento que le diste, y `filtro=comprobado` solo si su prueba de bloqueo
-   fue rechazada. En experimentos, si conserva evidencia, la deja en `<D>/evidencia/` y añade
+   la rechazó `guarda-revisor` (su motivo lo identifica y nombra el `.git/revision-modalidad` que leyó).
+   Otra denegación (permisos del cliente, sandbox) es `filtro=sin-verificar`; si la escritura se ejecutó,
+   es «bloqueo no efectivo»: `filtro=desactivado` solo si se confirma que el filtro no está cargado, y
+   `sin-verificar` si no puede determinarse. En experimentos, si conserva evidencia, la deja en `<D>/evidencia/` y añade
    `evidencia=docs/revisiones/<alcance>-<rol>-<AAAAMMDDTHHMMZ>@<h>` con
    `h=$(sh scripts/huella.sh evidencia <D>/evidencia)`. Gramática: `scripts/recibos.sh`). **Sin narrativa**: un reporte de revisión
    cabe en ~40 líneas salvo que haya muchos bloqueantes; lo que no decide no se escribe
@@ -107,7 +110,7 @@ allowed-tools: Read, Grep, Glob, Bash
    fuera de la huella, igual que `estado.md` y `MEMORIA.md`: registrarlos no invalida el
    recibo.
 8. **La modalidad queda en el recibo** (`modalidad=lectura|experimentos`,
-   `filtro=comprobado|desactivado|sin-verificar` —comprobado: la prueba de bloqueo fue rechazada—,
+   `filtro=comprobado|desactivado|sin-verificar` —comprobado: la prueba de bloqueo la rechazó `guarda-revisor`, identificado por su motivo (paso 5)—,
    `aislamiento=ninguno|sandbox-configurado|sandbox-verificado`, ver §Modalidades): es lo
    **declarado**, no prueba que el aislamiento se aplicara; eso lo sostienen la evidencia y los
    controles efectivos. El informe al gate añade directorio autorizado, comprobaciones (huellas,

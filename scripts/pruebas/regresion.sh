@@ -2614,6 +2614,68 @@ espera falla "errores: si el cálculo de P5/R falla, el cierre acotado se rechaz
 
 Ref: F4"' _ "$D"
 
+echo "== Aviso de inicio de sesión (SessionStart): el script, sin abrir sesiones de Claude"
+# Se prueba el SCRIPT: que el cliente lo ejecute de verdad al iniciar una sesión queda por observar en VSCode.
+TI="$W/tmp-inicio"; mkdir -p "$TI"
+inicio() { ( cd "${2:-/}" && env CLAUDE_PROJECT_DIR="$1" TMPDIR="$TI" ${3:-} python3 "$1/.claude/hooks/inicio-sesion.py" ); }
+inicio_t() { out=$(inicio "$@" 2>&1); rc=$?; n=$(printf '%s\n' "$out" | grep -c .); printf '%s ' "$out" | tr '\n' ' '; printf '[lineas=%s rc=%s]' "$n" "$rc"; [ "$rc" -eq 0 ] && [ "$n" -le 8 ]; }
+foto() { ( cd "$1" && { git status --porcelain --ignored; git config --list --local; find . -path ./.git -prune -o -type f -print | LC_ALL=C sort | while IFS= read -r f; do shasum "$f"; done; } | shasum ); }
+copia f3 in1; F0=$(foto "$D")
+espera pasa "inicio: reanudación en F3 con hooks activos: fase, doctor PASA, ≤8 líneas, salida 0" "Proyecto en F3.*Doctor: PASA.*Siguiente: lee docs/estado.md.*lineas=[1-8] rc=0" -- inicio_t "$D"
+espera pasa "inicio: no modifica nada (árbol, estado de git, configuración local) ni deja temporales" "" -- sh -c '[ "$(cd "$1" && { git status --porcelain --ignored; git config --list --local; find . -path ./.git -prune -o -type f -print | LC_ALL=C sort | while IFS= read -r f; do shasum "$f"; done; } | shasum)" = "$2" ] && [ -z "$(ls -A "$3")" ]' _ "$D" "$F0" "$TI"
+copia f3 in2; en "$D" git config --unset core.hooksPath
+espera pasa "inicio: hooks inactivos: FALLA con su causa, nunca PASA" "Doctor: FALLA .*core.hooksPath" -- inicio_t "$D"
+espera pasa "inicio: ... y no dice PASA" "" -- sh -c '! CLAUDE_PROJECT_DIR="$1" TMPDIR="$2" python3 "$1/.claude/hooks/inicio-sesion.py" | grep -q "Doctor: PASA"' _ "$D" "$TI"
+copia f3 in3; rm "$D/docs/estado.md"
+espera pasa "inicio: estado.md ausente: lo dice y el doctor FALLA" "No puedo leer docs/estado.md.*Doctor: FALLA" -- inicio_t "$D"
+copia plantilla in4
+espera pasa "inicio: plantilla o proyecto sin iniciar: remite a README §Cómo usarla y docs/arranque.md" "sin iniciar: entra por README.md §Cómo usarla y docs/arranque.md" -- inicio_t "$D"
+copia plantilla in5; printf '# Adopción\n' > "$D/contexto/adopcion.md"
+espera pasa "inicio: adopción ya copiada: remite a docs/arranque-existente.md" "Adopción en curso.*docs/arranque-existente.md" -- inicio_t "$D"
+copia plantilla in6; printf '#!/bin/sh\necho "estado intermedio"\nexit 3\n' > "$D/scripts/check_docs.sh"
+espera pasa "inicio: doctor con una salida inesperada (3): sin veredicto, nunca PASA" "Doctor: sin veredicto \(estado fallida, salida 3" -- inicio_t "$D"
+# Plazo con un descendiente en el grupo del doctor y un temporal: suite.py termina el grupo y el aviso lo borra.
+vivos_de() { ps -A -o command= | grep -v grep | grep -c "$1"; }
+espera_sin() { n=0; while [ "$(vivos_de "$1")" -gt 0 ] && [ $n -lt 45 ]; do sleep 1; n=$((n+1)); done; [ "$(vivos_de "$1")" -eq 0 ]; }
+limpia_ti() { espera_sin "$1" && rm -rf "$TI" && mkdir -p "$TI"; }   # solo tras demostrar que no queda ningún proceso propio
+copia plantilla in7; M7="marca-inicio-plazo-$$"
+printf '#!/bin/sh\n: > "$TMPDIR/temporal-del-doctor"\npython3 -c "import time; time.sleep(300)" %s-hijo &\nexec python3 -c "import time; time.sleep(300)" %s-principal\n' "$M7" "$M7" > "$D/scripts/check_docs.sh"
+F7=$(foto "$D")
+espera pasa "inicio: plazo agotado (2 s): sin veredicto, suite.py termina el grupo del doctor" "Doctor: sin veredicto: plazo de 2 s agotado; suite.py terminó su grupo.*rc=0" -- inicio_t "$D" / METODO_INICIO_PLAZO=2
+espera pasa "inicio: ... desde fuera, ningún proceso del doctor sigue vivo (hijo y principal)" "" -- espera_sin "$M7"
+espera pasa "inicio: ... y el temporal se borró porque suite.py demostró el cierre" "" -- sh -c '[ -z "$(ls -A "$1")" ]' _ "$TI"
+espera pasa "inicio: ... ni cambió nada del proyecto" "" -- sh -c '[ "$(cd "$1" && { git status --porcelain --ignored; git config --list --local; find . -path ./.git -prune -o -type f -print | LC_ALL=C sort | while IFS= read -r f; do shasum "$f"; done; } | shasum)" = "$2" ]' _ "$D" "$F7"
+# ps que falla: «no pude comprobarlo» no es «no hay procesos»: el temporal se conserva y se informa.
+mkdir -p "$W/ps-falla" "$W/ps-cuelga"; printf '#!/bin/sh\necho "ps simulado: fallo" >&2\nexit 1\n' > "$W/ps-falla/ps"; chmod +x "$W/ps-falla/ps"
+M8="marca-inicio-psfalla-$$"; copia plantilla in8; printf '#!/bin/sh\necho %s >/dev/null\nexit 0\n' "$M8" > "$D/scripts/check_docs.sh"
+espera pasa "inicio: con ps fallando, no da PASA y conserva el temporal con su motivo" "Conservo el temporal .*metodo-inicio-" -- sh -c 'out=$(cd / && env CLAUDE_PROJECT_DIR="$1" TMPDIR="$2" PATH="$3:$PATH" python3 "$1/.claude/hooks/inicio-sesion.py" 2>&1); printf "%s" "$out" | tr "\n" " "; ! printf "%s" "$out" | grep -q "Doctor: PASA"' _ "$D" "$TI" "$W/ps-falla"
+espera pasa "inicio: ... el temporal sigue ahí (no se borra lo no demostrado)" "" -- sh -c '[ -n "$(ls -A "$1")" ]' _ "$TI"
+limpia_ti "$M8" || die "no pude limpiar tras ps-falla"
+# ps que se cuelga más que el plazo de suite.py: todas las esperas tienen límite.
+printf '#!/bin/sh\nsleep 15 # %s\n' "marca-inicio-pscuelga-$$" > "$W/ps-cuelga/ps"; chmod +x "$W/ps-cuelga/ps"
+copia plantilla in9; printf '#!/bin/sh\nexit 0\n' > "$D/scripts/check_docs.sh"
+espera pasa "inicio: con ps colgado, el aviso termina dentro de su límite (plazo + margen + gracia), sin PASA" "duracion_ok" -- sh -c 't=$(date +%s); out=$(cd / && env CLAUDE_PROJECT_DIR="$1" TMPDIR="$2" PATH="$3:$PATH" METODO_INICIO_PLAZO=2 python3 "$1/.claude/hooks/inicio-sesion.py" 2>&1); d=$(( $(date +%s) - t )); printf "%s [%s s] " "$out" "$d" | tr "\n" " "; [ "$d" -le 45 ] && ! printf "%s" "$out" | grep -q "Doctor: PASA" && echo duracion_ok' _ "$D" "$TI" "$W/ps-cuelga"
+limpia_ti "marca-inicio-pscuelga-$$" || die "no pude limpiar tras ps-cuelga"
+# Un vigilante que no responde e ignora SIGTERM: el aviso solo señala a su hijo sin recoger y conserva el temporal.
+M10="marca-inicio-vigilante-$$"; copia plantilla in10
+printf 'import signal, sys, time\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\nsys.argv.append("%s")\ntime.sleep(300)\n' "$M10" > "$D/scripts/suite.py"
+espera pasa "inicio: vigilante que no responde: sin veredicto con su motivo, se le pide terminar y se conserva el temporal" "el vigilante no terminó en 22 s.*Conservo el temporal" -- inicio_t "$D" / METODO_INICIO_PLAZO=2
+espera pasa "inicio: ... desde fuera, el vigilante ya no está vivo (TERM ignorado, KILL a su propio hijo)" "" -- sh -c '! ps -A -o pid=,command= | grep -v grep | grep -q "$1/scripts/suite.py"' _ "$D"
+rm -rf "$TI" && mkdir -p "$TI"
+# Interrupción del propio aviso: lo dice, conserva el temporal y el guardián de suite.py termina el doctor a su plazo.
+M11="marca-inicio-interrupcion-$$"; copia plantilla in11
+printf '#!/bin/sh\nexec python3 -c "import time; time.sleep(300)" %s\n' "$M11" > "$D/scripts/check_docs.sh"
+( cd / && exec env CLAUDE_PROJECT_DIR="$D" TMPDIR="$TI" METODO_INICIO_PLAZO=3 python3 "$D/.claude/hooks/inicio-sesion.py" > "$W/in11.out" 2>&1 ) & AV=$!
+sleep 1.5; kill -TERM "$AV" 2>/dev/null; wait "$AV"
+espera pasa "inicio: interrumpido: lo informa, sin PASA, y conserva el temporal" "aviso interrumpido \(SIGTERM\).*Conservo el temporal" -- sh -c 'tr "\n" " " < "$1"; ! grep -q "Doctor: PASA" "$1"' _ "$W/in11.out"
+espera pasa "inicio: ... desde fuera, el guardián termina el doctor a su plazo: ningún proceso suyo queda vivo" "" -- espera_sin "$M11"
+limpia_ti "$M11" || die "no pude limpiar tras la interrupción"
+# Arranque desde otro directorio y con espacios en la ruta; también sin CLAUDE_PROJECT_DIR (raíz por la ubicación del script).
+mkdir -p "$W/con espacios"; rm -rf "$W/con espacios/proyecto"; cp -R "$W/etapas/f3" "$W/con espacios/proyecto"
+espera pasa "inicio: ruta con espacios, lanzado desde otro directorio" "Proyecto en F3.*Doctor: PASA" -- inicio_t "$W/con espacios/proyecto" "$W"
+espera pasa "inicio: sin CLAUDE_PROJECT_DIR, la raíz sale de la ubicación del script" "Proyecto en F3.*Doctor: PASA" -- sh -c 'cd / && env -u CLAUDE_PROJECT_DIR TMPDIR="$2" python3 "$1/.claude/hooks/inicio-sesion.py" | tr "\n" " "' _ "$W/con espacios/proyecto" "$TI"
+espera pasa "inicio: la configuración del proyecto registra el aviso en SessionStart y conserva el filtro en PreToolUse" "" -- python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1]))["hooks"]; assert "inicio-sesion.py" in d["SessionStart"][0]["hooks"][0]["command"]; assert "guarda-revisor.py" in d["PreToolUse"][0]["hooks"][0]["command"]' "$RAIZ/.claude/settings.json"
+
 # --- Filtro preventivo de revisores (.claude/hooks/guarda-revisor.py): NO es frontera; se prueba
 #     que rechaza patrones evidentes, permite lecturas y respeta la modalidad «experimentos».
 echo "== filtro preventivo de revisores"

@@ -24,7 +24,10 @@ cierre quedan cada uno en su commit. Ningún gate se cruza con cambios sin commi
 lo primero que se arregla), lee `docs/estado.md` (el resumen vivo) y
 `docs/convenciones.md`, y abre los demás documentos **solo en la rebanada que la tarea
 toca**. No se relee todo el rastro por sesión: el detalle vive
-en los documentos por rebanada y la historia, en git. **Al parar** —fin de sesión, gate
+en los documentos por rebanada y la historia, en git. En Claude Code, un **aviso de inicio**
+(`.claude/hooks/inicio-sesion.py`, hook `SessionStart` del proyecto) ejecuta el doctor con plazo y
+resume en ocho líneas el tipo de sesión y su resultado real; es un aviso: no sustituye esta lectura,
+no modifica nada y no repara fallos. **Al parar** —fin de sesión, gate
 pendiente, bloqueo—, regenera `docs/estado.md` con lo **pendiente** escrito en frases
 completas (qué falta del incremento y qué se espera de la persona): lo que no queda
 escrito al parar se pierde. Antes, comprueba que no dejas ejecuciones de la suite abiertas

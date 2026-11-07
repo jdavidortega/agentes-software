@@ -189,9 +189,25 @@ por las **entradas y salidas del sistema**: todo proceso de software las tiene (
 varias: archivos, tablas, respuestas de API, pantallas, artefactos); si de alguna no hay
 muestra en la carpeta, pide la muestra o el **acceso** (servicio, base de datos) para
 obtenerla. No inviertas en analizar hasta que la persona cierre el set de entrada. Si
-`contexto/` está vacía → aplica la precondición de arranque y detente. Antes de pedir este gate y
-el de ruteo, commit preparatorio `Ref: F1` (`docs/convenciones.md` §Git, «Gates intermedios del
-arranque»).
+`contexto/` está vacía → aplica la precondición de arranque y detente.
+
+**Gates intermedios del arranque** (completitud y ruteo, antes del cierre de F1): ningún gate se
+cruza con cambios sin commitear (`docs/convenciones.md` §Git), tampoco estos. Cada uno lleva un
+**commit preparatorio `Ref: F1`** de la misma fase; el hook admite varios y no hay trailer propio.
+No es el cierre del encuadre ni su aprobación: el cierre es el último `Ref: F1` antes del gate del
+encuadre.
+  - *Completitud:* el commit guarda la plantilla instalada, las entradas de `contexto/` que se
+    versionan y `docs/estado.md` en F1, con el gate en «Esperando de la persona». El inventario
+    va en el chat.
+  - *Ruteo:* guarda la propuesta en `contexto/exploracion/ruteo.md` y `docs/estado.md` al día.
+  - Hasta aprobar el ruteo, sus conclusiones no se escriben en `docs/encuadre.md`,
+    `docs/decisiones.md`, `docs/convenciones.md` ni en el manifiesto de `contexto/README.md`.
+    Solo cambian los registros operativos que explican qué gate está pendiente: `docs/estado.md`
+    y `contexto/exploracion/`.
+  - Aprobar la completitud permite analizar y proponer el ruteo; aprobar el ruteo, registrar lo
+    aprobado. Ninguna de las dos aprueba el encuadre ni autoriza publicar las entradas.
+
+Una entrada con versionado pendiente o un secreto en `contexto/` siguen `docs/convenciones.md` §Git.
 
 **b. Clasifica y rutea (gate de ruteo).** Para cada entrada, **propón** a dónde va
 con su razón y espera el OK antes de escribir en los archivos oficiales. La ingesta

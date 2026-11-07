@@ -146,7 +146,7 @@ open(p, "w", encoding="utf-8").write(s[:m.start()] + f"- **Plantilla de origen:*
 PY
 echo "   - **Plantilla de origen:** $(cat .git/plantilla-origen)"
 
-paso "F1 · Ingesta: gate de completitud (docs/arranque.md §Fase 1 a; convenciones §Git, gates intermedios)"
+paso "F1 · Ingesta: gate de completitud (docs/arranque.md §Fase 1 a, gates intermedios)"
 cp "$EJ/entrada/brief.md" "$EJ/entrada/gastos.csv" "$EJ/entrada/gastos-invalido.csv" contexto/ \
   || falla "no pude copiar las entradas"
 estado F1 "—" "cerrar el set de entrada" "gate de completitud: ¿contexto/ está completo? (simulado)"

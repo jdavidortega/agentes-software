@@ -37,7 +37,7 @@ que los hashes cambian de una generación a otra; la secuencia y los controles, 
 | Paso | Commit | Qué se escribe | Fuente canónica |
 |---|---|---|---|
 | Instalación y Bootstrap | (en el primer commit) | La plantilla del commit capturado una sola vez, hooks activos y la «Plantilla de origen» en `docs/convenciones.md` §Git | `README.md` §Cómo usarla; `docs/arranque.md` Paso 0 |
-| Gate de completitud | `Ref: F1` | Las entradas en `contexto/` (`entrada/`) y `estado.md` en F1 | `docs/arranque.md` §Fase 1 a; `docs/convenciones.md` §Git, «Gates intermedios del arranque» |
+| Gate de completitud | `Ref: F1` | Las entradas en `contexto/` (`entrada/`) y `estado.md` en F1 | `docs/arranque.md` §Fase 1 a, «Gates intermedios del arranque» |
 | Gate de ruteo | `Ref: F1` | La propuesta en `contexto/exploracion/ruteo.md`; nada en los documentos oficiales | `docs/arranque.md` §Fase 1 b |
 | Encuadre | `Ref: F1` | `docs/encuadre.md` y ADR-001 (`pasos/f1/`), manifiesto de `contexto/README.md`, `AGENTS.md` §1 | `docs/arranque.md` §Fase 1 · Encuadre; contrato del set de oro en `docs/encuadre.md`; `docs/decisiones.md` «Aceptación» |
 | Plan | `Ref: F2` + recibo del revisor funcional | `docs/plan.md`, `docs/trazabilidad.md`, `scripts/check.sh` y el README del producto (`pasos/f2/`) | `docs/arranque.md` §Fase 2; `docs/convenciones.md` §Comandos clave; `.claude/skills/escribiendo-readme/SKILL.md` |

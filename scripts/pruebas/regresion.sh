@@ -2791,6 +2791,122 @@ Ref: F1" || die "bf5"
 b=$(en "$D" git rev-parse HEAD:scripts/check_docs.sh); rm -f "$D/.git/objects/$(printf '%s' "$b" | cut -c1-2)/$(printf '%s' "$b" | cut -c3-)"
 espera falla "check.sh: si check_docs.sh (el marcador) no se puede leer, el commit que toca check.sh se rechaza por ese motivo" "no pude leer scripts/check_docs\.sh \(en " -- en "$D" env REV=HEAD sh .githooks/commit-msg /dev/null
 
+echo "== Contrato de referencia por la estructura de la historia (PR-2): fechas, ramas, paralelos y errores"
+# El contrato al que se ata Ref: I<n> | hito | F4 | F5 y contra el que se acota reentrada:C<n> es el Ref: F2 más
+# cercano; en un merge, los maximales de los de sus padres. Nunca la fecha. Revisiones paralelas con contratos
+# distintos exigen revisar su combinación con alcance F2. Un error al determinarlo rechaza; nunca es «sin contrato».
+i2() {  # i2 <dir>: deja listo un Ref: I2 (fase, código y recibo del juez)
+  fase "$1" F3 "I2 «resta»"; printf 'y2 = 2\n' >> "$1/app.py"; recibo "$1" juez-codigo incremento I2 PASA 0 seguridad=no-aplica; }
+con_fecha() { ( export GIT_COMMITTER_DATE="$1" GIT_AUTHOR_DATE="$1"; shift; "$@" ); }
+reentrada_c1() {  # reentrada_c1 <dir> [fecha]: Ref: F2 que solo reescribe C1, con recibo reentrada:C1
+  reescribe_c1 "$1"; fase "$1" F2 "I2 «resta»"; recibo "$1" revisor-funcional encuadre reentrada:C1 PASA 0
+  con_fecha "${2:-2026-10-19T10:00:00Z}" commitea "$1" "reentrada C1
+
+Ref: F2"; }
+# Fechas invertidas, sentido 1: la reentrada de una rama lateral tiene fecha ANTERIOR al contrato que reemplaza.
+copia f3 pr2a; PRIN=$(en "$D" git branch --show-current); en "$D" git checkout -q -b lateral
+reentrada_c1 "$D" 2020-01-01T00:00:00Z || die "pr2a lateral"; en "$D" git checkout -q "$PRIN"; nota_en "$D" docs/MEMORIA.md "en la principal"
+commitea "$D" "nota
+
+Ref: F1" || die "pr2a principal"; fusiona "$D" lateral || die "pr2a merge"; i2 "$D"
+espera pasa "PR-2 fechas: una reentrada en rama lateral con fecha anterior, integrada sin Ref: F2, rige para el Ref: I2 siguiente" "" -- commitea "$D" "I2
+
+Ref: I2"
+espera pasa "PR-2 fechas: el replay de esa historia la acepta" "commits cumplen" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~4..HEAD
+# Sentido 2: con la reentrada fechada en el pasado, una fusión que vuelve al contrato anterior no se ata a él.
+copia f3 pr2b; PRIN=$(en "$D" git branch --show-current); en "$D" git checkout -q -b otra; nota_en "$D" docs/MEMORIA.md "en la rama"
+commitea "$D" "nota en la rama
+
+Ref: F1" || die "pr2b rama"; en "$D" git checkout -q "$PRIN"; reentrada_c1 "$D" 2020-01-01T00:00:00Z || die "pr2b reentrada"
+B7=$(en "$D" git rev-parse --short HEAD); fusiona "$D" otra || die "pr2b merge"
+cp "$W/etapas/f3/docs/encuadre.md" "$D/docs/encuadre.md"; commitea "$D" "vuelve al texto anterior de C1
+
+Ref: F1" || die "pr2b vuelta"; i2 "$D"
+espera falla "PR-2 fechas: tras volver al contrato anterior, el Ref: I2 se compara con la reentrada (no con el F2 de fecha posterior) y se rechaza" "no son los del último contrato revisado \(commit $B7" -- commitea "$D" "I2
+
+Ref: I2"
+sin_hooks "$D" "I2 (colado)
+
+Ref: I2" || die "pr2b colado"; A=$(sha "$D" HEAD~1)
+espera falla "PR-2 fechas: el replay actual también lo rechaza" "no son los del último contrato revisado" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+espera falla "PR-2 fechas: y el anclado" "no son los del último contrato revisado.*resultado FALLA" -- anclado_t "$D" "$A" "$A" HEAD
+# Revisiones paralelas con contratos distintos, integradas sin revisar la combinación.
+paralelas() {  # paralelas <dir>: rama-a (C2) y rama-b (C3) desde C1, integradas en rama-b con Ref: F1 conservando ambos
+  ramas_contratos "$1"; fusiona_resuelve "$1" rama-a "$CR1$CR2$CR3" "$C1_PEND
+$F_C2
+$F_C3"; commitea "$1" "integra rama-a sin revisar la combinación
+
+Ref: F1"; }
+copia f3 pr2c; paralelas "$D" || die "pr2c"; i2 "$D"
+espera falla "PR-2 paralelas: dos contratos revisados distintos integrados sin revisión conjunta rechazan el Ref: I2" "revisiones paralelas distintas \([0-9a-f]+, [0-9a-f]+\)" -- commitea "$D" "I2
+
+Ref: I2"
+cp -R "$D" "$W/pr2c-r"; sin_hooks "$W/pr2c-r" "I2 (colado)
+
+Ref: I2" || die "pr2c colado"; A=$(sha "$W/pr2c-r" HEAD~1)
+espera falla "PR-2 paralelas: el replay actual también" "revisiones paralelas distintas" -- en "$W/pr2c-r" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+espera falla "PR-2 paralelas: y el anclado" "revisiones paralelas distintas.*resultado FALLA" -- anclado_t "$W/pr2c-r" "$A" "$A" HEAD
+copia f3 pr2d; paralelas "$D" || die "pr2d"; reescribe_c1 "$D"; fase "$D" F2 "I2 «resta»"; recibo "$D" revisor-funcional encuadre reentrada:C1 PASA 0
+espera falla "PR-2 paralelas: una reentrada:C1 sobre ellas exige alcance F2" "revisiones paralelas distintas .*alcance F2" -- commitea "$D" "reentrada C1
+
+Ref: F2"
+copia f3 pr2e; paralelas "$D" || die "pr2e"; fase "$D" F2 "I2 «resta»"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera pasa "PR-2 paralelas: un Ref: F2 con alcance F2 revisa la combinación" "" -- commitea "$D" "revisa la combinación
+
+Ref: F2"
+i2 "$D"
+espera pasa "PR-2 paralelas: después, el Ref: I2 se acepta" "" -- commitea "$D" "I2
+
+Ref: I2"
+espera pasa "PR-2 paralelas: el replay de esa historia la acepta" "commits cumplen" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~2..HEAD
+copia f3 pr2f; ramas_contratos "$D"; fusiona_resuelve "$D" rama-a "$CR1$CR2$CR3" "$C1_PEND
+$F_C2
+$F_C3"; commitea "$D" "integra rama-a
+
+Ref: F2" || die "pr2f"; i2 "$D"
+espera pasa "PR-2 paralelas: tras un merge que es Ref: F2, el Ref: I2 se ata a él" "" -- commitea "$D" "I2
+
+Ref: I2"
+# Paralelas con el mismo contrato.
+copia f3 pr2g; en "$D" git checkout -q -b rama-a && contrato_f2 "$D" "$CR1$CR2" "$C1_PEND
+$F_C2" || die "pr2g a"; principal "$D"; en "$D" git checkout -q -b rama-b && contrato_f2 "$D" "$CR1$CR2" "$C1_PEND
+$F_C2" || die "pr2g b"; fusiona_resuelve "$D" rama-a "$CR1$CR2" "$C1_PEND
+$F_C2"; commitea "$D" "integra rama-a
+
+Ref: F1" || die "pr2g merge"; i2 "$D"
+espera pasa "PR-2 paralelas: dos revisiones paralelas con el mismo contrato aceptan el Ref: I2" "" -- commitea "$D" "I2
+
+Ref: I2"
+# Errores: no poder determinar el contrato de referencia rechaza en cada consumidor, en el hook y en el replay.
+copia f3 pr2h; i2 "$D"
+espera falla "PR-2 errores: si el cálculo falla, el Ref: I2 se rechaza por no poder determinar el contrato" "no pude determinar el contrato revisado de referencia \(el cálculo salió con 1" -- env PATH="$W/py-falla:$PATH" sh -c 'cd "$1" && git add -A && git -c core.hooksPath=.githooks commit -q -m "I2
+
+Ref: I2"' _ "$D"
+sin_hooks "$D" "I2 (colado)
+
+Ref: I2" || die "pr2h colado"
+espera falla "PR-2 errores: el replay también" "no pude determinar el contrato revisado de referencia" -- env PATH="$W/py-falla:$PATH" sh -c 'cd "$1" && sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD' _ "$D"
+copia f3 pr2i; reescribe_c1 "$D"; fase "$D" F2 "I2 «resta»"; recibo "$D" revisor-funcional encuadre reentrada:C1 PASA 0
+espera falla "PR-2 errores: reentrada:C1 se rechaza si no se puede determinar el contrato con que acotarla" "no pude determinar el contrato revisado de referencia .*para acotar la reentrada" -- env PATH="$W/py-falla:$PATH" sh -c 'cd "$1" && git add -A && git -c core.hooksPath=.githooks commit -q -m "reentrada C1
+
+Ref: F2"' _ "$D"
+sin_hooks "$D" "reentrada C1 (colada)
+
+Ref: F2" || die "pr2i colado"
+espera falla "PR-2 errores: el replay de esa reentrada también" "para acotar la reentrada" -- env PATH="$W/py-falla:$PATH" sh -c 'cd "$1" && sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD' _ "$D"
+# Un contrato ilegible entre varias referencias no se trata como igual ni como distinto.
+copia f3 pr2j; paralelas "$D" || die "pr2j"; i2 "$D"; RA=$(sha "$D" rama-a); mkdir -p "$W/py-contrato"
+printf '#!/bin/sh\ncase "$*" in *"contrato.py objetos %s"*) echo "fallo simulado del lector" >&2; exit 1 ;; esac\nexec "%s" "$@"\n' "$RA" "$REAL_PY" > "$W/py-contrato/python3"; chmod +x "$W/py-contrato/python3"
+espera falla "PR-2 errores: si el contrato de una de las referencias no se puede leer, el Ref: I2 se rechaza con diagnóstico" "no pude leer el contrato de $(printf '%s' "$RA" | cut -c1-7) para compararlo" -- env PATH="$W/py-contrato:$PATH" sh -c 'cd "$1" && git add -A && git -c core.hooksPath=.githooks commit -q -m "I2
+
+Ref: I2"' _ "$D"
+# Historia insuficiente: un clon superficial sin el F2 a la vista no se presume sin contrato.
+rm -rf "$W/pr2k"; git clone -q --depth 1 "file://$W/etapas/f3" "$W/pr2k" 2>/dev/null || die "pr2k clon"; i2 "$W/pr2k"
+sin_hooks "$W/pr2k" "I2 (colado)
+
+Ref: I2" || die "pr2k commit"
+espera falla "PR-2 errores: en un clon superficial, el Ref: I2 se rechaza por historia recortada" "no pude determinar el contrato revisado de referencia \(.*historia está recortada" -- en "$W/pr2k" env REV=HEAD sh .githooks/commit-msg /dev/null
+
 echo "== Cierre acotado de un ciclo posterior: pendientes históricos, ramas y alcance de F5"
 C1L='- C1: la función suma devuelve a+b para enteros.'; C2L='- C2: la función resta devuelve a-b.'
 RI11='| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | verificado | 2026-10-19 10:00 · app.py:1 |'

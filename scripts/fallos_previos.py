@@ -26,7 +26,7 @@ afectados siguen en `pendiente`.
         habilita una excepción al cierre ni verifica un criterio.
     python3 -I scripts/fallos_previos.py guarda <base> <candidato|INDICE>
         lo llama scripts/guardas.sh (pre-commit y replay): la línea base no cambia ni se añade tras un
-        `Ref: F2` (en NINGÚN padre, también en un merge; el F2 se reconoce como `ultimo_f2` del commit-msg),
+        `Ref: F2` (en NINGÚN padre, también en un merge; el F2 se reconoce con el mismo patrón que el commit-msg),
         el registro no desaparece, cada fila es un fallo de la línea base con su firma y cada
         retirada del inventario cita un ADR aceptado, no retrospectivo, que la nombra.
 
@@ -73,7 +73,7 @@ LINEA_BASE = "contexto/exploracion/linea-base-pruebas.xml"
 REGISTRO = "docs/fallos-previos.md"
 DECISIONES = "docs/decisiones.md"
 CLASES = {3: "recolección", 4: "interrumpida", 5: "no soportado"}
-# El MISMO lector del F2 que `ultimo_f2` del commit-msg (git log -E --grep, clase POSIX [[:space:]]).
+# El MISMO patrón del F2 que el commit-msg (git log -E --grep, clase POSIX [[:space:]]).
 F2_GREP = "^Ref:[[:space:]]*F2[[:space:]]*$"
 
 

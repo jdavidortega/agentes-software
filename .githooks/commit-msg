@@ -263,7 +263,121 @@ busca_f2() {
   [ "$(git rev-parse --is-shallow-repository 2>/dev/null)" = false ] || { F2_ERR="la historia está recortada (clon superficial) o no se pudo comprobar si lo está"; return 2; }
   return 1
 }
-ultimo_f2() { busca_f2 "$@" && printf '%s\n' "$F2_SHA"; }  # sha; el código de busca_f2 (1 o 2) si no
+CONTRATO_PY='
+import re, subprocess, sys
+# Un solo recorrido de la historia, por su ESTRUCTURA (nunca por fechas), con dos salidas:
+#   EXIGE C<n> <sha>  los criterios que el contrato vigente exige conservar (vigente(): el Ref: F2 más cercano por
+#                     primer padre; un merge, en tres vías);
+#   REF <sha>         los contratos revisados de referencia (referencias(): el Ref: F2 más cercano; en un merge que
+#                     no es Ref: F2, los MAXIMALES de la unión de los de sus padres: uno que es ancestro de otro ya
+#                     está incluido en esa revisión posterior). Varios REF son revisiones paralelas.
+# Ausencia legítima (no hay contrato anterior: ningún Ref: F2 en el recorrido, raíz, sin base común, antes
+# de la Base del método) ≠ imposibilidad de calcular (un error de git, un contrato que debe existir y no se
+# lee, una historia recortada por un clon superficial). Lo segundo termina con 2 y un diagnóstico; nunca se
+# convierte en «sin criterios exigidos» ni en «sin contrato».
+class NoCalculable(Exception): pass
+bm = sys.argv[1]; inicio = sys.argv[2:]
+F2 = re.compile(r"^Ref:[ \t]*F2[ \t]*$", re.M)
+def git(*a, validos=(0,)):
+    r = subprocess.run(["git", *a], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if r.returncode not in validos:
+        raise NoCalculable("git %s salió con %d: %s" % (" ".join(a), r.returncode, r.stderr.decode("utf-8", "replace").strip()))
+    return r.returncode, r.stdout.decode("utf-8", "replace")
+def previo_a_base(c):
+    return bool(bm) and git("merge-base", "--is-ancestor", c, bm, validos=(0, 1))[0] == 0
+def ids(c):  # un Ref: F2 es un contrato revisado: su encuadre tiene que poder leerse
+    return {m.group(1): c for m in re.finditer(r"^- (C[0-9]+):", git("show", c + ":docs/encuadre.md")[1], re.M)}
+superficial = None
+def padres(c):  # una raíz de un clon superficial no es una raíz: la historia sigue y no se ve
+    global superficial
+    ps = git("rev-list", "--parents", "-n", "1", c)[1].split()[1:]
+    if not ps:
+        if superficial is None:
+            superficial = set()
+            if git("rev-parse", "--is-shallow-repository")[1].strip() != "false":
+                try: superficial = set(open(git("rev-parse", "--git-path", "shallow")[1].strip()).read().split())
+                except OSError as e: raise NoCalculable("historia recortada y sin lista legible: %s" % e)
+        if c in superficial: raise NoCalculable("la historia está recortada (clon superficial) en %s: sin ella no se sabe qué contrato rige" % c[:7])
+    return ps
+es_f2 = {}
+def f2(c):
+    if c not in es_f2: es_f2[c] = bool(F2.search(git("log", "-1", "--format=%B", c)[1]))
+    return es_f2[c]
+memo = {}
+def vigente(c):  # el contrato vigente en c: el Ref: F2 más cercano por primer padre; un merge, en tres vías
+    if c in memo: return memo[c]
+    x = c
+    while True:
+        if previo_a_base(x): r = {}; break
+        if f2(x): r = ids(x); break
+        ps = padres(x)
+        if not ps: r = {}; break
+        if len(ps) >= 2: r = tres_vias(ps); break
+        x = ps[0]
+    memo[c] = r; return r
+def tres_vias(ps):
+    a = vigente(ps[0]); r = dict(a); quitados = set()
+    for p in ps[1:]:
+        b = vigente(p); rc, mb = git("merge-base", ps[0], p, validos=(0, 1))
+        m = vigente(mb.strip()) if rc == 0 and mb.strip() else {}
+        quitados |= {k for k in m if k not in a or k not in b}
+        for k, v in b.items(): r.setdefault(k, v)
+    return {k: v for k, v in r.items() if k not in quitados}
+def maximales(s):
+    return frozenset(x for x in s if not any(y != x and git("merge-base", "--is-ancestor", x, y, validos=(0, 1))[0] == 0 for y in s))
+rmemo = {}
+def referencias(c):
+    if c in rmemo: return rmemo[c]
+    x = c
+    while True:
+        if previo_a_base(x): r = frozenset(); break
+        if f2(x): r = frozenset([x]); break
+        ps = padres(x)
+        if not ps: r = frozenset(); break
+        if len(ps) >= 2: r = maximales(frozenset().union(*[referencias(p) for p in ps])); break
+        x = ps[0]
+    rmemo[c] = r; return r
+try:
+    r = tres_vias(inicio) if len(inicio) >= 2 else (vigente(inicio[0]) if inicio else {})
+    refs = maximales(frozenset().union(*[referencias(p) for p in inicio])) if inicio else frozenset()
+except NoCalculable as e:
+    sys.stderr.write("%s\n" % e); sys.exit(2)
+for k in sorted(r): print("EXIGE", k, r[k])
+for x in sorted(refs): print("REF", x)
+'
+# Se calcula una vez, desde el padre (o los padres de un merge). CONTRATO_OK=1 solo si terminó bien y cada línea
+# tiene su forma; si no, ningún consumidor lo toma por «sin contrato».
+CONTRATO_OK=1; CONTRATO_SAL=""; RC_CONTRATO=0
+if [ "$HAY_HISTORIAL" -eq 1 ]; then
+  bm_c=$(base_metodo); bm_c=$([ -n "$bm_c" ] && git rev-parse --verify -q "$bm_c^{commit}" 2>/dev/null)
+  inicio_c=$(printf '%s\n' $padres | grep .); [ "$(printf '%s\n' "$inicio_c" | grep -c .)" -ge 2 ] || inicio_c=$BASE
+  # shellcheck disable=SC2086
+  CONTRATO_SAL=$(python3 -I -c "$CONTRATO_PY" "$bm_c" $inicio_c 2>&1); RC_CONTRATO=$?
+  if [ "$RC_CONTRATO" -ne 0 ] || printf '%s\n' "$CONTRATO_SAL" | grep . | grep -qvE '^(EXIGE C[0-9]+|REF) [0-9a-f]{40}([0-9a-f]{24})?$'; then CONTRATO_OK=0; fi
+fi
+REFS=$(printf '%s\n' "$CONTRATO_SAL" | sed -n 's/^REF //p')
+# El contrato revisado de referencia, con cuatro resultados: 0 uno (o varios con el mismo contrato: REF_F2 es el
+# primero); 1 ninguno (ausencia legítima); 3 revisiones paralelas con contratos distintos (REF_LISTA); 2 no se pudo
+# determinar (REF_ERR). Un error nunca equivale a «sin contrato».
+texto_contrato() {
+  if m03; then contrato "$1"; return; fi
+  t=$(git show "$1:docs/encuadre.md" 2>/dev/null) || return 2
+  printf '%s\n' "$t" | contrato_previo; return 0
+}
+referencia_contrato() {
+  REF_F2=""; REF_ERR=""; REF_LISTA=""
+  [ "$CONTRATO_OK" -eq 1 ] || { REF_ERR="el cálculo salió con $RC_CONTRATO: $(printf '%s' "$CONTRATO_SAL" | tr '\n' ' ' | cut -c1-200)"; return 2; }
+  [ -n "$REFS" ] || return 1
+  REF_LISTA=$(for r in $REFS; do git rev-parse --short "$r"; done | tr '\n' ' ' | sed 's/ $//; s/ /, /g')
+  [ "$(printf '%s\n' "$REFS" | grep -c .)" -eq 1 ] && { REF_F2=$REFS; return 0; }
+  t0=""; distinto=0
+  for r in $REFS; do
+    t=$(texto_contrato "$r") || { REF_ERR="no pude leer el contrato de $(git rev-parse --short "$r") para compararlo con las otras referencias ($REF_LISTA)"; return 2; }
+    if [ -z "$REF_F2" ]; then REF_F2=$r; t0=$t; elif [ "$t" != "$t0" ]; then distinto=1; fi
+  done
+  [ "$distinto" -eq 0 ] || return 3
+  return 0
+}
 # ¿Resuelve una referencia? Una ruta del candidato (`archivo` o `archivo:línea`, con o sin acentos
 # graves, paréntesis o coma pegados) o un sha de 7–40 hex que es ancestro de BASE.
 referencia_resuelve() {  # $1 texto de la celda → 0 si algún token resuelve
@@ -294,7 +408,13 @@ for line in $trailers; do
           case "$a" in reentrada:C*)
             c=${a#reentrada:}
             idx docs/encuadre.md | grep -qE "^- $c:" || fail "'$line': el recibo del revisor funcional es de alcance $a, pero $c no está definido en docs/encuadre.md ('- $c: …')."
-            if f2p=$(ultimo_f2); then
+            referencia_contrato; rc_ref=$?
+            if [ "$rc_ref" -eq 2 ]; then
+              fail "'$line': no pude determinar el contrato revisado de referencia ($REF_ERR) para acotar la reentrada: un error no equivale a «sin contrato anterior»."
+            elif [ "$rc_ref" -eq 3 ]; then
+              fail "'$line': el contrato integra revisiones paralelas distintas ($REF_LISTA) que nadie revisó juntas: el recibo del revisor funcional tiene que ser de alcance F2 (revisa la combinación), no $a."
+            elif [ "$rc_ref" -eq 0 ]; then
+              f2p=$REF_F2
               # Con el marcador, un registro ERR (aunque el lector salga con 0) no acota nada: FALLA. Si el
               # último F2 no vale como referencia, la migración revisa el contrato completo (alcance F2).
               cambiados=""
@@ -415,7 +535,9 @@ unset IFS
 
 # --- Contrato revisado: el trabajo dependiente se ata al último `Ref: F2`, no a la fase ---------
 if [ "$dependiente" -eq 1 ] && [ "$con_f2" -eq 0 ]; then
-  if f2=$(ultimo_f2); then
+  referencia_contrato; rc_ref=$?
+  if [ "$rc_ref" -eq 0 ]; then
+    f2=$REF_F2
     # Sin el marcador, la comparación de entonces (con contrato_previo). Con él, una sección ausente,
     # duplicada o no reconocida, o una referencia inválida, no es un contrato vacío: FALLA.
     if ! m03; then
@@ -430,6 +552,10 @@ if [ "$dependiente" -eq 1 ] && [ "$con_f2" -eq 0 ]; then
     else
       [ "$ca" = "$cb" ] || fail "los criterios, el set de oro o los archivos que referencia (docs/encuadre.md) no son los del último contrato revisado (commit $(git rev-parse --short "$f2"), 'Ref: F2'); difiere: $( { printf '%s\n' "$ca"; printf '%s\n' "$cb"; } | sort | uniq -u | head -2 | cut -c1-80 | tr '\n' '|'). Un cambio de la verdad acordada reentra por el encuadre (docs/arranque.md §Reentrada): ADR, revisor funcional y commit 'Ref: F2' (alcance F2, o reentrada:C<n> si solo cambió ese criterio) antes de cerrar trabajo que depende de ella."
     fi
+  elif [ "$rc_ref" -eq 3 ]; then
+    fail "el contrato integra revisiones paralelas distintas ($REF_LISTA) que nadie revisó juntas: el trabajo que depende de los criterios (Ref: I<n> | hito | F4 | F5) no se ata a ninguna. Reentrada por el encuadre (docs/arranque.md §Reentrada): revisor funcional con alcance F2 sobre la combinación y un commit 'Ref: F2'."
+  elif [ "$rc_ref" -eq 2 ]; then
+    fail "no pude determinar el contrato revisado de referencia ($REF_ERR): sin él no se puede comprobar que el trabajo se ata al contrato revisado, y un error no equivale a «no hay ningún Ref: F2»."
   else
     fail "el commit cierra trabajo que depende de los criterios (Ref: I<n> | hito | F4 | F5) pero no hay ningún commit 'Ref: F2' en el historial$( [ -n "$(base_metodo)" ] && printf ' posterior a la Base del método'): sin plan aprobado no hay contrato revisado (docs/arranque.md, Fase 2)."
   fi
@@ -471,69 +597,20 @@ fi
 # donde ocurra). La historia previa no se reescribe. El texto del criterio sí se ajusta por reentrada. No
 # decide sobre requisitos obsoletos: su retirada legítima no tiene todavía política propia
 # (docs/arranque.md §Reentrada), y hasta entonces se conservan con su estado real.
-EXIGIDOS_PY='
-import re, subprocess, sys
-# Ausencia legítima (no hay contrato anterior: ningún Ref: F2 en el recorrido, raíz, sin base común, antes
-# de la Base del método) ≠ imposibilidad de calcular (un error de git, un contrato que debe existir y no se
-# lee). Lo segundo termina con 2 y un diagnóstico; nunca se convierte en «sin criterios exigidos».
-class NoCalculable(Exception): pass
-bm = sys.argv[1]; inicio = sys.argv[2:]
-F2 = re.compile(r"^Ref:[ \t]*F2[ \t]*$", re.M)
-def git(*a, validos=(0,)):
-    r = subprocess.run(["git", *a], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if r.returncode not in validos:
-        raise NoCalculable("git %s salió con %d: %s" % (" ".join(a), r.returncode, r.stderr.decode("utf-8", "replace").strip()))
-    return r.returncode, r.stdout.decode("utf-8", "replace")
-def previo_a_base(c):
-    return bool(bm) and git("merge-base", "--is-ancestor", c, bm, validos=(0, 1))[0] == 0
-def ids(c):  # un Ref: F2 es un contrato revisado: su encuadre tiene que poder leerse
-    return {m.group(1): c for m in re.finditer(r"^- (C[0-9]+):", git("show", c + ":docs/encuadre.md")[1], re.M)}
-memo = {}
-def vigente(c):  # el contrato vigente en c: el Ref: F2 más cercano por primer padre; un merge, en tres vías
-    if c in memo: return memo[c]
-    x = c
-    while True:
-        if previo_a_base(x): r = {}; break
-        if F2.search(git("log", "-1", "--format=%B", x)[1]): r = ids(x); break
-        ps = git("rev-list", "--parents", "-n", "1", x)[1].split()[1:]
-        if not ps: r = {}; break
-        if len(ps) >= 2: r = tres_vias(ps); break
-        x = ps[0]
-    memo[c] = r; return r
-def tres_vias(ps):
-    a = vigente(ps[0]); r = dict(a); quitados = set()
-    for p in ps[1:]:
-        b = vigente(p); rc, mb = git("merge-base", ps[0], p, validos=(0, 1))
-        m = vigente(mb.strip()) if rc == 0 and mb.strip() else {}
-        quitados |= {k for k in m if k not in a or k not in b}
-        for k, v in b.items(): r.setdefault(k, v)
-    return {k: v for k, v in r.items() if k not in quitados}
-try:
-    r = tres_vias(inicio) if len(inicio) >= 2 else (vigente(inicio[0]) if inicio else {})
-except NoCalculable as e:
-    sys.stderr.write("%s\n" % e); sys.exit(2)
-for k in sorted(r): print(k, r[k])
-'
 if [ "$HAY_HISTORIAL" -eq 1 ]; then
   # Las listas de este bloque son por líneas («C<n> <sha>»). Al salir se deja IFS como estaba, también
   # si estaba sin definir (un IFS vacío desactivaría la separación de palabras en el resto del hook).
   if [ -n "${IFS+x}" ]; then IFS_PREVIO=$IFS; IFS_DEFINIDO=1; else IFS_DEFINIDO=0; fi
   IFS='
 '
-  bm=$(base_metodo); bm=$([ -n "$bm" ] && git rev-parse --verify -q "$bm^{commit}" 2>/dev/null)
   lista_padres=$(printf '%s\n' "$padres" | tr ' ' '\n' | grep .)
-  if [ "$(printf '%s\n' "$lista_padres" | grep -c .)" -ge 2 ]; then
-    donde="un contrato revisado que este merge integra"
-    # shellcheck disable=SC2086
-    exigidos=$(python3 -I -c "$EXIGIDOS_PY" "$bm" $lista_padres 2>&1); rc_exig=$?
-  else
-    donde="el último contrato revisado"
-    exigidos=$(python3 -I -c "$EXIGIDOS_PY" "$bm" "$BASE" 2>&1); rc_exig=$?
-  fi
-  # El cálculo solo vale si terminó bien y cada línea es «C<n> <sha>»: un error, una excepción o una
-  # salida incompleta rechazan el commit; nunca equivalen a «sin criterios exigidos».
-  if [ "$rc_exig" -ne 0 ] || printf '%s\n' "$exigidos" | grep . | grep -qvE '^C[0-9]+ [0-9a-f]{40}([0-9a-f]{24})?$'; then
-    fail "no pude calcular los criterios que exige el contrato revisado (salida $rc_exig): $(printf '%s' "$exigidos" | tr '\n' ' ' | cut -c1-240). Sin ese cálculo no se puede comprobar que ningún criterio desaparece; revisa el repositorio (objetos de git, docs/encuadre.md de los Ref: F2)."
+  if [ "$(printf '%s\n' "$lista_padres" | grep -c .)" -ge 2 ]; then donde="un contrato revisado que este merge integra"
+  else donde="el último contrato revisado"; fi
+  # Del cálculo único (CONTRATO_PY): solo vale si terminó bien y cada línea tiene su forma; un error, una
+  # excepción o una salida incompleta rechazan el commit; nunca equivalen a «sin criterios exigidos».
+  exigidos=$(printf '%s\n' "$CONTRATO_SAL" | sed -n 's/^EXIGE //p'); rc_exig=$RC_CONTRATO
+  if [ "$CONTRATO_OK" -ne 1 ]; then
+    fail "no pude calcular los criterios que exige el contrato revisado (salida $rc_exig): $(printf '%s' "$CONTRATO_SAL" | tr '\n' ' ' | cut -c1-240). Sin ese cálculo no se puede comprobar que ningún criterio desaparece; revisa el repositorio (objetos de git, docs/encuadre.md de los Ref: F2)."
     exigidos=""
   fi
   ids_enc=$(idx docs/encuadre.md | grep -oE '^- C[0-9]+:' | grep -oE 'C[0-9]+' | sort -u)

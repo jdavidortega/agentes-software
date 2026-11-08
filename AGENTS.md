@@ -289,7 +289,7 @@ solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo u
 - **`commit-msg`** valida **todos** los trailers contra una gramática cerrada, resuelve cada ID
   contra el índice (casilla `[x]` y `docs/estado.md` en `Ref: I<n>`; fila para todo `Cierra:`) y
   exige el recibo vigente de cada transición. **El código del producto entra solo con
-  `Ref: I<n>`** y su recibo. **Ata el trabajo al contrato revisado:** `Ref: I<n>|hito|F4|F5`
+  `Ref: I<n>`** y su recibo, también el cuerpo de `scripts/check.sh` desde el primer `Ref: F2`. **Ata el trabajo al contrato revisado:** `Ref: I<n>|hito|F4|F5`
   exigen los `C#` y el set de oro del último `Ref: F2`; ningún hallazgo desaparece, ni un `C#` de ese contrato; entrar a F5
   exige `Ref: F5`, y `Ref: F4|F5` dispara el modo cierre de `check_docs`. Qué exige cada
   trailer: la cabecera del hook; resumen en `docs/convenciones.md` §Git.

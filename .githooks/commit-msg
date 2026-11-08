@@ -154,7 +154,29 @@ en_candidato() { if [ -n "${cand:-}" ]; then git cat-file -e "$cand:$1" 2>/dev/n
 # Límite conocido, defecto pendiente (no es un riesgo aceptado): un archivo propio de un proyecto
 # adoptado que se llama como uno de METODO («Omitidos por colisión» de contexto/adopcion.md) queda
 # exento por su nombre. Este hook no comprueba la procedencia; su diseño va aparte.
+# scripts/check.sh con el contrato «# contrato-check: 1» (en el check_docs.sh del candidato o de algún padre): no
+# se exime por nombre; lo clasifica más abajo «Cuerpo de scripts/check.sh». Sin el marcador, la regla anterior.
+# El marcador se lee de los blobs versionados, con tres resultados: 0 lo declara; 1 no lo declara o no hay
+# check_docs.sh; 2 no se pudo leer. Un error no equivale a «sin marcador»: se rechaza si el commit toca check.sh.
+marcador_check() {  # <commit|INDICE>
+  if [ "$1" = INDICE ]; then e=$(git ls-files -s -- scripts/check_docs.sh) || return 2
+  else e=$(git ls-tree "$1" -- scripts/check_docs.sh) || return 2; fi
+  [ -n "$e" ] || return 1
+  id=$(printf '%s' "$e" | awk '{ if ($2 == "blob") print $3; else print $2 }')
+  b=$(git cat-file blob "$id" 2>/dev/null) || return 2
+  printf '%s\n' "$b" | grep -qx '# contrato-check: 1'
+}
+padres_o_base=${padres:-$([ "$HAY_HISTORIAL" -eq 1 ] && printf '%s' "$BASE")}
+CONTRATO_CHECK=0; err_marcador=""
+for r in "${REV:-INDICE}" $padres_o_base; do
+  marcador_check "$r"
+  case $? in 0) CONTRATO_CHECK=1 ;; 1) ;; *) err_marcador="${err_marcador:+$err_marcador, }$([ "$r" = INDICE ] && echo 'el índice' || git rev-parse --short "$r" 2>/dev/null || printf '%s' "$r")" ;; esac
+done
+if [ -n "$err_marcador" ] && printf '%s\n' "$cambios" | grep -qx 'scripts/check.sh'; then
+  fail "no pude leer scripts/check_docs.sh (en $err_marcador) para saber si rige «# contrato-check: 1»: sin saberlo no se puede decidir si el cuerpo de scripts/check.sh exige revisión, y un error no equivale a «sin marcador»."
+fi
 codigo=$(printf '%s\n' "$cambios" | grep . | while IFS= read -r f; do
+  [ "$f" = scripts/check.sh ] && [ "$CONTRATO_CHECK" -eq 1 ] && continue
   if printf '%s\n' "$f" | grep -qE "$SIEMPRE_REVISION"; then printf '%s\n' "$f"; continue; fi
   printf '%s\n' "$f" | grep -qE "$SIN_REVISION" && continue
   printf '%s' "$f" | grep -qE '(^|/)\.env($|\.)' && ! en_candidato "$f" && continue
@@ -227,13 +249,21 @@ contrato() { python3 -I "$MET/scripts/contrato.py" objetos "$1"; }
 m03() { idx scripts/check_docs.sh | grep -qx '# contrato-set-de-oro: 1'; }
 contrato_previo() { awk '/^- C[0-9]+:/ {print; next} /^## / {s=($0 ~ /^## Set de oro/); next} s {print}' | sed 's/[[:space:]]*$//' | grep -v '^$'; }
 base_metodo() { idx docs/convenciones.md | sed -nE 's/^- \*\*Base del método:\*\* `?([0-9a-f]{7,40})`?[[:space:]]*$/\1/p' | head -1; }
-ultimo_f2() {  # sha del último commit `Ref: F2` alcanzable desde BASE (tras la base del método, si la hay)
+# Último commit `Ref: F2` alcanzable desde $1 o BASE (tras la base del método, si la hay), con tres resultados:
+# 0 lo hay (F2_SHA); 1 la búsqueda recorrió la historia completa sin encontrarlo; 2 no se pudo determinar
+# (F2_ERR): git falló o, sin coincidencia, la historia está recortada (clon superficial).
+busca_f2() {
+  F2_SHA=""; F2_ERR=""
   [ "$HAY_HISTORIAL" -eq 1 ] || return 1
   bm=$(base_metodo); excl=""
   [ -n "$bm" ] && git rev-parse --verify -q "$bm^{commit}" >/dev/null 2>&1 && excl="^$bm"
   # shellcheck disable=SC2086
-  git log -1 --format=%H -E --grep='^Ref:[[:space:]]*F2[[:space:]]*$' "$BASE" $excl 2>/dev/null | grep .
+  F2_SHA=$(git log -1 --format=%H -E --grep='^Ref:[[:space:]]*F2[[:space:]]*$' "${1:-$BASE}" $excl 2>/dev/null) || { F2_SHA=""; F2_ERR="git log terminó con error"; return 2; }
+  [ -n "$F2_SHA" ] && return 0
+  [ "$(git rev-parse --is-shallow-repository 2>/dev/null)" = false ] || { F2_ERR="la historia está recortada (clon superficial) o no se pudo comprobar si lo está"; return 2; }
+  return 1
 }
+ultimo_f2() { busca_f2 "$@" && printf '%s\n' "$F2_SHA"; }  # sha; el código de busca_f2 (1 o 2) si no
 # ¿Resuelve una referencia? Una ruta del candidato (`archivo` o `archivo:línea`, con o sin acentos
 # graves, paréntesis o coma pegados) o un sha de 7–40 hex que es ancestro de BASE.
 referencia_resuelve() {  # $1 texto de la celda → 0 si algún token resuelve
@@ -512,6 +542,51 @@ if [ "$HAY_HISTORIAL" -eq 1 ]; then
     printf '%s\n' "$ids_enc" | grep -qx "$c" || fail "$c estaba en $donde (commit $(git rev-parse --short "$src"), 'Ref: F2') y desaparece de docs/encuadre.md: un criterio no se borra ni se renumera para cerrar. Su texto se ajusta por reentrada; la retirada de un requisito obsoleto aún no tiene política propia (docs/arranque.md §Reentrada) y, mientras tanto, se conserva con su estado real."
   done
   if [ "$IFS_DEFINIDO" -eq 1 ]; then IFS=$IFS_PREVIO; else unset IFS; fi
+fi
+
+# --- Cuerpo de scripts/check.sh (con «# contrato-check: 1») ---------------------------------------
+# check.sh es el bloque canónico de la suite vigilada (hasta «# --- fin suite vigilada ---», que check_docs compara
+# con docs/convenciones.md) y el CUERPO del proyecto: qué pruebas, lint y comparador corren. Antes del primer
+# `Ref: F2` (diseño inicial, primera adopción) no hay contrato revisado y entra como el resto del rastro. Desde
+# entonces, el cuerpo es producto: si no es idéntico al de algún padre, exige `Ref: I<n>`. Solo cambiar el bloque
+# deja el cuerpo idéntico. La ausencia en el padre no exime (borrar y recrear, o un primer cuerpo tardío, son
+# cambios del cuerpo). Se leen los blobs versionados (índice o REV, y los padres); un error de lectura RECHAZA el
+# commit: nunca equivale a un cuerpo vacío. Un archivo sin el cierre del bloque o que no es regular no tiene cuerpo
+# separable y cuenta como cambio.
+cuerpo_de() {  # cuerpo_de <commit|INDICE> → huella del cuerpo, «ausente», «inseparable»; rc 2 si no se pudo leer
+  if [ "$1" = INDICE ]; then e=$(git ls-files -s -- scripts/check.sh) || return 2
+  else e=$(git ls-tree "$1" -- scripts/check.sh) || return 2; fi
+  [ -n "$e" ] || { echo ausente; return 0; }
+  modo=${e%% *}; id=$(printf '%s' "$e" | awk '{ if ($2 == "blob") print $3; else print $2 }')
+  case "$modo" in 100644|100755) ;; *) echo inseparable; return 0 ;; esac
+  git cat-file blob "$id" > "$CUERPO_TMP" 2>/dev/null || return 2
+  grep -qx '# --- fin suite vigilada ---' "$CUERPO_TMP" || { echo inseparable; return 0; }
+  sed -n '/^# --- fin suite vigilada ---$/,$p' "$CUERPO_TMP" | sed '1d' | git hash-object --stdin
+}
+if [ "$CONTRATO_CHECK" -eq 1 ] && [ "$MERGE_LIMPIO" -eq 0 ] && printf '%s\n' "$cambios" | grep -qx 'scripts/check.sh'; then
+  # Se busca en TODOS los padres: un error en uno no queda oculto porque otro haya encontrado (o no) un F2.
+  hay_contrato=0; err_f2=""
+  for p in $padres_o_base; do
+    busca_f2 "$p"
+    case $? in 0) hay_contrato=1 ;; 1) ;; *) err_f2="${err_f2:+$err_f2; }en $(git rev-parse --short "$p" 2>/dev/null || printf '%s' "$p"), $F2_ERR" ;; esac
+  done
+  if [ -n "$err_f2" ]; then
+    fail "no pude determinar si hay un 'Ref: F2' anterior ($err_f2): sin saberlo no se puede decidir si el cuerpo de scripts/check.sh exige revisión, y un error no equivale a «aún no hay contrato»."
+  elif [ "$hay_contrato" -eq 1 ]; then
+    CUERPO_TMP=$(mktemp 2>/dev/null || mktemp -t cuerpo)
+    if [ -n "${REV:-}" ]; then hc=$(cuerpo_de "$REV"); else hc=$(cuerpo_de INDICE); fi; rc_c=$?
+    igual=0; err_p=""
+    for p in $padres_o_base; do
+      hp=$(cuerpo_de "$p") || { err_p="$p"; break; }
+      [ "$hc" != ausente ] && [ "$hc" != inseparable ] && [ "$hc" = "$hp" ] && igual=1
+    done
+    rm -f "$CUERPO_TMP"
+    if [ "$rc_c" -ne 0 ] || [ -n "$err_p" ]; then
+      fail "no pude leer scripts/check.sh ($( [ -n "$err_p" ] && printf 'en %s' "$(git rev-parse --short "$err_p" 2>/dev/null)" || printf 'en el candidato')): sin su contenido no se puede saber si el cuerpo cambió, y un error no equivale a un cuerpo vacío."
+    elif [ "$igual" -eq 0 ]; then
+      codigo=$(printf '%s\n%s\n' "$codigo" "scripts/check.sh (cuerpo)" | grep .)
+    fi
+  fi
 fi
 
 # Código sin revisión: cambios fuera del rastro/plantilla exigen `Ref: I<n>` (y, con él, el

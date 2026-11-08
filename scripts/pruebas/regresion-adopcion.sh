@@ -232,7 +232,7 @@ echo "== adoptar.sh: un hook nuevo del método llega a un proyecto ya adoptado (
 # La entrega anterior: sin el hook y con el doctor que no lo exigía. actualizar trae el doctor nuevo, que señala la
 # instalación parcial; copiar añade el hook (ejecutable, registrado en el log) y el doctor deja de señalarlo.
 cp -R "$P" "$W/plantilla5"; P5="$W/plantilla5"; en "$P5" git rm -q .githooks/pre-merge-commit
-sed '/^# contrato-merges: 1$/d' "$P5/scripts/check_docs.sh" > "$W/cd5" && cat "$W/cd5" > "$P5/scripts/check_docs.sh"
+sed -e '/^# contrato-merges: 1$/d' -e '/^# contrato-check: 1$/d' "$P5/scripts/check_docs.sh" > "$W/cd5" && cat "$W/cd5" > "$P5/scripts/check_docs.sh"
 grep -qx '# contrato-merges: 1' "$P5/scripts/check_docs.sh" && die "no pude preparar la entrega anterior"
 sin_hooks "$P5" "entrega anterior: sin pre-merge-commit" || die "no pude versionar la entrega anterior"
 copia existente c15; adoptar "$P5" copiar "$D" >/dev/null; sin_hooks "$D" "instala el método (entrega anterior)" || die "c15"
@@ -312,6 +312,7 @@ espera pasa "control: con el bloque antepuesto, el commit de instalación se ace
 
 Ref: F1"
 espera pasa "... y el cuerpo corrió vigilado (con identificador de la suite)" "" -- grep -qE '^id=[0-9]{8}T' "$W/cuerpo-vg0"
+espera pasa "... primera adopción: el cuerpo de check.sh entró sin Ref: I<n> con el contrato de check.sh instalado y antes de cualquier Ref: F2" "" -- sh -c 'cd "$1" && grep -qx "# contrato-check: 1" scripts/check_docs.sh && git diff --name-only HEAD~1 HEAD | grep -qx scripts/check.sh && ! git log --format=%B | grep -qx "Ref: F2"' _ "$D"
 
 echo "== base del método: replay"
 espera pasa "con base: el historial previo no se juzga y la instalación sí" "1/1 commits cumplen" -- replay "$I" HEAD

@@ -26,7 +26,8 @@ Verificados contra la doc oficial actual de cada herramienta. -->
 - Lint / formato:
 - **`scripts/check.sh`** — agrega lint + formato + tests en un solo comando; lo ejecuta el
   `pre-commit`. Es **salida obligatoria del diseño**: desde que `docs/estado.md` declara
-  F2 o posterior, su ausencia **bloquea** el commit (antes, solo avisa). Un solo worker o
+  F2 o posterior, su ausencia **bloquea** el commit (antes, solo avisa). Desde el primer `Ref: F2`,
+  cambiar su cuerpo (qué pruebas, lint y comparador corren) es código: `Ref: I<n>` con recibo. Un solo worker o
   un máximo fijo y timeouts (§Recursos). Debe **tolerar la suite de tests vacía** (p. ej. `pytest` sale con código 5 sin tests;
   `jest` necesita `--passWithNoTests`): si no, bloquea los commits del arranque (`Ref: F2`)
   cuando aún no hay código. Con el primer test, falla de verdad. El `pre-commit` la corre en una
@@ -527,8 +528,9 @@ revertir) vive en docs/despliegue.md. -->
   **demuestre** la resolución lo juzga el revisor. **El código del producto** —todo lo que no es
   rastro, plantilla ni configuración del repositorio: lista `SIN_REVISION` del `commit-msg`; la
   configuración operativa del producto (sus workflows de `.github/`, cualquier `CODEOWNERS`,
-  también en `docs/`), sus pruebas propias en `scripts/pruebas/` y sus hooks propios
-  en `.githooks/` cuentan como producto; un renombrado cuenta por su origen y su destino— entra solo
+  también en `docs/`), sus pruebas propias en `scripts/pruebas/`, sus hooks propios
+  en `.githooks/` y, desde el primer `Ref: F2`, el cuerpo de `scripts/check.sh` (lo posterior al bloque de la
+  suite vigilada; actualizar solo el bloque no lo es) cuentan como producto; un renombrado cuenta por su origen y su destino— entra solo
   con `Ref: I<n>` y recibo del juez; ampliar esa lista es un ADR. Defecto pendiente: un archivo
   propio que colisionó en la adopción con uno del método queda exento por su nombre.
 

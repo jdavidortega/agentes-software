@@ -1162,6 +1162,9 @@ espera pasa "... y el cuerpo corrió vigilado (con identificador de la suite)" "
 # SUITE_ID y SUITE_ENVUELTO heredadas: el pre-commit las quita al lanzar (el cuerpo corre vigilado);
 # SUITE_ID sin SUITE_ENVUELTO (así está el entorno dentro de una ejecución) se rechaza como anidado.
 copia f3 cd18; printf '#!/bin/sh\n%s\necho "id=${SUITE_ID:-}" > "%s"\n' "$BLOQUE" "$W/cuerpo-cd18" > "$D/scripts/check.sh"
+sin_hooks "$D" "suite (preparación)
+
+Ref: F1" || die "cd18: preparación"; rm -f "$W/cuerpo-cd18"
 evade() { ( export SUITE_ENVUELTO=1 SUITE_ID=evasion; nota_acotada "$@" ); }
 espera pasa "SUITE_ENVUELTO=1 y SUITE_ID heredadas: el commit pasa" "" -- evade "$D" cd18
 espera pasa "... y el cuerpo corrió vigilado, no con la identidad heredada" "" -- grep -qE '^id=[0-9]{8}T' "$W/cuerpo-cd18"
@@ -2350,14 +2353,15 @@ if command -v zsh >/dev/null 2>&1; then
 fi
 
 copia f3 an3; A=$(sha "$D" HEAD)
-printf '#!/bin/sh\n# contrato-set-de-oro: 1\n# contrato-merges: 1\nexit 0\n' > "$D/scripts/check_docs.sh"; sin_hooks "$D" "doctor debilitado
+printf '#!/bin/sh\n# contrato-set-de-oro: 1\n# contrato-merges: 1\n# contrato-check: 1\nexit 0\n' > "$D/scripts/check_docs.sh"; sin_hooks "$D" "doctor debilitado
 
 Ref: F1"
 printf '#!/bin/sh\n# pruebas sin la suite vigilada\nexit 0\n' > "$D/scripts/check.sh"; sin_hooks "$D" "check.sh sin el bloque vigilado
 
 Ref: F1"
 espera falla "manipulado: el doctor debilitado en un commit ANTERIOR del rango no juzga el siguiente" "no EMPIEZA por el bloque.*" -- anclado "$D" "$A" "$A" HEAD
-espera pasa "límite conocido: sin ancla, el doctor debilitado del checkout lo deja pasar" "2/2 commits cumplen" -- en "$D" sh scripts/pruebas/validar_historial.sh "$A..HEAD"
+espera falla "límite conocido: sin ancla, el doctor debilitado del checkout acepta su propio commit (el replay sale con error por el siguiente)" "ok +[0-9a-f]+ doctor debilitado" -- en "$D" sh scripts/pruebas/validar_historial.sh "$A..HEAD"
+espera falla "... acotado por el contrato de check.sh: el check.sh sin el bloque lo rechaza el commit-msg" "scripts/check\.sh \(cuerpo\)" -- en "$D" sh scripts/pruebas/validar_historial.sh "$A..HEAD"
 
 copia plantilla an4; A=$(sha "$D" HEAD)
 printf '#!/bin/sh\n# pruebas sin la suite vigilada\nexit 0\n' > "$D/scripts/check.sh"; printf '/scripts/check.sh export-ignore\n' >> "$D/.gitattributes"
@@ -2412,7 +2416,7 @@ espera falla "materializa: un componente .git (sin distinguir mayúsculas) detie
 espera pasa "materializa: nada se escribió en la carpeta ni se ejecutó el fsmonitor del árbol" "" -- sh -c '[ -z "$(ls -A "$1")" ] && ! ls -A "$2" | grep -q fsmonitor' _ "$W/mat-an9" "$TR"
 
 # Prueba de bloqueo: todas las copias del candidato de la lista cerrada son trampas; ninguna debe ejecutarse.
-trampa_sh() { printf '#!/bin/sh\n# contrato-recibos: 2\n# contrato-set-de-oro: 1\n# contrato-merges: 1\necho "$0" >> %s/disparos; exit 1\n' "$TR"; }
+trampa_sh() { printf '#!/bin/sh\n# contrato-recibos: 2\n# contrato-set-de-oro: 1\n# contrato-merges: 1\n# contrato-check: 1\necho "$0" >> %s/disparos; exit 1\n' "$TR"; }
 trampa_py() { printf '# contrato-recibos: 2\nimport sys\nopen("%s/disparos", "a").write(sys.argv[0] + "\\n"); sys.exit(1)\n' "$TR"; }
 LISTA_T05="scripts/pruebas/replay_anclado.sh scripts/pruebas/validar_historial.sh .githooks/commit-msg scripts/guardas.sh scripts/check_docs.sh scripts/recibos.sh scripts/huella.sh scripts/trazabilidad.sh scripts/contrato.py scripts/fallos_previos.py scripts/suite.py"
 copia f3 an10; A=$(sha "$D" HEAD)
@@ -2533,9 +2537,9 @@ echo "== Actualización desde la entrega anterior: una historia con los dos cont
 anterior() {
   rm -f "$1/.githooks/pre-merge-commit"
   sed -e 's/(commit-msg|pre-commit|pre-merge-commit)/(commit-msg|pre-commit)/' -e 's#De \.githooks/ solo sus tres hooks;#De .githooks/ solo sus dos hooks;#' "$1/.githooks/commit-msg" > "$W/ant-cm" && cat "$W/ant-cm" > "$1/.githooks/commit-msg"
-  sed '/^# contrato-merges: 1$/d' "$1/scripts/check_docs.sh" > "$W/ant-cd" && cat "$W/ant-cd" > "$1/scripts/check_docs.sh"
-  sed '/^# 8b) La versión del contrato de los merges/,/^done$/d' "$1/scripts/guardas.sh" > "$W/ant-gu" && cat "$W/ant-gu" > "$1/scripts/guardas.sh"
-  grep -v '^#' "$1/scripts/guardas.sh" | grep -q 'contrato-merges' && die "anterior: guardas.sh conserva la regla 8b"
+  sed -e '/^# contrato-merges: 1$/d' -e '/^# contrato-check: 1$/d' "$1/scripts/check_docs.sh" > "$W/ant-cd" && cat "$W/ant-cd" > "$1/scripts/check_docs.sh"
+  sed -e '/^# 8b) La versión del contrato de los merges/,/^done$/d' -e '/^# 8c) La versión del contrato de scripts\/check.sh/,/^done$/d' "$1/scripts/guardas.sh" > "$W/ant-gu" && cat "$W/ant-gu" > "$1/scripts/guardas.sh"
+  grep -v '^#' "$1/scripts/guardas.sh" | grep -qE 'contrato-(merges|check)' && die "anterior: guardas.sh conserva la regla 8b u 8c"
   return 0
 }
 nota_en() { printf -- '- %s\n' "$3" >> "$1/$2"; }
@@ -2620,6 +2624,172 @@ sin_hooks "$F" "vuelve a la entrega anterior
 
 Ref: F1" || die "fingir: no pude colar la vuelta atrás"
 espera falla "fingir: el replay anclado en la actualización rechaza esa vuelta atrás colada" "deja de declarar «# contrato-merges: 1».*resultado FALLA" -- anclado_t "$F" "$A_NUE" "$A_NUE" HEAD
+
+echo "== scripts/check.sh: el cuerpo es producto desde el primer Ref: F2 (# contrato-check: 1)"
+# El cuerpo es lo posterior a «# --- fin suite vigilada ---». Antes del primer Ref: F2 (diseño inicial, primera
+# adopción) entra como el rastro; desde entonces exige Ref: I<n> salvo que quede idéntico al de algún padre.
+cuerpo_mas() { printf '%s\n' "$2" >> "$1/scripts/check.sh"; }
+solo_bloque() {  # la plantilla actualiza el bloque: igual en check.sh y en su referencia de convenciones
+  python3 - "$1/scripts/check.sh" "$1/docs/convenciones.md" <<'EOF'
+import sys
+for p in sys.argv[1:]:
+    s = open(p).read(); a = "\n# --- fin suite vigilada ---\n"; assert s.count(a) == 1, p
+    open(p, "w").write(s.replace(a, "\n# (bloque actualizado por la plantilla)" + a))
+EOF
+}
+copia f3 ck1; cuerpo_mas "$D" 'echo lint >/dev/null'
+espera falla "check.sh: cambiar el cuerpo con Ref: F1 tras el F2 se rechaza" "código fuera del rastro \(scripts/check\.sh \(cuerpo\)" -- commitea "$D" "ajusta check.sh
+
+Ref: F1"
+copia f3 ck2; cuerpo_mas "$D" 'echo lint >/dev/null'; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera pasa "check.sh: cambiar el cuerpo con Ref: I2 y recibo se acepta" "" -- commitea "$D" "I2: lint en check.sh
+
+Ref: I2"
+copia f3 ck3; solo_bloque "$D"
+espera pasa "check.sh: actualizar solo el bloque canónico (cuerpo idéntico) con Ref: F1 se acepta" "" -- commitea "$D" "actualiza el bloque
+
+Ref: F1"
+copia f3 ck4; solo_bloque "$D"; cuerpo_mas "$D" 'echo lint >/dev/null'
+espera falla "check.sh: bloque y cuerpo a la vez con Ref: F1 se rechaza (el cuerpo exige revisión)" "scripts/check\.sh \(cuerpo\)" -- commitea "$D" "bloque y cuerpo
+
+Ref: F1"
+# La instalación legítima: antes del primer Ref: F2.
+copia plantilla ck5; printf '%s' "$SUITE" > "$D/scripts/check.sh"
+espera pasa "check.sh: crearlo durante el diseño inicial (antes del primer F2) con Ref: F1 se acepta" "" -- commitea "$D" "check.sh del diseño
+
+Ref: F1"
+cuerpo_mas "$D" 'echo lint >/dev/null'
+espera pasa "check.sh: cambiar su cuerpo aún antes del primer F2 se acepta" "" -- commitea "$D" "ajusta check.sh en el diseño
+
+Ref: F1"
+espera pasa "check.sh: la creación en el commit del primer Ref: F2 (etapa f2) quedó aceptada" "" -- sh -c "git -C '$W/etapas/f2' log -1 --format=%B | grep -qx 'Ref: F2' && git -C '$W/etapas/f2' diff --name-only HEAD~1 HEAD | grep -qx scripts/check.sh"
+# Negativos de la excepción de instalación: tras el F2, la ausencia en el padre no exime.
+copia f3 ck6; en "$D" git rm -q scripts/check.sh; sin_hooks "$D" "borra check.sh (colado)
+
+Ref: F1" || die "ck6"; printf '%s' "$SUITE" > "$D/scripts/check.sh"; cuerpo_mas "$D" ': otro cuerpo'
+espera falla "check.sh: borrarlo y recrearlo con otro cuerpo tras el F2 se rechaza" "scripts/check\.sh \(cuerpo\)" -- commitea "$D" "recrea check.sh
+
+Ref: F1"
+copia f3 ck7; cp "$D/scripts/check.sh" "$W/ck7-original"; en "$D" git rm -q scripts/check.sh; sin_hooks "$D" "borra check.sh (colado)
+
+Ref: F1" || die "ck7"; cp "$W/ck7-original" "$D/scripts/check.sh"
+espera falla "check.sh: borrarlo y recrearlo idéntico tras el F2 también se rechaza (el padre no tiene cuerpo con que compararlo)" "scripts/check\.sh \(cuerpo\)" -- commitea "$D" "recrea check.sh
+
+Ref: F1"
+copia f3 ck8; printf '#!/bin/sh\n%s\n' "$BLOQUE" > "$D/scripts/check.sh"; sin_hooks "$D" "check.sh solo con el bloque (colado)
+
+Ref: F1" || die "ck8"; printf '%s' "$SUITE" > "$D/scripts/check.sh"
+espera falla "check.sh: un primer cuerpo ejecutable tardío (sobre un check.sh solo con el bloque) se rechaza" "scripts/check\.sh \(cuerpo\)" -- commitea "$D" "añade el cuerpo
+
+Ref: F1"
+copia f3 ck9; printf '#!/bin/sh\necho sin bloque\n' > "$D/scripts/check.sh"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+espera falla "check.sh: sin el cierre del bloque no hay cuerpo separable: cuenta como cambio (y check_docs lo rechaza)" "check\.sh" -- commitea "$D" "check.sh sin bloque
+
+Ref: F1"
+# Un error de lectura rechaza: nunca equivale a un cuerpo vacío. Se ve aislado en el commit-msg del replay.
+copia f3 ck10; solo_bloque "$D"; sin_hooks "$D" "actualiza el bloque
+
+Ref: F1" || die "ck10"
+b=$(en "$D" git rev-parse HEAD~1:scripts/check.sh); rm -f "$D/.git/objects/$(printf '%s' "$b" | cut -c1-2)/$(printf '%s' "$b" | cut -c3-)"
+espera falla "check.sh: si el blob del padre no se puede leer, el commit se rechaza por ese motivo" "no pude leer scripts/check\.sh \(en " -- en "$D" env REV=HEAD sh .githooks/commit-msg /dev/null
+# Replay: lo colado se detecta; el anclado juzga con el ancla.
+copia f3 ck11; A=$(sha "$D" HEAD); cuerpo_mas "$D" ': pruebas desactivadas'; sin_hooks "$D" "ajusta check.sh (colado)
+
+Ref: F1" || die "ck11"
+espera falla "check.sh: el replay actual rechaza un cambio del cuerpo colado con --no-verify" "scripts/check\.sh \(cuerpo\)" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+espera falla "check.sh: el replay anclado también" "scripts/check\.sh \(cuerpo\).*resultado FALLA" -- anclado_t "$D" "$A" "$A" HEAD
+# Merge limpio de una rama donde el cuerpo se cambió con revisión.
+copia f3 ck12; PRIN=$(en "$D" git branch --show-current); en "$D" git checkout -q -b lint; cuerpo_mas "$D" 'echo lint >/dev/null'; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
+commitea "$D" "I2: lint
+
+Ref: I2" || die "ck12 rama"; en "$D" git checkout -q "$PRIN"; nota_en "$D" docs/MEMORIA.md "nota"; commitea "$D" "nota
+
+Ref: F1" || die "ck12 principal"
+espera pasa "check.sh: un merge limpio que integra un cuerpo revisado en la rama se acepta" "" -- fusiona "$D" lint
+# Transición: sin el marcador (historia anterior) rige la regla anterior; el marcador no se retira.
+V="$W/ck13"; proyecto_anterior "$V"; cuerpo_mas "$V" 'echo lint >/dev/null'
+espera pasa "check.sh (transición): con la entrega anterior, cambiar el cuerpo con Ref: F1 tras el F2 se aceptaba" "" -- commitea "$V" "ajusta check.sh
+
+Ref: F1"
+trae "$V" $NUEVOS; commitea "$V" "actualiza el método
+
+Ref: F1" || die "ck13: actualización"
+espera pasa "check.sh (transición): con los validadores nuevos, el replay de toda la historia la sigue dando por válida" "commits cumplen" -- en "$V" sh scripts/pruebas/validar_historial.sh HEAD
+cuerpo_mas "$V" ': otro ajuste'
+espera falla "check.sh (transición): activado el marcador, el mismo tipo de cambio exige revisión" "scripts/check\.sh \(cuerpo\)" -- commitea "$V" "ajusta check.sh otra vez
+
+Ref: F1"
+copia f3 ck14; sed '/^# contrato-check: 1$/d' "$D/scripts/check_docs.sh" > "$W/ck14.cd" && cat "$W/ck14.cd" > "$D/scripts/check_docs.sh"
+espera falla "check.sh: retirar el marcador se rechaza (guardas 8c)" "deja de declarar «# contrato-check: 1»" -- commitea "$D" "retira el marcador
+
+Ref: F1"
+# Un error al buscar el F2 no es «aún no hay contrato»: la búsqueda tiene tres resultados (hay F2, completa sin F2,
+# no se pudo determinar) y el tercero rechaza. El fallo se inyecta SOLO en esa búsqueda con un git sustituto en un
+# espejo de git-core (git antepone su exec-path al PATH de los hooks; con GIT_EXEC_PATH el sustituto los alcanza).
+# Falla con FALLA_F2_EN=<sha> solo si busca desde ese commit; sin él, siempre. Anota quién lo invocó.
+GX="$W/gx-falla-f2"; mkdir -p "$GX"; GC=$(git --exec-path)
+for f in "$GC"/*; do ln -s "$f" "$GX/${f##*/}"; done; rm -f "$GX/git"
+cat > "$GX/git" <<EOF
+#!/bin/sh
+for a in "\$@"; do
+  [ "\$a" = '--grep=^Ref:[[:space:]]*F2[[:space:]]*\$' ] || continue
+  if [ -z "\${FALLA_F2_EN:-}" ] || printf '%s\n' "\$@" | grep -qx "\$FALLA_F2_EN"; then
+    printf '%s\n' "\$(ps -o command= -p \$PPID)" >> "\$FALLA_F2_LOG"; echo "fatal: fallo simulado en la búsqueda del F2" >&2; exit 128
+  fi
+done
+exec "$GC/git" "\$@"
+EOF
+chmod +x "$GX/git"
+falla_f2() { ( export GIT_EXEC_PATH="$GX" PATH="$GX:$PATH" FALLA_F2_LOG="$1"; shift; "$@" ); }  # PATH: también fuera de un git commit (replays)
+solo_commit_msg() { sh -c 'test -s "$1" && ! grep -v "\.githooks/commit-msg" "$1"' _ "$1"; }
+copia f3 bf1; cuerpo_mas "$D" ': pruebas desactivadas'
+espera falla "check.sh (búsqueda del F2): con un F2 real y un fallo solo en esa búsqueda, cambiar el cuerpo con Ref: F1 se rechaza por no poder determinar el contrato" "no pude determinar si hay un 'Ref: F2' anterior \(en [0-9a-f]+, git log terminó con error\)" -- falla_f2 "$W/bf1.log" commitea "$D" "ajusta check.sh
+
+Ref: F1"
+espera pasa "check.sh (búsqueda del F2): el fallo ocurrió solo en esa búsqueda, dentro del commit-msg" "" -- solo_commit_msg "$W/bf1.log"
+copia f3 bf1b; cuerpo_mas "$D" ': pruebas desactivadas'
+espera falla "check.sh (búsqueda del F2): sin el fallo, el mismo commit se rechaza por el cuerpo (el F2 es real)" "scripts/check\.sh \(cuerpo\)" -- commitea "$D" "ajusta check.sh
+
+Ref: F1"
+copia f3 bf1r; A=$(sha "$D" HEAD); cuerpo_mas "$D" ': pruebas desactivadas'; sin_hooks "$D" "ajusta check.sh (colado)
+
+Ref: F1" || die "bf1r colado"
+espera falla "check.sh (búsqueda del F2): el replay actual con el mismo fallo lo rechaza por no poder determinar el contrato" "no pude determinar si hay un 'Ref: F2' anterior" -- falla_f2 "$W/bf1r.log" en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
+espera falla "check.sh (búsqueda del F2): el replay anclado también" "no pude determinar si hay un 'Ref: F2' anterior.*resultado FALLA" -- falla_f2 "$W/bf1a.log" anclado_t "$D" "$A" "$A" HEAD
+espera pasa "check.sh (búsqueda del F2): en los replays el fallo también ocurrió solo en el commit-msg" "" -- sh -c 'cat "$1" "$2" > "$3"' _ "$W/bf1r.log" "$W/bf1a.log" "$W/bf1ra.log" && solo_commit_msg "$W/bf1ra.log"
+# Positivo: búsqueda completa sin F2 (diseño inicial), en el hook y en el replay.
+copia plantilla bf2; printf '%s' "$SUITE" > "$D/scripts/check.sh"
+commitea "$D" "check.sh del diseño
+
+Ref: F1" || die "bf2 crea"; cuerpo_mas "$D" 'echo lint >/dev/null'
+espera pasa "check.sh (búsqueda del F2): sin ningún F2 (búsqueda completa), cambiar el cuerpo con Ref: F1 se acepta" "" -- commitea "$D" "ajusta check.sh en el diseño
+
+Ref: F1"
+espera pasa "check.sh (búsqueda del F2): el replay de esos dos commits sin F2 los acepta" "commits cumplen" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~2..HEAD
+# Todos los padres: el error en uno no queda oculto porque el otro tenga F2.
+copia f3 bf3; PRIN=$(en "$D" git branch --show-current); en "$D" git checkout -q -b otra; nota_en "$D" docs/MEMORIA.md "en la rama"
+commitea "$D" "nota en la rama
+
+Ref: F1" || die "bf3 rama"; en "$D" git checkout -q "$PRIN"; nota_en "$D" docs/plan.md "en la principal"; commitea "$D" "nota
+
+Ref: F1" || die "bf3 principal"
+en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-commit otra || die "bf3 merge"; cuerpo_mas "$D" ': pruebas desactivadas'
+sin_hooks "$D" "merge con cambio del cuerpo
+
+Ref: F1" || die "bf3 commit"; P2=$(sha "$D" HEAD^2)
+espera falla "check.sh (búsqueda del F2): en un merge, un error al buscar desde el segundo padre se rechaza aunque el primero tenga F2" "no pude determinar si hay un 'Ref: F2' anterior \(en $(printf '%s' "$P2" | cut -c1-7)" -- falla_f2 "$W/bf3.log" en "$D" env FALLA_F2_EN="$P2" REV=HEAD sh .githooks/commit-msg /dev/null
+# Búsqueda incompleta: un clon superficial sin el F2 dentro de su profundidad no se presume sin contrato.
+rm -rf "$W/bf4"; git clone -q --depth 1 "file://$W/etapas/f3" "$W/bf4" 2>/dev/null || die "bf4 clon"; cuerpo_mas "$W/bf4" ': pruebas desactivadas'
+sin_hooks "$W/bf4" "ajusta check.sh (colado)
+
+Ref: F1" || die "bf4 commit"
+espera falla "check.sh (búsqueda del F2): en un clon superficial sin el F2 a la vista, se rechaza por historia recortada" "no pude determinar si hay un 'Ref: F2' anterior \(en [0-9a-f]+, la historia está recortada" -- en "$W/bf4" env REV=HEAD sh .githooks/commit-msg /dev/null
+# El marcador tampoco se presume ausente si su check_docs.sh no se puede leer.
+copia f3 bf5; cuerpo_mas "$D" ': pruebas desactivadas'; sin_hooks "$D" "ajusta check.sh (colado)
+
+Ref: F1" || die "bf5"
+b=$(en "$D" git rev-parse HEAD:scripts/check_docs.sh); rm -f "$D/.git/objects/$(printf '%s' "$b" | cut -c1-2)/$(printf '%s' "$b" | cut -c3-)"
+espera falla "check.sh: si check_docs.sh (el marcador) no se puede leer, el commit que toca check.sh se rechaza por ese motivo" "no pude leer scripts/check_docs\.sh \(en " -- en "$D" env REV=HEAD sh .githooks/commit-msg /dev/null
 
 echo "== Cierre acotado de un ciclo posterior: pendientes históricos, ramas y alcance de F5"
 C1L='- C1: la función suma devuelve a+b para enteros.'; C2L='- C2: la función resta devuelve a-b.'

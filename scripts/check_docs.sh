@@ -24,6 +24,10 @@
 # merge que termina solo). Rige igual que la de arriba: un commit anterior a la entrega que la añadió se valida sin
 # ella, y una vez instalada guardas.sh (regla 8b) impide retirarla o borrar el hook.
 # contrato-merges: 1
+# Versión del contrato de scripts/check.sh: con esta línea, el commit-msg trata el cuerpo de check.sh (lo posterior
+# al bloque de la suite vigilada) como producto desde el primer `Ref: F2`. Rige igual que las de arriba: un commit
+# anterior se valida sin ella, y guardas.sh (regla 8c) impide retirarla.
+# contrato-check: 1
 
 MODE="${1:-commit}"
 FAIL=0

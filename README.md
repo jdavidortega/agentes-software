@@ -167,7 +167,8 @@ Qué pasa con lo que el proyecto ya tiene:
 | En el proyecto | Qué hace la copia |
 |---|---|
 | `README.md` | **Nunca se toca.** El agente lo verifica contra el código en la Fase 1. |
-| Un archivo con el mismo nombre que uno del método (p. ej. `docs/despliegue.md`) | Se conserva el del proyecto; queda listado como colisión para integrarlo después. |
+| Un documento con el mismo nombre que uno del método (p. ej. `docs/despliegue.md`) | Se conserva el del proyecto; queda listado como colisión para integrarlo después. Sigue siendo documentación: la colisión no cambia cómo se revisa. |
+| Un archivo con el nombre de un script, hook o workflow del método (p. ej. `scripts/buscar.sh`) | Se conserva el del proyecto y queda listado como colisión. Además es código del proyecto: cambiarlo exige `Ref: I<n>`. |
 | `CLAUDE.md`, `AGENTS.md`, hooks o CI propios | Se conservan; el agente propone cómo convivir y tú apruebas. |
 | `.gitignore` | No lo toca la copia; `adoptar.sh gitignore` propone las entradas (y una negación precisa si una regla amplia del proyecto tapa un archivo del método) y se niega si ocultarían un archivo ya versionado. |
 | El código, las pruebas y los datos | **Nada cambia.** Cualquier cambio posterior entra como incremento con revisión. |

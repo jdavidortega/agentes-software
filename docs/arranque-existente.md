@@ -175,7 +175,8 @@ que el proyecto ya modificó no se sustituye: es una integración manual con la 
   `docs/instrucciones-del-proyecto.md`, referenciado desde §1 del `AGENTS.md` del método
   como **lectura obligatoria**); la forma concreta se acuerda con la persona.
 - **Colisiones en `docs/`** (p. ej. un runbook en `docs/despliegue.md`): se conserva el del
-  proyecto. Su integración con la estructura del método se hace en la Fase 1, **siempre que
+  proyecto y sigue siendo documentación: que la copia conserve la colisión no lo vuelve
+  producto. Su integración con la estructura del método se hace en la Fase 1, **siempre que
   el doctor lo acepte ya** (paso G); si no, se integra aquí lo mínimo para que lo acepte.
 - **Hooks y CI existentes:** si `core.hooksPath` apunta a otra carpeta o hay hooks propios
   en `.git/hooks`, se acuerda cómo conviven **antes** de activar los del método: con
@@ -185,8 +186,9 @@ que el proyecto ya modificó no se sustituye: es una integración manual con la 
   no se juzga, o después con `Ref: I<n>`. `.github/workflows/metodo.yml` solo aplica a GitHub
   Actions; en otro CI se copian sus comandos (`docs/convenciones.md` §Git).
 - **Archivo propio con el nombre de un script, hook o workflow del método:** se conserva y
-  queda en «Omitidos por colisión» del manifiesto. **Defecto pendiente:** el `commit-msg` todavía
-  lo exime por su nombre, como si fuera del método; se anota en «Pendiente» del gate del Paso 0.
+  queda en «Omitidos por colisión» del manifiesto. Es **producto**: el `commit-msg` lo reconoce
+  porque ya existía en la base, no por el manifiesto, y cambiarlo, también para adoptar la
+  versión del método, exige `Ref: I<n>`.
 
 **E. Brief de adopción.** Un archivo corto en `contexto/` (p. ej. `contexto/brief-adopcion.md`)
 con lo que el repositorio no dice: por qué se adopta el método, **qué trabajo se prioriza**
@@ -274,6 +276,8 @@ una regresión posterior nunca, tampoco por reentrada F2.
 **H. Commit de instalación.**
 - Añade a `docs/convenciones.md` §Git la línea `- **Base del método:** <sha>` con el
   commit actual del proyecto (**previo** a la instalación): `git rev-parse HEAD` antes de commitear.
+  Nace en este commit, que no puede ser un merge, y **no cambia después**: el `commit-msg` rechaza
+  moverla, borrarla o duplicarla.
 - `docs/estado.md`: `Fase actual: F1 · instalación terminada; gate del Paso 0 pendiente`;
   en la tabla de criterios, «criterios aún no definidos (Fase 1)» en lugar de la fila de
   ejemplo; lo pendiente en frases completas. El commit **no afirma** que haya encuadre ni protección.

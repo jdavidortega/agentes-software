@@ -98,16 +98,31 @@ fi
 # ajena a la historia del extremo final o una base en o después de un commit con fase (moverla
 # hacia adelante ocultaría commits ya sujetos a revisión) FALLAN; nunca equivalen a «sin base».
 EXCLUIR=""
-# Con --metodo no hay árbol de trabajo: la declaración se lee del extremo final del rango, que es lo
-# que el checkout tendría. La procedencia de la base sigue pendiente (M10), como sin --metodo.
+nb() { echo "validar_historial: base del método: $1" >&2; exit 2; }
+# Con --metodo (replay anclado) la declaración que fija lo excluido es la del ANCLA (su docs/convenciones.md,
+# extraído en METODO_DIR), no la del candidato; la del extremo final tiene que ser la misma (la base nace una
+# vez y no cambia: lo comprueba el commit-msg en cada commit). Leer cualquiera de las dos con error, o que no
+# coincidan, detiene: nunca equivale a «sin base».
 if [ -n "${METODO_DIR:-}" ]; then
   case "$RANGO" in *..*) FIN_DECL=${RANGO#*..} ;; *) FIN_DECL=$RANGO ;; esac
-  DECL=$(git show "${FIN_DECL:-HEAD}:docs/convenciones.md" 2>/dev/null | grep -E '^- \*\*Base del método:\*\*' || true)
+  [ -f "$METODO_DIR/docs/convenciones.md" ] || nb "la carpeta del ancla no trae docs/convenciones.md: no sé qué base declaraba el ancla"
+  DECL=$(grep -E '^- \*\*Base del método:\*\*' "$METODO_DIR/docs/convenciones.md")
+  [ $? -le 1 ] || nb "no pude leer docs/convenciones.md del ancla"
+  e=$(git ls-tree "${FIN_DECL:-HEAD}" -- docs/convenciones.md 2>/dev/null) || nb "no pude leer docs/convenciones.md del final del rango (${FIN_DECL:-HEAD})"
+  DECL_FIN=""
+  if [ -n "$e" ]; then
+    t=$(git cat-file blob "$(printf '%s' "$e" | awk '{print $3}')" 2>/dev/null) || nb "no pude leer docs/convenciones.md del final del rango (${FIN_DECL:-HEAD})"
+    DECL_FIN=$(printf '%s\n' "$t" | grep -E '^- \*\*Base del método:\*\*')
+  fi
+  resuelve_decl() { x=$(printf '%s' "$1" | sed -nE 's/^- \*\*Base del método:\*\* `?([0-9a-f]{7,40})`?[[:space:]]*$/\1/p'); [ -n "$x" ] && git rev-parse --verify -q --end-of-options "$x^{commit}" 2>/dev/null; }
+  if [ -n "$DECL" ] || [ -n "$DECL_FIN" ]; then
+    ra=$(resuelve_decl "$DECL"); rf=$(resuelve_decl "$DECL_FIN")
+    { [ -n "$ra" ] && [ "$ra" = "$rf" ]; } || nb "el final del rango declara '${DECL_FIN:-ninguna}' y el ancla '${DECL:-ninguna}': la base se lee del ancla y no cambia ni desaparece (docs/convenciones.md §Git)"
+  fi
 else
   DECL=$(grep -E '^- \*\*Base del método:\*\*' docs/convenciones.md 2>/dev/null || true)
 fi
 if [ -n "$DECL" ]; then
-  nb() { echo "validar_historial: base del método: $1" >&2; exit 2; }
   [ "$(printf '%s\n' "$DECL" | grep -c .)" -eq 1 ] || nb "hay más de una declaración en docs/convenciones.md; debe haber una"
   sha=$(printf '%s' "$DECL" | sed -nE 's/^- \*\*Base del método:\*\* `?([0-9a-f]{7,40})`?[[:space:]]*$/\1/p')
   [ -n "$sha" ] || nb "declaración malformada ('$DECL'); forma: - **Base del método:** <sha de 7 a 40 hexadecimales>"

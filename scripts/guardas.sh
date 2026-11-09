@@ -31,6 +31,8 @@
 #   8b) lo mismo con «# contrato-merges: 1» y .githooks/pre-merge-commit: borrar el hook o volver al check_docs
 #      anterior no hace pasar el proyecto por uno de la entrega previa.
 #   8c) lo mismo con «# contrato-check: 1»: retirarlo devolvería el cuerpo de scripts/check.sh a la exención.
+#   8d) lo mismo con «# contrato-procedencia: 1»: retirarlo devolvería scripts/adoptar.sh y la regresión de
+#      adopción a la exención en un adoptado.
 #   9) fallos previos de una adopción (scripts/fallos_previos.py guarda, si el candidato o algún padre
 #      tiene la línea base contexto/exploracion/linea-base-pruebas.xml o el registro docs/fallos-previos.md):
 #      la línea base no cambia ni desaparece, ni se añade después de un `Ref: F2`; el registro no
@@ -154,6 +156,14 @@ for p in $padres; do
   git show "$p:scripts/check_docs.sh" 2>/dev/null | grep -qx '# contrato-check: 1' || continue
   q=$(git rev-parse --short "$p" 2>/dev/null || echo 'el estado anterior')
   blob_c scripts/check_docs.sh | grep -qx '# contrato-check: 1' 2>/dev/null || fail "scripts/check_docs.sh deja de declarar «# contrato-check: 1», que $q ya declaraba: el cuerpo de scripts/check.sh no vuelve a la exención, tampoco al fusionar (se actualiza con adoptar.sh actualizar o desde la plantilla)."
+  break
+done
+
+# 8d) La versión del contrato de procedencia no retrocede (R-S.1: lo que la plantilla no distribuye es producto en un adoptado).
+for p in $padres; do
+  git show "$p:scripts/check_docs.sh" 2>/dev/null | grep -qx '# contrato-procedencia: 1' || continue
+  q=$(git rev-parse --short "$p" 2>/dev/null || echo 'el estado anterior')
+  blob_c scripts/check_docs.sh | grep -qx '# contrato-procedencia: 1' 2>/dev/null || fail "scripts/check_docs.sh deja de declarar «# contrato-procedencia: 1», que $q ya declaraba: scripts/adoptar.sh y la regresión de adopción no vuelven a la exención en un adoptado, tampoco al fusionar (se actualiza con adoptar.sh actualizar o desde la plantilla)."
   break
 done
 

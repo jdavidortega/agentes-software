@@ -2353,7 +2353,7 @@ if command -v zsh >/dev/null 2>&1; then
 fi
 
 copia f3 an3; A=$(sha "$D" HEAD)
-printf '#!/bin/sh\n# contrato-set-de-oro: 1\n# contrato-merges: 1\n# contrato-check: 1\nexit 0\n' > "$D/scripts/check_docs.sh"; sin_hooks "$D" "doctor debilitado
+printf '#!/bin/sh\n# contrato-set-de-oro: 1\n# contrato-merges: 1\n# contrato-check: 1\n# contrato-procedencia: 1\nexit 0\n' > "$D/scripts/check_docs.sh"; sin_hooks "$D" "doctor debilitado
 
 Ref: F1"
 printf '#!/bin/sh\n# pruebas sin la suite vigilada\nexit 0\n' > "$D/scripts/check.sh"; sin_hooks "$D" "check.sh sin el bloque vigilado
@@ -2416,7 +2416,7 @@ espera falla "materializa: un componente .git (sin distinguir mayúsculas) detie
 espera pasa "materializa: nada se escribió en la carpeta ni se ejecutó el fsmonitor del árbol" "" -- sh -c '[ -z "$(ls -A "$1")" ] && ! ls -A "$2" | grep -q fsmonitor' _ "$W/mat-an9" "$TR"
 
 # Prueba de bloqueo: todas las copias del candidato de la lista cerrada son trampas; ninguna debe ejecutarse.
-trampa_sh() { printf '#!/bin/sh\n# contrato-recibos: 2\n# contrato-set-de-oro: 1\n# contrato-merges: 1\n# contrato-check: 1\necho "$0" >> %s/disparos; exit 1\n' "$TR"; }
+trampa_sh() { printf '#!/bin/sh\n# contrato-recibos: 2\n# contrato-set-de-oro: 1\n# contrato-merges: 1\n# contrato-check: 1\n# contrato-procedencia: 1\necho "$0" >> %s/disparos; exit 1\n' "$TR"; }
 trampa_py() { printf '# contrato-recibos: 2\nimport sys\nopen("%s/disparos", "a").write(sys.argv[0] + "\\n"); sys.exit(1)\n' "$TR"; }
 LISTA_T05="scripts/pruebas/replay_anclado.sh scripts/pruebas/validar_historial.sh .githooks/commit-msg scripts/guardas.sh scripts/check_docs.sh scripts/recibos.sh scripts/huella.sh scripts/trazabilidad.sh scripts/contrato.py scripts/fallos_previos.py scripts/suite.py"
 copia f3 an10; A=$(sha "$D" HEAD)
@@ -2537,9 +2537,9 @@ echo "== Actualización desde la entrega anterior: una historia con los dos cont
 anterior() {
   rm -f "$1/.githooks/pre-merge-commit"
   sed -e 's/(commit-msg|pre-commit|pre-merge-commit)/(commit-msg|pre-commit)/' -e 's#De \.githooks/ solo sus tres hooks;#De .githooks/ solo sus dos hooks;#' "$1/.githooks/commit-msg" > "$W/ant-cm" && cat "$W/ant-cm" > "$1/.githooks/commit-msg"
-  sed -e '/^# contrato-merges: 1$/d' -e '/^# contrato-check: 1$/d' "$1/scripts/check_docs.sh" > "$W/ant-cd" && cat "$W/ant-cd" > "$1/scripts/check_docs.sh"
-  sed -e '/^# 8b) La versión del contrato de los merges/,/^done$/d' -e '/^# 8c) La versión del contrato de scripts\/check.sh/,/^done$/d' "$1/scripts/guardas.sh" > "$W/ant-gu" && cat "$W/ant-gu" > "$1/scripts/guardas.sh"
-  grep -v '^#' "$1/scripts/guardas.sh" | grep -qE 'contrato-(merges|check)' && die "anterior: guardas.sh conserva la regla 8b u 8c"
+  sed -e '/^# contrato-merges: 1$/d' -e '/^# contrato-check: 1$/d' -e '/^# contrato-procedencia: 1$/d' "$1/scripts/check_docs.sh" > "$W/ant-cd" && cat "$W/ant-cd" > "$1/scripts/check_docs.sh"
+  sed -e '/^# 8b) La versión del contrato de los merges/,/^done$/d' -e '/^# 8c) La versión del contrato de scripts\/check.sh/,/^done$/d' -e '/^# 8d) La versión del contrato de procedencia/,/^done$/d' "$1/scripts/guardas.sh" > "$W/ant-gu" && cat "$W/ant-gu" > "$1/scripts/guardas.sh"
+  grep -v '^#' "$1/scripts/guardas.sh" | grep -qE 'contrato-(merges|check|procedencia)' && die "anterior: guardas.sh conserva la regla 8b, 8c u 8d"
   return 0
 }
 nota_en() { printf -- '- %s\n' "$3" >> "$1/$2"; }

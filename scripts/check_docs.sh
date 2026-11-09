@@ -28,6 +28,10 @@
 # al bloque de la suite vigilada) como producto desde el primer `Ref: F2`. Rige igual que las de arriba: un commit
 # anterior se valida sin ella, y guardas.sh (regla 8c) impide retirarla.
 # contrato-check: 1
+# Versión del contrato de procedencia de un adoptado (R-S.1): con esta línea, el commit-msg trata scripts/adoptar.sh y
+# scripts/pruebas/regresion-adopcion.sh como producto en un proyecto con Base del método, aunque los trajera la instalación.
+# Rige igual que las de arriba: un commit anterior se valida sin ella, y guardas.sh (regla 8d) impide retirarla.
+# contrato-procedencia: 1
 
 MODE="${1:-commit}"
 FAIL=0

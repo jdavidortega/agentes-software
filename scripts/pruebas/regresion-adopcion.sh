@@ -352,8 +352,8 @@ mkdir -p "$PP/.github/workflows" "$PP/scripts/pruebas"
 printf 'name: ci\non: push\n' > "$PP/.github/workflows/ci.yml"
 printf '# Cómo contribuir\n' > "$PP/.github/README.md"
 printf '#!/bin/sh\npython3 app.py\n' > "$PP/scripts/pruebas/prueba_propia.sh"
-# Un archivo propio con el nombre de uno del método: la instalación lo conserva (colisión). Que el
-# commit-msg lo siga eximiendo por su nombre es un defecto pendiente; aquí solo se prueba la instalación.
+# Un archivo propio con el nombre de uno del método: la instalación lo conserva (colisión). Que después
+# sea producto (P(B)) lo prueba la sección «procedencia en un adoptado (PR-3)».
 printf '#!/bin/sh\necho suite propia\n' > "$PP/scripts/pruebas/regresion-suite.sh"; cp "$PP/scripts/pruebas/regresion-suite.sh" "$W/suite-propia.orig"
 # Un hook previo local (.git/hooks) dejaría de correr con core.hooksPath=.githooks: se integra en un
 # commit del proyecto previo a la base, que no se juzga.
@@ -892,6 +892,184 @@ fase "$D" F4; recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica c
 espera falla "M01 + cierre acotado: con C1 excluido como pendiente histórico, los fallos previos siguen bloqueando F4" "sigue declarada como fallo previo al cierre" -- commitea "$D" "validación
 
 Ref: F4"
+
+echo "== procedencia en un adoptado (PR-3): base que nace y no cambia, colisiones y R-S.1"
+# Un solo tipo de comprobación por caso, con hooks activos; los colados (--no-verify) los juzgan el replay actual
+# y el anclado (ancla: la instalación, con los validadores de esta entrega).
+replay_1l() { out=$(replay "$1" "$2" 2>&1); rc=$?; printf '%s' "$out" | tr '\n' ' '; return $rc; }
+rev_cm() { ( cd "$1" && REV=HEAD sh .githooks/commit-msg /dev/null ); }
+INST_PP=$(en "$W/etapas/propios" git rev-parse HEAD)
+# P(B): el archivo propio que colisionó (scripts/pruebas/regresion-suite.sh) es producto.
+copia propios pb1; printf 'echo otra cosa\n' >> "$D/scripts/pruebas/regresion-suite.sh"
+espera falla "P(B): cambiar con Ref: F1 el archivo propio que colisionó se rechaza" "código fuera del rastro \(scripts/pruebas/regresion-suite\.sh" -- commitea "$D" "suite
+
+Ref: F1"
+sin_hooks "$D" "suite colada
+
+Ref: F1"
+espera falla "P(B): el replay actual rechaza el cambio colado" "código fuera del rastro \(scripts/pruebas/regresion-suite\.sh" -- replay "$D" HEAD
+espera falla "P(B): y el anclado" "regresion-suite\.sh.*resultado FALLA" -- anclado_t "$D" "$INST_PP" "$INST_PP" HEAD
+copia propios pb2; RAMA0=$(en "$D" git rev-parse --abbrev-ref HEAD); en "$D" git checkout -q -b lateral
+printf 'echo lateral\n' >> "$D/scripts/pruebas/regresion-suite.sh"; sin_hooks "$D" "suite en la rama lateral
+
+Ref: F1"
+en "$D" git checkout -q "$RAMA0"; printf '\nnota\n' >> "$D/docs/MEMORIA.md"; commitea "$D" "nota
+
+Ref: F1" || die "no pude preparar la principal en pb2"
+en "$D" git -c core.hooksPath=.githooks merge -q --no-ff -m "integra la rama lateral" lateral || die "no pude integrar la rama lateral en pb2"
+espera falla "P(B): el cambio en una rama lateral integrada con un merge limpio lo rechaza el replay actual" "código fuera del rastro \(scripts/pruebas/regresion-suite\.sh" -- replay "$D" HEAD
+espera falla "P(B): y el anclado" "regresion-suite\.sh.*resultado FALLA" -- anclado_t "$D" "$INST_PP" "$INST_PP" HEAD
+copia propios pb3; grep -vx -- '- scripts/pruebas/regresion-suite.sh' "$D/contexto/adopcion.md" > "$D/m.t" && mv "$D/m.t" "$D/contexto/adopcion.md"
+commitea "$D" "el manifiesto deja de registrar la colisión
+
+Ref: F1" || die "no pude editar el manifiesto en pb3"
+printf 'echo otra cosa\n' >> "$D/scripts/pruebas/regresion-suite.sh"
+espera falla "P(B): sin la colisión en el manifiesto, el archivo sigue siendo producto (se lee del árbol de la base)" "regresion-suite\.sh" -- commitea "$D" "suite
+
+Ref: F1"
+copia propios pb4; cp "$P/scripts/pruebas/regresion-suite.sh" "$D/scripts/pruebas/regresion-suite.sh"
+espera falla "P(B): sustituirlo por la versión del método también es un cambio de código" "regresion-suite\.sh" -- commitea "$D" "adopta la suite del método
+
+Ref: F1"
+PN="$W/plantilla-pr3"; rm -rf "$PN"; cp -R "$P" "$PN"; printf '# nota de la entrega nueva\n' >> "$PN/scripts/huella.sh"; sin_hooks "$PN" "la plantilla cambia huella.sh"
+copia propios pb5; adoptar "$PN" actualizar "$D" "entrega nueva" >/dev/null || die "no pude actualizar en pb5"
+espera pasa "control: actualizar un archivo instalado (adoptar.sh actualizar) con Ref: F1 se acepta" "" -- commitea "$D" "actualiza el método
+
+Ref: F1"
+espera pasa "control: el replay actual lo acepta" "2/2 commits cumplen" -- replay "$D" HEAD
+espera pasa "control: y el anclado" "resultado PASA" -- anclado_t "$D" "$INST_PP" "$INST_PP" HEAD
+
+# La base no cambia ni desaparece.
+copia instalado bm1; base_decl "$D" "- **Base del método:** $INST"
+espera falla "base: cambiarla se rechaza" "no cambia ni desaparece" -- commitea "$D" "mueve la base
+
+Ref: F1"
+copia instalado bm2; base_decl "$D" ""
+espera falla "base: borrarla se rechaza" "no cambia ni desaparece.*no declara ninguna" -- commitea "$D" "quita la base
+
+Ref: F1"
+copia instalado bm3; printf -- '- **Base del método:** %s\n' "$PREVIO" >> "$D/docs/convenciones.md"
+espera falla "base: duplicarla se rechaza" "más de una declaración" -- commitea "$D" "duplica la base
+
+Ref: F1"
+copia instalado bm4; base_decl "$D" "- **Base del método:** zzz"
+espera falla "base: una declaración malformada se rechaza (no equivale a sin base)" "malformada" -- commitea "$D" "estropea la base
+
+Ref: F1"
+copia instalado bm5; base_decl "$D" "- **Base del método:** $INST"; sin_hooks "$D" "mueve la base (colado)
+
+Ref: F1"
+base_decl "$D" "- **Base del método:** $PREVIO"; sin_hooks "$D" "la devuelve (colado)
+
+Ref: F1"
+espera falla "base: el replay actual rechaza un cambio colado y devuelto" "1/3 commits cumplen" -- replay "$D" HEAD
+espera falla "base: y el anclado" "no cambia ni desaparece.*resultado FALLA" -- anclado_t "$D" "$INST" "$INST" HEAD
+copia instalado bm6; base_decl "$D" "- **Base del método:** $INST"; sin_hooks "$D" "mueve la base (colado)
+
+Ref: F1"
+espera falla "base: replay anclado con la base del final distinta de la del ancla se detiene" "se lee del ancla" -- anclado_t "$D" "$INST" "$INST" HEAD
+copia instalado bm7; printf '\nnota\n' >> "$D/docs/MEMORIA.md"; commitea "$D" "nota
+
+Ref: F1" || die "no pude preparar bm7"
+espera pasa "control: replay anclado cuya base nació antes del ancla" "1/1 commits cumplen.*resultado PASA" -- anclado_t "$D" "$INST" "$INST" HEAD
+
+# Nacimiento: en un commit ordinario, igual a su padre.
+copia existente bn1; adoptar "$P" copiar "$D" >/dev/null; en "$D" git rm -q --cached config/.env.prod; adoptar "$P" gitignore "$D" --aplicar >/dev/null
+base_decl "$D" "- **Base del método:** $(en "$D" git rev-parse HEAD~1)"; fase "$D" F1; en "$D" git config core.hooksPath .githooks
+espera falla "nacimiento: una base distinta del padre se rechaza" "nace distinta de su padre" -- commitea "$D" "Instalación del método (adopción)
+
+Ref: F1"
+copia existente bn2; RAMA0=$(en "$D" git rev-parse --abbrev-ref HEAD); en "$D" git checkout -q -b lado
+printf '\nlado\n' >> "$D/README.md"; sin_hooks "$D" "cambio en otra rama"; en "$D" git checkout -q "$RAMA0"
+BN2=$(en "$D" git rev-parse HEAD); adoptar "$P" copiar "$D" >/dev/null || die "no pude copiar en bn2"
+en "$D" git merge -q --no-ff --no-commit lado || die "no pude preparar el merge de bn2"; en "$D" git rm -q --cached config/.env.prod; adoptar "$P" gitignore "$D" --aplicar >/dev/null
+base_decl "$D" "- **Base del método:** $BN2"; fase "$D" F1; en "$D" git config core.hooksPath .githooks
+espera falla "nacimiento: la base no nace en un merge" "nace en un merge" -- commitea "$D" "Instalación del método (adopción) en un merge
+
+Ref: F1"
+copia existente bn3; adoptar "$P" copiar "$D" >/dev/null; en "$D" git rm -q --cached config/.env.prod; adoptar "$P" gitignore "$D" --aplicar >/dev/null
+fase "$D" F1; sin_hooks "$D" "Instalación sin base (colada)
+
+Ref: F1"
+BN3=$(en "$D" git rev-parse HEAD); base_decl "$D" "- **Base del método:** $BN3"; sin_hooks "$D" "base declarada después del ancla
+
+Ref: F1"
+espera falla "nacimiento: una base que el ancla no declaraba detiene el replay anclado" "se lee del ancla" -- anclado_t "$D" "$BN3" "$BN3" HEAD
+
+# Merges.
+copia instalado mg1; RAMA0=$(en "$D" git rev-parse --abbrev-ref HEAD); en "$D" git checkout -q -b otra
+base_decl "$D" "- **Base del método:** $INST"; sin_hooks "$D" "otra base (colada)
+
+Ref: F1"
+en "$D" git checkout -q "$RAMA0"; printf '\nnota\n' >> "$D/docs/MEMORIA.md"; commitea "$D" "nota
+
+Ref: F1" || die "no pude preparar mg1"
+espera falla "merges: padres con bases distintas se rechazan" "Bases del método distintas" -- en "$D" git -c core.hooksPath=.githooks merge -q --no-ff -m "integra otra" otra
+copia instalado mg2; RAMA0=$(en "$D" git rev-parse --abbrev-ref HEAD); en "$D" git checkout -q -b vieja; en "$D" git checkout -q "$RAMA0"
+printf '\nnota\n' >> "$D/docs/MEMORIA.md"; commitea "$D" "nota en la principal
+
+Ref: F1" || die "no pude preparar mg2"
+en "$D" git checkout -q vieja; printf '\notra\n' >> "$D/docs/decisiones.md"; commitea "$D" "nota en la rama vieja
+
+Ref: F1" || die "no pude preparar mg2 (rama vieja)"
+espera pasa "control: merge de la principal en una rama vieja (misma base)" "" -- en "$D" git -c core.hooksPath=.githooks merge -q --no-ff -m "trae la principal" "$RAMA0"
+espera pasa "control: el replay actual lo acepta" "4/4 commits cumplen" -- replay "$D" HEAD
+espera pasa "control: y el anclado" "resultado PASA" -- anclado_t "$D" "$INST" "$INST" HEAD
+
+# R-S.1, por transición: sin el marcador (una instalación anterior, que todavía traía adoptar.sh y la regresión de
+# adopción), la regla anterior; con él, son producto en el adoptado aunque los trajera la instalación.
+copia existente rs; RS="$D"; adoptar "$P" copiar "$RS" >/dev/null; en "$RS" git rm -q --cached config/.env.prod; adoptar "$P" gitignore "$RS" --aplicar >/dev/null
+grep -vx '# contrato-procedencia: 1' "$RS/scripts/check_docs.sh" > "$RS/c.t" && cat "$RS/c.t" > "$RS/scripts/check_docs.sh" && rm "$RS/c.t"
+cp "$P/scripts/adoptar.sh" "$RS/scripts/adoptar.sh"; cp "$P/scripts/pruebas/regresion-adopcion.sh" "$RS/scripts/pruebas/regresion-adopcion.sh"
+base_decl "$RS" "- **Base del método:** $(en "$RS" git rev-parse HEAD)"; fase "$RS" F1; en "$RS" git config core.hooksPath .githooks
+commitea "$RS" "Instalación del método (adopción, entrega anterior)
+
+Ref: F1" || die "no pude instalar la entrega anterior en rs"
+RS_INST=$(en "$RS" git rev-parse HEAD)
+printf '# retoque\n' >> "$RS/scripts/adoptar.sh"
+espera pasa "R-S.1 sin marcador: cambiar adoptar.sh con Ref: F1 conserva la interpretación anterior" "" -- commitea "$RS" "retoca adoptar.sh
+
+Ref: F1"
+cp "$P/scripts/check_docs.sh" "$RS/scripts/check_docs.sh"
+espera pasa "R-S.1: activar el marcador (actualizar check_docs.sh) con Ref: F1 se acepta" "" -- commitea "$RS" "activa el contrato de procedencia
+
+Ref: F1"
+RS_MARCA=$(en "$RS" git rev-parse HEAD)
+rm -rf "$W/etapas/rs-marcado"; cp -R "$RS" "$W/etapas/rs-marcado"
+copia rs-marcado rs1; printf '# otro retoque\n' >> "$D/scripts/adoptar.sh"
+espera falla "R-S.1 con marcador: cambiar adoptar.sh con Ref: F1 se rechaza aunque lo trajera la instalación" "código fuera del rastro \(scripts/adoptar\.sh" -- commitea "$D" "retoca adoptar.sh
+
+Ref: F1"
+copia rs-marcado rs2; printf '# retoque\n' >> "$D/scripts/pruebas/regresion-adopcion.sh"
+espera falla "R-S.1 con marcador: lo mismo con la regresión de adopción" "código fuera del rastro \(scripts/pruebas/regresion-adopcion\.sh" -- commitea "$D" "retoca la regresión
+
+Ref: F1"
+copia rs-marcado rs3; grep -vx '# contrato-procedencia: 1' "$D/scripts/check_docs.sh" > "$D/c.t" && cat "$D/c.t" > "$D/scripts/check_docs.sh" && rm "$D/c.t"
+espera falla "R-S.1: retirar el marcador se rechaza (guardas 8d)" "deja de declarar «# contrato-procedencia: 1»" -- commitea "$D" "retira el marcador
+
+Ref: F1"
+copia rs-marcado rs4; printf '# otro retoque\n' >> "$D/scripts/adoptar.sh"; sin_hooks "$D" "retoca adoptar.sh (colado)
+
+Ref: F1"
+espera falla "R-S.1: el replay actual acepta lo anterior al marcador y rechaza solo lo posterior" "  ok    [0-9a-f]+ retoca adoptar\.sh .*  ok    [0-9a-f]+ activa el contrato .*FALLO [0-9a-f]+ retoca adoptar\.sh \(colado\).*3/4 commits cumplen" -- replay_1l "$D" HEAD
+espera pasa "R-S.1: el anclado acepta el tramo hasta la activación (interpretación histórica)" "2/2 commits cumplen.*resultado PASA" -- anclado_t "$D" "$RS_INST" "$RS_INST" "$RS_MARCA"
+espera falla "R-S.1: y rechaza el cambio posterior" "adoptar\.sh.*2/3 commits cumplen.*resultado FALLA" -- anclado_t "$D" "$RS_INST" "$RS_INST" HEAD
+
+# Errores de lectura: nunca equivalen a «sin base», «sin colisiones» ni «sin marcador».
+quita_obj() { o=$(en "$1" git rev-parse "$2"); rm -f "$1/.git/objects/$(printf '%s' "$o" | cut -c1-2)/$(printf '%s' "$o" | cut -c3-)"; ! en "$1" git cat-file -e "$o" 2>/dev/null || die "no pude retirar el objeto $2 en $1"; }
+copia propios er1; printf '\nnota\n' >> "$D/docs/MEMORIA.md"; sin_hooks "$D" "nota
+
+Ref: F1"; quita_obj "$D" "$PREVIO_PP^{tree}"
+espera falla "errores: si el árbol de la base no se puede leer, se rechaza (no equivale a sin colisiones)" "no pude leer el árbol de la Base del método" -- rev_cm "$D"
+copia instalado er2; printf '\n<!-- nota -->\n' >> "$D/docs/convenciones.md"; sin_hooks "$D" "nota en convenciones
+
+Ref: F1"; quita_obj "$D" "$INST:docs/convenciones.md"
+espera falla "errores: si la base del padre no se puede leer, se rechaza (no equivale a sin base)" "no pude determinar la Base del método de un padre" -- rev_cm "$D"
+copia rs-marcado er3; grep -vx '# contrato-procedencia: 1' "$D/scripts/check_docs.sh" > "$D/c.t" && cat "$D/c.t" > "$D/scripts/check_docs.sh" && rm "$D/c.t"
+printf '# retoque\n' >> "$D/scripts/adoptar.sh"; sin_hooks "$D" "retoca adoptar.sh y retira el marcador (colado)
+
+Ref: F1"; quita_obj "$D" "$RS_MARCA:scripts/check_docs.sh"
+espera falla "errores: si el marcador del padre no se puede leer, cambiar adoptar.sh se rechaza (no equivale a sin marcador)" "no pude leer scripts/check_docs.sh .*contrato-procedencia" -- rev_cm "$D"
 
 echo
 echo "regresion-adopcion: $((TOTAL-MAL))/$TOTAL casos en verde"

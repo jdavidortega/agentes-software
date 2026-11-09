@@ -151,9 +151,76 @@ SIEMPRE_REVISION='^docs/CODEOWNERS$'
 # Un .env.example (plantilla sin valores) en cualquier carpeta es configuración, como en guardas.sh.
 # Quitar un .env versionado es la corrección de un secreto, no código: no exige `Ref: I<n>`.
 en_candidato() { if [ -n "${cand:-}" ]; then git cat-file -e "$cand:$1" 2>/dev/null; else git ls-files --error-unmatch -- "$1" >/dev/null 2>&1; fi; }
-# Límite conocido, defecto pendiente (no es un riesgo aceptado): un archivo propio de un proyecto
-# adoptado que se llama como uno de METODO («Omitidos por colisión» de contexto/adopcion.md) queda
-# exento por su nombre. Este hook no comprueba la procedencia; su diseño va aparte.
+# PROCEDENCIA en un adoptado (docs/convenciones.md §Git, «Base del método»):
+# - La Base del método nace una vez, en un commit ordinario (no un merge), igual a su primer padre, y no cambia ni
+#   desaparece: cada commit declara la misma que todos sus padres que la declaran (padres con bases distintas FALLAN).
+#   Se lee de los objetos con tres resultados (la hay, no la hay, no se pudo leer o es inválida); lo tercero rechaza:
+#   una base ilegible no equivale a «sin base».
+# - P(B): las rutas de METODO que ya existían en el árbol de la base son archivos propios que colisionaron en la
+#   adopción: son producto para siempre, se llamen como se llamen. Si el árbol de la base no se puede leer, se rechaza.
+# - R-S.1: con «# contrato-procedencia: 1» (en el check_docs.sh del candidato o de algún padre), scripts/adoptar.sh y
+#   scripts/pruebas/regresion-adopcion.sh, que la plantilla no distribuye a un adoptado, son producto en él, aunque
+#   los trajera la instalación. Sin el marcador (un commit anterior), la regla anterior; guardas.sh (8d) impide retirarlo.
+decl_base() {  # <commit|INDICE> → 0 e imprime el SHA completo; 1 sin declaración; 2 ilegible o inválida (imprime el motivo)
+  if [ "$1" = INDICE ]; then e=$(git ls-files -s -- docs/convenciones.md) || { echo "git ls-files falló"; return 2; }
+  else e=$(git ls-tree "$1" -- docs/convenciones.md) || { echo "git ls-tree falló"; return 2; }; fi
+  [ -n "$e" ] || return 1
+  id=$(printf '%s' "$e" | awk '{ if ($2 == "blob") print $3; else print $2 }')
+  t=$(git cat-file blob "$id" 2>/dev/null) || { echo "no pude leer docs/convenciones.md"; return 2; }
+  l=$(printf '%s\n' "$t" | grep -E '^- \*\*Base del método:\*\*')
+  [ -n "$l" ] || return 1
+  [ "$(printf '%s\n' "$l" | grep -c .)" -eq 1 ] || { echo "hay más de una declaración"; return 2; }
+  s=$(printf '%s\n' "$l" | sed -nE 's/^- \*\*Base del método:\*\* `?([0-9a-f]{7,40})`?[[:space:]]*$/\1/p')
+  [ -n "$s" ] || { echo "declaración malformada"; return 2; }
+  git rev-parse --verify -q --end-of-options "$s^{commit}" 2>/dev/null || { echo "$s no resuelve a un commit"; return 2; }
+}
+nombre_r() { [ "$1" = INDICE ] && echo 'el índice' || git rev-parse --short "$1" 2>/dev/null || printf '%s' "$1"; }
+padres_o_base=${padres:-$([ "$HAY_HISTORIAL" -eq 1 ] && printf '%s' "$BASE")}
+BASE_B=""; bases_p=""; err_base=""
+for r in $padres_o_base; do
+  v=$(decl_base "$r"); case $? in 0) bases_p="$bases_p $v" ;; 1) ;; *) err_base="${err_base:+$err_base; }$(nombre_r "$r"): $v" ;; esac
+done
+bases_p=$(printf '%s\n' $bases_p | sort -u | grep .)
+v_c=$(decl_base "${REV:-INDICE}"); rc_c=$?
+if [ -n "$err_base" ]; then
+  fail "no pude determinar la Base del método de un padre ($err_base): sin ella no se sabe qué historia se excluye ni qué archivos colisionaron, y un error no equivale a «sin base»."
+elif [ "$(printf '%s\n' "$bases_p" | grep -c .)" -ge 2 ]; then
+  fail "los padres declaran Bases del método distintas ($(for b in $bases_p; do git rev-parse --short "$b"; done | tr '\n' ' ')): la base nace una vez y no cambia; no se integran historias con bases distintas."
+elif [ -n "$bases_p" ]; then
+  if [ "$rc_c" -eq 0 ] && [ "$v_c" = "$bases_p" ]; then BASE_B=$v_c
+  else fail "la Base del método no cambia ni desaparece: los padres declaran $(git rev-parse --short "$bases_p") y $(nombre_r "${REV:-INDICE}") $( [ "$rc_c" -eq 0 ] && printf 'declara %s' "$(git rev-parse --short "$v_c")" || { [ "$rc_c" -eq 1 ] && echo 'no declara ninguna' || printf 'no tiene una válida (%s)' "$v_c"; } ) (docs/convenciones.md §Git)."; fi
+elif [ "$rc_c" -eq 2 ]; then
+  fail "la Base del método de $(nombre_r "${REV:-INDICE}") no es válida ($v_c): una sola línea «- **Base del método:** <sha>» que resuelva a un commit."
+elif [ "$rc_c" -eq 0 ]; then
+  primero=$(printf '%s\n' $padres_o_base | head -1)
+  if [ "$(printf '%s\n' $padres_o_base | grep -c .)" -ge 2 ]; then
+    fail "la Base del método nace en un merge: nace en el commit de instalación, un commit ordinario cuyo padre es la base (docs/arranque-existente.md, Paso H)."
+  elif [ -z "$primero" ] || [ "$v_c" != "$(git rev-parse --verify -q "$primero^{commit}" 2>/dev/null)" ]; then
+    fail "la Base del método nace distinta de su padre ($(git rev-parse --short "$v_c") frente a $( [ -n "$primero" ] && git rev-parse --short "$primero" || echo 'ningún padre')): es el último commit previo a la instalación, el padre del commit que la declara (docs/arranque-existente.md, Paso H)."
+  else BASE_B=$v_c; fi
+fi
+PB=""
+if [ -n "$BASE_B" ]; then
+  PB=$(git -c core.quotePath=false ls-tree -r --name-only "$BASE_B" 2>/dev/null) || { PB=""; fail "no pude leer el árbol de la Base del método ($(git rev-parse --short "$BASE_B")): sin él no se sabe qué archivos propios colisionaron con el método, y un error no equivale a «ninguno»."; }
+  PB=$(printf '%s\n' "$PB" | grep -E "$METODO")
+fi
+marcador_proc() {  # <commit|INDICE> → 0 declara «# contrato-procedencia: 1»; 1 no (o sin check_docs.sh); 2 no se pudo leer
+  if [ "$1" = INDICE ]; then e=$(git ls-files -s -- scripts/check_docs.sh) || return 2
+  else e=$(git ls-tree "$1" -- scripts/check_docs.sh) || return 2; fi
+  [ -n "$e" ] || return 1
+  id=$(printf '%s' "$e" | awk '{ if ($2 == "blob") print $3; else print $2 }')
+  b=$(git cat-file blob "$id" 2>/dev/null) || return 2
+  printf '%s\n' "$b" | grep -qx '# contrato-procedencia: 1'
+}
+NO_DISTRIBUIDOS='^scripts/(adoptar\.sh|pruebas/regresion-adopcion\.sh)$'
+CONTRATO_PROC=0; err_proc=""
+for r in "${REV:-INDICE}" $padres_o_base; do
+  marcador_proc "$r"
+  case $? in 0) CONTRATO_PROC=1 ;; 1) ;; *) err_proc="${err_proc:+$err_proc, }$(nombre_r "$r")" ;; esac
+done
+if [ -n "$err_proc" ] && [ -n "$BASE_B" ] && printf '%s\n' "$cambios" | grep -qE "$NO_DISTRIBUIDOS"; then
+  fail "no pude leer scripts/check_docs.sh (en $err_proc) para saber si rige «# contrato-procedencia: 1»: sin saberlo no se puede decidir si $(printf '%s\n' "$cambios" | grep -E "$NO_DISTRIBUIDOS" | head -1) es producto en este adoptado, y un error no equivale a «sin marcador»."
+fi
 # scripts/check.sh con el contrato «# contrato-check: 1» (en el check_docs.sh del candidato o de algún padre): no
 # se exime por nombre; lo clasifica más abajo «Cuerpo de scripts/check.sh». Sin el marcador, la regla anterior.
 # El marcador se lee de los blobs versionados, con tres resultados: 0 lo declara; 1 no lo declara o no hay
@@ -166,7 +233,6 @@ marcador_check() {  # <commit|INDICE>
   b=$(git cat-file blob "$id" 2>/dev/null) || return 2
   printf '%s\n' "$b" | grep -qx '# contrato-check: 1'
 }
-padres_o_base=${padres:-$([ "$HAY_HISTORIAL" -eq 1 ] && printf '%s' "$BASE")}
 CONTRATO_CHECK=0; err_marcador=""
 for r in "${REV:-INDICE}" $padres_o_base; do
   marcador_check "$r"
@@ -178,6 +244,8 @@ fi
 codigo=$(printf '%s\n' "$cambios" | grep . | while IFS= read -r f; do
   [ "$f" = scripts/check.sh ] && [ "$CONTRATO_CHECK" -eq 1 ] && continue
   if printf '%s\n' "$f" | grep -qE "$SIEMPRE_REVISION"; then printf '%s\n' "$f"; continue; fi
+  if [ -n "$PB" ] && printf '%s\n' "$PB" | grep -qxF -- "$f"; then printf '%s\n' "$f"; continue; fi
+  if [ -n "$BASE_B" ] && [ "$CONTRATO_PROC" -eq 1 ] && printf '%s\n' "$f" | grep -qE "$NO_DISTRIBUIDOS"; then printf '%s\n' "$f"; continue; fi
   printf '%s\n' "$f" | grep -qE "$SIN_REVISION" && continue
   printf '%s' "$f" | grep -qE '(^|/)\.env($|\.)' && ! en_candidato "$f" && continue
   printf '%s\n' "$f"

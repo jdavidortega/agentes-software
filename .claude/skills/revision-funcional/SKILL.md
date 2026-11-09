@@ -151,6 +151,11 @@ Después, el agente principal **valida si el dato ya está presente**:
   verificado, exige su motivo y su evidencia, ajenos al trabajo de este ciclo (una regresión del ciclo
   se corrige, no se vuelve pendiente), con su ADR. Es el único momento en que se admite: después
   queda fijo (`docs/arranque.md` §Reentrada, «Cierre de un ciclo posterior»).
+- **Alcance de una reentrada (`reentrada:C<n>`):** con el cambio del contrato que te pasa el principal, di en tu
+  informe qué pares o grupos del set de oro cambiaron y qué garantía protege cada uno. Añadir o corregir pares de
+  `C<n>` es un ajuste legítimo, aunque su línea no cambie. Si el cambio afecta a otro criterio, es un vacío `R-E.n`:
+  la revisión se amplía a alcance `F2` (el recibo de reentrada nombra un solo criterio). El hook no lo distingue:
+  solo compara las líneas `C#`.
 
 ## En una adopción (proyecto existente)
 

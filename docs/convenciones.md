@@ -487,7 +487,7 @@ revertir) vive en docs/despliegue.md. -->
   trabajo dependiente (`Ref: I<n>`, `Ref: hito`, `Ref: F4`, `Ref: F5`) exige ese contrato
   **idéntico**; `Ref: F1` edita el encuadre libremente (borrador, reencuadre, Fase 1 de una
   adopción) y `Ref: F2` fija el nuevo con recibo del revisor funcional (alcance `F2`, o
-  `reentrada:C<n>` si solo cambió ese criterio o el set de oro). La fase de `estado.md` sigue
+  `reentrada:C<n>` si solo cambió ese criterio o pares del set de oro que lo protegen; si el cambio toca la garantía de otro criterio, alcance `F2`: el hook solo compara las líneas `C#` y lo demás lo juzga el revisor). La fase de `estado.md` sigue
   siendo un resumen vivo, no una máquina de estados, con una excepción: **entrar a F5 exige
   `Ref: F5`**. Varios commits `Ref: I3` cuentan como **un** incremento cerrado (una corrección
   reabre el mismo `I#`, un alcance nuevo exige otro). La aprobación humana vive en el chat.

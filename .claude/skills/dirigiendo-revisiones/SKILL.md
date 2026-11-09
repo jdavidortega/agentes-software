@@ -67,12 +67,11 @@ allowed-tools: Read, Grep, Glob, Bash
    `agent_type`, y el recibo lo declara en el paso 5). Pásale **solo** qué revisar: rol, alcance, rango del diff
    (`git diff <base>..HEAD` o árbol de trabajo) y los archivos. **No** le resumas tu
    solución ni le adelantes conclusiones. En una **reentrada** (`reentrada:C<n>`), lo que revisa incluye
-   el cambio del contrato frente a su referencia, que es estructural (por ascendencia, como la calcula el `commit-msg`),
-   no la del `Ref: F2` más reciente por fecha: compara `python3 -I scripts/contrato.py objetos <ref>` con `… objetos INDICE` (criterios, pares y
-   archivos de oro) y pásale `git diff --cached <ref> -- docs/encuadre.md` y el de los archivos de oro que cambiaron.
-   `<ref>` es el último commit `Ref: F2` por primer padre (`git log --first-parent`); si un merge integró otra
-   revisión, ese commit es anterior a la referencia y el diff muestra de más, nunca de menos. Con contratos
-   paralelos distintos, el `commit-msg` exige alcance `F2`. Dile la **modalidad** con su regla literal: «ningún
+   el cambio del contrato frente a su referencia, la misma con que el `commit-msg` acota la reentrada:
+   `ref=$(sh .githooks/commit-msg --referencia)` (con todo stageado). Compara `python3 -I scripts/contrato.py objetos "$ref"`
+   con `… objetos INDICE` (criterios, pares y archivos de oro) y pásale `git diff --cached "$ref" -- docs/encuadre.md` y
+   el de los archivos de oro que cambiaron. Si sale con 3 (revisiones paralelas con contratos distintos), la
+   revisión es de alcance `F2`; con 1 o 2, lo dice su mensaje. Dile la **modalidad** con su regla literal: «ningún
    comando tuyo escribe; los chequeos autorizados son <lista> y escriben solo en <destinos>; si
    uno necesita escribir en otro sitio, no lo corras y repórtalo» (en experimentos, antepón «tus
    comandos escriben solo en `<D>`»); y

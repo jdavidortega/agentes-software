@@ -53,11 +53,17 @@
 # lo que un --no-verify local se saltó. El argumento $1 se ignora en ese modo.
 msg_file="$1"
 FAIL=0
+# CONSULTA, sin validar nada: `sh .githooks/commit-msg --referencia` imprime el contrato revisado de referencia del
+# commit que se va a hacer (desde HEAD, o los padres de un merge en curso), con el MISMO cálculo que ata el trabajo
+# dependiente y acota una reentrada (CONTRATO_PY y referencia_contrato, abajo), y sale: 0 e imprime su SHA; 1 si no
+# hay contrato anterior; 3 si hay revisiones paralelas con contratos distintos (la revisión es de alcance F2); 2 si
+# no se pudo determinar. Para darle al revisor funcional el cambio del contrato (dirigiendo-revisiones, paso 4).
+CONSULTA=""; [ "${1:-}" = --referencia ] && [ -z "${REV:-}" ] && { CONSULTA=1; msg_file=/dev/null; }
 # Auxiliares: en el hook local, los del repositorio; en el replay anclado (REV y METODO_DIR, que
 # fija scripts/pruebas/validar_historial.sh --metodo), los de esa carpeta. Nunca se heredan fuera de REV.
 [ -n "${REV:-}" ] || unset METODO_DIR
 MET=${METODO_DIR:-.}
-fail() { echo "✗ commit-msg: $1" >&2; FAIL=1; }
+fail() { [ -n "$CONSULTA" ] && return 0; echo "✗ commit-msg: $1" >&2; FAIL=1; }
 if [ -n "${REV:-}" ]; then
   REV=$(git rev-parse --verify "$REV^{commit}" 2>/dev/null) || { fail "REV=$REV no es un commit"; exit 1; }
   msg_file=$(mktemp 2>/dev/null || mktemp -t msg); git log -1 --format=%B "$REV" > "$msg_file"
@@ -446,6 +452,16 @@ referencia_contrato() {
   [ "$distinto" -eq 0 ] || return 3
   return 0
 }
+if [ -n "$CONSULTA" ]; then
+  referencia_contrato; rc_ref=$?
+  case "$rc_ref" in
+    0) printf '%s\n' "$REF_F2" ;;
+    1) echo "commit-msg --referencia: no hay contrato revisado anterior (ningún 'Ref: F2')." >&2 ;;
+    3) echo "commit-msg --referencia: revisiones paralelas con contratos distintos ($REF_LISTA): nadie revisó la combinación; la revisión es de alcance F2." >&2 ;;
+    *) echo "commit-msg --referencia: no pude determinar el contrato revisado de referencia ($REF_ERR)." >&2 ;;
+  esac
+  exit "$rc_ref"
+fi
 # ¿Resuelve una referencia? Una ruta del candidato (`archivo` o `archivo:línea`, con o sin acentos
 # graves, paréntesis o coma pegados) o un sha de 7–40 hex que es ancestro de BASE.
 referencia_resuelve() {  # $1 texto de la celda → 0 si algún token resuelve

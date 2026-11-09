@@ -2907,6 +2907,37 @@ sin_hooks "$W/pr2k" "I2 (colado)
 Ref: I2" || die "pr2k commit"
 espera falla "PR-2 errores: en un clon superficial, el Ref: I2 se rechaza por historia recortada" "no pude determinar el contrato revisado de referencia \(.*historia está recortada" -- en "$W/pr2k" env REV=HEAD sh .githooks/commit-msg /dev/null
 
+echo "== Referencia del contrato para el revisor (PR-10): commit-msg --referencia, el mismo cálculo que acota la reentrada"
+# ref10 <dir>: la consulta con todo stageado; imprime su salida en una línea y sale con su código.
+ref10() { out=$(cd "$1" && git add -A && sh .githooks/commit-msg --referencia 2>&1); rc=$?; printf '%s' "$out" | tr '\n' ' '; return $rc; }
+oro10() {  # oro10 <dir> <contenido>: el set de oro de C1 referencia contexto/oro/par.txt
+  mkdir -p "$1/contexto/oro"; printf '%s\n' "$2" > "$1/contexto/oro/par.txt"; }
+copia f3 rf1; oro10 "$D" A
+printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\n\n## Set de oro\n\n- suma(1, 2) → 3\n- par: [par](../contexto/oro/par.txt)\n' > "$D/docs/encuadre.md"
+recibo "$D" revisor-funcional encuadre F2 PASA 0; commitea "$D" "contrato con un archivo de oro (A)
+
+Ref: F2" || die "rf1 base"; F2A=$(sha "$D" HEAD)
+espera pasa "historia lineal: --referencia da el último Ref: F2" "^$F2A $" -- sh -c 'r=$(cd "$1" && sh .githooks/commit-msg --referencia) && printf "%s " "$r"' _ "$D"
+PRIN=$(en "$D" git branch --show-current); en "$D" git checkout -q -b lateral
+oro10 "$D" B; recibo "$D" revisor-funcional encuadre reentrada:C1 PASA 0; commitea "$D" "reentrada lateral: el archivo de oro pasa a B
+
+Ref: F2" || die "rf1 lateral"; F2B=$(sha "$D" HEAD)
+en "$D" git checkout -q "$PRIN"; nota_en "$D" docs/MEMORIA.md "en la principal"; commitea "$D" "nota
+
+Ref: F1" || die "rf1 principal"; fusiona "$D" lateral || die "rf1 merge"
+oro10 "$D" A
+espera pasa "B→A: tras integrar la reentrada lateral, --referencia da esa reentrada (B), no el F2 de la principal" "^$F2B$" -- ref10 "$D"
+espera pasa "... y la comparación que recibe el revisor muestra el archivo de oro de B a A" "" -- sh -c 'cd "$1" && git add -A && python3 -I scripts/contrato.py objetos "$2" > "$3.ref" && python3 -I scripts/contrato.py objetos INDICE > "$3.ind" && diff "$3.ref" "$3.ind" | grep -q "^< REF	contexto/oro/par.txt	$(git rev-parse "$2:contexto/oro/par.txt")" && diff "$3.ref" "$3.ind" | grep -q "^> REF	contexto/oro/par.txt	$(git rev-parse ":contexto/oro/par.txt")" && git diff --cached "$2" -- contexto/oro/par.txt | grep -q "^-B" && git diff --cached "$2" -- contexto/oro/par.txt | grep -q "^+A"' _ "$D" "$F2B" "$W/rf1"
+espera pasa "contraste: el último Ref: F2 por primer padre es el de la principal (A) y su diff no muestra la vuelta" "" -- sh -c 'cd "$1" && r=$(git log --first-parent -1 --format=%H --grep="^Ref: *F2 *$") && [ "$r" = "$2" ] && git diff --quiet --cached "$r" -- contexto/oro/par.txt' _ "$D" "$F2A"
+espera pasa "la consulta no cambia el índice ni el árbol de trabajo" "" -- sh -c 'cd "$1" && a=$(git write-tree) && s=$(git status --porcelain) && sh .githooks/commit-msg --referencia >/dev/null 2>&1; [ "$(git write-tree)" = "$a" ] && [ "$(git status --porcelain)" = "$s" ]' _ "$D"
+copia f3 rf2; paralelas "$D" || die "rf2"
+espera falla "paralelas distintas: --referencia sale con 3 y pide alcance F2" "revisiones paralelas con contratos distintos.*alcance F2" -- ref10 "$D"
+espera pasa "... con código de salida 3" "" -- sh -c 'cd "$1" && sh .githooks/commit-msg --referencia >/dev/null 2>&1; [ $? -eq 3 ]' _ "$D"
+copia plantilla rf3
+espera falla "sin ningún Ref: F2: --referencia sale con 1 y lo dice" "no hay contrato revisado anterior" -- sh -c 'cd "$1" && sh .githooks/commit-msg --referencia 2>&1; r=$?; [ $r -eq 1 ] && exit 1; exit 0' _ "$D"
+rm -rf "$W/rf4"; git clone -q --depth 1 "file://$W/etapas/f3" "$W/rf4" 2>/dev/null || die "rf4 clon"
+espera falla "historia recortada (clon superficial): --referencia sale con 2, no con «sin contrato»" "no pude determinar el contrato revisado de referencia" -- sh -c 'cd "$1" && sh .githooks/commit-msg --referencia 2>&1; r=$?; [ $r -eq 2 ] && exit 1; exit 0' _ "$W/rf4"
+
 echo "== Cierre acotado de un ciclo posterior: pendientes históricos, ramas y alcance de F5"
 C1L='- C1: la función suma devuelve a+b para enteros.'; C2L='- C2: la función resta devuelve a-b.'
 RI11='| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | verificado | 2026-10-19 10:00 · app.py:1 |'

@@ -2353,7 +2353,7 @@ if command -v zsh >/dev/null 2>&1; then
 fi
 
 copia f3 an3; A=$(sha "$D" HEAD)
-printf '#!/bin/sh\n# contrato-set-de-oro: 1\n# contrato-merges: 1\n# contrato-check: 1\n# contrato-procedencia: 1\nexit 0\n' > "$D/scripts/check_docs.sh"; sin_hooks "$D" "doctor debilitado
+printf '#!/bin/sh\n# contrato-set-de-oro: 1\n# contrato-merges: 1\n# contrato-check: 1\n# contrato-procedencia: 1\n# contrato-retirada: 1\nexit 0\n' > "$D/scripts/check_docs.sh"; sin_hooks "$D" "doctor debilitado
 
 Ref: F1"
 printf '#!/bin/sh\n# pruebas sin la suite vigilada\nexit 0\n' > "$D/scripts/check.sh"; sin_hooks "$D" "check.sh sin el bloque vigilado
@@ -2416,9 +2416,9 @@ espera falla "materializa: un componente .git (sin distinguir mayúsculas) detie
 espera pasa "materializa: nada se escribió en la carpeta ni se ejecutó el fsmonitor del árbol" "" -- sh -c '[ -z "$(ls -A "$1")" ] && ! ls -A "$2" | grep -q fsmonitor' _ "$W/mat-an9" "$TR"
 
 # Prueba de bloqueo: todas las copias del candidato de la lista cerrada son trampas; ninguna debe ejecutarse.
-trampa_sh() { printf '#!/bin/sh\n# contrato-recibos: 2\n# contrato-set-de-oro: 1\n# contrato-merges: 1\n# contrato-check: 1\n# contrato-procedencia: 1\necho "$0" >> %s/disparos; exit 1\n' "$TR"; }
+trampa_sh() { printf '#!/bin/sh\n# contrato-recibos: 2\n# contrato-set-de-oro: 1\n# contrato-merges: 1\n# contrato-check: 1\n# contrato-procedencia: 1\n# contrato-retirada: 1\necho "$0" >> %s/disparos; exit 1\n' "$TR"; }
 trampa_py() { printf '# contrato-recibos: 2\nimport sys\nopen("%s/disparos", "a").write(sys.argv[0] + "\\n"); sys.exit(1)\n' "$TR"; }
-LISTA_T05="scripts/pruebas/replay_anclado.sh scripts/pruebas/validar_historial.sh .githooks/commit-msg scripts/guardas.sh scripts/check_docs.sh scripts/recibos.sh scripts/huella.sh scripts/trazabilidad.sh scripts/contrato.py scripts/fallos_previos.py scripts/suite.py"
+LISTA_T05="scripts/pruebas/replay_anclado.sh scripts/pruebas/validar_historial.sh .githooks/commit-msg scripts/guardas.sh scripts/check_docs.sh scripts/recibos.sh scripts/huella.sh scripts/trazabilidad.sh scripts/contrato.py scripts/fallos_previos.py scripts/decisiones.py scripts/suite.py"
 copia f3 an10; A=$(sha "$D" HEAD)
 for f in $LISTA_T05; do case "$f" in *.py) trampa_py > "$D/$f" ;; *) trampa_sh > "$D/$f" ;; esac; done
 sin_hooks "$D" "trampas en la lista cerrada
@@ -2537,9 +2537,9 @@ echo "== Actualización desde la entrega anterior: una historia con los dos cont
 anterior() {
   rm -f "$1/.githooks/pre-merge-commit"
   sed -e 's/(commit-msg|pre-commit|pre-merge-commit)/(commit-msg|pre-commit)/' -e 's#De \.githooks/ solo sus tres hooks;#De .githooks/ solo sus dos hooks;#' "$1/.githooks/commit-msg" > "$W/ant-cm" && cat "$W/ant-cm" > "$1/.githooks/commit-msg"
-  sed -e '/^# contrato-merges: 1$/d' -e '/^# contrato-check: 1$/d' -e '/^# contrato-procedencia: 1$/d' "$1/scripts/check_docs.sh" > "$W/ant-cd" && cat "$W/ant-cd" > "$1/scripts/check_docs.sh"
-  sed -e '/^# 8b) La versión del contrato de los merges/,/^done$/d' -e '/^# 8c) La versión del contrato de scripts\/check.sh/,/^done$/d' -e '/^# 8d) La versión del contrato de procedencia/,/^done$/d' "$1/scripts/guardas.sh" > "$W/ant-gu" && cat "$W/ant-gu" > "$1/scripts/guardas.sh"
-  grep -v '^#' "$1/scripts/guardas.sh" | grep -qE 'contrato-(merges|check|procedencia)' && die "anterior: guardas.sh conserva la regla 8b, 8c u 8d"
+  sed -e '/^# contrato-merges: 1$/d' -e '/^# contrato-check: 1$/d' -e '/^# contrato-procedencia: 1$/d' -e '/^# contrato-retirada: 1$/d' "$1/scripts/check_docs.sh" > "$W/ant-cd" && cat "$W/ant-cd" > "$1/scripts/check_docs.sh"
+  sed -e '/^# 8b) La versión del contrato de los merges/,/^done$/d' -e '/^# 8c) La versión del contrato de scripts\/check.sh/,/^done$/d' -e '/^# 8d) La versión del contrato de procedencia/,/^done$/d' -e '/^# 8e) La versión del contrato de retirada/,/^done$/d' "$1/scripts/guardas.sh" > "$W/ant-gu" && cat "$W/ant-gu" > "$1/scripts/guardas.sh"
+  grep -v '^#' "$1/scripts/guardas.sh" | grep -qE 'contrato-(merges|check|procedencia|retirada)' && die "anterior: guardas.sh conserva la regla 8b, 8c, 8d u 8e"
   return 0
 }
 nota_en() { printf -- '- %s\n' "$3" >> "$1/$2"; }
@@ -3081,6 +3081,267 @@ ciclo2 ca17 pendiente; cierra_f4 "$D" cubre=C2 excluye=C1
 espera falla "errores: si el cálculo de P5/R falla, el cierre acotado se rechaza con diagnóstico" "no pude determinar el cierre anterior y la apertura del ciclo" -- env PATH="$W/py-ciclo:$PATH" sh -c 'cd "$1" && git add -A && git -c core.hooksPath=.githooks commit -q -m "validación
 
 Ref: F4"' _ "$D"
+
+echo "== Retirada de requisitos (PR-4): marca, ADR nuevo, set de oro, estado histórico, cierre y reactivación"
+# Etapa: contrato revisado con C1 (verificado), C2 (pendiente, I2 por hacer) y C3 (verificado), un par por criterio.
+R1L='- C1: la función suma devuelve a+b para enteros.'; R2L='- C2: la función resta devuelve a-b.'; R3L='- C3: la función doble devuelve 2·a.'
+O1='- suma(1, 2) → 3'; O2='- resta(3, 1) → 2'; O3='- doble(2) → 4'
+APR='«sí, sácalo del alcance: ya no es prioridad del negocio» (chat 2026-11-09, sobre la propuesta de este ADR)'
+encr() { printf '# Encuadre\n\n## Criterios de éxito\n\n%s\n%s\n%s\n\n## Set de oro\n\n%s\n%s\n%s\n' "$2" "$3" "$4" "$5" "$6" "$7" > "$1/docs/encuadre.md"; }
+marca() { printf '%s' "$1" | sed -E "s/^(- C[0-9]+:) /\\1 [retirado: $2] /"; }
+marcap() { printf '%s' "$1" | sed "s/^- /- [retirado: $2] /"; }
+planr() { printf '# Plan\n\n## Incrementos\n\n- [x] I1 «suma» — suma y doble (satisface: C1, C3)\n%s\n\n## Fuera de alcance / backlog\n\n%s\n' "$2" "$3" > "$1/docs/plan.md"; }
+adr() {  # adr <n> <estado> <aprobación> <lo que decide> → sección ## ADR-00<n>
+  printf '## ADR-%03d — Alcance\n\n- **Fecha y hora (UTC):** 2026-11-09 10:00\n- **Estado:** %s\n- **Aprobación:** %s\n- **Contexto:** la persona cambia el alcance por prioridad de negocio; no es una reparación: retirar no demuestra que un defecto desapareció.\n- **Decisión:** %s.\n' "$1" "$2" "$3" "$4"; }
+decr() { d=$1; shift; { printf '# Decisiones\n'; for x in "$@"; do printf '\n%s\n' "$x"; done; } > "$d/docs/decisiones.md"; }
+# trazr <dir> <estado C2> <incr C2> <nota C2> [estado C3] [nota C3] [filas R]
+trazr() { trazabilidad "$1" "| C1 | «suma» | I1 | verificado | |
+| C2 | «resta» | $3 | $2 | $4 |
+| C3 | «doble» | I1 | ${5:-verificado} | ${6:-} |" "" "${7:-}"; }
+resumen() {  # resumen <dir> <C#> <ADR>: la celda Estado de docs/estado.md dice que el estado es histórico
+  python3 -I - "$1/docs/estado.md" "$2" "$3" <<'PY'
+import sys
+p, c, a = sys.argv[1:]; ls = open(p).read().split("\n")
+for k, l in enumerate(ls):
+    x = l.split("|")
+    if len(x) >= 5 and x[1].strip() == c:
+        x[3] = " %s (histórico; retirado por %s) " % (x[3].strip(), a); ls[k] = "|".join(x)
+open(p, "w").write("\n".join(ls))
+PY
+}
+NC2='(histórico; retirado por ADR-001)'
+retira_c2() {  # retira_c2 <dir> [alcance]: C2 y su par por ADR-001, I2 al backlog, Nota y resumen; recibo del revisor
+  encr "$1" "$R1L" "$(marca "$R2L" ADR-001)" "$R3L" "$O1" "$(marcap "$O2" ADR-001)" "$O3"
+  planr "$1" "" "- [ ] I2 «resta» — función resta (satisface: C2), fuera del alcance (ADR-001)"
+  decr "$1" "$(adr 1 aceptada "$APR" 'retirar C2 y su par del set de oro')"
+  trazr "$1" pendiente I2 "$NC2"; resumen "$1" C2 ADR-001
+  fase "$1" F2 "— «ninguno»"; recibo "$1" revisor-funcional encuadre "${2:-F2}" PASA 0; }
+f2c() { commitea "$1" "${2:-retira C2}
+
+Ref: F2"; }
+historial() { en "$1" sh scripts/pruebas/validar_historial.sh "$2..HEAD"; }
+
+copia f3 ret0; encr "$D" "$R1L" "$R2L" "$R3L" "$O1" "$O2" "$O3"; planr "$D" "- [ ] I2 «resta» — función resta (satisface: C2)" "- nada por ahora"
+decr "$D"; trazr "$D" pendiente I2 ""; fase "$D" F2 "I2 «resta»"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+f2c "$D" "contrato con C1, C2 y C3" || die "no pude preparar la etapa de retirada"
+rm -rf "$W/etapas/ret"; cp -R "$D" "$W/etapas/ret"; RET0=$(sha "$D" HEAD)
+copia ret rc0; cierra_f4 "$D"
+espera falla "control: sin retirada, el cierre exige C2 verificado" "C2 no está en Estado 'verificado'" -- f4 "$D"
+
+# Ciclo completo con hooks: retirar, cerrar, reactivar, construir y cerrar de nuevo; replay actual y anclado del rango.
+copia ret rt1; retira_c2 "$D"
+espera pasa "retirada: C2 y su par, por reentrada con un ADR nuevo y aprobado (alcance F2)" "" -- f2c "$D"
+rm -rf "$W/etapas/ret-r"; cp -R "$D" "$W/etapas/ret-r"
+cierra_f4 "$D"
+espera pasa "cierre: C2 retirado (pendiente histórico) no se exige verificado" "" -- f4 "$D"
+espera pasa "... y el resumen de estado.md lo da como histórico, no como garantía vigente" "" -- grep -qF "| C2 | «resta» | pendiente (histórico; retirado por ADR-001) |" "$D/docs/estado.md"
+encr "$D" "$R1L" "$R2L" "$R3L" "$O1" "$O2" "$O3"; planr "$D" "- [ ] I3 «resta» — función resta otra vez (satisface: C2)" "- [ ] I2 «resta» — fuera del alcance (ADR-001)"
+decr "$D" "$(adr 1 'reemplazada-por: ADR-002' "$APR" 'retirar C2 y su par del set de oro')" "$(adr 2 aceptada '«vuelve a ser prioridad: reactívalo» (chat 2026-11-10)' 'reactivar C2 y su par')"
+trazr "$D" pendiente I3 ""; fase "$D" F2 "I3 «resta»"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera pasa "reactivación: ADR nuevo que sustituye al de retirada, fila en pendiente con I3" "" -- f2c "$D" "reactiva C2"
+fase "$D" F3 "I3 «resta»"; printf '\ndef resta(a, b):\n    return a - b\n\nassert resta(3, 1) == 2\n' >> "$D/app.py"; trazr "$D" verificado I3 ""
+recibo "$D" juez-codigo incremento I3 PASA 0 seguridad=no-aplica
+espera pasa "... I3 construye C2 y lo verifica de nuevo (Ref: I3)" "" -- commitea "$D" "I3
+
+Ref: I3"
+cierra_f4 "$D"
+espera pasa "... y el cierre global vuelve a exigir y encontrar C2 verificado" "" -- f4 "$D"
+espera pasa "ciclo completo: el replay actual acepta los cinco commits" "5/5 commits cumplen" -- historial "$D" "$RET0"
+espera pasa "ciclo completo: el replay anclado también" "5/5 commits cumplen.*resultado PASA" -- anclado_t "$D" "$RET0" "$RET0" HEAD
+
+# La retirada autorizada: ADR nuevo, vigente, aprobado, no retrospectivo y que nombra el criterio.
+copia ret rn1; retira_c2 "$D"; encr "$D" "$R1L" '- C2: [retirado: ADR-001] la función resta devuelve a menos b.' "$R3L" "$O1" "$(marcap "$O2" ADR-001)" "$O3"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "retirada que cambia el texto del criterio: rechazada" "se retira cambiando su texto" -- f2c "$D"
+copia ret rn2; decr "$D" "$(adr 1 aceptada "$APR" 'retirar C2 y su par del set de oro')"; recibo "$D" revisor-funcional encuadre F2 PASA 0; f2c "$D" "ADR-001 en un contrato revisado" || die "no pude preparar rn2"; retira_c2 "$D"
+espera falla "retirada con un ADR que ya existía en el contrato que retira: rechazada" "ya existía en las decisiones del contrato revisado de referencia" -- f2c "$D"
+copia ret rn3; retira_c2 "$D"; decr "$D" "$(adr 1 propuesta '' 'retirar C2')"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "retirada con el ADR en propuesta: rechazada (C2 se sigue exigiendo)" "no está en estado «aceptada»" -- f2c "$D"
+copia ret rn4; retira_c2 "$D"; decr "$D" "$(adr 1 aceptada '`retrospectivo: evidencia (app.py)`' 'retirar C2')"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "retirada con un ADR retrospectivo: rechazada" "registro retrospectivo" -- f2c "$D"
+copia ret rn5; retira_c2 "$D"; decr "$D" "$(adr 1 aceptada '' 'retirar C2')"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "retirada con un ADR sin la aprobación de la persona: rechazada" "no cita la aprobación de la persona" -- f2c "$D"
+copia ret rn6; retira_c2 "$D"; decr "$D" "$(adr 1 aceptada "$APR" 'retirar C3')"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "retirada con un ADR que no nombra el criterio: rechazada" "no nombra C2" -- f2c "$D"
+copia ret rn14; retira_c2 "$D"; encr "$D" "$R1L" "$(marca "$R2L" ADR-001)
+- C4: [retirado: ADR-001] la función triple devuelve 3·a." "$R3L" "$O1" "$(marcap "$O2" ADR-001)" "$O3"
+trazabilidad "$D" "| C1 | «suma» | I1 | verificado | |
+| C2 | «resta» | I2 | pendiente | $NC2 |
+| C3 | «doble» | I1 | verificado | |
+| C4 | «triple» | I2 | pendiente | (histórico; retirado por ADR-001) |" "" ""; resumen "$D" C2 ADR-001; resumen "$D" C4 ADR-001
+decr "$D" "$(adr 1 aceptada "$APR" 'retirar C2 y C4')"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "retirar un criterio que no estaba en el contrato revisado: rechazado" "C4 aparece retirado y no estaba en el contrato revisado" -- f2c "$D"
+copia ret rn15; retira_c2 "$D"; encr "$D" "$R1L" '- C2: [retirado:ADR-1] la función resta devuelve a-b.' "$R3L" "$O1" "$O2" "$O3"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "marca fuera de la gramática: rechazada" "marca de retirada fuera de la gramática" -- f2c "$D"
+
+# Set de oro: alcance F2, par ligado a un criterio retirado, conservado como historia.
+copia ret rn7; retira_c2 "$D" reentrada:C2
+espera falla "retirar un par del set de oro con recibo reentrada:C2: rechazado (alcance F2 completo)" "alcance F2 completo, no reentrada:C2" -- f2c "$D"
+copia ret rn7b; retira_c2 "$D" reentrada:C2; encr "$D" "$R1L" "$(marca "$R2L" ADR-001)" "$R3L" "$O1" "$O2" "$O3"; recibo "$D" revisor-funcional encuadre reentrada:C2 PASA 0
+espera pasa "control: retirar solo el criterio, sin tocar el set de oro, admite reentrada:C2" "" -- f2c "$D"
+copia ret rn8; retira_c2 "$D"; encr "$D" "$R1L" "$(marca "$R2L" ADR-001)" "$R3L" "$O1" "$(marcap "$O2" ADR-002)" "$O3"
+decr "$D" "$(adr 1 aceptada "$APR" 'retirar C2')" "$(adr 2 aceptada "$APR" 'ajustar el set de oro')"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "un par retirado con un ADR que no retira ningún criterio: rechazado" "no es el ADR de ningún criterio retirado" -- f2c "$D"
+copia ret-r rn12; encr "$D" "$R1L" "$(marca "$R2L" ADR-001)" "$R3L" "$O1" "" "$O3"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "un par retirado no desaparece: se conserva como historia" "un par retirado del set de oro desaparece" -- f2c "$D" "quita el par"
+copia ret-r rn13; encr "$D" "$R1L" '- C2: [retirado: ADR-001] la función resta devuelve a-b siempre.' "$R3L" "$O1" "$(marcap "$O2" ADR-001)" "$O3"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "un criterio retirado no cambia su línea" "C2 está retirado y su línea cambia" -- f2c "$D" "cambia un retirado"
+
+# Estado histórico: la Nota y el resumen lo dicen; un verificado retirado no cuenta como garantía vigente.
+copia ret rn9; retira_c2 "$D"; trazr "$D" pendiente I2 ""; resumen "$D" C2 ADR-001; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "retirado sin «(histórico; retirado por ADR-001)» en la Nota: rechazado" "su Nota no lo dice" -- f2c "$D"
+copia ret rn10; retira_c2 "$D"; trazr "$D" pendiente I2 "$NC2"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "retirado sin decirlo en el resumen de estado.md: rechazado" "el resumen de criterios no lo dice" -- f2c "$D"
+copia ret rt3; encr "$D" "$R1L" "$R2L" "$(marca "$R3L" ADR-001)" "$O1" "$O2" "$(marcap "$O3" ADR-001)"; decr "$D" "$(adr 1 aceptada "$APR" 'retirar C3 y su par')"
+trazr "$D" pendiente I2 "" verificado '(histórico; retirado por ADR-001)'; resumen "$D" C3 ADR-001; fase "$D" F2 "I2 «resta»"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera pasa "retirar un criterio verificado: su estado queda como histórico" "" -- f2c "$D" "retira C3"
+espera pasa "... y el resumen dice «verificado (histórico; retirado por ADR-001)»" "" -- grep -qF "| C3 | «doble» | verificado (histórico; retirado por ADR-001) |" "$D/docs/estado.md"
+copia ret rn11; trazabilidad "$D" "| C1 | «suma» | I1 | verificado | |
+| C2 | «resta» | I2 | pendiente | (histórico; retirado por ADR-001) |
+| C3 | «doble» | I1 | verificado | |" "" ""
+espera falla "«retirado por ADR-…» en un criterio que no está retirado: rechazado" "no está retirado .* «retirado por ADR-…»" -- commitea "$D" "nota engañosa
+
+Ref: F1"
+
+# Dependencias y aviso.
+copia ret rn16; retira_c2 "$D"; planr "$D" "- [ ] I2 «resta» — función resta (satisface: C2)" "- nada"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "un incremento pendiente que solo cubre criterios retirados: pasa al backlog" "I2 está pendiente y solo cubre criterios retirados" -- f2c "$D"
+copia ret rn17; retira_c2 "$D"; encr "$D" '- C1: la función suma devuelve a+b para enteros (igual que hacía C2 al restar).' "$(marca "$R2L" ADR-001)" "$R3L" "$O1" "$(marcap "$O2" ADR-001)" "$O3"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera pasa "aviso: un criterio activo que cita al retirado (lo juzga el revisor funcional)" "C1 +citan C2, que está retirado" -- f2c "$D"
+
+# Cierre: conjunto vacío, cubre=/excluye=, hito, hallazgos (T06, M04).
+copia ret rn18; encr "$D" "$(marca "$R1L" ADR-001)" "$(marca "$R2L" ADR-001)" "$(marca "$R3L" ADR-001)" "$(marcap "$O1" ADR-001)" "$(marcap "$O2" ADR-001)" "$(marcap "$O3" ADR-001)"
+planr "$D" "" "- [ ] I2 «resta» — fuera del alcance (ADR-001)"; decr "$D" "$(adr 1 aceptada "$APR" 'retirar C1, C2 y C3 con sus pares')"
+trazabilidad "$D" "| C1 | «suma» | I1 | verificado | (histórico; retirado por ADR-001) |
+| C2 | «resta» | I2 | pendiente | $NC2 |
+| C3 | «doble» | I1 | verificado | (histórico; retirado por ADR-001) |" "" ""; for c in C1 C2 C3; do resumen "$D" $c ADR-001; done
+fase "$D" F2 "— «ninguno»"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera pasa "retirar todos los criterios (una decisión, revisada) se registra" "" -- f2c "$D" "retira todo"
+cierra_f4 "$D"
+espera falla "... pero no produce un cierre: sin requisitos activos no hay nada que verificar" "todos los criterios del encuadre están retirados" -- f4 "$D"
+copia ret-r rn19; cierra_f4 "$D" cubre=C1,C2,C3 excluye=ninguno
+espera falla "cubre= que nombra un retirado: rechazado" "C2 aparece en cubre=/excluye= del recibo del conjunto y está retirado" -- f4 "$D"
+copia ret-r rn19b; cierra_f4 "$D" cubre=C1,C3 excluye=ninguno
+espera pasa "control: cubre= con los activos, sin el retirado, se acepta (el retirado no entra en la partición)" "" -- f4 "$D"
+copia ret-r rn20; recibo "$D" juez-conjunto hito hito:I1-I1 PASA 0 seguridad=no-aplica cubre=C1,C2,C3 excluye=ninguno componentes=app
+espera falla "hito que nombra un retirado en cubre=: rechazado" "nombra C2 en cubre=/excluye=, y C2 está retirado" -- commitea "$D" "hito
+
+Ref: hito:I1-I1"
+copia ret-r rn20b; recibo "$D" juez-conjunto hito hito:I1-I1 PASA 0 seguridad=no-aplica cubre=C1,C3 excluye=ninguno componentes=app
+espera pasa "control: el hito con los activos se acepta" "" -- commitea "$D" "hito
+
+Ref: hito:I1-I1"
+copia ret rn21; retira_c2 "$D"; trazr "$D" pendiente I2 "$NC2" verificado "" "| R-I1.1 | «sin-resta» | I1 | C2 | falta la resta | abierto | — |"; resumen "$D" C2 ADR-001; recibo "$D" revisor-funcional encuadre F2 PASA 0
+f2c "$D" || die "no pude preparar rn21"; cierra_f4 "$D"
+espera falla "un hallazgo abierto del criterio retirado sigue bloqueando el cierre" "hallazgo\\(s\\)/vacío\\(s\\) con Estado 'abierto'" -- f4 "$D"
+copia ret-r rn22; printf '\nassert 1 == 2, "prueba en rojo"\n' >> "$D/app.py"; sin_hooks "$D" "prueba en rojo colada
+
+Ref: F1"; cierra_f4 "$D"
+espera falla "una prueba en rojo sigue bloqueando aunque su criterio esté retirado (check.sh)" "prueba en rojo" -- f4 "$D"
+
+# Reactivación: sustitución, fila pendiente, ADR nuevo; los pares que retiró ese ADR.
+reactiva_c2() {  # reactiva_c2 <dir> [estado fila]: ADR-001 → ADR-002, C2 y su par sin marca, I3 pendiente
+  encr "$1" "$R1L" "$R2L" "$R3L" "$O1" "$O2" "$O3"; planr "$1" "- [ ] I3 «resta» — otra vez (satisface: C2)" "- [ ] I2 «resta» — fuera del alcance (ADR-001)"
+  decr "$1" "$(adr 1 'reemplazada-por: ADR-002' "$APR" 'retirar C2 y su par')" "$(adr 2 aceptada '«reactívalo» (chat 2026-11-10)' 'reactivar C2 y su par')"
+  trazr "$1" "${2:-pendiente}" I3 ""; fase "$1" F2 "I3 «resta»"; recibo "$1" revisor-funcional encuadre F2 PASA 0; }
+copia ret-r ra1; reactiva_c2 "$D" verificado
+espera falla "reactivar con la fila en verificado: rechazado (la verificación anterior no se arrastra)" "C2 se reactiva y su fila de cobertura no está en «pendiente»" -- f2c "$D" "reactiva C2"
+copia ret-r ra2; reactiva_c2 "$D"; decr "$D" "$(adr 1 aceptada "$APR" 'retirar C2 y su par')" "$(adr 2 aceptada '«reactívalo»' 'reactivar C2')"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "reactivar sin sustituir el ADR de retirada: rechazado" "no está en «reemplazada-por: ADR-NNN»" -- f2c "$D" "reactiva C2"
+copia ret-r ra3; decr "$D" "$(adr 1 aceptada "$APR" 'retirar C2 y su par del set de oro')" "$(adr 2 aceptada '«reactívalo»' 'reactivar C2')"; recibo "$D" revisor-funcional encuadre F2 PASA 0; f2c "$D" "ADR-002 en un contrato revisado" || die "no pude preparar ra3"; reactiva_c2 "$D"
+espera falla "reactivar con un ADR que ya existía en el contrato de referencia: rechazado" "ya existía en las decisiones del contrato revisado de referencia" -- f2c "$D" "reactiva C2"
+copia ret-r ra5; reactiva_c2 "$D"; encr "$D" "$R1L" "$R2L" "$R3L" "$O1" "$(marcap "$O2" ADR-001)" "$O3"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera falla "reactivar el criterio y dejar su par con el ADR sustituido: el par queda sin decisión vigente" "no es el ADR de ningún criterio retirado" -- f2c "$D" "reactiva C2"
+# Reactivación parcial: ADR-001 retiró C2 y C3; el sustituto reactiva C3 y vuelve a nombrar C2, que sigue retirado.
+copia ret r23; encr "$D" "$R1L" "$(marca "$R2L" ADR-001)" "$(marca "$R3L" ADR-001)" "$O1" "$(marcap "$O2" ADR-001)" "$(marcap "$O3" ADR-001)"
+planr "$D" "" "- [ ] I2 «resta» — fuera del alcance (ADR-001)"; decr "$D" "$(adr 1 aceptada "$APR" 'retirar C2 y C3 con sus pares')"
+trazr "$D" pendiente I2 "$NC2" verificado '(histórico; retirado por ADR-001)'; resumen "$D" C2 ADR-001; resumen "$D" C3 ADR-001; fase "$D" F2 "— «ninguno»"; recibo "$D" revisor-funcional encuadre F2 PASA 0
+espera pasa "un ADR retira dos criterios (C2 y C3) con sus pares" "" -- f2c "$D" "retira C2 y C3"
+rm -rf "$W/etapas/ret-23"; cp -R "$D" "$W/etapas/ret-23"
+parcial() {  # parcial <dir> <lo que decide ADR-002>: reactiva C3 y su par
+  encr "$1" "$R1L" "$(marca "$R2L" ADR-001)" "$R3L" "$O1" "$(marcap "$O2" ADR-001)" "$O3"; planr "$1" "- [ ] I3 «doble» — otra vez (satisface: C3)" "- [ ] I2 «resta» — fuera del alcance (ADR-001)"
+  decr "$1" "$(adr 1 'reemplazada-por: ADR-002' "$APR" 'retirar C2 y C3 con sus pares')" "$(adr 2 aceptada '«reactiva C3»' "$2")"
+  trazr "$1" pendiente I2 "$NC2" pendiente; en "$1" sed -i.bak 's/^| C3 | «doble» | I1 |/| C3 | «doble» | I3 |/' docs/trazabilidad.md; rm -f "$1/docs/trazabilidad.md.bak"
+  criterios_estado "$1" "| C1 | «suma» | I1 | verificado | |
+| C2 | «resta» | I2 | pendiente | |
+| C3 | «doble» | I3 | pendiente | |"; resumen "$1" C2 ADR-001
+  fase "$1" F2 "I3 «doble»"; recibo "$1" revisor-funcional encuadre F2 PASA 0; }
+copia ret-23 rp1; parcial "$D" 'reactivar C3 y su par; C2 sigue retirado con su par'
+espera pasa "reactivación parcial: el sustituto reactiva C3 y vuelve a nombrar C2, que sigue retirado" "" -- f2c "$D" "reactiva C3"
+copia ret-23 rp2; parcial "$D" 'reactivar C3 y su par'
+espera falla "... si el sustituto no vuelve a nombrar C2, su retirada deja de valer" "C2 está marcado como retirado por ADR-001, pero la retirada no vale: ADR-002 no nombra C2" -- f2c "$D" "reactiva C3"
+
+# Protección: el marcador y el lector no se retiran; sin marcador la marca no exime.
+copia ret-r tp1; grep -vx '# contrato-retirada: 1' "$D/scripts/check_docs.sh" > "$D/c.t" && cat "$D/c.t" > "$D/scripts/check_docs.sh" && rm "$D/c.t"
+espera falla "retirar el marcador se rechaza (guardas 8e)" "deja de declarar «# contrato-retirada: 1»" -- commitea "$D" "retira el marcador
+
+Ref: F1"
+copia ret-r tp2; rm "$D/scripts/decisiones.py"
+espera falla "borrar el lector de ADR se rechaza (guardas 8e)" "scripts/decisiones.py desaparece" -- commitea "$D" "borra el lector
+
+Ref: F1"
+copia ret-r tp3; grep -vx '# contrato-retirada: 1' "$D/scripts/check_docs.sh" > "$D/c.t" && cat "$D/c.t" > "$D/scripts/check_docs.sh" && rm "$D/c.t"; fase "$D" F4 "— «ninguno»"
+espera falla "sin el marcador, la marca es texto: el cierre sigue exigiendo C2" "C2 no está en Estado 'verificado'" -- en "$D" sh scripts/check_docs.sh cierre
+copia ret-r tp3b; fase "$D" F4 "— «ninguno»"
+espera pasa "control: con el marcador, el mismo árbol cierra" "" -- en "$D" sh scripts/check_docs.sh cierre
+
+# Errores de lectura: nunca equivalen a una retirada válida ni a «sin marcador».
+quita_obj() { o=$(en "$1" git rev-parse "$2") && rm -f "$1/.git/objects/$(printf '%s' "$o" | cut -c1-2)/$(printf '%s' "$o" | cut -c3-)"; }
+copia ret-r er3; quita_obj "$D" HEAD:scripts/check_docs.sh
+espera falla "errores: el check_docs.sh del commit no se puede leer y el encuadre lleva marcas: rechazado" "no pude leer scripts/check_docs.sh .*contrato-retirada" -- en "$D" env REV=HEAD sh .githooks/commit-msg /dev/null
+copia ret er4; retira_c2 "$D"; sin_hooks "$D" "retira C2
+
+Ref: F2"; quita_obj "$D" "$RET0:docs/decisiones.md"
+espera falla "errores: las decisiones del contrato de referencia no se pueden leer: rechazado" "no pude leer el contrato o las decisiones del contrato revisado de referencia" -- en "$D" env REV=HEAD sh .githooks/commit-msg /dev/null
+copia ret-r er5; printf '\377\376\n' >> "$D/docs/decisiones.md"
+espera falla "errores: decisiones.md ilegible no equivale a una retirada válida" "no pude leer docs/decisiones.md para saber si vale la retirada de C2" -- en "$D" sh scripts/check_docs.sh
+copia ret er1; rm "$D/scripts/decisiones.py"; sin_hooks "$D" "ancla sin el lector
+
+Ref: F1"; X=$(sha "$D" HEAD); nota "$D" x; commitea "$D" "nota
+
+Ref: F1" || true
+espera falla "errores: un ancla sin scripts/decisiones.py está incompleta" "no contiene scripts/decisiones.py.*está incompleta" -- anclado_t "$D" "$X" "$X" HEAD
+
+# El lector del ancla, no el del candidato: un candidato que debilita decisiones.py no debilita el replay anclado.
+copia ret ar1; python3 -I - "$D/scripts/decisiones.py" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read(); a = "def retira(texto, adr, token):\n"
+assert s.count(a) == 1; open(p, "w").write(s.replace(a, a + "    return adr, None\n"))
+PY
+sin_hooks "$D" "lector debilitado
+
+Ref: F1"; retira_c2 "$D"; decr "$D" "$(adr 1 aceptada '' 'retirar C2')"; recibo "$D" revisor-funcional encuadre F2 PASA 0; sin_hooks "$D" "retira C2 con un ADR sin aprobación
+
+Ref: F2"
+espera pasa "límite conocido: el replay sin ancla juzga con el lector debilitado del checkout" "2/2 commits cumplen" -- historial "$D" "$RET0"
+espera falla "el replay anclado juzga con el lector del ancla: la retirada no vale" "no cita la aprobación de la persona.*resultado FALLA" -- anclado_t "$D" "$RET0" "$RET0" HEAD
+mkdir -p "$W/fp-lector/a" "$W/fp-lector/b"; cp "$RAIZ/scripts/fallos_previos.py" "$RAIZ/scripts/decisiones.py" "$W/fp-lector/a/"; cp "$RAIZ/scripts/fallos_previos.py" "$W/fp-lector/b/"
+sed 's/^def aceptada(texto, adr):$/def aceptada(texto, adr):\n    return None/' "$RAIZ/scripts/decisiones.py" > "$W/fp-lector/b/decisiones.py"
+fp_lee() { python3 -I - "$1/fallos_previos.py" <<'PY'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("fp", sys.argv[1]); fp = importlib.util.module_from_spec(spec); spec.loader.exec_module(fp)
+m = fp.adr_decide("## ADR-001 — x\n\n- **Estado:** aceptada\n- **Contexto:** tests/t.py::T::x\n", "ADR-001", "tests/t.py::T::x")
+print(m or "acepta"); sys.exit(1 if m else 0)
+PY
+}
+espera pasa "fallos_previos.py carga el lector que está a su lado (el del ancla en el replay anclado)" "acepta" -- fp_lee "$W/fp-lector/a"
+espera falla "... y no otro: con un lector distinto a su lado, decide ese" "no es un ADR en estado" -- fp_lee "$W/fp-lector/b"
+
+# M01 no se endurece: el mismo ADR sin Aprobación sigue valiendo para un fallo previo y no para retirar un requisito.
+m01_adr() { python3 -I - "$RAIZ/scripts/fallos_previos.py" "$RAIZ/scripts/decisiones.py" "$1" <<'PY'
+import importlib.util, sys
+def carga(n, p):
+    s = importlib.util.spec_from_file_location(n, p); m = importlib.util.module_from_spec(s); s.loader.exec_module(m); return m
+fp, d = carga("fp", sys.argv[1]), carga("d", sys.argv[2])
+t = "## ADR-001 — x\n\n- **Estado:** aceptada\n" + sys.argv[3] + "- **Contexto:** tests/t.py::T::x y C2\n"
+a = fp.adr_decide(t, "ADR-001", "tests/t.py::T::x"); b = d.retira(t, "ADR-001", "C2")[1]
+print("M01:", a or "acepta", "· retirada:", b or "acepta")
+PY
+}
+espera pasa "M01 sin campo Aprobación (ADR anterior al campo): acepta como antes; la retirada no" "M01: acepta · retirada: ADR-001 no cita la aprobación" -- m01_adr ""
+espera pasa "M01 con Aprobación vacía: acepta como antes; la retirada no" "M01: acepta · retirada: ADR-001 no cita la aprobación" -- m01_adr "- **Aprobación:** 
+"
+espera pasa "M01 con ADR retrospectivo: rechaza como antes, y la retirada también" "M01: ADR-001, que es un registro retrospectivo.*retirada: ADR-001 es un registro retrospectivo" -- m01_adr "- **Aprobación:** \`retrospectivo: evidencia (x)\`
+"
 
 echo "== Aviso de inicio de sesión (SessionStart): el script, sin abrir sesiones de Claude"
 # Se prueba el SCRIPT: que el cliente lo ejecute de verdad al iniciar una sesión queda por observar en VSCode.

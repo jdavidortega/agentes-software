@@ -40,8 +40,31 @@ una sola pregunta:
     *solo lo afectado*.
   - **Criterios históricos:** un `C#` del último contrato revisado (`Ref: F2`) no se borra ni se renumera, ni para
     cerrar ni en una reentrada; se ajusta su texto y su estado real queda en su fila de trazabilidad. El `commit-msg`
-    lo comprueba en todo commit desde el primer `Ref: F2`. Retirar un requisito obsoleto aún **no tiene política
-    propia** (pendiente): hasta que la tenga, el criterio se conserva y su estado dice que no aplica o está pendiente.
+    lo comprueba en todo commit desde el primer `Ref: F2`.
+  - **Retirada de un requisito** (con `# contrato-retirada: 1` en `scripts/check_docs.sh`). Un requisito que dejó de
+    formar parte del producto acordado se **retira**, no se borra: por reentrada, el revisor funcional y un ADR
+    **nuevo** (no existía en el contrato revisado que se retira), `aceptada`, con **Aprobación** de la persona y no
+    retrospectivo, que nombra el criterio. La línea se conserva con su texto literal y la marca delante:
+    `- C3: [retirado: ADR-NNN] <texto anterior>`.
+    - **Motivo.** Que algo falle, cueste o no se pueda verificar no lo retira por sí solo: eso es un defecto (Fase 3).
+      La persona sí puede cambiar el alcance por negocio, prioridad o costo; el ADR lo dice así, y deja claro que
+      retirar no demuestra que el defecto desapareció. Los hallazgos abiertos, las pruebas en rojo y los fallos
+      previos de una adopción siguen bloqueando como antes.
+    - **Set de oro.** Los pares que solo ejercitan ese criterio se marcan igual (`- [retirado: ADR-NNN] <par>`), con
+      el mismo ADR; entonces el recibo es de alcance **F2 completo** (no `reentrada:C<n>`). Se conservan como
+      historia, no cuentan para el mínimo de pares ni verifican nada. Un par que protege también un criterio vigente
+      no se retira entero sin resolver esa relación (lo juzga el revisor funcional).
+    - **Estado.** No hay estado nuevo: la fila de cobertura conserva el suyo, que es **histórico**, y la Nota y el
+      resumen de `docs/estado.md` lo dicen: `verificado (histórico; retirado por ADR-NNN)`. No cuenta como garantía
+      vigente. Un incremento pendiente que solo cubría criterios retirados pasa al backlog.
+    - **Cierre.** Un retirado válido no se exige `verificado` y no se nombra en `cubre=`/`excluye=`. Retirar todos
+      los criterios no produce un cierre: archivar un producto sin requisitos activos es una decisión aparte.
+    - **Reactivación.** Solo por reentrada: se quita la marca, un ADR nuevo sustituye al de retirada (este pasa a
+      `reemplazada-por: ADR-YYY`) y la fila vuelve a `pendiente` con un incremento asignado; la verificación
+      anterior no se arrastra. Lo que el ADR anterior retiraba y sigue retirado lo vuelve a nombrar el sustituto.
+    - Lo comprueban `check_docs` (marca, ADR, Nota, resumen, plan, cierre) y el `commit-msg` en el `Ref: F2` (texto
+      conservado, ADR nuevo, set de oro, reactivación). El lector de ADR (`scripts/decisiones.py`) comprueba
+      estructura y referencias; la aprobación la da la persona en el gate.
   - **Cierre de un ciclo posterior.** El cierre (Ref: F4/F5) es **global** por defecto: todos los `C#` verificados.
     Si quedan **pendientes históricos** ajenos a este ciclo, el cierre puede ser **del ciclo**: el recibo del juez de
     conjunto lleva `cubre=` (los criterios cuya evidencia da por vigente, nueva o reutilizada con justificación,

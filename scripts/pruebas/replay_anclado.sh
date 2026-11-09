@@ -17,7 +17,7 @@
 # Salida: 0 PASA, 1 FALLA, 2 preparación (sin veredicto).
 LISTA='scripts/pruebas/replay_anclado.sh scripts/pruebas/validar_historial.sh .githooks/commit-msg
 scripts/guardas.sh scripts/check_docs.sh scripts/recibos.sh scripts/huella.sh scripts/trazabilidad.sh
-scripts/contrato.py scripts/fallos_previos.py scripts/suite.py docs/convenciones.md'
+scripts/contrato.py scripts/fallos_previos.py scripts/decisiones.py scripts/suite.py docs/convenciones.md'
 TAB=$(printf '\t')
 para() { echo "replay anclado: $1" >&2; exit 2; }
 [ $# -eq 4 ] || para "uso: <ancla> <inicio> <fin> <carpeta> (lo lanza la orden de entrada de docs/convenciones.md §Git)"

@@ -33,6 +33,8 @@
 #   8c) lo mismo con «# contrato-check: 1»: retirarlo devolvería el cuerpo de scripts/check.sh a la exención.
 #   8d) lo mismo con «# contrato-procedencia: 1»: retirarlo devolvería scripts/adoptar.sh y la regresión de
 #      adopción a la exención en un adoptado.
+#   8e) lo mismo con «# contrato-retirada: 1» y scripts/decisiones.py: retirarlo, o borrar el lector, devolvería los
+#      criterios retirados a ser texto sin efecto, o dejaría sin juez las retiradas declaradas.
 #   9) fallos previos de una adopción (scripts/fallos_previos.py guarda, si el candidato o algún padre
 #      tiene la línea base contexto/exploracion/linea-base-pruebas.xml o el registro docs/fallos-previos.md):
 #      la línea base no cambia ni desaparece, ni se añade después de un `Ref: F2`; el registro no
@@ -164,6 +166,15 @@ for p in $padres; do
   git show "$p:scripts/check_docs.sh" 2>/dev/null | grep -qx '# contrato-procedencia: 1' || continue
   q=$(git rev-parse --short "$p" 2>/dev/null || echo 'el estado anterior')
   blob_c scripts/check_docs.sh | grep -qx '# contrato-procedencia: 1' 2>/dev/null || fail "scripts/check_docs.sh deja de declarar «# contrato-procedencia: 1», que $q ya declaraba: scripts/adoptar.sh y la regresión de adopción no vuelven a la exención en un adoptado, tampoco al fusionar (se actualiza con adoptar.sh actualizar o desde la plantilla)."
+  break
+done
+
+# 8e) La versión del contrato de retirada de requisitos no retrocede, ni desaparece su lector de ADR.
+for p in $padres; do
+  git show "$p:scripts/check_docs.sh" 2>/dev/null | grep -qx '# contrato-retirada: 1' || continue
+  q=$(git rev-parse --short "$p" 2>/dev/null || echo 'el estado anterior')
+  blob_c scripts/check_docs.sh | grep -qx '# contrato-retirada: 1' 2>/dev/null || fail "scripts/check_docs.sh deja de declarar «# contrato-retirada: 1», que $q ya declaraba: la retirada de requisitos no vuelve a ser texto sin efecto (se actualiza con adoptar.sh actualizar o desde la plantilla)."
+  tiene_c scripts/decisiones.py || fail "scripts/decisiones.py desaparece y $q ya declaraba «# contrato-retirada: 1»: sin el lector de ADR no se sabe si una retirada vale (se restaura con adoptar.sh actualizar o desde la plantilla)."
   break
 done
 

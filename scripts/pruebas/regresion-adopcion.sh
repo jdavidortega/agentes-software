@@ -808,7 +808,7 @@ PY2
 }
 fp_destino() {  # fp_destino <aprobación>: check_docs desde F2 (fallos_previos.py destinos) con destino ADR-001
   d="$W/fp-dest-$(printf '%s' "$1" | cksum | cut -d' ' -f1)"; fp_adr "$d" "$1"; mkdir -p "$d/scripts"
-  cp "$RAIZ/scripts/fallos_previos.py" "$RAIZ/scripts/check_docs.sh" "$d/scripts/"
+  cp "$RAIZ/scripts/fallos_previos.py" "$RAIZ/scripts/decisiones.py" "$RAIZ/scripts/check_docs.sh" "$d/scripts/"
   printf '# Plan\n\n## Incrementos\n\n- [ ] I1 «x» · C1\n' > "$d/docs/plan.md"
   printf '# Fallos previos\n\n## Fallos previos declarados\n\n| Prueba | Firma | Destino |\n|---|---|---|\n| `%s` | fallo · AssertionError · 000000000000 | ADR-001 |\n\n## Retiradas del inventario\n\n| Prueba | Motivo | ADR |\n|---|---|---|\n' "$FPP" > "$d/docs/fallos-previos.md"
   ( cd "$d" && python3 -I scripts/fallos_previos.py destinos ); }
@@ -892,6 +892,30 @@ fase "$D" F4; recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica c
 espera falla "M01 + cierre acotado: con C1 excluido como pendiente histórico, los fallos previos siguen bloqueando F4" "sigue declarada como fallo previo al cierre" -- commitea "$D" "validación
 
 Ref: F4"
+
+# M01 con una retirada (PR-4): retirar un requisito (por decisión de alcance) no levanta el bloqueo de los fallos previos.
+copia fp-anclado fpr1
+printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: suma devuelve a+b (comportamiento que se conserva).\n- C2: la división redondea a dos decimales.\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$D/docs/encuadre.md"
+printf '# Plan\n\n## Incrementos\n\n- [x] I1 «caracteriza» — prueba de caracterización (satisface: C1)\n- [ ] I2 «redondeo» — corrige los fallos previos (satisface: C1, C2)\n' > "$D/docs/plan.md"
+trazabilidad "$D" '| C1 | «arranca» | I1, I2 | verificado | |
+| C2 | «redondeo» | I2 | pendiente | |' "" ""; fase "$D" F2; recibo "$D" revisor-funcional encuadre F2 PASA 0
+commitea "$D" "C2 en el contrato
+
+Ref: F2" || die "no pude preparar fpr1"
+printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: suma devuelve a+b (comportamiento que se conserva).\n- C2: [retirado: ADR-001] la división redondea a dos decimales.\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$D/docs/encuadre.md"
+printf '# Decisiones\n\n## ADR-001 — Alcance\n\n- **Estado:** aceptada\n- **Aprobación:** «la división ya no es del producto» (chat 2026-11-09)\n- **Decisión:** retirar C2 por decisión de alcance; no repara los fallos previos.\n' > "$D/docs/decisiones.md"
+trazabilidad "$D" '| C1 | «arranca» | I1, I2 | verificado | |
+| C2 | «redondeo» | I2 | pendiente | (histórico; retirado por ADR-001) |' "" ""
+sed -i.bak 's/^| C2 | «redondeo» | pendiente |$/| C2 | «redondeo» | pendiente (histórico; retirado por ADR-001) |/' "$D/docs/estado.md" && rm -f "$D/docs/estado.md.bak"
+recibo "$D" revisor-funcional encuadre reentrada:C2 PASA 0
+espera pasa "M01 + retirada: retirar un criterio con fallos previos declarados se permite (decisión de alcance)" "" -- commitea "$D" "retira C2
+
+Ref: F2"
+fase "$D" F4 "— «ninguno»"; recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+espera falla "... pero el cierre sigue bloqueado mientras queden fallos previos declarados" "sigue declarada como fallo previo al cierre" -- commitea "$D" "validación
+
+Ref: F4"
+espera pasa "... y el replay anclado acepta la retirada" "1/1 commits cumplen.*resultado PASA" -- anclado_t "$D" "$(en "$D" git rev-parse HEAD~1)" "$(en "$D" git rev-parse HEAD~1)" HEAD
 
 echo "== procedencia en un adoptado (PR-3): base que nace y no cambia, colisiones y R-S.1"
 # Un solo tipo de comprobación por caso, con hooks activos; los colados (--no-verify) los juzgan el replay actual

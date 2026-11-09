@@ -94,7 +94,7 @@ enviarlo se verifica que dicen lo mismo. Igual para cualquier decisión fuera de
    (`Ref:`/`Cierra:`), y trazabilidad al día (`docs/plan.md` + `docs/trazabilidad.md`).
    **Salida de la fase (cuándo termina el bucle):** cuando **todos los criterios `C#`
    están en estado `verificado`** en `docs/trazabilidad.md` (en un ciclo posterior con pendientes
-   históricos, los del alcance del cierre: `docs/arranque.md` §Reentrada) y todo hallazgo `R-I#.n`,
+   históricos, los del alcance del cierre; un requisito retirado por ADR no cuenta: `docs/arranque.md` §Reentrada) y todo hallazgo `R-I#.n`,
    `R-S#.n` (y `R-F4.n`, si la Fase 4 devolvió trabajo) cerró su ciclo completo (ninguno
    `abierto`). **`verificado` nunca se marca a mano:** el de un criterio lo da el PASA del juez
    que lo comprobó (`.claude/skills/revision-critica/SKILL.md` paso 5); el de un hallazgo sigue

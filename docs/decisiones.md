@@ -36,6 +36,12 @@
 >   a `reemplazada-por: ADR-###` solo cuando la sustitución está `aceptada` y entra en vigor; hasta
 >   entonces sigue vigente.
 >
+> **Retirada de un requisito** (`docs/arranque.md` §Reentrada). El ADR que retira un `C#` es una decisión
+> nueva: `aceptada`, con **Aprobación** de la persona, no retrospectivo, y nombra cada criterio que retira. Dice
+> que se cambia el alcance (negocio, prioridad o costo) y que retirar no repara nada. Para reactivar, un ADR nuevo
+> lo sustituye (`reemplazada-por`) y vuelve a nombrar lo que sigue retirado. `scripts/decisiones.py` comprueba
+> la estructura y las referencias; no autentica la aprobación.
+>
 > **Ciclo de vida.** Cuando un ADR se reemplaza o se revierte, **el estado se actualiza
 > en el ADR superado** (`reemplazada-por: ADR-###` / `revertida-por: ADR-###`), no solo
 > se anota en el nuevo. Un registro donde todo figura "aceptada" —incluido lo revertido—

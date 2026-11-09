@@ -31,7 +31,7 @@ Una referencia es ERROR si es absoluta, sale del repositorio, entra en .git, no 
 o su destino no existe, es un directorio, es o pasa por un enlace simbólico, o no es un archivo regular.
 
 Salida (una línea por registro, campos separados por tabulador):
-  C <línea>            criterio                 ORO <línea>   línea del cuerpo del set de oro
+  C <línea>            criterio                 ORO <línea>   línea del cuerpo del set de oro (los dos modos)
   REF <ruta> <objeto>  archivo referenciado (objeto = id del blob; INVALIDA si no lo es) — solo «objetos»
   ERR <motivo>         la estructura o una referencia no valen (el consumidor FALLA)
 Código de salida: 0 si pudo leer (aunque haya ERR); 2 si no (uso, git): el consumidor FALLA.
@@ -188,7 +188,7 @@ def revisa(archivo):
     except OSError as e:
         print(f"contrato.py: no puedo leer {archivo}: {e}", file=sys.stderr)
         return 2
-    _, refs, errs = lee(texto)
+    regs, refs, errs = lee(texto)
     for n, cruda, r in refs:
         motivo, cur = None, ""
         for parte in r.split("/"):
@@ -208,8 +208,8 @@ def revisa(archivo):
                 motivo = "no es un archivo regular"
         if motivo:
             errs.append(f"docs/encuadre.md, línea {n}: la referencia «{cruda}» ({r}) {motivo}")
-    for e in errs:
-        print("ERR\t" + e)
+    sal = regs + ["ERR\t" + e for e in errs]
+    sys.stdout.buffer.write(("\n".join(sal) + ("\n" if sal else "")).encode("utf-8", "surrogateescape"))
     return 0
 
 

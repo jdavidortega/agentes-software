@@ -32,6 +32,11 @@
 # scripts/pruebas/regresion-adopcion.sh como producto en un proyecto con Base del método, aunque los trajera la instalación.
 # Rige igual que las de arriba: un commit anterior se valida sin ella, y guardas.sh (regla 8d) impide retirarla.
 # contrato-procedencia: 1
+# Versión del contrato de retirada de requisitos: con esta línea, un criterio `- C<n>: [retirado: ADR-NNN] <texto anterior>`
+# cuya retirada autoriza un ADR válido (scripts/decisiones.py) no se exige `verificado` al cierre, y sus pares del set de
+# oro se marcan igual (docs/arranque.md §Reentrada). Sin ella, la marca es texto y no exime de nada. Rige igual que las
+# de arriba: un commit anterior se valida sin ella, y guardas.sh (regla 8e) impide retirarla o borrar el lector.
+# contrato-retirada: 1
 
 MODE="${1:-commit}"
 FAIL=0
@@ -44,6 +49,7 @@ MET=${METODO_DIR:-.}
 # Del árbol validado (en el pre-commit, la exportación del índice; en el replay, el commit), nunca del entorno.
 M03=0; grep -qx '# contrato-set-de-oro: 1' scripts/check_docs.sh 2>/dev/null && M03=1
 MERGES=0; grep -qx '# contrato-merges: 1' scripts/check_docs.sh 2>/dev/null && MERGES=1
+RET=0; grep -qx '# contrato-retirada: 1' scripts/check_docs.sh 2>/dev/null && RET=1
 
 # --- Última fase legible del HISTORIAL --------------------------------------------------------
 # Un commit que borra o estropea la fase no puede devolver el proyecto a «plantilla»: lo que
@@ -156,6 +162,7 @@ done
 # Con el marcador, el lector es obligatorio: una instalación parcial FALLA (nunca vuelve a las reglas previas).
 [ "$MERGES" -eq 0 ] || has .githooks/pre-merge-commit || err "falta .githooks/pre-merge-commit: scripts/check_docs.sh declara «# contrato-merges: 1» y sin el hook un merge que termina solo no pasa por el pre-commit (instalación parcial; se instala con adoptar.sh copiar o desde la plantilla)"
 [ "$M03" -eq 0 ] || has scripts/contrato.py || err "falta scripts/contrato.py: scripts/check_docs.sh declara «contrato-set-de-oro: 1» y sin el lector no hay contrato (instalación parcial; se instala con adoptar.sh actualizar o desde la plantilla)"
+[ "$RET" -eq 0 ] || has scripts/decisiones.py || err "falta scripts/decisiones.py: scripts/check_docs.sh declara «# contrato-retirada: 1» y sin el lector de ADR no se puede saber si una retirada vale (instalación parcial; se instala con adoptar.sh actualizar o desde la plantilla)"
 # Adaptador Codex (si se usa): los mismos cuatro roles.
 if [ -d .codex/agents ]; then
   for r in revisor-funcional juez-codigo juez-conjunto juez-seguridad; do
@@ -483,7 +490,7 @@ if has docs/estado.md && [ "$INICIADO" -eq 1 ]; then
     c[1]=="C#" { ntot++; if (!sec) next; nhs++; hdr=1; ca=0; ce=0; for(k=1;k<=n;k++){ if(c[k]=="Alias") ca=k; if(c[k]=="Estado") ce=k }; if (!(ca && ce)) mal=1; next }
     !sec || !hdr { next }
     c[1] !~ /^C[0-9]+$/ { print "NOC\t" c[1]; next }
-    { e=c[ce]; sub(/[ \t].*$/, "", e); print "C\t" c[1] "\t" c[ca] "\t" e }
+    { e=c[ce]; sub(/[ \t].*$/, "", e); print "C\t" c[1] "\t" c[ca] "\t" e "\t" c[ce] }
     END { print "SEC\t" nsec+0 "\t" nhs+0 "\t" ntot+0 "\t" mal+0 }' docs/estado.md)
   est_campo() { printf '%s\n' "$EST_CRIT" | awk -F'\t' -v k="$1" '$1=="SEC" {print $k}'; }
   nsec=$(est_campo 2); nhs=$(est_campo 3); ntot=$(est_campo 4); est_mal=$(est_campo 5)
@@ -517,6 +524,70 @@ if has docs/estado.md && [ "$INICIADO" -eq 1 ]; then
     for c in $(printf '%s\n' "$EST_CRIT" | awk -F'\t' '$1=="C" {print $2}' | sort -u); do
       printf '%s\n' "$FILAS" | awk -v c="$c" '$1=="C" && $2==c {f=1} END {exit f?0:1}' \
         || err "docs/estado.md: $c está en la tabla de criterios pero no está en la cobertura de trazabilidad.md"
+    done
+  fi
+fi
+
+# --- 1c) Requisitos retirados (con «# contrato-retirada: 1»; docs/arranque.md §Reentrada) ----------------
+# Un criterio retirado conserva su número y su texto con la marca delante: `- C<n>: [retirado: ADR-NNN] <texto>`.
+# La retirada vale si el ADR, siguiendo la sustitución existente, la autoriza (scripts/decisiones.py retira: aceptada,
+# con Aprobación, no retrospectiva y que nombra el criterio); si no, el criterio se sigue exigiendo. Un par retirado
+# del set de oro (`- [retirado: ADR-NNN] <par>`) cita el ADR de un criterio retirado. Su estado en la cobertura es el
+# histórico (sin estado nuevo): la Nota y el resumen de docs/estado.md lo dicen con «(histórico; retirado por ADR-NNN)»,
+# y ese texto solo lo lleva un retirado. Un incremento pendiente cuyos criterios están todos retirados pasa al backlog.
+# Lo que no es mecanizable (el motivo de negocio, qué otro criterio protege un par) es de la rúbrica del revisor funcional.
+RETIRADOS=""
+if [ "$RET" -eq 1 ] && [ "$M03" -eq 1 ] && has docs/encuadre.md && { [ "$FASE" = F1 ] || [ "$INICIADO" -eq 1 ]; }; then
+  if [ ! -f "$MET/scripts/decisiones.py" ]; then
+    err "no encuentro scripts/decisiones.py (${METODO_DIR:-.}), el lector de ADR que decide si una retirada vale"
+  elif ! RET_CON=$(python3 -I "$MET/scripts/contrato.py" revisa docs/encuadre.md); then
+    err "no pude leer los criterios y el set de oro de docs/encuadre.md con scripts/contrato.py para comprobar las retiradas"
+  else
+    ret_c=$(printf '%s\n' "$RET_CON" | sed -n 's/^C	//p'); ret_o=$(printf '%s\n' "$RET_CON" | sed -n 's/^ORO	//p')
+    m=$(printf '%s\n' "$ret_c" | grep -E '^- C[0-9]+:[[:space:]]*\[[[:space:]]*[Rr]etirad' | grep -vE '^- C[0-9]+: \[retirado: ADR-[0-9]{3}\] [^[:space:]]' | head -2 | cut -c1-70 | tr '\n' '|')
+    [ -z "$m" ] || err "encuadre.md: marca de retirada fuera de la gramática «- C<n>: [retirado: ADR-NNN] <texto anterior>»: $m"
+    m=$(printf '%s\n' "$ret_o" | grep -E '^[-*+][[:space:]]+\[[[:space:]]*[Rr]etirad' | grep -vE '^[-*+] \[retirado: ADR-[0-9]{3}\] [^[:space:]]' | head -2 | cut -c1-70 | tr '\n' '|')
+    [ -z "$m" ] || err "encuadre.md: par del set de oro con una marca de retirada fuera de la gramática «- [retirado: ADR-NNN] <par anterior>»: $m"
+    adr_ret=""
+    for r in $(printf '%s\n' "$ret_c" | sed -nE 's/^- (C[0-9]+): \[retirado: (ADR-[0-9]{3})\] .*/\1:\2/p'); do
+      c=${r%%:*}; a=${r#*:}
+      v=$(python3 -I "$MET/scripts/decisiones.py" retira "$a" "$c" docs/decisiones.md 2>&1); rc=$?
+      if [ "$rc" -eq 0 ]; then RETIRADOS="$RETIRADOS $c"; adr_ret="$adr_ret $a"
+      elif [ "$rc" -eq 1 ]; then err "$c está marcado como retirado por $a, pero la retirada no vale: $v. Hasta que valga, $c se sigue exigiendo."
+      else err "no pude leer docs/decisiones.md para saber si vale la retirada de $c ($a): $v. Un error no equivale a una retirada válida."; fi
+    done
+    for a in $(printf '%s\n' "$ret_o" | sed -nE 's/^[-*+] \[retirado: (ADR-[0-9]{3})\] .*/\1/p' | sort -u); do
+      printf '%s\n' $adr_ret | grep -qx "$a" || err "un par del set de oro está retirado por $a, que no es el ADR de ningún criterio retirado válido: un par se retira con su criterio, y mientras no valga cuenta como par activo."
+    done
+    if [ "$INICIADO" -eq 1 ] && has docs/trazabilidad.md; then
+      for c in $CRIT; do
+        a=$(printf '%s\n' "$ret_c" | sed -nE "s/^- $c: \\[retirado: (ADR-[0-9]{3})\\] .*/\\1/p" | head -1)
+        nota=$(printf '%s\n' "$FILAS" | awk -v c="$c" '$1=="NOTA" && $2==c {print substr($0, length($1) + length($2) + 3); exit}')
+        cel=$(printf '%s\n' "${EST_CRIT:-}" | awk -F'\t' -v c="$c" '$1=="C" && $2==c {print $5; exit}')
+        if printf ' %s ' "$RETIRADOS" | grep -q " $c "; then
+          printf '%s' "$nota" | grep -qF "(histórico; retirado por $a)" \
+            || err "trazabilidad.md: $c está retirado por $a y su Nota no lo dice con «(histórico; retirado por $a)»: su Estado es el histórico, no una garantía vigente"
+          has docs/estado.md && { printf '%s' "$cel" | grep -qF "(histórico; retirado por $a)" \
+            || err "docs/estado.md: $c está retirado por $a y el resumen de criterios no lo dice («<estado> (histórico; retirado por $a)»): el resumen no lo cuenta como garantía vigente"; }
+        else
+          { printf '%s' "$nota"; printf '%s' "$cel"; } | grep -qE 'retirado por ADR-' \
+            && err "$c no está retirado (o su retirada no vale) y la Nota de trazabilidad.md o el resumen de docs/estado.md dicen «retirado por ADR-…»: quita ese texto al reactivarlo"
+        fi
+      done
+      # Dependencias: un incremento pendiente del plan cuyos criterios (columna Incremento) están todos retirados.
+      if has docs/plan.md && [ -n "$RETIRADOS" ]; then
+        for i in $(leer_plan docs/plan.md | awk '$1=="I" && $3=="pendiente" && $4!="backlog" {print $2}'); do
+          cs=$(printf '%s\n' "$FILAS" | awk -v i="$i" '$1=="C" { n=split($3, a, /[^A-Za-z0-9]+/); for (k=1;k<=n;k++) if (a[k]==i) print $2 }')
+          [ -n "$cs" ] || continue
+          act=""; for c in $cs; do printf ' %s ' "$RETIRADOS" | grep -q " $c " || act="$act $c"; done
+          [ -n "$act" ] || err "plan.md: $i está pendiente y solo cubre criterios retirados ($(printf '%s' "$cs" | tr '\n' ' ')): pasa al backlog («Fuera de alcance / backlog») o se ajusta en la misma reentrada"
+        done
+      fi
+    fi
+    # Aviso: un criterio activo que cita a uno retirado (puede ser legítimo: «C5 sustituye a C3»; lo juzga el revisor).
+    for c in $RETIRADOS; do
+      q=$(printf '%s\n' "$ret_c" | grep -vE '^- C[0-9]+: \[retirado: ' | grep -E "(^|[^0-9A-Za-z_])$c([^0-9]|\$)" | grep -vE "^- $c:" | grep -oE '^- C[0-9]+' | sed 's/^- //' | tr '\n' ' ')
+      [ -z "$q" ] || printf '⚠ check_docs: %s citan %s, que está retirado: comprueba que la relación sigue siendo cierta (lo juzga el revisor funcional)\n' "$q" "$c" >&2
     done
   fi
 fi
@@ -761,6 +832,14 @@ if [ "$MODE" = "cierre" ]; then
     # ACOTADO (CIERRE_CUBRE/CIERRE_EXCLUYE, que solo fija el commit-msg con el recibo del conjunto: ver
     # scripts/recibos.sh, «CIERRE ACOTADO»), solo los de cubre=; los excluidos siguen sin verificar.
     CRIT_CIERRE=$CRIT
+    # Retirados (1c): no se exigen `verificado` ni se nombran en cubre=/excluye=; retirarlo todo no cierra nada.
+    if [ -n "$RETIRADOS" ]; then
+      CRIT_CIERRE=$(for c in $CRIT; do printf ' %s ' "$RETIRADOS" | grep -q " $c " || echo "$c"; done)
+      [ -n "$CRIT_CIERRE" ] || err "todos los criterios del encuadre están retirados: un cierre sin requisitos activos no verifica nada; archivar un producto sin requisitos es una decisión aparte, no un cierre"
+      for c in $(printf '%s,%s' "${CIERRE_CUBRE:-}" "${CIERRE_EXCLUYE:-}" | tr ',' ' '); do
+        printf ' %s ' "$RETIRADOS" | grep -q " $c " && err "$c está retirado y el recibo del conjunto lo nombra en cubre=/excluye=: un retirado ni se valida ni queda pendiente"
+      done
+    fi
     if [ -n "${CIERRE_CUBRE:-}" ]; then
       CRIT_CIERRE=$(printf '%s' "$CIERRE_CUBRE" | tr ',' ' ')
       for c in $(printf '%s' "${CIERRE_EXCLUYE:-}" | tr ',' ' '); do

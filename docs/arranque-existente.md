@@ -96,8 +96,10 @@ se decide con la persona antes de seguir.
      ciclo con su estado real (qué prueba lo cubre, sin verificar o brecha); no es `C#` y no se
      declara verificado.
    **La elección de ruta vale solo en la primera adopción**, cuando aún no hay `C#` acordados. Con criterios ya acordados,
-   el trabajo nuevo sigue la reentrada vigente (`AGENTS.md` §2): ningún `C#` se retira ni se
-   renumera para facilitar el cierre (lo comprueba el `commit-msg`, `docs/arranque.md` §Reentrada). Un ciclo posterior con
+   el trabajo nuevo sigue la reentrada vigente (`AGENTS.md` §2): ningún `C#` se borra ni se
+   renumera para facilitar el cierre (lo comprueba el `commit-msg`, `docs/arranque.md` §Reentrada). Un requisito que dejó
+   de aplicar se retira conservando su línea, con un ADR nuevo aprobado por la persona («Retirada de un requisito»); un
+   fallo previo no es motivo, y la retirada no levanta su bloqueo. Un ciclo posterior con
    criterios históricos pendientes se cierra como **cierre del ciclo** (`docs/arranque.md` §Reentrada, «Cierre de un
    ciclo posterior»). **Límite:** mientras queden fallos previos declarados (§G), ningún cierre pasa, tampoco el
    acotado; ese recorrido sigue sin resolver.

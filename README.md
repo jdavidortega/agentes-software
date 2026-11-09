@@ -550,7 +550,10 @@ contrato revisado (criterios, set de oro y archivos que enlaza) con un solo lect
 una fila, un incremento, un recibo o el contrato significan lo mismo en los tres. Ese lector rige
 desde el marcador `# contrato-set-de-oro: 1` de `scripts/check_docs.sh`: un commit anterior se valida con
 la comparación de entonces, y `scripts/guardas.sh` impide retirar el marcador o el lector una vez instalados
-(el marcador identifica la versión del contrato; no autentica a los validadores).
+(el marcador identifica la versión del contrato; no autentica a los validadores). Un requisito
+que deja de aplicar se **retira** sin borrarlo (`- C3: [retirado: ADR-NNN] …`, por reentrada y con un ADR
+nuevo; `docs/arranque.md` §Reentrada), desde el marcador `# contrato-retirada: 1`; los ADR los lee un solo
+lector (`scripts/decisiones.py`).
 **`regresion.sh`** es la regresión de los propios hooks: autocontenida (toma de este
 repositorio solo la instrumentación y genera un proyecto sintético), crea repositorios
 temporales sin red ni credenciales y comprueba cada regla con su caso negativo y su caso
@@ -761,6 +764,7 @@ de `.claude/agents/`: son la referencia de qué debe hacer cada rol en tu adapta
 │   ├── trazabilidad.sh      lector único de trazabilidad.md (doctor, hook y replay)
 │   ├── contrato.py          lector único del contrato revisado: criterios, set de oro y archivos que enlaza
 │   ├── fallos_previos.py    fallos previos de una adopción: línea base inicial, comparación (check.sh) y guarda
+│   ├── decisiones.py        lector compartido de ADR (fallos previos y retirada de requisitos)
 │   ├── guardas.sh           guardas de contenido entre dos estados (pre-commit y replay)
 │   ├── consumo.py           tokens por modelo y origen (principal, subagentes, sin atribuir) desde los transcripts locales
 │   ├── buscar.sh            búsquedas registradas (git grep contra un commit; evidencia

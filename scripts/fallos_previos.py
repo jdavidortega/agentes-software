@@ -246,25 +246,47 @@ def tablas(texto, destinos=None):
     return dec, ret, errs
 
 
+_DECISIONES_PY = None
+
+
+def lector_adr():
+    """El lector compartido de ADR (scripts/decisiones.py, junto a este archivo: en el replay anclado, el del
+    ancla). Se carga por su ruta, sin tocar sys.path, y solo cuando hay un ADR que evaluar."""
+    global _DECISIONES_PY
+    if _DECISIONES_PY is None:
+        import importlib.util
+        ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), "decisiones.py")
+        spec = importlib.util.spec_from_file_location("decisiones_metodo", ruta)
+        if spec is None or not os.path.isfile(ruta):
+            raise LectorAusente("falta %s, el lector de ADR que comparte con la retirada de requisitos (viene con la plantilla junto a fallos_previos.py)" % ruta)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        _DECISIONES_PY = m
+    return _DECISIONES_PY
+
+
+class LectorAusente(Exception):
+    pass
+
+
 def adr_aceptado(decisiones, adr):
     """El texto de la sección `## ADR-NNN` si su **Estado:** es `aceptada`; si no, None."""
-    m = re.search(r"^## %s\b.*?(?=^## |\Z)" % re.escape(adr), decisiones, re.M | re.S)
-    if m and re.search(r"^[-*][ \t]+\*\*Estado:\*\*[ \t]*aceptada[ \t]*$", m.group(0), re.M):
-        return m.group(0)
-    return None
+    return lector_adr().aceptada(decisiones, adr)
 
 
 def adr_decide(decisiones, adr, i):
     """None si `adr` es un ADR aceptado de decisiones.md que nombra la prueba `i` y no es retrospectivo; si no,
     el motivo. Un ADR cuyo campo **Aprobación:** empieza por `retrospectivo` documenta una decisión anterior
     al método: no decide el tratamiento de una prueba (decisiones.md, «Aceptación»). Un ADR sin el campo
-    (anterior a él) se lee como antes; la guarda solo comprueba lo escrito, no autentica la aprobación."""
-    texto = adr_aceptado(decisiones, adr) if re.fullmatch(r"ADR-\d{3}", adr) else None
+    (anterior a él) se lee como antes; la guarda solo comprueba lo escrito, no autentica la aprobación.
+    La gramática es la del lector compartido (scripts/decisiones.py); este tratamiento no cambia con él."""
+    d = lector_adr()
+    texto = d.aceptada(decisiones, adr) if d.ID.fullmatch(adr) else None
     if texto is None:
         return "«%s», que no es un ADR en estado «aceptada» de %s (sección «## ADR-NNN» con «- **Estado:** aceptada»)" % (adr, DECISIONES)
-    if re.search(r"^[-*][ \t]+\*\*Aprobación:\*\*[ \t]*`?retrospectivo\b", texto, re.M):
+    if d.retrospectivo(texto):
         return "%s, que es un registro retrospectivo (Aprobación «retrospectivo»): documenta lo vigente y no decide retirar ni tratar la prueba; eso es una decisión nueva con su aprobación" % adr
-    if not re.search(r"(?<![\w.])%s(?![\w.])" % re.escape(i), texto):
+    if not d.nombra(texto, i):
         return "%s, que no nombra esa prueba: el ADR aceptado tiene que decidirla" % adr
     return None
 
@@ -570,4 +592,8 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except LectorAusente as e:
+        print("✗ fallos_previos: %s" % e, file=sys.stderr)
+        sys.exit(2)

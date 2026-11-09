@@ -96,7 +96,12 @@ Después, el agente principal **valida si el dato ya está presente**:
 - **Set de oro con ≥5 pares `entrada → salida esperada`**, e incluye **al menos un
   ejemplo concreto de entrada y de salida** —inline en el `.md` o como archivo
   referenciado en `contexto/`)—. No basta describir el formato: tiene que haber
-  un ejemplo real.
+  un ejemplo real. Los pares retirados (`- [retirado: ADR-NNN] …`) son historia: no cuentan para el mínimo.
+- **Retirada de un requisito** (`- C<n>: [retirado: ADR-NNN] …`, `docs/arranque.md` §Reentrada): el ADR dice
+  que la persona cambia el alcance (negocio, prioridad o costo) y no lo presenta como reparación; si el único
+  motivo es que el criterio falla, cuesta o no se puede verificar, es un vacío (va a la Fase 3). Un par retirado
+  que también protegía un criterio vigente deja esa garantía sin par: es un vacío hasta que se resuelva esa
+  relación. Lo mecánico (marca, ADR nuevo y aceptado, Nota, resumen, cierre) lo comprueban los hooks.
 - **Stack y arquitectura resueltos** (lenguaje+versión, framework+versión, build,
   estilo), con versiones verificadas contra la doc oficial.
 - Modelo de despliegue decidido: **destino** (¿solo local, o local + remoto?) y

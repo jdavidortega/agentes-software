@@ -143,7 +143,7 @@ trailers=$(grep -E '^(Ref|Cierra):' "$msg_file")
 #   (README, guías de contribución, conducta, seguridad, soporte y plantillas de issue y de PR en
 #   Markdown). Los demás workflows, acciones y archivos de .github/ son configuración operativa del
 #   producto (CI, despliegue, dependencias, propietarios, instrucciones de agentes).
-METODO='^(\.github/workflows/metodo\.yml|\.githooks/(commit-msg|pre-commit|pre-merge-commit)|scripts/pruebas/(regresion|regresion-suite|regresion-adopcion|validar_historial|replay_anclado)\.sh|scripts/(check_docs|adoptar|buscar|huella|recibos|trazabilidad|guardas)\.sh|scripts/(consumo|suite|contrato|fallos_previos)\.py)$'
+METODO='^(\.github/workflows/metodo\.yml|\.githooks/(commit-msg|pre-commit|pre-merge-commit)|scripts/pruebas/(regresion|regresion-suite|regresion-adopcion|validar_historial|replay_anclado)\.sh|scripts/(check_docs|adoptar|buscar|huella|recibos|trazabilidad|guardas)\.sh|scripts/(consumo|suite|contrato|fallos_previos|decisiones)\.py)$'
 SIN_REVISION='^(docs|contexto|mejoras|\.claude|\.codex|\.agents)/|^\.github/((README|CONTRIBUTING|CODE_OF_CONDUCT|SECURITY|SUPPORT|PULL_REQUEST_TEMPLATE|pull_request_template)\.md|(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE)/[^/]+\.md)$|^(README\.md|AGENTS\.md|CLAUDE\.md|\.gitignore|\.gitattributes|\.editorconfig|\.env\.example|scripts/check\.sh)$|(^|/)\.env\.example$|'"$METODO"
 # Siempre producto aunque viva en una carpeta del rastro: CODEOWNERS decide quién aprueba y GitHub
 # lo lee de .github/, la raíz o docs/ (las dos primeras ya están fuera de SIN_REVISION).
@@ -460,6 +460,40 @@ referencia_resuelve() {  # $1 texto de la celda → 0 si algún token resuelve
   return 1
 }
 
+# --- Requisitos retirados («# contrato-retirada: 1» en el check_docs.sh del candidato; guardas.sh 8e impide retirarlo) ---
+# Un criterio `- C<n>: [retirado: ADR-NNN] <texto anterior>` cuya retirada autoriza el ADR (scripts/decisiones.py
+# retira, siguiendo la sustitución) no se nombra en cubre=/excluye= ni entra en su partición; check_docs (1c y cierre)
+# no lo exige `verificado`. La transición (retirar, conservar, reactivar) se comprueba en el commit `Ref: F2` que la
+# revisa, contra el contrato revisado de referencia (más abajo). El marcador se lee del blob con tres resultados; un
+# error no equivale a «sin marcador» si el encuadre lleva marcas.
+marcador_ret() {  # <commit|INDICE> → 0 declara «# contrato-retirada: 1»; 1 no (o sin check_docs.sh); 2 no se pudo leer
+  if [ "$1" = INDICE ]; then e=$(git ls-files -s -- scripts/check_docs.sh) || return 2
+  else e=$(git ls-tree "$1" -- scripts/check_docs.sh) || return 2; fi
+  [ -n "$e" ] || return 1
+  id=$(printf '%s' "$e" | awk '{ if ($2 == "blob") print $3; else print $2 }')
+  b=$(git cat-file blob "$id" 2>/dev/null) || return 2
+  [ "$(printf '%s\n' "$b" | grep -cx '# contrato-retirada: 1')" -gt 0 ]
+}
+marcador_ret "${REV:-INDICE}"; case $? in 0) CONTRATO_RET=1 ;; 1) CONTRATO_RET=0 ;; *) CONTRATO_RET=2 ;; esac
+MARCA_C='^- C[0-9]+: \[retirado: ADR-[0-9]{3}\] '
+RETIRADOS=""
+if [ "$CONTRATO_RET" -eq 2 ]; then
+  idx docs/encuadre.md | grep -qE '\[retirado:' && fail "no pude leer scripts/check_docs.sh de $(nombre_r "${REV:-INDICE}") para saber si rige «# contrato-retirada: 1»: docs/encuadre.md lleva marcas de retirada y un error no equivale a «sin marcador»."
+elif [ "$CONTRATO_RET" -eq 0 ] && idx docs/encuadre.md | grep -qE "$MARCA_C"; then
+  echo "⚠ commit-msg: docs/encuadre.md lleva marcas «[retirado: …]» y scripts/check_docs.sh no declara «# contrato-retirada: 1»: sin el marcador la marca es texto y no exime de nada." >&2
+elif [ "$CONTRATO_RET" -eq 0 ]; then :
+elif ! RET_CN=$(contrato "${REV:-INDICE}"); then
+  fail "no pude leer el contrato con scripts/contrato.py (python3 -I) para saber qué criterios están retirados."
+else
+  RET_DEC=$(idx docs/decisiones.md)
+  for r in $(printf '%s\n' "$RET_CN" | sed -n 's/^C	//p' | sed -nE 's/^- (C[0-9]+): \[retirado: (ADR-[0-9]{3})\] .*/\1:\2/p'); do
+    v=$(printf '%s\n' "$RET_DEC" | python3 -I "$MET/scripts/decisiones.py" retira "${r#*:}" "${r%%:*}" - 2>&1); rc=$?
+    if [ "$rc" -eq 0 ]; then RETIRADOS="$RETIRADOS ${r%%:*}"
+    elif [ "$rc" -ne 1 ]; then fail "no pude leer las decisiones con scripts/decisiones.py para saber si vale la retirada de ${r%%:*} (${r#*:}): $v"; fi
+  done
+fi
+retirado() { printf ' %s ' "$RETIRADOS" | grep -q " $1 "; }
+
 cierre=0; con_incremento=0; dependiente=0; con_f2=0; con_f5=0
 IFS='
 '
@@ -546,6 +580,7 @@ for line in $trailers; do
         [ "$c" = "ninguno" ] && continue
         printf '%s' "$c" | grep -qE '^C[0-9]+$' || { fail "'$line': el recibo del hito nombra '$c' en cubre=/excluye=; se esperan criterios C<n> separados por coma (o excluye=ninguno)."; continue; }
         idx docs/encuadre.md | grep -qE "^- $c:" || fail "'$line': el recibo del hito nombra $c, que no está definido en docs/encuadre.md."
+        retirado "$c" && fail "'$line': el recibo del hito nombra $c en cubre=/excluye=, y $c está retirado: un retirado ni se revisa como garantía ni queda pendiente."
       done
       for c in $cu; do for d in $ex; do [ "$c" = "$d" ] && fail "'$line': $c aparece a la vez en cubre= y excluye= del recibo del hito."; done; done
       # Cada lista es un CONJUNTO: un criterio repetido suele ser una errata (se quiso nombrar
@@ -561,6 +596,7 @@ for line in $trailers; do
       printf '%s\n' "$cu" | grep -qxE 'C[0-9]+' || fail "'$line': cubre= del recibo del hito no nombra ningún criterio; un hito revisa al menos un criterio construido ('ninguno' solo vale en excluye=)."
       cov=$(idx docs/trazabilidad.md | sh "$MET/scripts/trazabilidad.sh" - | awk '$1=="C" {print $2, $3}')
       for c in $(idx docs/encuadre.md | grep -oE '^- C[0-9]+:' | grep -oE 'C[0-9]+' | sort -u); do
+        retirado "$c" && continue
         en_cu=0; en_ex=0
         printf '%s\n' "$cu" | grep -qx "$c" && en_cu=1
         printf '%s\n' "$ex" | grep -qx "$c" && en_ex=1
@@ -600,6 +636,124 @@ for line in $trailers; do
   fi
 done
 unset IFS
+
+# --- Transición de la retirada en un `Ref: F2` (con «# contrato-retirada: 1») ---------------------------------
+# Contra cada contrato revisado de referencia (el más cercano; varios si son revisiones paralelas):
+#  - retirar: la línea es la anterior con la marca delante, sin más cambios; el ADR no existía en las decisiones de
+#    la referencia (una decisión nueva, posterior al contrato que retira) y autoriza la retirada;
+#  - un retirado no cambia; quitar la marca es reactivar: el ADR que lo retiró pasa a «reemplazada-por: ADR-YYY», el
+#    sustituto es nuevo, vigente y lo nombra, y la fila vuelve a `pendiente` con un incremento asignado;
+#  - un par del set de oro se retira o se reactiva igual, con el ADR de un criterio retirado, y entonces la revisión
+#    es de alcance F2 completo; un par retirado no desaparece.
+# Solo comprueba estructura y referencias; que el motivo sea una decisión de alcance y no un defecto lo juzga el revisor.
+RETIRADA_PY='
+import collections, importlib.util, re, sys
+dec_py, f_ref, f_cand, f_dec, f_ids, f_traz, alcance, ref = sys.argv[1:9]
+spec = importlib.util.spec_from_file_location("decisiones_metodo", dec_py)
+D = importlib.util.module_from_spec(spec); spec.loader.exec_module(D)
+lee = lambda f: open(f, encoding="utf-8").read()
+def lineas(f, t): return [l.split("\t", 1)[1] for l in lee(f).splitlines() if l.startswith(t + "\t")]
+MC = re.compile(r"^- (C\d+): \[retirado: (ADR-\d{3})\] (.*)$"); MO = re.compile(r"^([-*+] )\[retirado: (ADR-\d{3})\] (.*)$")
+def crit(ls):
+    r = {}
+    for l in ls:
+        m = MC.match(l)
+        if m: r[m.group(1)] = (m.group(2), m.group(3), l); continue
+        m = re.match(r"^- (C\d+):(.*)$", l)
+        if m: r[m.group(1)] = (None, m.group(2).lstrip(" \t"), l)
+    return r
+dec = lee(f_dec); ids_ref = set(lee(f_ids).split()); out = []
+traz = {}
+for l in lee(f_traz).splitlines():
+    c = l.split()
+    if len(c) >= 4 and c[0] == "C": traz[c[1]] = (c[2], c[3])
+R, N = crit(lineas(f_ref, "C")), crit(lineas(f_cand, "C"))
+def sustituto(x, que):
+    sec = D.seccion(dec, x); y = D.sustituta(sec) if sec else None
+    if not y:
+        out.append("%s deja de estar retirado y %s, que lo retiró, no está en «reemplazada-por: ADR-NNN»: reactivar es una decisión nueva que sustituye a la de retirada (docs/decisiones.md, «Sustitución»)" % (que, x)); return None
+    if y in ids_ref: out.append("%s se reactiva con %s, que ya existía en las decisiones del contrato revisado de referencia (%s): la reactivación la decide un ADR nuevo" % (que, y, ref))
+    return y
+for c, (a, t, l) in sorted(N.items()):
+    r = R.get(c)
+    if a is None:
+        if r and r[0]:
+            y = sustituto(r[0], c)
+            if y:
+                m = D.decide(dec, y)
+                if m: out.append("%s se reactiva con %s, pero %s" % (c, y, m))
+                elif not D.nombra(D.seccion(dec, y), c, punto=False): out.append("%s se reactiva con %s, que no lo nombra: el ADR sustituto decide qué se reactiva" % (c, y))
+            fila = traz.get(c)
+            if not fila or fila[1] != "pendiente" or not re.search(r"I\d+", fila[0]):
+                out.append("%s se reactiva y su fila de cobertura no está en «pendiente» con un incremento asignado (%s): la verificación anterior no se arrastra" % (c, "sin fila" if not fila else " ".join(fila)))
+        continue
+    if r is None:
+        out.append("%s aparece retirado y no estaba en el contrato revisado de referencia (%s): solo se retira lo acordado; un criterio del borrador se quita" % (c, ref))
+    elif r[0] is None:
+        if l != "- %s: [retirado: %s] %s" % (c, a, r[1]):
+            out.append("%s se retira cambiando su texto: la línea retirada es la anterior con la marca delante («- %s: [retirado: %s] %s»); cambiar el texto es otra reentrada" % (c, c, a, r[1][:60]))
+        if a in ids_ref:
+            out.append("%s se retira con %s, que ya existía en las decisiones del contrato revisado de referencia (%s): la retirada la decide un ADR nuevo, posterior al contrato que retira" % (c, a, ref))
+        fin, m = D.retira(dec, a, c)
+        if m: out.append("la retirada de %s no vale: %s" % (c, m))
+    elif l != r[2]:
+        out.append("%s está retirado y su línea cambia: un retirado se conserva tal cual; para cambiarlo, se reactiva" % c)
+ro, no = collections.Counter(lineas(f_ref, "ORO")), collections.Counter(lineas(f_cand, "ORO"))
+quitadas, nuevas = ro - no, no - ro
+adr_c = {v[0] for v in N.values() if v[0]}
+pares = False
+for l in list(nuevas.elements()):
+    m = MO.match(l)
+    if m:
+        orig = m.group(1) + m.group(3)
+        if quitadas[orig] > 0:
+            quitadas[orig] -= 1; pares = True
+            if m.group(2) in ids_ref: out.append("un par del set de oro se retira con %s, que ya existía en las decisiones de la referencia (%s): la retirada la decide un ADR nuevo" % (m.group(2), ref))
+            if m.group(2) not in adr_c: out.append("un par del set de oro se retira con %s, que no retira ningún criterio: un par se retira con su criterio («%s»)" % (m.group(2), l[:60]))
+        else:
+            out.append("un par retirado del set de oro no corresponde a ningún par activo del contrato revisado de referencia: se marca el par anterior tal cual («%s»)" % l[:60])
+    else:
+        prev = [q for q in quitadas if quitadas[q] > 0 and MO.match(q) and MO.match(q).group(1) + MO.match(q).group(3) == l]
+        if prev:
+            quitadas[prev[0]] -= 1; pares = True
+            y = sustituto(MO.match(prev[0]).group(2), "un par del set de oro («%s»)" % l[:40])
+            if y:
+                m2 = D.decide(dec, y)
+                if m2: out.append("un par del set de oro se reactiva con %s, pero %s" % (y, m2))
+for q in quitadas.elements():
+    if MO.match(q): out.append("un par retirado del set de oro desaparece («%s»): se conserva como historia" % q[:60])
+if pares and alcance != "F2":
+    out.append("la retirada o la reactivación cambia el set de oro: el recibo del revisor funcional es de alcance F2 completo, no %s" % alcance)
+for x in out: print(x)
+'
+if [ "$con_f2" -eq 1 ] && [ "$CONTRATO_RET" -eq 1 ]; then
+  referencia_contrato; rc_ref=$?
+  hay_marcas=0; idx docs/encuadre.md | grep -qE '\[retirado: ADR-' && hay_marcas=1
+  if [ "$rc_ref" -eq 2 ]; then
+    [ "$hay_marcas" -eq 0 ] || fail "no pude determinar el contrato revisado de referencia ($REF_ERR) para comprobar las retiradas: un error no equivale a «nada que comparar»."
+  elif [ "$rc_ref" -eq 1 ]; then
+    [ "$hay_marcas" -eq 0 ] || fail "docs/encuadre.md lleva marcas de retirada y no hay ningún contrato revisado ('Ref: F2') anterior: solo se retira lo acordado; en un borrador el criterio se quita."
+  else
+    rt=$(mktemp -d 2>/dev/null || mktemp -d -t retirada)
+    al=$(campo "$(ultimo_recibo revisor-funcional encuadre F2)" alcance)
+    if ! contrato "${REV:-INDICE}" > "$rt/cand" || ! idx docs/decisiones.md > "$rt/dec" \
+       || ! { idx docs/trazabilidad.md | sh "$MET/scripts/trazabilidad.sh" - > "$rt/traz"; }; then
+      fail "no pude leer el contrato, las decisiones o la trazabilidad del candidato para comprobar las retiradas."
+    else
+      for r in $REFS; do
+        if ! contrato "$r" > "$rt/ref" || ! git show "$r:docs/decisiones.md" > "$rt/decref" 2>/dev/null \
+           || ! python3 -I "$MET/scripts/decisiones.py" ids "$rt/decref" > "$rt/ids"; then
+          fail "no pude leer el contrato o las decisiones del contrato revisado de referencia ($(git rev-parse --short "$r")) para comprobar las retiradas."; continue
+        fi
+        sal=$(python3 -I -c "$RETIRADA_PY" "$MET/scripts/decisiones.py" "$rt/ref" "$rt/cand" "$rt/dec" "$rt/ids" "$rt/traz" "${al:-?}" "$(git rev-parse --short "$r")" 2>&1) \
+          || { fail "no pude comprobar las retiradas contra $(git rev-parse --short "$r"): $(printf '%s' "$sal" | tail -1 | cut -c1-200)"; continue; }
+        printf '%s\n' "$sal" | grep . | while IFS= read -r m; do echo "✗ commit-msg: $m" >&2; done
+        [ -z "$sal" ] || FAIL=1
+      done
+    fi
+    rm -rf "$rt"
+  fi
+fi
 
 # --- Contrato revisado: el trabajo dependiente se ata al último `Ref: F2`, no a la fase ---------
 if [ "$dependiente" -eq 1 ] && [ "$con_f2" -eq 0 ]; then
@@ -662,9 +816,9 @@ fi
 # salvo lo que alguno de ellos ya había quitado respecto del de su base común. Así no se pierde un criterio
 # del contrato que se integra, una rama vieja no pasa a mandar por ser más reciente, y un requisito
 # retirado antes de esta regla no se vuelve a exigir (quitarlo después lo rechaza esta guarda en la rama
-# donde ocurra). La historia previa no se reescribe. El texto del criterio sí se ajusta por reentrada. No
-# decide sobre requisitos obsoletos: su retirada legítima no tiene todavía política propia
-# (docs/arranque.md §Reentrada), y hasta entonces se conservan con su estado real.
+# donde ocurra). La historia previa no se reescribe. El texto del criterio sí se ajusta por reentrada. Un
+# requisito obsoleto tampoco desaparece: con «# contrato-retirada: 1» se retira conservando su línea, con la marca
+# `[retirado: ADR-NNN]` (más arriba y docs/arranque.md §Reentrada).
 if [ "$HAY_HISTORIAL" -eq 1 ]; then
   # Las listas de este bloque son por líneas («C<n> <sha>»). Al salir se deja IFS como estaba, también
   # si estaba sin definir (un IFS vacío desactivaría la separación de palabras en el resto del hook).
@@ -684,7 +838,7 @@ if [ "$HAY_HISTORIAL" -eq 1 ]; then
   ids_enc=$(idx docs/encuadre.md | grep -oE '^- C[0-9]+:' | grep -oE 'C[0-9]+' | sort -u)
   for l in $(printf '%s\n' "$exigidos" | grep .); do
     c=${l%% *}; src=${l#* }
-    printf '%s\n' "$ids_enc" | grep -qx "$c" || fail "$c estaba en $donde (commit $(git rev-parse --short "$src"), 'Ref: F2') y desaparece de docs/encuadre.md: un criterio no se borra ni se renumera para cerrar. Su texto se ajusta por reentrada; la retirada de un requisito obsoleto aún no tiene política propia (docs/arranque.md §Reentrada) y, mientras tanto, se conserva con su estado real."
+    printf '%s\n' "$ids_enc" | grep -qx "$c" || fail "$c estaba en $donde (commit $(git rev-parse --short "$src"), 'Ref: F2') y desaparece de docs/encuadre.md: un criterio no se borra ni se renumera para cerrar. Su texto se ajusta por reentrada; un requisito obsoleto se retira conservando su línea, con «- $c: [retirado: ADR-NNN] <texto anterior>» (docs/arranque.md §Reentrada)."
   done
   if [ "$IFS_DEFINIDO" -eq 1 ]; then IFS=$IFS_PREVIO; else unset IFS; fi
 fi
@@ -816,8 +970,9 @@ if [ "$cierre" -eq 1 ]; then
     printf '%s' "$ex" | grep -qxE 'ninguno|C[0-9]+(,C[0-9]+)*' || fail "excluye='$ex' del recibo del conjunto no es 'ninguno' ni una lista C<n>[,C<n>…]."
     l_cu=$(printf '%s' "$cu" | tr ',' '\n' | grep -E '^C[0-9]+$'); l_ex=$(printf '%s' "$ex" | tr ',' '\n' | grep -E '^C[0-9]+$')
     for c in $l_cu $l_ex; do printf '%s\n' "$ids_c" | grep -qx "$c" || fail "$c aparece en cubre=/excluye= del recibo del conjunto y no está definido en docs/encuadre.md."; done
+    for c in $l_cu $l_ex; do retirado "$c" && fail "$c aparece en cubre=/excluye= del recibo del conjunto y está retirado: un retirado ni se valida ni queda pendiente."; done
     for c in $l_cu; do printf '%s\n' "$l_ex" | grep -qx "$c" && fail "$c aparece a la vez en cubre= y excluye= del recibo del conjunto."; done
-    for c in $ids_c; do printf '%s\n' "$l_cu" "$l_ex" | grep -qx "$c" || fail "$c no está ni en cubre= ni en excluye= del recibo del conjunto: cada criterio del encuadre se nombra en una de las dos."; done
+    for c in $ids_c; do retirado "$c" && continue; printf '%s\n' "$l_cu" "$l_ex" | grep -qx "$c" || fail "$c no está ni en cubre= ni en excluye= del recibo del conjunto: cada criterio del encuadre se nombra en una de las dos."; done
     if [ -n "$l_ex" ]; then
       if [ -z "$ciclo" ]; then :   # ya rechazado arriba (sin historial o sin cálculo)
       elif [ "$P5" = "-" ]; then

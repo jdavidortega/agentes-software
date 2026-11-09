@@ -3343,6 +3343,89 @@ espera pasa "M01 con Aprobación vacía: acepta como antes; la retirada no" "M01
 espera pasa "M01 con ADR retrospectivo: rechaza como antes, y la retirada también" "M01: ADR-001, que es un registro retrospectivo.*retirada: ADR-001 es un registro retrospectivo" -- m01_adr "- **Aprobación:** \`retrospectivo: evidencia (x)\`
 "
 
+echo "== Fidelidad de la materialización del índice (PR-5): check_docs juzga los blobs, no lo que extraen los atributos"
+# El pre-commit (paso 3) y el cierre del commit-msg materializan el índice con validar_historial.sh --materializa sobre
+# el árbol del índice (git write-tree), no con checkout-index: eol, ident, working-tree-encoding y los filtros locales no
+# transforman lo que juzga check_docs. Lo que ejecuta check.sh (paso 4) sigue siendo un checkout.
+# fid <dir>: un filtro local que borra al extraer las líneas que citan ADR-999, y cuatro rutas con atributos.
+commitea_t() { out=$(commitea "$@" 2>&1); rc=$?; printf '%s' "$out" | tr '\n' ' '; return $rc; }
+fid() {
+  en "$1" git config filter.oculta.smudge "sed '/ADR-999/d'" && en "$1" git config filter.oculta.clean cat
+}
+
+copia f3 pf1
+printf 'docs/convenciones.md text eol=crlf export-subst\ndocs/estado.md ident\n' >> "$D/.gitattributes"
+espera pasa "positivo: eol=crlf en convenciones.md e ident con los hooks, sin sin_hooks (antes, falso rechazo por CR)" "" -- commitea "$D" "atributos que transforman al extraer
+
+Ref: F1"
+espera pasa "... y el replay anclado da el mismo veredicto" "resultado PASA" -- anclado "$D" "$(sha "$D" HEAD~1)" "$(sha "$D" HEAD~1)" HEAD
+
+copia f3 pf2
+printf 'docs/estado.md working-tree-encoding=UTF-16LE\n' >> "$D/.gitattributes"
+iconv -f UTF-8 -t UTF-16LE "$D/docs/estado.md" > "$D/docs/estado.md.u16" && mv "$D/docs/estado.md.u16" "$D/docs/estado.md"
+espera pasa "positivo: working-tree-encoding=UTF-16LE en estado.md; el blob sigue en UTF-8 y check_docs lo lee así" "" -- commitea "$D" "estado.md en UTF-16 en el árbol de trabajo
+
+Ref: F1"
+espera pasa "... el blob guardado es el mismo que antes (UTF-8)" "" -- sh -c '[ "$(git -C "$1" rev-parse HEAD:docs/estado.md)" = "$(git -C "$1" rev-parse HEAD~1:docs/estado.md)" ]' _ "$D"
+
+copia f3 pf3; fid "$D"
+printf 'docs/MEMORIA.md filter=oculta\n' >> "$D/.gitattributes"; sin_hooks "$D" "filtro local en MEMORIA.md
+
+Ref: F1"
+printf -- '- Lección: ver ADR-999.\n' >> "$D/docs/MEMORIA.md"
+espera falla "negativo: un filtro local que oculta al extraer una referencia rota ya no la hace pasar" "ADR-999 se referencia pero no existe" -- commitea "$D" "cita un ADR inexistente
+
+Ref: F1"
+espera pasa "control: lo extraído por checkout-index NO contiene la línea (lo que antes juzgaba check_docs)" "" -- sh -c 'cd "$1" && rm -rf "$2" && git checkout-index -a --prefix="$2/" && ! grep -q ADR-999 "$2/docs/MEMORIA.md" && git show :docs/MEMORIA.md | grep -q ADR-999' _ "$D" "$W/pf3-ci"
+espera falla "... y el replay, que materializa desde los blobs, también lo rechaza" "ADR-999 se referencia" -- sh -c 'cd "$1" && git -c core.hooksPath=/dev/null commit -q --no-verify -m "cita un ADR inexistente
+
+Ref: F1" && sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD' _ "$D"
+
+# Cuatro rutas, un mismo contenido: el materializador sobre el árbol del índice da los ids guardados; checkout-index no.
+copia f3 pf4; fid "$D"
+printf 'f.txt text eol=crlf\ng.txt ident\nh.txt filter=oculta\nk.txt working-tree-encoding=UTF-16LE\n' >> "$D/.gitattributes"
+for f in f g h k; do printf 'a\n$Id$\nADR-999\n' > "$D/$f.txt"; done
+iconv -f UTF-8 -t UTF-16LE "$D/k.txt" > "$D/k.u16" && mv "$D/k.u16" "$D/k.txt"
+printf '#!/bin/sh\n' > "$D/x.sh"; chmod +x "$D/x.sh"; ln -s f.txt "$D/enlace"
+en "$D" git add -A
+mkdir "$W/pf4-mat"
+espera pasa "cuatro rutas (eol, ident, filtro, encoding): lo materializado tiene el id del índice; modos 100755 y enlace conservados" "" -- sh -c 'cd "$1" && sh scripts/pruebas/validar_historial.sh --materializa "$(git write-tree)" "$2" && for f in f.txt g.txt h.txt k.txt docs/estado.md; do [ "$(git hash-object --no-filters "$2/$f")" = "$(git rev-parse ":$f")" ] || exit 1; done && [ -x "$2/x.sh" ] && [ ! -x "$2/f.txt" ] && [ "$(readlink "$2/enlace")" = f.txt ]' _ "$D" "$W/pf4-mat"
+espera pasa "contraste: checkout-index transforma las cuatro rutas" "" -- sh -c 'cd "$1" && rm -rf "$2" && git checkout-index -a --prefix="$2/" && for f in f.txt g.txt h.txt k.txt; do [ "$(git hash-object --no-filters "$2/$f")" != "$(git rev-parse ":$f")" ] || exit 1; done' _ "$D" "$W/pf4-ci"
+
+# Ausencia frente a error: mensajes distintos, y nunca vuelta a checkout-index.
+copia f3 pa1; en "$D" git rm -q scripts/pruebas/validar_historial.sh
+espera falla "ausencia: sin el materializador en el índice, el pre-commit rechaza con su mensaje" "validar_historial\.sh no está versionado" -- commitea "$D" "quita el materializador
+
+Ref: F1"
+copia f3 pa2; ln -s /etc/hosts "$D/docs/fuera.md"
+espera falla "error: un enlace con destino absoluto no se materializa; rechaza con el motivo (no es ausencia)" "destino absoluto.*no pude materializar el índice" -- commitea_t "$D" "enlace absoluto
+
+Ref: F1"
+copia f3 pa3; printf '#!/bin/sh\necho "materializador roto" >&2\nexit 3\n' > "$D/scripts/pruebas/validar_historial.sh"
+espera falla "error: el materializador del índice falla; rechaza con su salida y no vuelve a checkout-index" "materializador roto.*no pude materializar el índice" -- commitea_t "$D" "materializador roto
+
+Ref: F1"
+
+# Cierre (Ref: F4) en el commit-msg: el mismo materializador sobre el árbol del índice.
+copia cierre pc1; en "$D" git reset -q --soft HEAD~1
+sed -i.bak '$d' "$D/docs/revisiones.log" && rm -f "$D/docs/revisiones.log.bak"
+printf 'docs/convenciones.md text eol=crlf\n' >> "$D/.gitattributes"
+recibo "$D" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica
+espera pasa "cierre: Ref: F4 con eol=crlf en convenciones.md pasa (check_docs cierre juzga los blobs)" "" -- commitea "$D" "validación
+
+Ref: F4"
+# commit-msg en modo replay (REV) sobre ese cierre, con validadores completos, sin materializador o con uno roto.
+LISTA_PF="docs/convenciones.md scripts/pruebas/replay_anclado.sh scripts/pruebas/validar_historial.sh .githooks/commit-msg scripts/guardas.sh scripts/check_docs.sh scripts/recibos.sh scripts/huella.sh scripts/trazabilidad.sh scripts/contrato.py scripts/fallos_previos.py scripts/decisiones.py scripts/suite.py"
+for v in ok sin roto; do
+  M="$W/pc-met-$v"; rm -rf "$M"; for f in $LISTA_PF; do mkdir -p "$M/$(dirname "$f")"; cp "$D/$f" "$M/$f"; done
+done
+rm "$W/pc-met-sin/scripts/pruebas/validar_historial.sh"
+printf '#!/bin/sh\necho "materializador roto" >&2\nexit 3\n' > "$W/pc-met-roto/scripts/pruebas/validar_historial.sh"
+rf4() { ( cd "$1" && REV=HEAD METODO_DIR="$2" sh "$2/.githooks/commit-msg" /dev/null 2>&1 ) | tr '\n' ' '; return "$(cd "$1" && REV=HEAD METODO_DIR="$2" sh "$2/.githooks/commit-msg" /dev/null >/dev/null 2>&1; echo $?)"; }
+espera pasa "control: el cierre rejuzgado en modo replay con los validadores completos pasa" "" -- rf4 "$D" "$W/pc-met-ok"
+espera falla "cierre en replay sin materializador: lo dice (no es un FALLA de check_docs)" "falta .*validar_historial\.sh.*materializador" -- rf4 "$D" "$W/pc-met-sin"
+espera falla "cierre en replay con el materializador roto: error al materializar, distinto de un FALLA de check_docs" "materializador roto.*no pude materializar lo que se commitea" -- rf4 "$D" "$W/pc-met-roto"
+
 echo "== Aviso de inicio de sesión (SessionStart): el script, sin abrir sesiones de Claude"
 # Se prueba el SCRIPT: que el cliente lo ejecute de verdad al iniciar una sesión queda por observar en VSCode.
 TI="$W/tmp-inicio"; mkdir -p "$TI"

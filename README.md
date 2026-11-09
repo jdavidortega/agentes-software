@@ -471,7 +471,7 @@ Esto rige en cada proyecto. Quien cambia la propia plantilla sigue §Desarrollo 
 
 - **`pre-commit`** — bloquea versionar un `.env`/secreto; exige que **lo verificado sea
   lo versionado** (rechaza si hay archivos rastreados con cambios sin stagear); corre
-  `scripts/check_docs.sh` sobre una **exportación del índice** (contrato documental por
+  `scripts/check_docs.sh` sobre el **índice materializado desde sus blobs**, sin que atributos ni filtros lo transformen (contrato documental por
   fase: archivos obligatorios, `C#` e `I#` únicos y existentes, ADRs referenciados,
   frontmatter válido, hooks activos); y corre `scripts/check.sh` (lint + formato + tests;
   lo creas en el diseño), **obligatorio desde la Fase 2**, sobre una **instantánea** de lo que se

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Integridad del rastro documental (viene con la plantilla; ver AGENTS.md §8).
 #
-# Modo "commit" (por defecto): lo corre el pre-commit sobre una exportación del ÍNDICE
+# Modo "commit" (por defecto): lo corre el pre-commit sobre el ÍNDICE materializado desde sus blobs
 # (lo que de verdad se versiona), y el agente lo corre a mano al inicio de sesión. Siempre
 # aplica lo estructural (archivos de la plantilla, roles, skills, frontmatter, recibos) y,
 # dentro de un repo, la INSTALACIÓN (hooks activos y ejecutables: un clon nuevo FALLA hasta
@@ -46,7 +46,7 @@ has() { [ -f "$1" ]; }
 # replay anclado, los de METODO_DIR (validar_historial.sh --metodo). Lo que se LEE como dato
 # (docs/, scripts/check.sh, la presencia de cada archivo, sus marcadores) es siempre del árbol actual.
 MET=${METODO_DIR:-.}
-# Del árbol validado (en el pre-commit, la exportación del índice; en el replay, el commit), nunca del entorno.
+# Del árbol validado (en el pre-commit, el índice materializado; en el replay, el commit), nunca del entorno.
 M03=0; grep -qx '# contrato-set-de-oro: 1' scripts/check_docs.sh 2>/dev/null && M03=1
 MERGES=0; grep -qx '# contrato-merges: 1' scripts/check_docs.sh 2>/dev/null && MERGES=1
 RET=0; grep -qx '# contrato-retirada: 1' scripts/check_docs.sh 2>/dev/null && RET=1
@@ -306,7 +306,7 @@ if [ -f "$MET/scripts/suite.py" ] && git rev-parse --git-dir >/dev/null 2>&1 && 
 fi
 
 # --- 0b) Instalación: siempre que haya repo, en cualquier fase y modo (V01). En la
-#     exportación del índice no hay .git y el propio hook ya demuestra que corre.
+#     materialización del índice no hay .git y el propio hook ya demuestra que corre.
 if git rev-parse --git-dir >/dev/null 2>&1; then
   [ "$(git config core.hooksPath 2>/dev/null)" = ".githooks" ] \
     || err "core.hooksPath no es .githooks: los hooks de la plantilla no están activos (git config core.hooksPath .githooks)"

@@ -295,7 +295,7 @@ solo con prosa. La plantilla **trae** ese mínimo en `.githooks/` —actívalo u
   trailer: la cabecera del hook; resumen en `docs/convenciones.md` §Git.
 - **`pre-commit`** bloquea versionar un `.env`/secreto; **rechaza si hay cambios sin
   stagear en archivos rastreados** (lo que se verifica tiene que ser lo que se versiona);
-  corre **`scripts/check_docs.sh`** sobre una exportación del **índice** (contrato por fase:
+  corre **`scripts/check_docs.sh`** sobre el **índice** materializado desde sus blobs, como el replay (contrato por fase:
   archivos obligatorios, `C#`/`I#` únicos y existentes, ADRs referenciados, frontmatter
   válido); y corre `scripts/check.sh` (lint + formato + tests) sobre una instantánea de lo que se commitea, **obligatorio desde la
   Fase 2**: ningún commit con el estilo roto o tests en rojo. La única excepción son los fallos

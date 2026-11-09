@@ -36,17 +36,34 @@ if ! git diff --quiet; then
   exit 1
 fi
 
-# 3) Integridad del rastro documental, sobre una EXPORTACIÓN DEL ÍNDICE (exactamente lo
+# 3) Integridad del rastro documental, sobre una MATERIALIZACIÓN DEL ÍNDICE (exactamente lo
 #    que va al commit). El script se invoca con intérprete explícito: su bit de ejecución
 #    no decide si el control corre, y su ausencia es un fallo, no un aviso.
+#    El índice se materializa desde sus BLOBS con el materializador del replay
+#    (scripts/pruebas/validar_historial.sh --materializa, el del índice): ni los atributos del árbol
+#    (eol, ident, working-tree-encoding) ni los filtros locales transforman lo que juzga check_docs,
+#    como haría checkout-index. Contenido y modos se conservan. Su ausencia y un error al materializar
+#    rechazan con mensajes distintos; nunca se vuelve a checkout-index. De esta materialización lee
+#    también el paso 4 la fase y sus auxiliares; lo que ejecuta check.sh sigue siendo un checkout.
 if ! git ls-files --error-unmatch scripts/check_docs.sh >/dev/null 2>&1; then
   echo "✗ pre-commit: scripts/check_docs.sh no está versionado. Viene con la plantilla; sin él no hay control del rastro." >&2
   exit 1
 fi
+if ! git ls-files --error-unmatch scripts/pruebas/validar_historial.sh >/dev/null 2>&1; then
+  echo "✗ pre-commit: scripts/pruebas/validar_historial.sh no está versionado. Viene con la plantilla; sin su materializador no se juzga el índice tal como se guarda." >&2
+  exit 1
+fi
 # Plantilla explícita: en macOS `mktemp -d` sin ella ignora TMPDIR y deja tmp.* en otra carpeta.
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/precommit.XXXXXX")
-trap 'rm -rf "$tmp"' EXIT INT TERM
-git checkout-index -a --prefix="$tmp/" || { echo "✗ pre-commit: no pude exportar el índice." >&2; exit 1; }
+mat=$(mktemp -d "${TMPDIR:-/tmp}/precommit-mat.XXXXXX")
+trap 'rm -rf "$tmp" "$mat"' EXIT INT TERM
+arbol=$(git write-tree) || { echo "✗ pre-commit: no pude escribir el árbol del índice." >&2; exit 1; }
+git cat-file blob :scripts/pruebas/validar_historial.sh > "$mat/validar_historial.sh" \
+  || { echo "✗ pre-commit: no pude leer del índice scripts/pruebas/validar_historial.sh." >&2; exit 1; }
+sh "$mat/validar_historial.sh" --materializa "$arbol" "$tmp" 2>"$mat/err" \
+  || { sed 's/^/    /' "$mat/err" >&2; echo "✗ pre-commit: no pude materializar el índice desde sus blobs (motivo arriba)." >&2; exit 1; }
+[ -s "$mat/err" ] && sed 's/^/  · /' "$mat/err" >&2
+rm -rf "$mat"
 #    La fase que HEAD ya declaraba viaja con la exportación (sin .git no se puede leer):
 #    un proyecto iniciado no vuelve a "modo plantilla" por perder o estropear la línea.
 fase_prev=$(git show HEAD:docs/estado.md 2>/dev/null | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' | grep -oE 'F[1-5]' | head -1)

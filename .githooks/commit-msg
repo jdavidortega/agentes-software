@@ -1015,11 +1015,19 @@ if [ "$cierre" -eq 1 ] && [ "$FAIL" -eq 0 ]; then
   tmp=$(mktemp -d 2>/dev/null || mktemp -d -t commitmsg)
   trap 'rm -rf "$tmp" "$LOGTMP"' EXIT INT TERM
   prev=$(git show "$BASE:docs/estado.md" 2>/dev/null | grep -oE 'Fase actual:\*?\*?[[:space:]]*F[1-5]' | grep -oE 'F[1-5]' | head -1)
-  # En el replay, el árbol del commit se materializa desde sus blobs (validar_historial.sh --materializa:
-  # sin atributos que oculten o transformen); check_docs es el del commit o, anclado, el de METODO_DIR.
-  if [ -n "${REV:-}" ]; then sh "$MET/scripts/pruebas/validar_historial.sh" --materializa "$REV" "$tmp"; else git checkout-index -a --prefix="$tmp/"; fi \
-    && ( cd "$tmp" && env -u GIT_DIR FASE_PREVIA="$prev" CIERRE_CUBRE="$CIERRE_CUBRE" CIERRE_EXCLUYE="$CIERRE_EXCLUYE" sh "${METODO_DIR:+$METODO_DIR/}scripts/check_docs.sh" cierre ) \
-    || fail "el trailer declara cierre de fase (Ref: F4|F5) pero check_docs.sh cierre no da PASA sobre lo que se commitea."
+  # Lo que se commitea (el commit en el replay; al commitear, el árbol del índice) se materializa desde sus
+  # blobs (validar_historial.sh --materializa: sin atributos ni filtros que oculten o transformen, igual que
+  # el pre-commit); check_docs es el materializado o, anclado, el de METODO_DIR. La ausencia del
+  # materializador y un error al materializar no se confunden con un FALLA de check_docs.
+  if [ ! -f "$MET/scripts/pruebas/validar_historial.sh" ]; then
+    fail "falta $MET/scripts/pruebas/validar_historial.sh (viene con la plantilla): sin su materializador no se juzga el cierre sobre lo que se commitea."
+  elif ! obj=${REV:-$(git write-tree)}; then
+    fail "no pude escribir el árbol del índice para juzgar el cierre."
+  elif ! sh "$MET/scripts/pruebas/validar_historial.sh" --materializa "$obj" "$tmp"; then
+    fail "no pude materializar lo que se commitea desde sus blobs (motivo arriba): el cierre no se juzga."
+  elif ! ( cd "$tmp" && env -u GIT_DIR FASE_PREVIA="$prev" CIERRE_CUBRE="$CIERRE_CUBRE" CIERRE_EXCLUYE="$CIERRE_EXCLUYE" sh "${METODO_DIR:+$METODO_DIR/}scripts/check_docs.sh" cierre ); then
+    fail "el trailer declara cierre de fase (Ref: F4|F5) pero check_docs.sh cierre no da PASA sobre lo que se commitea."
+  fi
 fi
 [ "$FAIL" -eq 1 ] && exit 1
 exit 0

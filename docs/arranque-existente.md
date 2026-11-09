@@ -280,6 +280,21 @@ una regresión posterior nunca, tampoco por reentrada F2.
   commit actual del proyecto (**previo** a la instalación): `git rev-parse HEAD` antes de commitear.
   Nace en este commit, que no puede ser un merge, y **no cambia después**: el `commit-msg` rechaza
   moverla, borrarla o duplicarla.
+- **Qué hacen los hooks con la base** (consulta esto cuando un rechazo la nombre).
+  `validar_historial.sh` resta lo alcanzable desde ahí: el historial anterior no
+  se juzga y el commit de instalación sí. Una sola declaración; duplicada, malformada, ajena
+  a la historia o movida a un commit con fase, falla. Sin ella, el replay es el de siempre.
+  El `commit-msg` la acepta solo en un commit ordinario (no un
+  merge) cuyo padre es la base declarada, y después exige la misma en cada commit; cambiarla,
+  borrarla, duplicarla o integrar historias con bases distintas falla, y si no se puede leer,
+  también. El replay anclado la lee del ancla, no del candidato.
+- **Producto en un adoptado.** Las rutas de la lista del método
+  del `commit-msg` (sus scripts, hooks y workflow) que ya existían en la base son archivos propios
+  que colisionaron: son producto para siempre. Un documento que colisionó (p. ej.
+  `docs/despliegue.md`) se conserva igual, pero sigue el tratamiento de los documentos. Con
+  `# contrato-procedencia: 1` en `scripts/check_docs.sh`, también son producto
+  `scripts/adoptar.sh` y `scripts/pruebas/regresion-adopcion.sh`, que la plantilla no distribuye
+  a un adoptado, aunque los trajera la instalación.
 - `docs/estado.md`: `Fase actual: F1 · instalación terminada; gate del Paso 0 pendiente`;
   en la tabla de criterios, «criterios aún no definidos (Fase 1)» en lugar de la fila de
   ejemplo; lo pendiente en frases completas. El commit **no afirma** que haya encuadre ni protección.

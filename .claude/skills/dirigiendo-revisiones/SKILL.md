@@ -62,7 +62,9 @@ allowed-tools: Read, Grep, Glob, Bash
 ## Invocación
 
 4. Lanza el agente declarado (`.claude/agents/<rol>.md`) o, sin subagentes, el «Prompt
-   de invocación» de su skill. Pásale **solo** qué revisar: rol, alcance, rango del diff
+   de invocación» de su skill, como texto para un subagente genérico o una sesión nueva (ruta portátil:
+   la independencia la da el contexto fresco; el filtro preventivo no la reconoce, porque actúa por
+   `agent_type`, y el recibo lo declara en el paso 5). Pásale **solo** qué revisar: rol, alcance, rango del diff
    (`git diff <base>..HEAD` o árbol de trabajo) y los archivos. **No** le resumas tu
    solución ni le adelantes conclusiones. Dile la **modalidad** con su regla literal: «ningún
    comando tuyo escribe; los chequeos autorizados son <lista> y escriben solo en <destinos>; si

@@ -469,18 +469,10 @@ revertir) vive en docs/despliegue.md. -->
   cabecera de `.github/workflows/metodo.yml` y los comandos, en sus pasos (`steps`); en otro CI se
   copian ambos. Un merge limpio no lleva trailer; lo que se añade al fusionar es contenido nuevo
   (cabecera del `commit-msg`, texto «MERGE LIMPIO»). Las guardas de contenido son una sola, `scripts/guardas.sh`.
-- **Base del método (solo proyectos adoptados, `docs/arranque-existente.md`):** el Paso 0
-  añade aquí una línea `- **Base del método:** <sha>` con el **último commit previo a la
-  adopción**. `validar_historial.sh` resta lo alcanzable desde ahí: el historial anterior no
-  se juzga y el commit de instalación sí. Una sola declaración; duplicada, malformada, ajena
-  a la historia o movida a un commit con fase, falla. Sin ella, el replay es el de siempre.
-  **Nace una vez y no cambia:** el `commit-msg` la acepta solo en un commit ordinario (no un
-  merge) cuyo padre es la base declarada, y después exige la misma en cada commit; cambiarla,
-  borrarla, duplicarla o integrar historias con bases distintas falla, y si no se puede leer,
-  también. El replay anclado la lee del ancla, no del candidato. Las rutas de la lista del método
-  del `commit-msg` (sus scripts, hooks y workflow) que ya existían en la base son archivos propios
-  que colisionaron: son producto para siempre. Un documento que colisionó (p. ej.
-  `docs/despliegue.md`) se conserva igual, pero sigue el tratamiento de los documentos.
+- **Base del método (solo proyectos adoptados):** el Paso 0 añade aquí una línea
+  `- **Base del método:** <sha>` con el **último commit previo a la adopción**. **Nace una vez y no
+  cambia.** Qué hacen con ella el replay y el `commit-msg`, y qué archivos que colisionaron son producto:
+  `docs/arranque-existente.md` §Paso 0, H. Ahí se interpreta un rechazo que la nombre.
 - **Plantilla de origen (proyectos nuevos):** el Bootstrap añade aquí `- **Plantilla de origen:**
   <sha>`, el commit de la plantilla que se extrajo (la receta del README lo deja en
   `.git/plantilla-origen`). Si falta y nadie lo sabe con evidencia, se declara `desconocida`: no se
@@ -538,11 +530,9 @@ revertir) vive en docs/despliegue.md. -->
   también en `docs/`), sus pruebas propias en `scripts/pruebas/`, sus hooks propios
   en `.githooks/` y, desde el primer `Ref: F2`, el cuerpo de `scripts/check.sh` (lo posterior al bloque de la
   suite vigilada; actualizar solo el bloque no lo es) cuentan como producto; un renombrado cuenta por su origen y su destino— entra solo
-  con `Ref: I<n>` y recibo del juez; ampliar esa lista es un ADR. En un proyecto adoptado también
-  son producto los archivos propios que colisionaron con un script, hook o workflow del método
-  (rutas de esa lista que ya existían en la «Base del método»; un documento que colisionó, no) y, con `# contrato-procedencia: 1` en `scripts/check_docs.sh`,
-  `scripts/adoptar.sh` y `scripts/pruebas/regresion-adopcion.sh`, que la plantilla no distribuye
-  a un adoptado, aunque los trajera la instalación.
+  con `Ref: I<n>` y recibo del juez; ampliar esa lista es un ADR. En un proyecto adoptado
+  hay más producto (archivos propios que colisionaron, `scripts/adoptar.sh` y su regresión):
+  `docs/arranque-existente.md` §Paso 0, H.
 
 ## Revisores y sandbox
 

@@ -101,7 +101,7 @@ el incremento y el rango del diff:
   desfase previo pendiente) y el diff lo respalda: un comando, interfaz o comportamiento que cambió
   sin su README es FALLA; un desfase previo registrado no lo es.
 - **Pruebas:** las del **plan de pruebas** del incremento (`docs/plan.md`), ni menos ni
-  más: ≥1 flujo end-to-end por criterio cubierto con datos de forma real, las demás en el
+  más: ≥1 flujo por criterio cubierto (por su entrada real, `probando-con-datos-reales` regla 2) con datos de forma real, las demás en el
   nivel donde reside su garantía (`.claude/skills/probando-con-datos-reales/SKILL.md` regla 7),
   herméticos, y cada uno capaz de fallar. **El exceso es hallazgo:** una prueba que no
   protege un criterio, que no puede fallar (assert trivial, repite la implementación) o que

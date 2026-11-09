@@ -36,7 +36,7 @@
 - [ ] Cumple los criterios de éxito **y el set de oro** de `docs/encuadre.md` (no
   solo "funciona": la salida tiene la calidad esperada).
 - [ ] **Las pruebas son las del plan de pruebas** del incremento (`docs/plan.md` §Plan de
-  pruebas) y pasan: ≥1 flujo end-to-end por criterio que el incremento cubre, las demás en
+  pruebas) y pasan: ≥1 flujo por criterio que el incremento cubre (por su entrada real), las demás en
   el nivel donde reside su garantía, los pares del set de oro automatizables como regresión,
   y **ninguna que no pueda fallar ni que repita otra sin evidencia adicional** (el exceso de
   pruebas es hallazgo, no mérito; selección y redundancia: `.claude/skills/probando-con-datos-reales/SKILL.md`

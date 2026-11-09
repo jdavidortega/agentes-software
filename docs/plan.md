@@ -38,7 +38,7 @@ revisión en FALLA o una aprobación pendiente, la casilla sigue en [x] y docs/e
 ## Plan de pruebas
 
 <!-- OBLIGATORIO: se decide en el diseño y se ajusta por incremento. Responde "qué
-pruebas son necesarias", no "cuántas": ≥1 flujo end-to-end por criterio C# (con datos de
+pruebas son necesarias", no "cuántas": ≥1 flujo por criterio C# (por su entrada real, con datos de
 forma real) y las demás por grupo, en el nivel donde reside su garantía (unidad, contrato,
 integración), con el sabotaje previsto y, al cerrar, el observado; qué pares del set de oro
 se automatizan como regresión y cuáles quedan como verificación manual explícita (con su

@@ -1,6 +1,6 @@
 ---
 name: probando-con-datos-reales
-description: "Estrategia de pruebas del proyecto: el camino principal siempre en la suite (servicios externos por fixtures/grabación, nunca vivos ni sustituidos por el camino degradado), ≥1 test de flujo por criterio C# con datos de forma real, tests capaces de fallar (sin asserts triviales), set de oro como regresión, binarios verificados de verdad y mutation testing sobre el camino crítico en la Fase 4. Úsala al decidir en el diseño qué pares del set de oro se automatizan, al escribir las pruebas de cada incremento, y en la validación end-to-end del conjunto."
+description: "Estrategia de pruebas del proyecto: el camino principal siempre en la suite (servicios externos por fixtures/grabación, nunca vivos ni sustituidos por el camino degradado), cada criterio C# probado por su entrada real con datos de forma real, tests capaces de fallar (sin asserts triviales), set de oro como regresión, binarios verificados de verdad y mutation testing sobre el camino crítico en la Fase 4. Úsala al decidir en el diseño qué pares del set de oro se automatizan, al escribir las pruebas de cada incremento, y en la validación end-to-end del conjunto."
 ---
 # Skill: Probando con datos reales
 
@@ -25,9 +25,17 @@ description: "Estrategia de pruebas del proyecto: el camino principal siempre en
    (lento, frágil, costoso), pero **nunca sustituyéndolo por el camino degradado**.
    Origen: una suite entera en verde validando el camino degradado mientras el
    principal se validaba a mano.
-2. **≥1 test de flujo end-to-end por criterio `C#`**, con datos de **forma real**
-   (estructura, nombres, volúmenes y casos límite tomados del muestreo de insumos;
-   los fixtures se refrescan si el insumo real cambia).
+2. **Cada criterio `C#` se prueba al menos una vez por su entrada real** (su **flujo**), con datos
+   de **forma real** (estructura, nombres, volúmenes y casos límite tomados del muestreo de insumos;
+   los fixtures se refrescan si el insumo real cambia). La entrada real es la que consume de verdad
+   el usuario o el componente según el contrato: el comando, el endpoint, la migración, el mensaje;
+   en una biblioteca, su función pública. Una función interna no lo es por conveniencia. Si la
+   garantía incluye la frontera de esa entrada (argumentos, configuración, código de salida,
+   empaquetado o archivos producidos), la prueba la ejercita: llamar a `main()` no demuestra por sí
+   solo que funcione el comando instalado. Esa frontera no se repite en cada variante: basta una
+   prueba compartida que la cubra, y las demás comprueban sus garantías donde residen (regla 7). Una
+   misma prueba puede cubrir varios criterios y automatizar pares del set de oro: no se exige un
+   archivo ni un caso por criterio.
 3. **Cada test debe poder fallar.** Si el comportamiento que protege se rompe y el
    test sigue verde, el test no aporta: prohibido el assert trivial
    (`assert result is not None`), el test que repite la implementación y el que solo
@@ -60,8 +68,11 @@ description: "Estrategia de pruebas del proyecto: el camino principal siempre en
      compatibilidad es la garantía, hace falta evidencia obtenida frente al componente real en
      la versión relevante (fuera de la suite hermética si es un servicio externo, regla 5), y el
      plan dice cuál y cuándo se obtiene.
-   - **El piso no se sustituye:** la regla 2 sigue valiendo aunque otro nivel cubra la
-     garantía. Las variantes de un criterio no multiplican flujos: bajan al nivel donde residen.
+   - **El piso no se sustituye por una prueba interna:** una prueba de unidad, contrato o
+     integración cumple la regla 2 solo si entra por la entrada real del criterio; si entre esa
+     entrada y lo probado hay código propio (cableado, configuración, el camino degradado de la
+     regla 1), sigue haciendo falta el flujo. Las variantes de un criterio no multiplican flujos:
+     bajan al nivel donde residen. La regla 2 no pide capas de pruebas que el producto no tiene.
    - **Redundancia:** que dos pruebas detecten el mismo sabotaje es una señal para revisar, no
      motivo suficiente para quitar una. Se comparan la garantía, la frontera, las condiciones y
      los defectos que cada una puede detectar; si aportan evidencia distinta se conservan las dos

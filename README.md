@@ -559,7 +559,10 @@ repositorio solo la instrumentación y genera un proyecto sintético), crea repo
 temporales sin red ni credenciales y comprueba cada regla con su caso negativo y su caso
 positivo (fase ilegible, código sin recibo, suite en rojo, recibo caducado, hito sin
 cobertura, fila invisible, cierre vacío, rol ausente, YAML ilegal, mutante no acreditado…).
-Da el mismo resultado en la plantilla vacía y dentro de un proyecto con código.
+Da el mismo resultado en la plantilla vacía y dentro de un proyecto con código. Sin argumentos
+corre completa (así la corre la CI); `--lista` muestra sus secciones sin ejecutar nada y
+`--seccion '<ERE>'` corre las que coinciden, más las que construyen las etapas que usan: ese
+resultado se declara parcial y no equivale a la completa.
 
 Qué ejercita cada regresión del método. Cuál corre ante un cambio lo decide la regla 10 de
 `probando-con-datos-reales` (por efecto, no por tamaño). Ninguna tiene duración garantizada: las

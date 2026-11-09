@@ -8,6 +8,10 @@
 #
 #   sh scripts/pruebas/regresion.sh        → 0 si todos los casos pasan; 1 y la lista si no
 #   sh scripts/pruebas/regresion.sh -v     → además imprime la salida de cada caso
+#   … --lista [--seccion '<ERE>']          → solo informa: los títulos (o lo que se ejecutaría); no prueba nada
+#   … --seccion '<ERE>'                    → solo las secciones cuyo título coincide, más las que construyen
+#                                            las etapas que usan (`requiere`); el resultado es PARCIAL
+# Sin argumentos corre la batería completa. Qué secciones bastan lo decide la regla 10 por el efecto del cambio.
 #
 # AUTOCONTENIDA: del repositorio donde corre toma SOLO la instrumentación del método
 # (.githooks/, scripts/, .claude/, .codex/ si existe); los documentos del proyecto de prueba
@@ -15,7 +19,56 @@
 # resultado en la plantilla vacía y dentro de un proyecto con código, plan y hallazgos reales.
 # Cada caso vive en una copia fresca de una ETAPA (plantilla; F2; F3 con I1; tres cerrados;
 # cierre), así ningún caso contamina a otro.
-VERBOSE=0; [ "${1:-}" = "-v" ] && VERBOSE=1
+VERBOSE=0; LISTA=0; PATRON=""; HAY_PATRON=0
+uso() { echo "regresion: $1 (uso: regresion.sh [-v] [--lista] [--seccion '<ERE sobre el título>'])" >&2; exit 2; }
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -v) VERBOSE=1 ;;
+    --lista) LISTA=1 ;;
+    --seccion) [ $# -ge 2 ] || uso "--seccion necesita un patrón"; [ "$HAY_PATRON" = 0 ] || uso "un solo --seccion (varias: alternancia, 'a|b')"
+      PATRON=$2; HAY_PATRON=1; shift ;;
+    *) uso "argumento desconocido «$1»" ;;
+  esac; shift
+done
+# Títulos de las secciones, leídos del propio script (sin ejecutar nada).
+TITULOS=$(sed -n 's/^if seccion "\(.*\)"; then$/\1/p' "$0")
+# Etapas que construye una sección y usan otras: seleccionar la que la usa añade la que la construye.
+REQUIERE=""; requiere() { REQUIERE="$REQUIERE$1	$2	$3
+"; }   # requiere <sección que usa> <sección que construye> <etapa>
+requiere "La excepción histórica no sale del entorno ni de un padre antiguo" "Migración del registro: el historial hecho con la versión anterior sigue validando" migrado
+requiere "Merges: limpio frente a contenido añadido al fusionar" "Recorrido F1→F5 y validación del historial" ramas
+requiere "Merges automáticos: el pre-commit también corre en ellos (pre-merge-commit)" "Recorrido F1→F5 y validación del historial" ramas
+requiere "Replay anclado: juzgan los validadores del ancla, no los del checkout (docs/convenciones.md §Git)" "Recorrido F1→F5 y validación del historial" ramas
+es_titulo() { printf '%s\n' "$TITULOS" | grep -qxF -- "$1"; }
+printf '%s' "$REQUIERE" | while IFS='	' read -r u c e; do
+  es_titulo "$u" && es_titulo "$c" || { echo "regresion: la dependencia de la etapa $e nombra una sección que no existe" >&2; exit 2; }
+done || exit 2
+PEDIDAS=""; ANADIDAS=""; EFECTIVAS=""
+if [ "$HAY_PATRON" = 1 ]; then
+  [ -n "$PATRON" ] || uso "patrón vacío"
+  printf '' | grep -E -- "$PATRON" >/dev/null 2>&1; [ $? -eq 2 ] && uso "patrón inválido «${PATRON}»"
+  PEDIDAS=$(printf '%s\n' "$TITULOS" | grep -E -- "$PATRON")
+  [ -n "$PEDIDAS" ] || { echo "regresion: ninguna sección coincide con «${PATRON}» (ver --lista)" >&2; exit 2; }
+  ANADIDAS=$(printf '%s' "$REQUIERE" | while IFS='	' read -r u c e; do
+    printf '%s\n' "$PEDIDAS" | grep -qxF -- "$u" && ! printf '%s\n' "$PEDIDAS" | grep -qxF -- "$c" && printf '%s\t%s\t%s\n' "$c" "$e" "$u"
+  done | sort -u)
+  EFECTIVAS=$(printf '%s\n' "$TITULOS" | while IFS= read -r t; do
+    { printf '%s\n' "$PEDIDAS"; printf '%s\n' "$ANADIDAS" | cut -f1; } | grep -qxF -- "$t" && printf '%s\n' "$t"
+  done)
+fi
+NSEC=$(printf '%s\n' "$TITULOS" | grep -c .)
+informe() {  # qué se pidió, qué se añadió por dependencia y qué se ejecuta
+  echo "selección: patrón «${PATRON}»"
+  printf '%s\n' "$PEDIDAS" | sed 's/^/  pedida:   /'
+  [ -z "$ANADIDAS" ] || printf '%s\n' "$ANADIDAS" | awk -F'\t' '{ k = $1 "\t" $2; if (!(k in u)) { o[++n] = k; u[k] = "«" $3 "»" } else u[k] = u[k] ", «" $3 "»" }
+    END { for (i = 1; i <= n; i++) { split(o[i], c, "\t"); printf "  añadida:  %s (construye la etapa %s, que usa %s)\n", c[1], c[2], u[o[i]] } }'
+  echo "  se ejecutan $(printf '%s\n' "$EFECTIVAS" | grep -c .) de $NSEC secciones, además del preámbulo (utilidades y etapas)"
+}
+if [ "$LISTA" = 1 ]; then
+  if [ "$HAY_PATRON" = 1 ]; then informe; else printf '%s\n' "$TITULOS" | awk '{ printf "%2d  %s\n", NR, $0 }'; fi
+  exit 0
+fi
+[ "$HAY_PATRON" = 0 ] || informe
 RAIZ=$(cd "$(dirname "$0")/../.." && pwd)
 W=$(mktemp -d 2>/dev/null || mktemp -d -t regresion)
 exec 3>&2   # acotado deja su foto de procesos aquí: fuera de la salida que espera captura y recorta
@@ -31,18 +84,27 @@ SAB="$RAIZ/.claude/skills/verificando-por-sabotaje/scripts/sabotear.py"
 
 # --- utilidades ------------------------------------------------------------------------
 die() { echo "regresion: $1" >&2; exit 2; }
+EJECUTADAS=""
+seccion() {  # seccion <título>: cabecera y si la sección se ejecuta (siempre, sin --seccion)
+  if [ "$HAY_PATRON" = 1 ] && ! printf '%s\n' "$EFECTIVAS" | grep -qxF -- "$1"; then return 1; fi
+  echo "== $1"; EJECUTADAS="$EJECUTADAS$1
+"; return 0
+}
 # espera <falla|pasa> <nombre> <patrón en la salida (regex ERE; vacío = cualquiera)> -- cmd...
 espera() {
   modo=$1; nombre=$2; patron=$3; shift 4
   TOTAL=$((TOTAL+1)); out=$("$@" 2>&1); rc=$?
+  # Una orden inexistente (función o dependencia del arnés ausente) nunca vale como rechazo esperado.
+  falta=""; [ $rc -eq 127 ] && falta=1
   if [ "$modo" = falla ]; then ok=$([ $rc -ne 0 ] && echo 1 || echo 0); else ok=$([ $rc -eq 0 ] && echo 1 || echo 0); fi
   if [ "$ok" = 1 ] && [ -n "$patron" ] && ! printf '%s' "$out" | grep -qE "$patron"; then ok=0; fi
-  if [ "$ok" = 1 ]; then echo "  ok    $nombre"; else echo "  FALLO $nombre (esperaba $modo${patron:+ con «${patron}»}; rc=$rc)"; MAL=$((MAL+1)); FALLIDOS="$FALLIDOS
+  [ -n "$falta" ] && ok=0
+  if [ "$ok" = 1 ]; then echo "  ok    $nombre"; else echo "  FALLO $nombre (esperaba $modo${patron:+ con «${patron}»}; rc=$rc${falta:+; orden inexistente en el arnés})"; MAL=$((MAL+1)); FALLIDOS="$FALLIDOS
     - $nombre"; fi
   [ "$VERBOSE" = 1 ] || [ "$ok" = 0 ] && printf '%s\n' "$out" | sed 's/^/        | /' | head -12
   return 0
 }
-copia() { D="$W/$2"; rm -rf "$D"; cp -R "$W/etapas/$1" "$D"; }   # copia <etapa> <nombre> → $D
+copia() { [ -d "$W/etapas/$1" ] || die "falta la etapa $1 (la construye otra sección: ver requiere)"; D="$W/$2"; rm -rf "$D"; cp -R "$W/etapas/$1" "$D"; }   # copia <etapa> <nombre> → $D
 en() { d=$1; shift; ( cd "$d" && "$@" ); }                          # en <dir> cmd...
 commitea() { en "$1" git add -A && en "$1" git -c core.hooksPath=.githooks commit -q -m "$2"; }
 sin_hooks() { en "$1" git add -A && en "$1" git -c core.hooksPath=/dev/null commit -q --no-verify -m "$2"; }
@@ -212,13 +274,165 @@ espera pasa "cierre válido: Ref: F4 con todo verificado y conjunto PASA" "" -- 
 Ref: F4"
 
 # ======================================================================================
-echo "== Suite del producto"
+# --- utilidades compartidas entre secciones --------------------------------------------------
+# Funciones y preparaciones que usa más de una sección, movidas aquí con su texto exacto para que
+# cada sección dependa solo de este preámbulo (y de las etapas declaradas con `requiere`).
+reescribe_c1() { sed -i.bak 's/^- C1: .*/- C1: la función suma devuelve lo que sea./' "$1/docs/encuadre.md" && rm -f "$1/docs/encuadre.md.bak"; }
+enc_crit() { printf '# Encuadre\n\n## Criterios de éxito\n\n%s\n## Set de oro\n\n- suma(1, 2) → 3\n' "$2" > "$1/docs/encuadre.md"; }
+CR1='- C1: la función suma devuelve a+b para enteros.
+'; CR2='- C2: la función resta devuelve a-b.
+'; CR3='- C3: la función multiplica devuelve a*b.
+'; CR4='- C4: la función divide devuelve a/b.
+'
+F_C2='| C2 | «resta» | I2 | pendiente | |'; F_C3='| C3 | «multiplica» | I3 | pendiente | |'; F_C4='| C4 | «divide» | I4 | pendiente | |'
+principal() { en "$1" git checkout -q master 2>/dev/null || en "$1" git checkout -q main; }
+contrato_f2() {  # contrato_f2 <dir> "<criterios>" "<filas>": reentrada Ref: F2 revisada (con hooks)
+  enc_crit "$1" "$2"; trazabilidad "$1" "$3" "" ""; fase "$1" F2 "I2 «resta»"; recibo "$1" revisor-funcional encuadre F2 PASA 0
+  commitea "$1" "contrato
+
+Ref: F2"; }
+ramas_contratos() {  # rama-a añade C2, rama-b añade C3, ambas desde el contrato con C1; deja rama-b activa
+  en "$1" git checkout -q -b rama-a && contrato_f2 "$1" "$CR1$CR2" "$C1_PEND
+$F_C2" || die "no pude preparar rama-a"
+  principal "$1"; en "$1" git checkout -q -b rama-b && contrato_f2 "$1" "$CR1$CR3" "$C1_PEND
+$F_C3" || die "no pude preparar rama-b"; }
+fusiona_resuelve() {
+  log_p=$(en "$1" git show HEAD:docs/revisiones.log); en "$1" git -c core.hooksPath=/dev/null merge -q --no-ff --no-commit "$2" >/dev/null 2>&1
+  { printf '%s\n' "$log_p"; en "$1" git show "$2:docs/revisiones.log" | grep -vxF "$log_p"; } > "$1/docs/revisiones.log"
+  enc_crit "$1" "$3"; trazabilidad "$1" "$4" "" ""; fase "$1" F2 "I2 «resta»"; recibo "$1" revisor-funcional encuadre F2 PASA 0; }
+# Un python3 de prueba que solo intercepta el calculador (lo reconoce por su código) y simula su fallo.
+REAL_PY=$(command -v python3); mkdir -p "$W/py-falla" "$W/py-parcial" "$W/py-forma"
+for m in falla parcial forma; do
+  printf '#!/bin/sh\ncase "$*" in *"class NoCalculable"*)\n  case %s in falla) echo "Traceback: fallo simulado" >&2; exit 1 ;; parcial) echo "C1 0123456789abcdef0123456789abcdef01234567"; exit 137 ;; forma) echo "C1"; exit 0 ;; esac ;;\nesac\nexec "%s" "$@"\n' "$m" "$REAL_PY" > "$W/py-$m/python3"; chmod +x "$W/py-$m/python3"
+done
+incompleto() { MODALIDAD=""; recibo "$@"; unset MODALIDAD; }   # recibo sin modalidad/filtro/aislamiento
+sin_marcador() {  # sin_marcador <dir> [quitar-campos]: registro de una versión anterior (base sin marcador)
+  grep -v '^# contrato-recibos: 2' "$1/docs/revisiones.log" > "$1/docs/revisiones.log.t"
+  [ -n "${2:-}" ] && sed -i.bak -E 's/ modalidad=[^ ]+ filtro=[^ ]+ aislamiento=[^ ]+//' "$1/docs/revisiones.log.t" && rm -f "$1/docs/revisiones.log.t.bak"
+  mv "$1/docs/revisiones.log.t" "$1/docs/revisiones.log"
+  sin_hooks "$1" "registro de una versión anterior (preparación)" || die "no pude preparar el registro sin marcador"
+}
+nota() { printf -- '- nota %s\n' "$2" >> "$1/docs/MEMORIA.md"; }
+suite_es() { printf '#!/bin/sh\n%s\n%s\n' "$BLOQUE" "$2" > "$1/scripts/check.sh"; sin_hooks "$1" "suite (preparación)
+
+Ref: F1" || die "no pude preparar la suite"; }
+# El bloque, tal cual de docs/convenciones.md; los temporales de estos casos (instantánea, carpeta de
+# la ejecución) van a $W/tmpd: TMPDIR explícito, que el pre-commit respeta con su plantilla de mktemp.
+mkdir -p "$W/tmpd" "$W/pids" "$W/bin"
+cat > "$W/bin/ps" <<EOF
+#!/bin/sh
+$(command -v ps) "\$@"; rc=\$?
+[ "\$1" = -A ] && [ -f "$W/fantasma" ] && echo "99999 \$(cat "$W/fantasma") S Thu Oct 29 10:00:00 2026 fantasma"
+exit \$rc
+EOF
+chmod +x "$W/bin/ps"   # ps de prueba: con $W/fantasma lista un miembro que sobrevive a KILL (simulado)
+acotado() { python3 -c '
+import os, signal, subprocess, sys
+w, secs, cmd = sys.argv[1], int(sys.argv[2]), sys.argv[3:]
+p = subprocess.Popen(cmd, start_new_session=True)
+try:
+    sys.exit(p.wait(timeout=secs))
+except subprocess.TimeoutExpired:
+    try:
+        ps = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,pgid=,stat=,etime=,command="], capture_output=True,
+                            text=True, timeout=10).stdout.splitlines()
+        foto = [l for l in ps if l.split()[2] == str(p.pid) or w in l]
+    except Exception as exc:
+        foto = [f"(sin foto: {exc})"]
+    try:
+        with os.fdopen(3, "w") as f3:
+            print(f"acotado: no terminó en {secs}s: {cmd[:3]}; procesos (pid ppid pgid stat etime command):", file=f3)
+            print("\n".join("    " + l[:300] for l in foto), file=f3)
+    except OSError:
+        pass
+    os.killpg(p.pid, signal.SIGKILL); p.wait(); print("acotado: no terminó", file=sys.stderr); sys.exit(124)
+' "$W" "$@"; }
+# nota_acotada <dir> <nombre>: nota_f1 con el commit acotado, TMPDIR y ps de prueba (casos sv*).
+nota_acotada() { acotado 90 sh -c 'cd "$1" && export TMPDIR="$2" PATH="$3:$PATH" && printf -- "- nota %s\n" "$4" >> docs/MEMORIA.md && git add -A && git -c core.hooksPath=.githooks commit -q -m "nota
+
+Ref: F1"' _ "$1" "$W/tmpd" "$W/bin" "$2"; }
+doc() { en "$1" sh scripts/check_docs.sh; }
+en_ambos() { for f in "$1/scripts/check.sh" "$1/docs/convenciones.md"; do sh -c "$2" _ "$f" > "$1/c.tmp" && mv "$1/c.tmp" "$f"; done; }
+tres_criterios() {  # tres_criterios <dir>: C1..C3 construidos (I1, I2, I3) y C4 futuro (I4, sin commit)
+  printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: suma devuelve a+b.\n- C2: resta devuelve a-b.\n- C3: multiplica devuelve a*b.\n- C4: divide devuelve a/b.\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$1/docs/encuadre.md"
+  trazabilidad "$1" "$C1_PEND
+| C2 | «resta» | I2 | pendiente | |
+| C3 | «multiplica» | I3 | pendiente | |
+| C4 | «divide» | I4 | pendiente | |" "" ""
+  # Criterios nuevos ⇒ contrato revisado nuevo: recibo del revisor funcional y commit Ref: F2.
+  recibo "$1" revisor-funcional encuadre F2 PASA 0
+  commitea "$1" "criterios C2..C4
+
+Ref: F2" || die "no pude revisar los criterios de tres_criterios"
+}
+fusiona() { en "$1" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit "$2"; }
+# La orden de entrada se toma LITERAL de docs/convenciones.md (el bloque ```sh que nombra replay_anclado.sh), sin
+# sus tres líneas de asignación: así lo que se prueba es lo que la regla manda escribir.
+ENTRADA=$(awk '/^ *```sh$/ { b = ""; f = 1; next }
+  f && /^ *```$/ { if (b ~ /replay_anclado\.sh/) { printf "%s", b; exit } f = 0; next }
+  f { sub(/^      /, ""); b = b $0 "\n" }' "$RAIZ/docs/convenciones.md" | grep -vE '^(ancla|inicio|fin)=')
+printf '%s' "$ENTRADA" | grep -q 'cat-file blob "\${ancla}:scripts/pruebas/replay_anclado.sh"' || die "no encontré la orden de entrada del replay anclado en docs/convenciones.md"
+TA="$W/tmp-anclado"; TR="$W/trampas"; mkdir -p "$TA" "$TR"
+# anclado <dir> <ancla> <inicio> <fin> [shell] → ejecuta la orden de entrada en <dir> con esos valores
+anclado() { ( cd "$1" && TMPDIR="$TA" ancla="$2" inicio="$3" fin="$4" "${5:-sh}" -c "$ENTRADA" ); }
+sha() { en "$1" git rev-parse "$2"; }
+anclado_t() { out=$(anclado "$@" 2>&1); rc=$?; printf '%s' "$out" | tr '\n' ' '; return $rc; }
+anterior() {
+  rm -f "$1/.githooks/pre-merge-commit"
+  sed -e 's/(commit-msg|pre-commit|pre-merge-commit)/(commit-msg|pre-commit)/' -e 's#De \.githooks/ solo sus tres hooks;#De .githooks/ solo sus dos hooks;#' "$1/.githooks/commit-msg" > "$W/ant-cm" && cat "$W/ant-cm" > "$1/.githooks/commit-msg"
+  sed -e '/^# contrato-merges: 1$/d' -e '/^# contrato-check: 1$/d' -e '/^# contrato-procedencia: 1$/d' -e '/^# contrato-retirada: 1$/d' "$1/scripts/check_docs.sh" > "$W/ant-cd" && cat "$W/ant-cd" > "$1/scripts/check_docs.sh"
+  sed -e '/^# 8b) La versión del contrato de los merges/,/^done$/d' -e '/^# 8c) La versión del contrato de scripts\/check.sh/,/^done$/d' -e '/^# 8d) La versión del contrato de procedencia/,/^done$/d' -e '/^# 8e) La versión del contrato de retirada/,/^done$/d' "$1/scripts/guardas.sh" > "$W/ant-gu" && cat "$W/ant-gu" > "$1/scripts/guardas.sh"
+  grep -v '^#' "$1/scripts/guardas.sh" | grep -qE 'contrato-(merges|check|procedencia|retirada)' && die "anterior: guardas.sh conserva la regla 8b, 8c, 8d u 8e"
+  return 0
+}
+nota_en() { printf -- '- %s\n' "$3" >> "$1/$2"; }
+trae() { d=$1; shift; for f in "$@"; do cp "$RAIZ/$f" "$d/$f"; done; chmod +x "$d"/.githooks/*; }   # trae <dir> <archivos del método nuevo>
+proyecto_anterior() {  # proyecto_anterior <dir>: F1, F2, I1 y un merge, todo con la entrega anterior; deja A_ANT (gate de I1)
+  rm -rf "$1"; mkdir -p "$1"; ( cd "$W/etapas/plantilla" && tar cf - --exclude ./.git . ) | ( cd "$1" && tar xf - )
+  anterior "$1"; en "$1" git init -q; en "$1" git config core.hooksPath .githooks
+  commitea "$1" "Encuadre inicial
+
+Ref: F1" || die "anterior: F1"
+  for f in AGENTS.md docs/encuadre.md docs/plan.md docs/decisiones.md docs/trazabilidad.md docs/estado.md scripts/check.sh; do cp "$W/etapas/f2/$f" "$1/$f"; done
+  recibo "$1" revisor-funcional encuadre F2 PASA 0
+  commitea "$1" "Plan
+
+Ref: F2" || die "anterior: F2"
+  fase "$1" F3 "I1 «suma»"; cp "$W/etapas/f3/app.py" "$1/app.py"; recibo "$1" juez-codigo incremento I1 PASA 0 seguridad=no-aplica
+  commitea "$1" "I1
+
+Ref: I1" || die "anterior: I1"
+  A_ANT=$(sha "$1" HEAD); PRIN=$(en "$1" git branch --show-current)
+  en "$1" git checkout -q -b notas-ant; nota_en "$1" docs/MEMORIA.md "nota de la rama (entrega anterior)"; commitea "$1" "nota
+
+Ref: F1" || die "anterior: rama"
+  en "$1" git checkout -q "$PRIN"; nota_en "$1" docs/despliegue.md "nota de la principal (entrega anterior)"; commitea "$1" "nota
+
+Ref: F1" || die "anterior: principal"
+  en "$1" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit notas-ant || die "anterior: merge"
+  git -C "$1" cat-file -e HEAD:.githooks/pre-merge-commit 2>/dev/null && die "anterior: el proyecto ya tiene pre-merge-commit"
+  return 0
+}
+NUEVOS=".githooks/commit-msg .githooks/pre-merge-commit scripts/check_docs.sh scripts/guardas.sh"
+paralelas() {  # paralelas <dir>: rama-a (C2) y rama-b (C3) desde C1, integradas en rama-b con Ref: F1 conservando ambos
+  ramas_contratos "$1"; fusiona_resuelve "$1" rama-a "$CR1$CR2$CR3" "$C1_PEND
+$F_C2
+$F_C3"; commitea "$1" "integra rama-a sin revisar la combinación
+
+Ref: F1"; }
+cierra_f4() { fase "$1" F4 "— «ninguno»"; shift_d=$1; shift; recibo "$shift_d" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica "$@"; }
+f4() { commitea "$1" "validación del ciclo
+
+Ref: F4"; }
+
+if seccion "Suite del producto"; then
 copia f3 s1; printf 'assert suma(2, 2) == 5\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
 espera falla "suite en rojo (assert falla) bloquea el commit aunque el recibo esté vigente" "check.sh falló" -- commitea "$D" "I2
 
 Ref: I2"
 
-echo "== Fase ilegible / registros / suite adquirida"
+fi
+if seccion "Fase ilegible / registros / suite adquirida"; then
 copia f3 a01; fase "$D" "F_"
 espera falla "fase F_ con proyecto iniciado se rechaza" "no declara una fase legible" -- commitea "$D" "docs
 
@@ -249,8 +463,8 @@ espera falla "tras el reencuadre, eliminar scripts/check.sh se rechaza (obligaci
 
 Ref: F1"' sh "$D"
 
-echo "== Contrato revisado: el trabajo dependiente se ata al último Ref: F2, no a la fase"
-reescribe_c1() { sed -i.bak 's/^- C1: .*/- C1: la función suma devuelve lo que sea./' "$1/docs/encuadre.md" && rm -f "$1/docs/encuadre.md.bak"; }
+fi
+if seccion "Contrato revisado: el trabajo dependiente se ata al último Ref: F2, no a la fase"; then
 copia f3 cr1; printf -- '- C2: criterio colado.\n' >> "$D/docs/encuadre.md"; trazabilidad "$D" "$C1_PEND
 | C2 | «colado» | I2 | pendiente | |" "" ""
 espera pasa "borrador: añadir C2 con Ref: F1 se acepta (F1 edita el encuadre libremente)" "" -- commitea "$D" "C2
@@ -319,7 +533,8 @@ espera falla "estado.md pasa a F5 con Ref: F1 (sin cierre) se rechaza" "entrar a
 
 Ref: F1"
 
-echo "== Criterios históricos: lo que el último contrato revisado definía no se borra ni se renumera"
+fi
+if seccion "Criterios históricos: lo que el último contrato revisado definía no se borra ni se renumera"; then
 sin_c1() { python3 -I - "$1/docs/encuadre.md" <<'EOF'
 import sys; p = sys.argv[1]; l = open(p).read().split("\n"); n = [x for x in l if not x.startswith("- C1:")]
 assert len(n) == len(l) - 1; open(p, "w").write("\n".join(n))
@@ -353,29 +568,7 @@ espera pasa "añadir C2 por reentrada conservando C1 se acepta" "" -- commitea "
 
 Ref: F2"
 # Ramas con contratos revisados distintos: al fusionarlas no desaparece un criterio de ninguno de los dos.
-enc_crit() { printf '# Encuadre\n\n## Criterios de éxito\n\n%s\n## Set de oro\n\n- suma(1, 2) → 3\n' "$2" > "$1/docs/encuadre.md"; }
-CR1='- C1: la función suma devuelve a+b para enteros.
-'; CR2='- C2: la función resta devuelve a-b.
-'; CR3='- C3: la función multiplica devuelve a*b.
-'; CR4='- C4: la función divide devuelve a/b.
-'
-F_C2='| C2 | «resta» | I2 | pendiente | |'; F_C3='| C3 | «multiplica» | I3 | pendiente | |'; F_C4='| C4 | «divide» | I4 | pendiente | |'
-principal() { en "$1" git checkout -q master 2>/dev/null || en "$1" git checkout -q main; }
-contrato_f2() {  # contrato_f2 <dir> "<criterios>" "<filas>": reentrada Ref: F2 revisada (con hooks)
-  enc_crit "$1" "$2"; trazabilidad "$1" "$3" "" ""; fase "$1" F2 "I2 «resta»"; recibo "$1" revisor-funcional encuadre F2 PASA 0
-  commitea "$1" "contrato
-
-Ref: F2"; }
-ramas_contratos() {  # rama-a añade C2, rama-b añade C3, ambas desde el contrato con C1; deja rama-b activa
-  en "$1" git checkout -q -b rama-a && contrato_f2 "$1" "$CR1$CR2" "$C1_PEND
-$F_C2" || die "no pude preparar rama-a"
-  principal "$1"; en "$1" git checkout -q -b rama-b && contrato_f2 "$1" "$CR1$CR3" "$C1_PEND
-$F_C3" || die "no pude preparar rama-b"; }
 # fusiona_resuelve <dir> <rama> "<criterios>" "<filas>": merge con conflictos, resuelto así; recibos de ambos lados
-fusiona_resuelve() {
-  log_p=$(en "$1" git show HEAD:docs/revisiones.log); en "$1" git -c core.hooksPath=/dev/null merge -q --no-ff --no-commit "$2" >/dev/null 2>&1
-  { printf '%s\n' "$log_p"; en "$1" git show "$2:docs/revisiones.log" | grep -vxF "$log_p"; } > "$1/docs/revisiones.log"
-  enc_crit "$1" "$3"; trazabilidad "$1" "$4" "" ""; fase "$1" F2 "I2 «resta»"; recibo "$1" revisor-funcional encuadre F2 PASA 0; }
 copia f3 rm1; ramas_contratos "$D"; fusiona_resuelve "$D" rama-a "$CR1$CR2$CR3" "$C1_PEND
 $F_C2
 $F_C3"
@@ -455,11 +648,6 @@ printf -- '- nota\n' >> "$W/ce1b/docs/MEMORIA.md"; sin_hooks "$W/ce1b" "nota col
 
 Ref: F1"
 espera falla "errores: el replay también rechaza ese commit con diagnóstico" "no pude calcular los criterios que exige el contrato revisado" -- en "$W/ce1b" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
-# Un python3 de prueba que solo intercepta el calculador (lo reconoce por su código) y simula su fallo.
-REAL_PY=$(command -v python3); mkdir -p "$W/py-falla" "$W/py-parcial" "$W/py-forma"
-for m in falla parcial forma; do
-  printf '#!/bin/sh\ncase "$*" in *"class NoCalculable"*)\n  case %s in falla) echo "Traceback: fallo simulado" >&2; exit 1 ;; parcial) echo "C1 0123456789abcdef0123456789abcdef01234567"; exit 137 ;; forma) echo "C1"; exit 0 ;; esac ;;\nesac\nexec "%s" "$@"\n' "$m" "$REAL_PY" > "$W/py-$m/python3"; chmod +x "$W/py-$m/python3"
-done
 copia f3 ce2; printf -- '- nota\n' >> "$D/docs/MEMORIA.md"
 espera falla "errores: un calculador que termina con error rechaza el commit" "no pude calcular los criterios que exige el contrato revisado \(salida 1\)" -- env PATH="$W/py-falla:$PATH" sh -c 'cd "$1" && git add -A && git -c core.hooksPath=.githooks commit -q -m "nota
 
@@ -482,7 +670,8 @@ espera pasa "sin contrato anterior (antes del primer Ref: F2) no se exige ningú
 
 Ref: F1"
 
-echo "== Transiciones de trazabilidad: nada desaparece; resuelto|verificado con referencia que resuelve"
+fi
+if seccion "Transiciones de trazabilidad: nada desaparece; resuelto|verificado con referencia que resuelve"; then
 copia f3 hd1; trazabilidad "$D" "$C1_PEND" "" '| R-I2.1 | «bug» | I2 | C1 | falta prueba | abierto | — |'; sin_hooks "$D" "hallazgo abierto"
 trazabilidad "$D" "$C1_PEND" "" ""; printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
 espera falla "un hallazgo abierto que desaparece de trazabilidad se rechaza" "desaparece" -- commitea "$D" "I2
@@ -526,7 +715,8 @@ Ref: I2"
 copia f3 rf7; trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | resuelto | — |'
 espera falla "el doctor rechaza resuelto con la columna Resuelto vacía" "columna Resuelto vacía" -- en "$D" sh scripts/check_docs.sh
 
-echo "== Criterio en una línea; merges limpios y las invariantes del resultado"
+fi
+if seccion "Criterio en una línea; merges limpios y las invariantes del resultado"; then
 copia f3 cc1; printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\n  Las entradas inválidas se rechazan.\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$D/docs/encuadre.md"
 espera falla "el doctor rechaza un criterio con texto de continuación (sangrado)" "continuación" -- en "$D" sh scripts/check_docs.sh
 copia f3 cc1b; printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: la función suma devuelve a+b para enteros.\nLas entradas inválidas se rechazan.\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$D/docs/encuadre.md"
@@ -577,15 +767,8 @@ en "$D" git checkout -q "$RAMA0"; printf '\nnota\n' >> "$D/README.md"; commitea 
 Ref: F1" || die "no pude cambiar la principal (mg3)"
 espera pasa "merge limpio que no entra a F5 ni pierde hallazgos sigue aceptándose sin trailer" "" -- en "$D" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit notas
 
-echo "== Contrato de recibos: modalidad declarada y marcador"
-incompleto() { MODALIDAD=""; recibo "$@"; unset MODALIDAD; }   # recibo sin modalidad/filtro/aislamiento
-sin_marcador() {  # sin_marcador <dir> [quitar-campos]: registro de una versión anterior (base sin marcador)
-  grep -v '^# contrato-recibos: 2' "$1/docs/revisiones.log" > "$1/docs/revisiones.log.t"
-  [ -n "${2:-}" ] && sed -i.bak -E 's/ modalidad=[^ ]+ filtro=[^ ]+ aislamiento=[^ ]+//' "$1/docs/revisiones.log.t" && rm -f "$1/docs/revisiones.log.t.bak"
-  mv "$1/docs/revisiones.log.t" "$1/docs/revisiones.log"
-  sin_hooks "$1" "registro de una versión anterior (preparación)" || die "no pude preparar el registro sin marcador"
-}
-nota() { printf -- '- nota %s\n' "$2" >> "$1/docs/MEMORIA.md"; }
+fi
+if seccion "Contrato de recibos: modalidad declarada y marcador"; then
 copia f3 rc1; sin_marcador "$D"
 printf 'y2 = 2\n' >> "$D/app.py"; incompleto "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
 espera falla "proyecto nuevo sin marcador: un recibo incompleto se rechaza" "sin modalidad=" -- commitea "$D" "I2
@@ -642,7 +825,8 @@ espera falla "solo dos de los tres campos: el commit lo rechaza" "sin modalidad=
 
 Ref: I2"
 
-echo "== Evidencia de una revisión: guardarla permite cerrar; cambiarla después se detecta"
+fi
+if seccion "Evidencia de una revisión: guardarla permite cerrar; cambiarla después se detecta"; then
 # Flujo real: el revisor calcula la huella sobre su directorio autorizado; el principal la copia
 # a docs/revisiones/<id>/ DESPUÉS del recibo (fuera de la huella de vigencia).
 evid() {  # evid <dir> <id> → deja la fuente en $W/evsrc-<id> e imprime su huella
@@ -693,7 +877,8 @@ espera falla "el doctor rechaza una carpeta de evidencia que ningún recibo regi
 copia f3 ev8; mkdir -p "$W/evsrc-enlace"; ln -s /etc/hosts "$W/evsrc-enlace/h"
 espera falla "huella.sh evidencia rechaza enlaces simbólicos" "enlaces simbólicos" -- en "$D" sh scripts/huella.sh evidencia "$W/evsrc-enlace"
 
-echo "== Separadores y carpetas ocultas en la evidencia"
+fi
+if seccion "Separadores y carpetas ocultas en la evidencia"; then
 copia f3 tb1; printf 'y2 = 2\n' >> "$D/app.py"; cierra_inc "$D" I2
 recibo_bruto "$D" "$(printf 'fecha=2026-10-19T10:00Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 seguridad=no-aplica huella=%s ejecutor=x modalidad=lectura filtro=comprobado aislamiento=ninguno\tevidencia=docs/revisiones/no-existe@0123456789ab' "$(huella_idx "$D")")"
 en "$D" git add -A
@@ -718,7 +903,8 @@ espera falla "validar_historial rechaza la carpeta oculta colada" "entrada ocult
 copia f3 tb3; printf 'y2 = 2\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica evidencia=docs/revisiones/.oculta@0123456789ab
 espera falla "un id de evidencia que empieza por punto se rechaza" "empieza por letra o número" -- en "$D" sh scripts/recibos.sh validar docs/revisiones.log
 
-echo "== Migración del registro: el historial hecho con la versión anterior sigue validando"
+fi
+if seccion "Migración del registro: el historial hecho con la versión anterior sigue validando"; then
 antigua() {  # simula el scripts/recibos.sh de una versión anterior: no conoce el marcador ni exige los campos
   sed -e 's/contrato-recibos: 2/contrato-recibos-anterior/g' -e 's/if (nm==0 \&\& marca \&\& !previo) ok=bad(/if (0) ok=bad(/' -e 's/if (nm==0 \&\& !hm \&\& !previo) ok=bad(/if (0) ok=bad(/' "$1/scripts/recibos.sh" > "$1/scripts/recibos.sh.t" && mv "$1/scripts/recibos.sh.t" "$1/scripts/recibos.sh"
 }
@@ -755,7 +941,8 @@ sin_hooks "$D" "retroceso colado
 Ref: F1"
 espera falla "la instrumentación no retrocede (replay)" "no retrocede" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
 
-echo "== La excepción histórica no sale del entorno ni de un padre antiguo"
+fi
+if seccion "La excepción histórica no sale del entorno ni de un padre antiguo"; then
 con_previo() { ( export RECIBOS_CONTRATO_PREVIO=1; "$@" ); }
 copia f3 vp1; printf 'y2 = 2\n' >> "$D/app.py"; incompleto "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
 espera falla "con RECIBOS_CONTRATO_PREVIO=1 heredado, el commit local sigue rechazando un recibo incompleto" "sin modalidad=" -- con_previo commitea "$D" "I2
@@ -791,10 +978,8 @@ incompleto "$D" juez-codigo incremento I3 PASA 0 seguridad=no-aplica; sin_hooks 
 Ref: F1"
 espera falla "tras ese merge, un recibo incompleto colado lo rechaza el replay" "sin modalidad=" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
 
-echo "== Suite sobre una instantánea de lo que se commitea (repositorio git temporal propio)"
-suite_es() { printf '#!/bin/sh\n%s\n%s\n' "$BLOQUE" "$2" > "$1/scripts/check.sh"; sin_hooks "$1" "suite (preparación)
-
-Ref: F1" || die "no pude preparar la suite"; }
+fi
+if seccion "Suite sobre una instantánea de lo que se commitea (repositorio git temporal propio)"; then
 externa() { printf '\n| Ruta | Propósito | Cómo se reproduce |\n|------|-----------|-------------------|\n| %s | prueba | regresión |\n' "$2" >> "$1/docs/convenciones.md"; }
 nota_f1() { printf -- '- nota %s\n' "$2" >> "$1/docs/MEMORIA.md"; commitea "$1" "nota
 
@@ -867,17 +1052,8 @@ espera pasa "primer commit del repositorio (sin HEAD): la suite corre en la inst
 
 Ref: F1"
 
-echo "== Suite vigilada en el pre-commit (arranque protegido de check.sh sobre la instantánea)"
-# El bloque, tal cual de docs/convenciones.md; los temporales de estos casos (instantánea, carpeta de
-# la ejecución) van a $W/tmpd: TMPDIR explícito, que el pre-commit respeta con su plantilla de mktemp.
-mkdir -p "$W/tmpd" "$W/pids" "$W/bin"
-cat > "$W/bin/ps" <<EOF
-#!/bin/sh
-$(command -v ps) "\$@"; rc=\$?
-[ "\$1" = -A ] && [ -f "$W/fantasma" ] && echo "99999 \$(cat "$W/fantasma") S Thu Oct 29 10:00:00 2026 fantasma"
-exit \$rc
-EOF
-chmod +x "$W/bin/ps"   # ps de prueba: con $W/fantasma lista un miembro que sobrevive a KILL (simulado)
+fi
+if seccion "Suite vigilada en el pre-commit (arranque protegido de check.sh sobre la instantánea)"; then
 vigilada() {  # vigilada <dir> <plazo> <cuerpo>: check.sh = bloque + cuerpo; plazo en convenciones
   { grep -v 'Plazo de la suite:' "$1/docs/convenciones.md"; printf '\n- **Plazo de la suite:** %s s\n' "$2"; } > "$1/conv.tmp" && mv "$1/conv.tmp" "$1/docs/convenciones.md"
   suite_es "$1" "$3"
@@ -885,31 +1061,6 @@ vigilada() {  # vigilada <dir> <plazo> <cuerpo>: check.sh = bloque + cuerpo; pla
 # acotado <seg> cmd...: si la garantía se rompe y el commit se cuelga, el caso FALLA (124) en vez de colgar.
 # Antes de matar su grupo, deja en el fd 3 (stderr de la suite) la foto de los procesos de ese grupo y de
 # los que nombran $W (guardianes y suites en otra sesión): es la evidencia de QUÉ se colgó.
-acotado() { python3 -c '
-import os, signal, subprocess, sys
-w, secs, cmd = sys.argv[1], int(sys.argv[2]), sys.argv[3:]
-p = subprocess.Popen(cmd, start_new_session=True)
-try:
-    sys.exit(p.wait(timeout=secs))
-except subprocess.TimeoutExpired:
-    try:
-        ps = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,pgid=,stat=,etime=,command="], capture_output=True,
-                            text=True, timeout=10).stdout.splitlines()
-        foto = [l for l in ps if l.split()[2] == str(p.pid) or w in l]
-    except Exception as exc:
-        foto = [f"(sin foto: {exc})"]
-    try:
-        with os.fdopen(3, "w") as f3:
-            print(f"acotado: no terminó en {secs}s: {cmd[:3]}; procesos (pid ppid pgid stat etime command):", file=f3)
-            print("\n".join("    " + l[:300] for l in foto), file=f3)
-    except OSError:
-        pass
-    os.killpg(p.pid, signal.SIGKILL); p.wait(); print("acotado: no terminó", file=sys.stderr); sys.exit(124)
-' "$W" "$@"; }
-# nota_acotada <dir> <nombre>: nota_f1 con el commit acotado, TMPDIR y ps de prueba (casos sv*).
-nota_acotada() { acotado 90 sh -c 'cd "$1" && export TMPDIR="$2" PATH="$3:$PATH" && printf -- "- nota %s\n" "$4" >> docs/MEMORIA.md && git add -A && git -c core.hooksPath=.githooks commit -q -m "nota
-
-Ref: F1"' _ "$1" "$W/tmpd" "$W/bin" "$2"; }
 registro_de() { python3 -c 'import json,glob,sys; r=sorted((json.load(open(p)) for p in glob.glob(sys.argv[1]+"/.git/suite-runs/*.json")), key=lambda x: x["inicio"]); print(r[-1]["estado"], r[-1]["dir"], r[-1].get("incompleta","")) if r else print("sin-registro")' "$1"; }
 copia f3 sv1; vigilada "$D" 20 'echo "cuerpo en $(pwd -P)"; python3 app.py || exit 1'
 espera pasa "check.sh con el bloque: el pre-commit lo corre vigilado y el commit pasa" "cuerpo en /.*/tmpd/precommit-snap\." -- nota_acotada "$D" sv1
@@ -1050,8 +1201,8 @@ else
 fi
 chmod 700 "$W/sin-lectura"
 
-echo "== check_docs: en cualquier fase, check.sh empieza por el bloque vigilado y el bloque se prueba aislado"
-doc() { en "$1" sh scripts/check_docs.sh; }
+fi
+if seccion "check_docs: en cualquier fase, check.sh empieza por el bloque vigilado y el bloque se prueba aislado"; then
 copia f3 cd0
 espera pasa "check.sh con el bloque al principio y plazo declarado: check_docs pasa" "" -- doc "$D"
 copia f3 cd1; printf '#!/bin/sh\npython3 -I app.py || exit 1\n' > "$D/scripts/check.sh"
@@ -1062,7 +1213,6 @@ copia f3 cd3; grep -v 'Plazo de la suite' "$D/docs/convenciones.md" > "$D/c.tmp"
 espera falla "sin el plazo común en convenciones: check_docs falla" "no declara el plazo común" -- doc "$D"
 # El bloque tiene que ser idéntico al canónico de convenciones.md antes de ejecutarse. Para probar la
 # prueba aislada, la alteración se aplica a los DOS (la referencia local no está autenticada).
-en_ambos() { for f in "$1/scripts/check.sh" "$1/docs/convenciones.md"; do sh -c "$2" _ "$f" > "$1/c.tmp" && mv "$1/c.tmp" "$f"; done; }
 copia f3 cd4; en_ambos "$D" "sed 's/^  exec env SUITE_ENVUELTO=1/  : env SUITE_ENVUELTO=1/' \"\$1\""
 espera falla "bloque roto (no envuelve) también en la referencia: la prueba aislada lo detecta" "no funciona aislado: no corrió vigilado" -- doc "$D"
 copia f3 cd4b; awk -v e="$W/efecto-cd4b" '{ print } /^# --- suite vigilada/ { print ": > \"" e "\"" }' "$D/scripts/check.sh" > "$D/c.tmp" && mv "$D/c.tmp" "$D/scripts/check.sh"
@@ -1085,7 +1235,8 @@ espera falla "... (ningún efecto)" "" -- test -e "$W/efecto-cd4f"
 copia f3 cd4g; bytes_en "$D/scripts/check.sh" "\\r"
 espera falla "CR en el bloque de check.sh: check_docs falla sin ejecutarlo" "contiene bytes NUL o CR" -- doc "$D"
 
-echo "== check_docs: desde F2, la tabla de criterios de estado.md no contradice la cobertura"
+fi
+if seccion "check_docs: desde F2, la tabla de criterios de estado.md no contradice la cobertura"; then
 copia f3 ce0
 espera pasa "control: estado.md con la tabla regenerada desde la cobertura (F3)" "" -- doc "$D"
 copia f3 ce1; sed -i.bak 's/^| C1 | «suma» | pendiente |$/| C1 | «suma» | verificado |/' "$D/docs/estado.md" && rm -f "$D/docs/estado.md.bak"
@@ -1173,7 +1324,8 @@ anida() { ( export SUITE_ID=dentro; unset SUITE_ENVUELTO; nota_acotada "$@" ); }
 espera falla "commit desde dentro de una ejecución (SUITE_ID sin SUITE_ENVUELTO): se rechaza" "desde dentro de otra ejecución de la suite" -- anida "$D" cd19
 espera falla "... sin lanzar el cuerpo" "" -- test -e "$W/cuerpo-cd19"
 
-echo "== El avance queda a la vista: casilla del plan y estado.md en el commit Ref: I<n>"
+fi
+if seccion "El avance queda a la vista: casilla del plan y estado.md en el commit Ref: I<n>"; then
 # recibo_bruto con la huella del índice: un recibo vigente que NO pasa por cierra_inc.
 copia f3 av1; printf '\ndef resta(a, b):\n    return a - b\n' >> "$D/app.py"; printf -- '- Cerrado I2.\n' >> "$D/docs/estado.md"
 recibo_bruto "$D" "fecha=2026-10-19T10:00Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=PASA bloqueantes=0 huella=$(huella_idx "$D") ejecutor=regresion seguridad=no-aplica modalidad=lectura filtro=comprobado aislamiento=ninguno"
@@ -1186,7 +1338,8 @@ espera falla "Ref: I2 sin regenerar docs/estado.md se rechaza" "sin regenerar do
 
 Ref: I2"
 
-echo "== Código sin Ref: I<n>"
+fi
+if seccion "Código sin Ref: I<n>"; then
 copia f3 b1; printf 'def resta(a, b):\n    return a - b\n' >> "$D/app.py"
 trazabilidad "$D" "$C1_PEND" "" '| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | resuelto | 2026-10-19 10:00 · app.py:1 |'
 espera falla "Cierra: solo con código se rechaza" "sin 'Ref: I<n>'" -- commitea "$D" "corrige
@@ -1319,7 +1472,8 @@ espera pasa "un hook del método (.githooks/pre-commit) con Ref: F1 se acepta" "
 
 Ref: F1"
 
-echo "== Recibos: caducado, FALLA, seguridad, log"
+fi
+if seccion "Recibos: caducado, FALLA, seguridad, log"; then
 copia f3 r1; printf 'x = 1\n' >> "$D/app.py"
 recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
 printf '\n# cambio después del PASA\n' >> "$D/app.py"
@@ -1363,7 +1517,8 @@ espera falla "bloqueantes=00 es inválido" "bloqueantes debe ser" -- en "$D" sh 
 copia f3 p10b; recibo_bruto "$D" "fecha=2026-10-19T23:59:59Z rol=juez-codigo tipo=incremento alcance=I2 veredicto=FALLA bloqueantes=12 seguridad=no-aplica huella=$(huella_idx "$D") ejecutor=x modalidad=lectura filtro=comprobado aislamiento=ninguno"
 espera pasa "fecha ISO completa y bloqueantes=12 son válidos" "" -- en "$D" sh scripts/recibos.sh validar docs/revisiones.log
 
-echo "== Hallazgos del incremento y Cierra:"
+fi
+if seccion "Hallazgos del incremento y Cierra:"; then
 copia f3 c1; printf 'x = 1\n' >> "$D/app.py"
 trazabilidad "$D" "$C1_PEND" "" '| R-I2.1 | «sin-prueba» | I2 | C1 | falta prueba | abierto | — |'
 recibo "$D" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
@@ -1432,7 +1587,8 @@ espera pasa "un incremento activo después de un cerco bien cerrado sigue visibl
 
 Ref: I99"
 
-echo "== Fase perdida no es plantilla (R9-A01)"
+fi
+if seccion "Fase perdida no es plantilla (R9-A01)"; then
 espera falla "plantilla nunca iniciada: 'check_docs.sh iniciado' dice que no (la CI la omite)" "" -- en "$B" sh scripts/check_docs.sh iniciado
 copia f3 a1; fase "$D" F_
 sin_hooks "$D" "pierde la fase
@@ -1445,7 +1601,8 @@ espera falla "con la fase ya perdida en HEAD, el siguiente commit tampoco pasa c
 
 Ref: F1"
 
-echo "== Hito: contador por commits, rango, cobertura, seguridad"
+fi
+if seccion "Hito: contador por commits, rango, cobertura, seguridad"; then
 copia f3-tres h1; printf 'z = 4\n' >> "$D/app.py"; recibo "$D" juez-codigo incremento I4 PASA 0 seguridad=no-aplica
 espera falla "cuarto incremento sin commit de hito se rechaza" "hito" -- commitea "$D" "I4
 
@@ -1603,18 +1760,6 @@ en "$HV" git config filter.propio.clean cat
 espera pasa "huella con un filtro clean configurado: avisa que no certifica lectura estricta" "no certifica lectura estricta" -- sh -c "cd '$HV' && sh scripts/huella.sh 2>&1 >/dev/null"
 en "$HV" git config --unset filter.propio.clean
 
-tres_criterios() {  # tres_criterios <dir>: C1..C3 construidos (I1, I2, I3) y C4 futuro (I4, sin commit)
-  printf '# Encuadre\n\n## Criterios de éxito\n\n- C1: suma devuelve a+b.\n- C2: resta devuelve a-b.\n- C3: multiplica devuelve a*b.\n- C4: divide devuelve a/b.\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$1/docs/encuadre.md"
-  trazabilidad "$1" "$C1_PEND
-| C2 | «resta» | I2 | pendiente | |
-| C3 | «multiplica» | I3 | pendiente | |
-| C4 | «divide» | I4 | pendiente | |" "" ""
-  # Criterios nuevos ⇒ contrato revisado nuevo: recibo del revisor funcional y commit Ref: F2.
-  recibo "$1" revisor-funcional encuadre F2 PASA 0
-  commitea "$1" "criterios C2..C4
-
-Ref: F2" || die "no pude revisar los criterios de tres_criterios"
-}
 copia f3-tres h12; tres_criterios "$D"
 recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=C1,C2,C3 excluye=C4 componentes=app
 espera pasa "hito parcial legítimo (cubre=C1,C2,C3 excluye=C4, futuro) se acepta" "" -- commitea "$D" "hito
@@ -1647,7 +1792,8 @@ espera falla "hito con una lista que incluye C999 se rechaza por C999" "C999, qu
 
 Ref: hito:I1-I3"
 
-echo "== Hito: cobertura completa (R9-A04)"
+fi
+if seccion "Hito: cobertura completa (R9-A04)"; then
 copia f3-tres h18; tres_criterios "$D"
 recibo "$D" juez-conjunto hito hito:I1-I3 PASA 0 seguridad=no-aplica cubre=ninguno excluye=C1,C2,C3,C4 componentes=app
 espera falla "hito con cubre=ninguno se rechaza" "cubre= del recibo del hito no nombra ningún criterio" -- commitea "$D" "hito
@@ -1692,7 +1838,8 @@ espera pasa "segundo hito (I4-I4) sobre lo cerrado desde el anterior se acepta" 
 
 Ref: hito:I4-I4"
 
-echo "== Hito: forma cerrada de cubre=/excluye= (verificación R9-P02)"
+fi
+if seccion "Hito: forma cerrada de cubre=/excluye= (verificación R9-P02)"; then
 n=0
 for par in "cubre=ninguno,C1,C2,C3 excluye=C4|cubre=" "cubre=C1,C2,C3, excluye=C4|cubre=" "cubre=C1,,C2,C3 excluye=C4|cubre=" "cubre=C1,C2,C3 excluye=ninguno,C4|excluye=" "cubre=C1,C2,C3 excluye=C4,|excluye="; do
   n=$((n+1)); campos=${par%|*}; pat=${par#*|}
@@ -1703,7 +1850,8 @@ for par in "cubre=ninguno,C1,C2,C3 excluye=C4|cubre=" "cubre=C1,C2,C3, excluye=C
 Ref: hito:I1-I3"
 done
 
-echo "== Familias de conjunto e Histórico"
+fi
+if seccion "Familias de conjunto e Histórico"; then
 copia f3 f1; trazabilidad "$D" "$C1_PEND" "" '| R-SF4.1 | «composicion» | F4 | C1 | fuga entre módulos | abierto | — |
 | R-F4.1 | «ensamblado» | F4 | C1 | orden de arranque | resuelto | 2026-10-19 10:00 · app.py:1 |'
 espera pasa "R-SF4.1 y R-F4.1 con Incr. F4 son filas válidas para el doctor" "" -- commitea "$D" "registra hallazgos del conjunto
@@ -1730,7 +1878,8 @@ espera pasa "hallazgo de seguridad con categoría CWE en Criterio se acepta" "" 
 
 Ref: F1"
 
-echo "== Cierre: criterios, IDs, alcance funcional"
+fi
+if seccion "Cierre: criterios, IDs, alcance funcional"; then
 copia cierre z1; printf '# Encuadre\n\n- Objetivo: sumar\n\n## Set de oro\n\n- suma(1, 2) → 3\n' > "$D/docs/encuadre.md"
 trazabilidad "$D" "" "" '| R-I1.1 | «sin-prueba» | I1 | general | falta prueba | verificado | 2026-10-19 10:00 · app.py:1 |'
 recibo "$D" revisor-funcional encuadre F2 PASA 0
@@ -1822,7 +1971,8 @@ espera pasa "F2 con recibo de reentrada:C1 (criterio existente) se acepta" "" --
 
 Ref: F2"
 
-echo "== Roles, YAML"
+fi
+if seccion "Roles, YAML"; then
 copia f3 a06; rm "$D/.claude/agents/juez-seguridad.md"
 espera falla "quitar juez-seguridad.md se rechaza" "falta .claude/agents/juez-seguridad.md" -- commitea "$D" "docs
 
@@ -1933,7 +2083,8 @@ espera pasa "comillas y escapes válidos se aceptan" "" -- commitea "$D" "docs
 
 Ref: F1"
 
-echo "== Arnés de sabotaje"
+fi
+if seccion "Arnés de sabotaje"; then
 S="$W/sab"; mkdir -p "$S/scripts" "$S/docs"; en "$S" git init -q
 cp "$RAIZ/scripts/suite.py" "$S/scripts/"; printf -- '- **Plazo de la suite:** 60 s\n' > "$S/docs/convenciones.md"
 printf '#!/bin/sh\nif [ -f gate.sh ]; then\n  exit 0\nfi\necho "FAIL: gate"\nexit 1\n' > "$S/gate.sh"; chmod +x "$S/gate.sh"
@@ -2037,7 +2188,8 @@ espera falla "entrada externa con instalación editable hacia el original se rec
 rm "$S2/.venv/lib/__editable__.app.pth"; printf '__pycache__/\n' > "$S2/.gitignore"
 espera falla "entrada externa declarada que git no ignora se rechaza" "is not ignored by git" -- en "$S2" python3 -I "$SAB" m.json
 
-echo "== Sabotaje vigilado: cada corrida bajo scripts/suite.py del repositorio real (plazo, una a la vez)"
+fi
+if seccion "Sabotaje vigilado: cada corrida bajo scripts/suite.py del repositorio real (plazo, una a la vez)"; then
 # $W/bin/ps es el ps de prueba de la sección del pre-commit: con $W/fantasma lista un miembro que
 # sobrevive a KILL (SIMULADO). Las copias del sabotaje van a $W/tmpd-sab para ver qué conserva.
 SV="$W/sabv"; mkdir -p "$SV/scripts" "$SV/docs" "$W/tmpd-sab" "$W/pids/sabv"; en "$SV" git init -q
@@ -2141,7 +2293,8 @@ espera falla "mutar el suite.py de la copia no desarma el plazo: TIMEOUT a los 3
 SN="$W/sab-sin"; mkdir -p "$SN/scripts"; en "$SN" git init -q; printf 'VALUE = 1\n' > "$SN/cfg.py"; cp "$SV/m.json" "$SN/"
 espera falla "proyecto sin scripts/suite.py: el sabotaje no corre sin vigilante" "scripts/suite.py is missing" -- en "$SN" python3 -I "$SAB" m.json
 
-echo "== Recorrido F1→F5 y validación del historial"
+fi
+if seccion "Recorrido F1→F5 y validación del historial"; then
 R="$W/recorrido"; cp -R "$Z" "$R"
 fase "$R" F5 "— «ninguno»"
 espera pasa "F5: Ref: F5 con el conjunto de F4 vigente" "" -- commitea "$R" "cierre
@@ -2206,7 +2359,8 @@ Ref: I4" || die "no pude preparar la rama (I4)"
 en "$R2" git checkout -q master 2>/dev/null || en "$R2" git checkout -q main; echo "- nota" >> "$R2/docs/MEMORIA.md"; commitea "$R2" "memoria
 
 Ref: F1" || die "no pude avanzar la rama principal"
-echo "== Merges: limpio frente a contenido añadido al fusionar"
+fi
+if seccion "Merges: limpio frente a contenido añadido al fusionar"; then
 copia ramas v5
 en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-edit rama || die "no pude hacer el merge"
 espera pasa "validar_historial acepta un merge limpio (árbol = fusión automática) sin trailer y valida los commits de la rama" "ok .*\(merge\)" -- en "$D" sh scripts/pruebas/validar_historial.sh "HEAD~4..HEAD"
@@ -2232,12 +2386,12 @@ espera pasa "un merge que solo añade rastro (docs/) con su trailer se acepta" "
 
 Ref: F1"
 
-echo "== Merges automáticos: el pre-commit también corre en ellos (pre-merge-commit)"
+fi
+if seccion "Merges automáticos: el pre-commit también corre en ellos (pre-merge-commit)"; then
 # git no ejecuta pre-commit en un merge que termina solo; pre-merge-commit delega en él. Un rechazo deja el
 # merge en curso (MERGE_HEAD) sin mover HEAD. corridas: ejecuciones de la suite en el registro del repositorio.
 corridas() { find "$1/.git/suite-runs" -name '*.json' 2>/dev/null | wc -l | tr -d ' '; }
 en_curso() { en "$1" git rev-parse -q --verify MERGE_HEAD >/dev/null && [ "$(en "$1" git rev-parse HEAD)" = "$2" ]; }
-fusiona() { en "$1" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit "$2"; }
 rama_con_env() {  # rama_con_env <dir> <rama nueva o existente>: un .env colado en esa rama; vuelve a la principal
   pr=$(en "$1" git branch --show-current); en "$1" git checkout -q "$2" 2>/dev/null || en "$1" git checkout -q -b "$2"
   printf 'SECRETO=x\n' > "$1/.env"; en "$1" git add -f .env; sin_hooks "$1" "cuela un .env en la rama
@@ -2318,19 +2472,9 @@ espera pasa "pre-merge-commit es instrumentación del método: cambiarlo con Ref
 
 Ref: F1"
 
-echo "== Replay anclado: juzgan los validadores del ancla, no los del checkout (docs/convenciones.md §Git)"
-# La orden de entrada se toma LITERAL de docs/convenciones.md (el bloque ```sh que nombra replay_anclado.sh), sin
-# sus tres líneas de asignación: así lo que se prueba es lo que la regla manda escribir.
-ENTRADA=$(awk '/^ *```sh$/ { b = ""; f = 1; next }
-  f && /^ *```$/ { if (b ~ /replay_anclado\.sh/) { printf "%s", b; exit } f = 0; next }
-  f { sub(/^      /, ""); b = b $0 "\n" }' "$RAIZ/docs/convenciones.md" | grep -vE '^(ancla|inicio|fin)=')
-printf '%s' "$ENTRADA" | grep -q 'cat-file blob "\${ancla}:scripts/pruebas/replay_anclado.sh"' || die "no encontré la orden de entrada del replay anclado en docs/convenciones.md"
-TA="$W/tmp-anclado"; TR="$W/trampas"; mkdir -p "$TA" "$TR"
-# anclado <dir> <ancla> <inicio> <fin> [shell] → ejecuta la orden de entrada en <dir> con esos valores
-anclado() { ( cd "$1" && TMPDIR="$TA" ancla="$2" inicio="$3" fin="$4" "${5:-sh}" -c "$ENTRADA" ); }
-sha() { en "$1" git rev-parse "$2"; }
+fi
+if seccion "Replay anclado: juzgan los validadores del ancla, no los del checkout (docs/convenciones.md §Git)"; then
 # anclado_t: la misma ejecución, con la salida en una línea (para patrones entre líneas) y su código de salida.
-anclado_t() { out=$(anclado "$@" 2>&1); rc=$?; printf '%s' "$out" | tr '\n' ' '; return $rc; }
 vacia() { [ -z "$(ls -A "$1")" ]; }
 
 copia f3 an1; A=$(sha "$D" HEAD~1)   # el commit del gate F2: el rango trae I1 (producto con recibo)
@@ -2529,47 +2673,12 @@ en "$D" git -c core.hooksPath=/dev/null merge -q --no-ff --no-edit rama || die "
 espera pasa "positivo: merge limpio con la rama del hito e I4, anclado en la principal" "ok .*\(merge\).*resultado PASA" -- anclado_t "$D" "$A" "$A" HEAD
 espera pasa "la orden de entrada no dejó carpetas en su TMPDIR" "" -- vacia "$TA"
 
-echo "== Actualización desde la entrega anterior: una historia con los dos contratos de los merges"
+fi
+if seccion "Actualización desde la entrega anterior: una historia con los dos contratos de los merges"; then
 # La entrega anterior (sin pre-merge-commit) son los validadores de este repositorio sin lo que añadió PR-1: sin el
 # hook, sin el marcador «# contrato-merges: 1» y con el commit-msg que no lo nombraba. Un proyecto válido hecho entero
 # con ella (F1, F2, I1 y un merge) se actualiza y sigue (I2 y otro merge); el replay actual y el anclado juzgan rangos
 # que atraviesan los dos contratos.
-anterior() {
-  rm -f "$1/.githooks/pre-merge-commit"
-  sed -e 's/(commit-msg|pre-commit|pre-merge-commit)/(commit-msg|pre-commit)/' -e 's#De \.githooks/ solo sus tres hooks;#De .githooks/ solo sus dos hooks;#' "$1/.githooks/commit-msg" > "$W/ant-cm" && cat "$W/ant-cm" > "$1/.githooks/commit-msg"
-  sed -e '/^# contrato-merges: 1$/d' -e '/^# contrato-check: 1$/d' -e '/^# contrato-procedencia: 1$/d' -e '/^# contrato-retirada: 1$/d' "$1/scripts/check_docs.sh" > "$W/ant-cd" && cat "$W/ant-cd" > "$1/scripts/check_docs.sh"
-  sed -e '/^# 8b) La versión del contrato de los merges/,/^done$/d' -e '/^# 8c) La versión del contrato de scripts\/check.sh/,/^done$/d' -e '/^# 8d) La versión del contrato de procedencia/,/^done$/d' -e '/^# 8e) La versión del contrato de retirada/,/^done$/d' "$1/scripts/guardas.sh" > "$W/ant-gu" && cat "$W/ant-gu" > "$1/scripts/guardas.sh"
-  grep -v '^#' "$1/scripts/guardas.sh" | grep -qE 'contrato-(merges|check|procedencia|retirada)' && die "anterior: guardas.sh conserva la regla 8b, 8c, 8d u 8e"
-  return 0
-}
-nota_en() { printf -- '- %s\n' "$3" >> "$1/$2"; }
-trae() { d=$1; shift; for f in "$@"; do cp "$RAIZ/$f" "$d/$f"; done; chmod +x "$d"/.githooks/*; }   # trae <dir> <archivos del método nuevo>
-proyecto_anterior() {  # proyecto_anterior <dir>: F1, F2, I1 y un merge, todo con la entrega anterior; deja A_ANT (gate de I1)
-  rm -rf "$1"; mkdir -p "$1"; ( cd "$W/etapas/plantilla" && tar cf - --exclude ./.git . ) | ( cd "$1" && tar xf - )
-  anterior "$1"; en "$1" git init -q; en "$1" git config core.hooksPath .githooks
-  commitea "$1" "Encuadre inicial
-
-Ref: F1" || die "anterior: F1"
-  for f in AGENTS.md docs/encuadre.md docs/plan.md docs/decisiones.md docs/trazabilidad.md docs/estado.md scripts/check.sh; do cp "$W/etapas/f2/$f" "$1/$f"; done
-  recibo "$1" revisor-funcional encuadre F2 PASA 0
-  commitea "$1" "Plan
-
-Ref: F2" || die "anterior: F2"
-  fase "$1" F3 "I1 «suma»"; cp "$W/etapas/f3/app.py" "$1/app.py"; recibo "$1" juez-codigo incremento I1 PASA 0 seguridad=no-aplica
-  commitea "$1" "I1
-
-Ref: I1" || die "anterior: I1"
-  A_ANT=$(sha "$1" HEAD); PRIN=$(en "$1" git branch --show-current)
-  en "$1" git checkout -q -b notas-ant; nota_en "$1" docs/MEMORIA.md "nota de la rama (entrega anterior)"; commitea "$1" "nota
-
-Ref: F1" || die "anterior: rama"
-  en "$1" git checkout -q "$PRIN"; nota_en "$1" docs/despliegue.md "nota de la principal (entrega anterior)"; commitea "$1" "nota
-
-Ref: F1" || die "anterior: principal"
-  en "$1" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit notas-ant || die "anterior: merge"
-  git -C "$1" cat-file -e HEAD:.githooks/pre-merge-commit 2>/dev/null && die "anterior: el proyecto ya tiene pre-merge-commit"
-  return 0
-}
 sigue_nuevo() {  # sigue_nuevo <dir>: I2 y un merge con la entrega nueva
   printf 'y2 = 2\n' >> "$1/app.py"; recibo "$1" juez-codigo incremento I2 PASA 0 seguridad=no-aplica
   espera pasa "actualiza: I2 después de actualizar" "" -- commitea "$1" "I2
@@ -2583,7 +2692,6 @@ Ref: F1" || die "nuevo: rama"
 Ref: F1" || die "nuevo: principal"
   espera pasa "actualiza: merge con la entrega nueva (pre-merge-commit)" "" -- fusiona "$1" notas-nue
 }
-NUEVOS=".githooks/commit-msg .githooks/pre-merge-commit scripts/check_docs.sh scripts/guardas.sh"
 # Un paso: todo junto.
 U="$W/actualiza"; proyecto_anterior "$U"
 espera pasa "actualiza: el doctor nuevo da por válido el árbol de la entrega anterior (sin el marcador)" "" -- sh -c "d=\$(mktemp -d '$W/ant.XXXXXX') && git -C '$U' archive HEAD | tar -x -C \"\$d\" && cp '$RAIZ/scripts/check_docs.sh' \"\$d/scripts/check_docs.sh.nuevo\" && cd \"\$d\" && ! grep -qx '# contrato-merges: 1' scripts/check_docs.sh && sh scripts/check_docs.sh.nuevo commit"
@@ -2625,7 +2733,8 @@ sin_hooks "$F" "vuelve a la entrega anterior
 Ref: F1" || die "fingir: no pude colar la vuelta atrás"
 espera falla "fingir: el replay anclado en la actualización rechaza esa vuelta atrás colada" "deja de declarar «# contrato-merges: 1».*resultado FALLA" -- anclado_t "$F" "$A_NUE" "$A_NUE" HEAD
 
-echo "== scripts/check.sh: el cuerpo es producto desde el primer Ref: F2 (# contrato-check: 1)"
+fi
+if seccion "scripts/check.sh: el cuerpo es producto desde el primer Ref: F2 (# contrato-check: 1)"; then
 # El cuerpo es lo posterior a «# --- fin suite vigilada ---». Antes del primer Ref: F2 (diseño inicial, primera
 # adopción) entra como el rastro; desde entonces exige Ref: I<n> salvo que quede idéntico al de algún padre.
 cuerpo_mas() { printf '%s\n' "$2" >> "$1/scripts/check.sh"; }
@@ -2791,7 +2900,8 @@ Ref: F1" || die "bf5"
 b=$(en "$D" git rev-parse HEAD:scripts/check_docs.sh); rm -f "$D/.git/objects/$(printf '%s' "$b" | cut -c1-2)/$(printf '%s' "$b" | cut -c3-)"
 espera falla "check.sh: si check_docs.sh (el marcador) no se puede leer, el commit que toca check.sh se rechaza por ese motivo" "no pude leer scripts/check_docs\.sh \(en " -- en "$D" env REV=HEAD sh .githooks/commit-msg /dev/null
 
-echo "== Contrato de referencia por la estructura de la historia (PR-2): fechas, ramas, paralelos y errores"
+fi
+if seccion "Contrato de referencia por la estructura de la historia (PR-2): fechas, ramas, paralelos y errores"; then
 # El contrato al que se ata Ref: I<n> | hito | F4 | F5 y contra el que se acota reentrada:C<n> es el Ref: F2 más
 # cercano; en un merge, los maximales de los de sus padres. Nunca la fecha. Revisiones paralelas con contratos
 # distintos exigen revisar su combinación con alcance F2. Un error al determinarlo rechaza; nunca es «sin contrato».
@@ -2831,12 +2941,6 @@ Ref: I2" || die "pr2b colado"; A=$(sha "$D" HEAD~1)
 espera falla "PR-2 fechas: el replay actual también lo rechaza" "no son los del último contrato revisado" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
 espera falla "PR-2 fechas: y el anclado" "no son los del último contrato revisado.*resultado FALLA" -- anclado_t "$D" "$A" "$A" HEAD
 # Revisiones paralelas con contratos distintos, integradas sin revisar la combinación.
-paralelas() {  # paralelas <dir>: rama-a (C2) y rama-b (C3) desde C1, integradas en rama-b con Ref: F1 conservando ambos
-  ramas_contratos "$1"; fusiona_resuelve "$1" rama-a "$CR1$CR2$CR3" "$C1_PEND
-$F_C2
-$F_C3"; commitea "$1" "integra rama-a sin revisar la combinación
-
-Ref: F1"; }
 copia f3 pr2c; paralelas "$D" || die "pr2c"; i2 "$D"
 espera falla "PR-2 paralelas: dos contratos revisados distintos integrados sin revisión conjunta rechazan el Ref: I2" "revisiones paralelas distintas \([0-9a-f]+, [0-9a-f]+\)" -- commitea "$D" "I2
 
@@ -2907,7 +3011,8 @@ sin_hooks "$W/pr2k" "I2 (colado)
 Ref: I2" || die "pr2k commit"
 espera falla "PR-2 errores: en un clon superficial, el Ref: I2 se rechaza por historia recortada" "no pude determinar el contrato revisado de referencia \(.*historia está recortada" -- en "$W/pr2k" env REV=HEAD sh .githooks/commit-msg /dev/null
 
-echo "== Referencia del contrato para el revisor (PR-10): commit-msg --referencia, el mismo cálculo que acota la reentrada"
+fi
+if seccion "Referencia del contrato para el revisor (PR-10): commit-msg --referencia, el mismo cálculo que acota la reentrada"; then
 # ref10 <dir>: la consulta con todo stageado; imprime su salida en una línea y sale con su código.
 ref10() { out=$(cd "$1" && git add -A && sh .githooks/commit-msg --referencia 2>&1); rc=$?; printf '%s' "$out" | tr '\n' ' '; return $rc; }
 oro10() {  # oro10 <dir> <contenido>: el set de oro de C1 referencia contexto/oro/par.txt
@@ -2938,7 +3043,8 @@ espera falla "sin ningún Ref: F2: --referencia sale con 1 y lo dice" "no hay co
 rm -rf "$W/rf4"; git clone -q --depth 1 "file://$W/etapas/f3" "$W/rf4" 2>/dev/null || die "rf4 clon"
 espera falla "historia recortada (clon superficial): --referencia sale con 2, no con «sin contrato»" "no pude determinar el contrato revisado de referencia" -- sh -c 'cd "$1" && sh .githooks/commit-msg --referencia 2>&1; r=$?; [ $r -eq 2 ] && exit 1; exit 0' _ "$W/rf4"
 
-echo "== Cierre acotado de un ciclo posterior: pendientes históricos, ramas y alcance de F5"
+fi
+if seccion "Cierre acotado de un ciclo posterior: pendientes históricos, ramas y alcance de F5"; then
 C1L='- C1: la función suma devuelve a+b para enteros.'; C2L='- C2: la función resta devuelve a-b.'
 RI11='| R-I1.1 | «sin-prueba» | I1 | C1 | falta prueba | verificado | 2026-10-19 10:00 · app.py:1 |'
 encc() { printf '# Encuadre\n\n## Criterios de éxito\n\n%s\n## Set de oro\n\n- suma(1, 2) → 3\n%s' "$2" "${3:-}" > "$1/docs/encuadre.md"; }
@@ -2960,10 +3066,6 @@ construye_c2() { fase "$1" F3 "I2 «resta»"; printf '\ndef resta(a, b):\n    re
   recibo "$1" juez-codigo incremento I2 PASA 0 seguridad=no-aplica; commitea "$1" "I2
 
 Ref: I2"; }
-cierra_f4() { fase "$1" F4 "— «ninguno»"; shift_d=$1; shift; recibo "$shift_d" juez-conjunto conjunto F4 PASA 0 seguridad=no-aplica "$@"; }
-f4() { commitea "$1" "validación del ciclo
-
-Ref: F4"; }
 ciclo2() {  # ciclo2 <nombre> <estado C1 en R y al cerrar>: ciclo 1 cerrado (P5), ciclo 2 abierto (R) y C2 construido
   copia cierre "$1"; cierra_c1 "$D" || die "no pude cerrar el ciclo 1 en $1"
   abre_c2 "$D" "$2" || die "no pude abrir el ciclo 2 en $1"; construye_c2 "$D" "$2" || die "no pude construir C2 en $1"; }
@@ -3113,7 +3215,8 @@ espera falla "errores: si el cálculo de P5/R falla, el cierre acotado se rechaz
 
 Ref: F4"' _ "$D"
 
-echo "== Retirada de requisitos (PR-4): marca, ADR nuevo, set de oro, estado histórico, cierre y reactivación"
+fi
+if seccion "Retirada de requisitos (PR-4): marca, ADR nuevo, set de oro, estado histórico, cierre y reactivación"; then
 # Etapa: contrato revisado con C1 (verificado), C2 (pendiente, I2 por hacer) y C3 (verificado), un par por criterio.
 R1L='- C1: la función suma devuelve a+b para enteros.'; R2L='- C2: la función resta devuelve a-b.'; R3L='- C3: la función doble devuelve 2·a.'
 O1='- suma(1, 2) → 3'; O2='- resta(3, 1) → 2'; O3='- doble(2) → 4'
@@ -3374,7 +3477,8 @@ espera pasa "M01 con Aprobación vacía: acepta como antes; la retirada no" "M01
 espera pasa "M01 con ADR retrospectivo: rechaza como antes, y la retirada también" "M01: ADR-001, que es un registro retrospectivo.*retirada: ADR-001 es un registro retrospectivo" -- m01_adr "- **Aprobación:** \`retrospectivo: evidencia (x)\`
 "
 
-echo "== Fidelidad de la materialización del índice (PR-5): check_docs juzga los blobs, no lo que extraen los atributos"
+fi
+if seccion "Fidelidad de la materialización del índice (PR-5): check_docs juzga los blobs, no lo que extraen los atributos"; then
 # El pre-commit (paso 3) y el cierre del commit-msg materializan el índice con validar_historial.sh --materializa sobre
 # el árbol del índice (git write-tree), no con checkout-index: eol, ident, working-tree-encoding y los filtros locales no
 # transforman lo que juzga check_docs. Lo que ejecuta check.sh (paso 4) sigue siendo un checkout.
@@ -3457,7 +3561,8 @@ espera pasa "control: el cierre rejuzgado en modo replay con los validadores com
 espera falla "cierre en replay sin materializador: lo dice (no es un FALLA de check_docs)" "falta .*validar_historial\.sh.*materializador" -- rf4 "$D" "$W/pc-met-sin"
 espera falla "cierre en replay con el materializador roto: error al materializar, distinto de un FALLA de check_docs" "materializador roto.*no pude materializar lo que se commitea" -- rf4 "$D" "$W/pc-met-roto"
 
-echo "== Aviso de inicio de sesión (SessionStart): el script, sin abrir sesiones de Claude"
+fi
+if seccion "Aviso de inicio de sesión (SessionStart): el script, sin abrir sesiones de Claude"; then
 # Se prueba el SCRIPT: que el cliente lo ejecute de verdad al iniciar una sesión queda por observar en VSCode.
 TI="$W/tmp-inicio"; mkdir -p "$TI"
 inicio() { ( cd "${2:-/}" && env CLAUDE_PROJECT_DIR="$1" TMPDIR="$TI" ${3:-} python3 "$1/.claude/hooks/inicio-sesion.py" ); }
@@ -3519,9 +3624,10 @@ espera pasa "inicio: ruta con espacios, lanzado desde otro directorio" "Proyecto
 espera pasa "inicio: sin CLAUDE_PROJECT_DIR, la raíz sale de la ubicación del script" "Proyecto en F3.*Doctor: PASA" -- sh -c 'cd / && env -u CLAUDE_PROJECT_DIR TMPDIR="$2" python3 "$1/.claude/hooks/inicio-sesion.py" | tr "\n" " "' _ "$W/con espacios/proyecto" "$TI"
 espera pasa "inicio: la configuración del proyecto registra el aviso en SessionStart y conserva el filtro en PreToolUse" "" -- python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1]))["hooks"]; assert "inicio-sesion.py" in d["SessionStart"][0]["hooks"][0]["command"]; assert "guarda-revisor.py" in d["PreToolUse"][0]["hooks"][0]["command"]' "$RAIZ/.claude/settings.json"
 
+fi
 # --- Filtro preventivo de revisores (.claude/hooks/guarda-revisor.py): NO es frontera; se prueba
 #     que rechaza patrones evidentes, permite lecturas y respeta la modalidad «experimentos».
-echo "== filtro preventivo de revisores"
+if seccion "filtro preventivo de revisores"; then
 GR="$RAIZ/.claude/hooks/guarda-revisor.py"; GW="$W/guarda"; mkdir -p "$GW/.git"
 gr() {  # gr <agente> <comando>: corre el hook con la entrada JSON del evento PreToolUse
   python3 -c 'import json,sys; print(json.dumps({"agent_type":sys.argv[1],"tool_name":"Bash","tool_input":{"command":sys.argv[2]},"cwd":sys.argv[3]}))' "$1" "$2" "$GW" \
@@ -3620,9 +3726,10 @@ espera pasa "lectura (control): git -C <otro> log pasa" "" -- gr juez-codigo "gi
 espera pasa "lectura (control): grep con palabras de escritura entre comillas pasa" "" -- gr juez-codigo 'grep -rn "git commit; rm -rf x > y" docs'
 espera pasa "lectura (límite declarado): python3 -c que abre un archivo no se ve" "" -- gr juez-codigo "python3 -c 'print(1)'"
 
+fi
 # --- Captura de búsquedas (scripts/buscar.sh): lee con git grep contra un commit y escribe
 # evidencia append-only; nunca guarda contenido ni toca archivos sensibles.
-echo "== captura de búsquedas (buscar.sh)"
+if seccion "captura de búsquedas (buscar.sh)"; then
 BW="$W/buscar"; mkdir -p "$BW/src" "$BW/docs" "$BW/otro"; BR="$BW/docs/busquedas.md"
 ( cd "$BW" && git init -q && printf 'uno firma\ndos\nfirma tres\n' > src/a.rs && printf 'nada\n' > src/b.rs \
   && printf 'TOKEN=firma\n' > .env && printf 'firma\n' > otro/c.md && git add -A && git commit -q -m base )
@@ -3656,7 +3763,8 @@ espera falla "buscar: repetir de una entrada con error se rechaza" "no hay resul
 sed 's/^- coincidencias: src\/a.rs:1, src\/a.rs:3$/- coincidencias: src\/a.rs:1/; s/^- líneas coincidentes: 2 (archivos: 1)$/- líneas coincidentes: 1 (archivos: 1)/' "$BR" > "$W/buscar-alterado.md"
 espera falla "buscar: repetir detecta un resultado que no reproduce" "B-1 NO reproduce" -- bus repetir --registro "$W/buscar-alterado.md" B-1
 
-echo "== Consumo: atribución por origen (transcripts sintéticos)"
+fi
+if seccion "Consumo: atribución por origen (transcripts sintéticos)"; then
 # Ronda 12 (C6): principal y subagentes solo cuando la estructura lo permite; lo ambiguo queda sin
 # atribuir; un mensaje repetido cuenta una vez; la suma es un subtotal medido, no un total.
 msg() {  # msg <id> <salida> [campos extra JSON]: una línea assistant con usage
@@ -3678,7 +3786,13 @@ espera pasa "consumo: --json conserva los campos anteriores y añade por_origen 
 mkdir -p "$K/vacio"; printf '{"type":"user"}\n' > "$K/vacio/s1.jsonl"
 espera falla "consumo: sin mensajes con usage falla en voz alta (nunca ceros que parezcan respuesta)" "0 mensajes con usage" -- $CP "$CS" --dir "$K/vacio"
 
+fi
 echo
-echo "regresion: $((TOTAL-MAL))/$TOTAL casos en verde"
+if [ "$HAY_PATRON" = 1 ]; then
+  informe; echo "  ejecutadas: $(printf '%s' "$EJECUTADAS" | grep -c .) secciones"
+  echo "regresion (SELECCIÓN PARCIAL, no equivale a la batería completa): $((TOTAL-MAL))/$TOTAL casos en verde"
+else
+  echo "regresion: $((TOTAL-MAL))/$TOTAL casos en verde"
+fi
 if [ "$MAL" -gt 0 ]; then echo "FALLARON:$FALLIDOS"; exit 1; fi
 exit 0

@@ -486,7 +486,7 @@ Esto rige en cada proyecto. Quien cambia la propia plantilla sigue §Desarrollo 
   commit` (que ejecuta `pre-commit` y `commit-msg`, como un merge con conflictos) o se descarta con
   `git merge --abort`. Lo exige el doctor cuando su `check_docs.sh` declara `# contrato-merges: 1`, así
   que un commit anterior a esa entrega sigue siendo válido; `guardas.sh` impide retirar el marcador o el hook.
-  **Límites:** un fast-forward no crea commit y no ejecuta hooks; `--no-verify` los salta; y no limpia lo
+  **Límites:** un fast-forward no crea commit y no ejecuta los hooks del método (git solo ejecuta `post-merge`, que el método no instala); `--no-verify` los salta; y no limpia lo
   que ya estuviera en la historia de una rama. Con git 2.50.1, un `cherry-pick` sin conflicto y un `rebase`
   no ejecutaron `pre-commit`, `pre-merge-commit` ni `commit-msg`: los commits que crean no pasan por las
   guardas, `check_docs`, `check.sh` ni el contrato de trailers del método. El replay del gate

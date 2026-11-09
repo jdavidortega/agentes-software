@@ -2304,7 +2304,7 @@ copia ramas pm8; rama_con_env "$D" rama
 espera pasa "límite: con --no-verify el merge con el .env entra (git salta los hooks)" "" -- en "$D" git -c core.hooksPath=.githooks merge -q --no-ff --no-edit --no-verify rama
 espera falla "... y el replay del gate lo rechaza" "guardas: .*\.env" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
 copia ramas pm9; rama_con_env "$D" ff-rama; N0=$(corridas "$D")
-espera pasa "límite: un fast-forward no crea commit y no ejecuta hooks (entra el .env de la rama)" "" -- sh -c "cd '$D' && git -c core.hooksPath=.githooks merge -q --ff-only ff-rama && [ \"\$(find .git/suite-runs -name '*.json' 2>/dev/null | wc -l)\" -eq $N0 ]"
+espera pasa "límite: un fast-forward no crea commit y no ejecuta los hooks del método (entra el .env de la rama)" "" -- sh -c "cd '$D' && git -c core.hooksPath=.githooks merge -q --ff-only ff-rama && [ \"\$(find .git/suite-runs -name '*.json' 2>/dev/null | wc -l)\" -eq $N0 ]"
 espera falla "... y el replay del gate lo rechaza" "guardas: .*\.env" -- en "$D" sh scripts/pruebas/validar_historial.sh HEAD~1..HEAD
 # Instalación: obligatorio, ejecutable en el árbol y en el índice, y del método (no código del producto).
 copia f3 pmx1; rm "$D/.githooks/pre-merge-commit"

@@ -13,7 +13,7 @@ su mensaje; `main(argv)` lee el archivo, imprime y devuelve el código de salida
 
 ## Plan de pruebas
 
-| Incremento | Criterio | End-to-end (qué flujo, con qué datos) | Otras por garantía (garantía · nivel · sabotaje previsto → observado) | Set de oro automatizado | Manual explícita (procedimiento · límite) |
+| Incremento | Criterio | Flujo por la entrada real (qué entrada, con qué datos) | Otras por garantía (garantía · nivel · sabotaje previsto → observado) | Set de oro automatizado | Manual explícita (procedimiento · límite) |
 |------------|----------|----------------------------------------|------------------------------------------------------------------------|-------------------------|-------------------------------------------|
 | I1 «resumen» | C1 | `main` sobre `contexto/gastos.csv` | orden con empate · unidad · invertir el desempate → rojo; código de salida del proceso · comando (`python3 resumen.py`), una vez para todos los criterios · quitar el bloque `__main__` → rojo | pares 1–3 | — |
 | I2 «importe-invalido» | C2 | `main` sobre `contexto/gastos-invalido.csv` | sin resumen parcial · unidad · imprimir antes de validar → rojo; código 1 del proceso · la misma prueba del comando · `main(sys.argv)` sin `sys.exit` → rojo | par 4 | — |

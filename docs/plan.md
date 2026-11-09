@@ -46,7 +46,7 @@ procedimiento y su límite). La DoD exige exactamente estas; una prueba que no p
 criterio o que repita otra sin evidencia adicional es exceso y el juez la señala.
 Selección y redundancia: .claude/skills/probando-con-datos-reales/SKILL.md regla 7 -->
 
-| Incremento | Criterio | End-to-end (qué flujo, con qué datos) | Otras por garantía (garantía · nivel · sabotaje previsto → observado) | Set de oro automatizado | Manual explícita (procedimiento · límite) |
+| Incremento | Criterio | Flujo por la entrada real (qué entrada, con qué datos) | Otras por garantía (garantía · nivel · sabotaje previsto → observado) | Set de oro automatizado | Manual explícita (procedimiento · límite) |
 |------------|----------|----------------------------------------|------------------------------------------------------------------------|-------------------------|-------------------------------------------|
 | I_ «…» | C_ | _…_ | _…_ · _unidad/contrato/integración_ · _…_ → _…_ | pares _…_ | pares _…_ |
 

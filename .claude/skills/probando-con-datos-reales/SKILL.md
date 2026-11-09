@@ -145,7 +145,7 @@ description: "Estrategia de pruebas del proyecto: el camino principal siempre en
 ## Pasos
 
 1. **Diseño:** escribe el **plan de pruebas** en `docs/plan.md` (por incremento: flujo
-   end-to-end por criterio, las demás pruebas por grupo con su garantía, nivel y sabotaje
+   por su entrada real, según la regla 2, las demás pruebas por grupo con su garantía, nivel y sabotaje
    previsto (regla 7), set de oro automatizable / manual con su procedimiento,
    cómo se graba/fixturea el servicio externo del camino principal, y la tabla o el contrato
    de la regla 9 cuando el comportamiento lo requiere).

@@ -1,5 +1,7 @@
 import contextlib
 import io
+import subprocess
+import sys
 import unittest
 
 import resumen
@@ -20,6 +22,17 @@ class C1Resumen(unittest.TestCase):
 
     def test_solo_cabecera(self):  # par 3
         self.assertEqual(resumen.resumir(io.StringIO(CAB)), ["Total: 0.00"])
+
+
+class Comando(unittest.TestCase):
+    # La frontera del comando (sys.argv y el código de salida del proceso), una vez para todos los criterios;
+    # las variantes siguen en main() y resumir().
+    def correr(self, ruta):
+        return subprocess.run([sys.executable, "resumen.py", ruta], capture_output=True, text=True, encoding="utf-8")
+
+    def test_codigo_de_salida_del_proceso(self):
+        valido = self.correr("contexto/gastos.csv")
+        self.assertEqual((valido.returncode, valido.stdout.splitlines()[-1:]), (0, ["Total: 20.25"]))
 
 
 if __name__ == "__main__":

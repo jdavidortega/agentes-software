@@ -221,14 +221,14 @@ Ref: F2
 EOF
 
 paso "F3 · I1, I2 e I3, cada uno con su recibo del juez de código (DoD; revision-critica)"
-cierra_incremento I1 C1 i1 "I1 «resumen»: resumir() y main() con la muestra real; pares 1–3." \
+cierra_incremento I1 C1 i1 "I1 «resumen»: resumir() y main() con la muestra real, y el comando como proceso (código 0); pares 1–3." \
   || falla "no pude cerrar I1"
 commit <<'EOF'
 I1 «resumen»: resumen por categoría y total
 
 Ref: I1
 EOF
-cierra_incremento I2 C2 i2 "I2 «importe-invalido»: error con número de fila y sin resumen parcial; par 4." \
+cierra_incremento I2 C2 i2 "I2 «importe-invalido»: error con número de fila y sin resumen parcial; el proceso sale con 1; par 4." \
   || falla "no pude cerrar I2"
 commit <<'EOF'
 I2 «importe-invalido»: fila con importe inválido

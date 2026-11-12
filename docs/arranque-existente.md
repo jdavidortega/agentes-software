@@ -110,6 +110,12 @@ Pasos A–C los corre la persona (o el agente a su pedido) **desde la plantilla*
 agente **dentro del proyecto**. Ninguno modifica la lógica del producto. Pedir al agente que corra los
 pasos no aprueba por sí solo la copia (C) ni las integraciones (D): esas siguen su propia autorización.
 
+**En dos órdenes.** `sh scripts/adoptar.sh revisar <ruta> [rama-de-integración]` hace A y B en una
+salida, sin escribir, y termina con el comando exacto de C, o con «No sigas» y qué resolver. `copiar`
+(C) comprueba al final que quedaron `AGENTS.md` y el manifiesto y dice qué pedir al agente. Sin C
+no hay método en el proyecto, y este guion no llega al agente: nada dentro del proyecto puede
+detectarlo. Por eso cada orden termina diciendo cuál es la siguiente.
+
 **A. Inspección previa** (solo lectura).
 `sh scripts/adoptar.sh inspeccionar <ruta-del-proyecto>` registra commit actual, cambios
 pendientes, `core.hooksPath`, hooks propios y qué existe ya (README, CLAUDE.md, AGENTS.md,

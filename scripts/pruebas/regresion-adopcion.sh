@@ -112,12 +112,22 @@ espera pasa "vista previa: CLAUDE.md marcado como autodescubrimiento" "autodescu
 espera pasa "vista previa: las herramientas de la plantilla se excluyen deliberadamente" "Excluido deliberadamente: .*scripts/adoptar\\.sh" -- adoptar "$P" vista-previa "$E"
 espera pasa "vista previa no escribe nada" "" -- sh -c "[ -z \"\$(git -C '$E' status --porcelain)\" ]"
 
+echo "== adoptar.sh: revisar (paso 1 de 2)"
+# Caso ms_amhs_server (2026-11-12): se corrieron inspeccionar y vista-previa y nunca copiar; el agente
+# arrancó sin método. revisar une los dos y termina SIEMPRE diciendo qué sigue.
+espera pasa "revisar: une inspección y vista previa en una salida" "Inspección de .*Bloqueos: 0.*Vista previa de adopción.*Excluido deliberadamente" -- sh -c "sh '$P/scripts/adoptar.sh' revisar '$E' | tr '\\n' ' '"
+espera pasa "revisar: termina con el comando exacto de la copia" "Nada se escribió\\. Siguiente, tras revisar lo de arriba: sh '$P/scripts/adoptar\\.sh' copiar '$E'\$" -- adoptar "$P" revisar "$E"
+espera pasa "revisar: pasa la rama de integración al inventario" "integración: +main$" -- adoptar "$P" revisar "$E" main
+espera pasa "revisar no escribe nada" "" -- sh -c "[ -z \"\$(git -C '$E' status --porcelain)\" ] && [ ! -e '$E/AGENTS.md' ]"
+
 echo "== adoptar.sh: git por separado y lo previo antes de la primera copia"
 mkdir -p "$W/sin-commits"; en "$W/sin-commits" git init -q; printf 'print(1)\n' > "$W/sin-commits/app.py"
 espera pasa "sin commits: inspeccionar sigue disponible y lo informa" "commit actual: +sin commits" -- adoptar "$P" inspeccionar "$W/sin-commits"
 espera pasa "sin commits: la vista previa sigue disponible y dice qué falta antes de copiar" "Antes de la primera copia.*: 2" -- adoptar "$P" vista-previa "$W/sin-commits"
 espera falla "sin commits: copiar se rechaza" "no se puede separar de la instalación" -- adoptar "$P" copiar "$W/sin-commits"
 espera pasa "sin commits: el rechazo no escribe nada" "" -- sh -c "[ \"\$(ls -A '$W/sin-commits' | tr '\n' ' ')\" = '.git app.py ' ]"
+espera falla "sin commits: revisar dice que no siga y qué resolver" "No sigas: resuelve primero lo de «Antes de la primera copia»" -- adoptar "$P" revisar "$W/sin-commits"
+espera pasa "sin commits: revisar no ofrece el comando de copia" "" -- sh -c "! sh '$P/scripts/adoptar.sh' revisar '$W/sin-commits' | grep -q ' copiar '"
 espera pasa "sin remoto: el trabajo local sigue" "remoto: +ninguno \(el trabajo local sigue" -- adoptar "$P" inspeccionar "$W/sin-commits"
 espera pasa "publicar se informa como decisión, no como dato" "publicar: +decisión de la persona" -- adoptar "$P" inspeccionar "$W/sin-commits"
 copia existente g1; printf 'cambio local\n' >> "$D/app.py"
@@ -166,6 +176,7 @@ espera pasa "ramas: el inventario no escribe en .git (sin fetch, sin configuraci
 echo "== adoptar.sh: copia"
 copia existente c1
 espera pasa "copiar: crea el manifiesto" "Manifiesto creado" -- adoptar "$P" copiar "$D"
+espera pasa "copiar (paso 2): la primera instalación dice qué pedir al agente" "== Instalado\\. Siguiente: abre el agente en .*«arranca sobre proyecto existente con docs/arranque-existente\\.md»" -- sh -c "cd '$W' && cp -R '$W/etapas/existente' c1b && sh '$P/scripts/adoptar.sh' copiar '$W/c1b'"
 espera pasa "copiar: README del proyecto idéntico byte a byte" "" -- cmp "$W/readme.orig" "$D/README.md"
 espera pasa "copiar: runbook propio idéntico byte a byte" "" -- cmp "$W/runbook.orig" "$D/docs/despliegue.md"
 espera pasa "copiar: adoptar.sh y su regresión no se distribuyen" "" -- sh -c "[ ! -e '$D/scripts/adoptar.sh' ] && [ ! -e '$D/scripts/pruebas/regresion-adopcion.sh' ]"
@@ -175,6 +186,8 @@ espera pasa "copiar: manifiesto registra hash por archivo y la colisión" "" -- 
 huella_arbol "$D" > "$W/h1"; cp "$D/contexto/adopcion.md" "$W/m1"
 espera pasa "repetir: todo instalado sin cambios" "Instalado sin cambios: [1-9]" -- adoptar "$P" copiar "$D"
 espera pasa "repetir: la colisión ya registrada no cuenta como diferencia" "Sin diferencias respecto de la instalación registrada" -- adoptar "$P" copiar "$D"
+espera pasa "repetir: no repite la indicación de arranque" "" -- sh -c "! sh '$P/scripts/adoptar.sh' copiar '$D' | grep -q 'Instalado\\. Siguiente'"
+espera pasa "revisar tras instalar: lo dice y ofrece solo añadir lo que falte" "ya está instalado: copiar solo añade lo que falte" -- adoptar "$P" revisar "$D"
 huella_arbol "$D" > "$W/h2"
 espera pasa "repetir: cero escrituras (árbol idéntico) y manifiesto idéntico" "" -- sh -c "cmp -s '$W/h1' '$W/h2' && cmp -s '$W/m1' '$D/contexto/adopcion.md'"
 espera pasa "repetir: nada se clasifica como idéntico sin registro" "sin instalación registrada: 0" -- adoptar "$P" vista-previa "$D"
@@ -246,6 +259,11 @@ copia existente c4; mkdir -p "$W/fuera"; mv "$D/docs" "$W/fuera/docs"; ln -s "$W
 espera falla "enlace simbólico en docs/: la inspección bloquea" "enlace simbólico" -- adoptar "$P" inspeccionar "$D"
 espera falla "enlace simbólico en docs/: copiar rehúsa" "bloqueo" -- adoptar "$P" copiar "$D"
 espera pasa "enlace simbólico en docs/: nada se escribió fuera del repositorio" "" -- sh -c "[ \"\$(ls '$W/fuera/docs')\" = despliegue.md ] && [ ! -e '$D/AGENTS.md' ]"
+espera falla "enlace simbólico en docs/: revisar dice que no siga" "No sigas: resuelve primero los bloqueos" -- adoptar "$P" revisar "$D"
+espera pasa "enlace simbólico en docs/: revisar no ofrece el comando de copia" "" -- sh -c "! sh '$P/scripts/adoptar.sh' revisar '$D' | grep -q ' copiar '"
+cp -R "$P" "$W/plantilla-sin-agents"; PSA="$W/plantilla-sin-agents"; en "$PSA" git rm -q AGENTS.md; sin_hooks "$PSA" "sin AGENTS.md" || die "plantilla sin AGENTS.md"
+copia existente c4b
+espera falla "copiar: si AGENTS.md no queda instalado, no se da por instalado" "la instalación no quedó completa: falta AGENTS\\.md" -- adoptar "$PSA" copiar "$D"
 copia existente c5; mkdir -p "$W/fuera2"; ln -s "$W/fuera2" "$D/contexto"; sin_hooks "$D" "contexto enlazado"
 espera falla "enlace simbólico en contexto/: bloquea también el manifiesto" "contexto/adopcion\.md" -- adoptar "$P" inspeccionar "$D"
 copia existente c6; printf 'scripts/\n' >> "$D/.gitignore"; sin_hooks "$D" "ignora scripts"

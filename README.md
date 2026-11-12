@@ -122,8 +122,13 @@ dice qué.
    artefactos): deja muestras reales de cada una, o el acceso para obtenerlas; si el
    insumo vive detrás de un servicio o una base de datos, el agente te pedirá
    **conexión/credenciales** para muestrear datos reales antes de suponer.
-4. Pídele al agente que ejecute `docs/arranque.md`. Ese guion **empieza ingiriendo
-   tus entradas**: inventaría lo que hay, te pregunta si está completo, te propone a
+4. **Arranca el agente.** Ábrelo en la carpeta del proyecto y escríbele:
+
+   ```text
+   arranca con docs/arranque.md
+   ```
+
+   Ese guion **empieza ingiriendo tus entradas**: inventaría lo que hay, te pregunta si está completo, te propone a
    dónde va cada cosa (gate) y arma un borrador de `docs/encuadre.md`. Recién después
    viene el encuadre, que es **revisar y completar** ese borrador —no llenarlo desde
    cero—, seguido del diseño y la validación. Hay un gate en cada actividad, **antes de
@@ -138,25 +143,54 @@ cualquier archivo con el mismo nombre. La copia la hace un script de la plantill
 1. **Prepara el proyecto.** Necesita al menos un commit con su estado actual y ningún cambio
    sin commitear: ese commit separa tu código de lo que trae el método (será la «Base del
    método»). Si el repositorio aún no tiene commits, revisa que no entre ningún secreto y haz
-   uno: `git add -A && git commit -m "Estado antes de adoptar el método"`. Después, si el
-   proyecto no tiene estrategia de ramas propia, una rama local para probar:
-   `git switch -c adopcion-metodo`; si la tiene, úsala (`docs/arranque-existente.md`, Paso 0).
+   uno, desde la carpeta del proyecto:
+
+   ```sh
+   cd /ruta/al/proyecto
+   git add -A && git commit -m "Estado antes de adoptar el método"
+   ```
+
+   Después, si el proyecto no tiene estrategia de ramas propia, crea una rama local para probar;
+   si la tiene, úsala (`docs/arranque-existente.md`, Paso 0):
+
+   ```sh
+   git switch -c adopcion-metodo
+   ```
+
    Nada se publica hasta que tú lo decidas; sin remoto, todo sigue en local.
-2. **Mira qué pasaría, sin escribir nada.** Desde la carpeta de la plantilla, con la ruta
+2. **Revisa qué pasaría, sin escribir nada.** Desde la carpeta de la plantilla, con la ruta
    de la **raíz** del proyecto:
 
    ```sh
    cd /ruta/a/agente-software
-   sh scripts/adoptar.sh inspeccionar /ruta/al/proyecto [rama-de-integración]   # estado, Git punto por punto, bloqueos e inventario de ramas
-   sh scripts/adoptar.sh vista-previa /ruta/al/proyecto   # qué se copia, qué choca, qué se excluye
+   sh scripts/adoptar.sh revisar /ruta/al/proyecto [rama-de-integración]
    ```
 
-3. **Copia**, tras revisar la vista previa. `sh scripts/adoptar.sh copiar /ruta/al/proyecto` escribe en el proyecto los
-   archivos del método que faltan y crea `contexto/adopcion.md`, la lista de lo instalado.
-   No hace commit: el commit de instalación lo hace el agente en el paso 4. La primera copia
-   se rechaza si el proyecto no tiene commits o tiene cambios sin commitear (paso 1).
-   Repetirla es seguro: si nada cambió, no escribe nada.
-4. **Pídele al agente, abierto en el proyecto: «arranca sobre proyecto existente».**
+   Muestra el estado y Git punto por punto, los bloqueos, el inventario de ramas, qué se copia,
+   qué choca y qué se excluye. La última línea dice qué sigue: el comando exacto de la copia, o
+   «No sigas» y qué resolver antes. (`inspeccionar` y `vista-previa` siguen existiendo por
+   separado; `revisar` las une.)
+3. **Copia, tras revisarlo.** Desde la carpeta de la plantilla, con la misma ruta (es el
+   comando que imprimió la última línea del paso 2):
+
+   ```sh
+   cd /ruta/a/agente-software
+   sh scripts/adoptar.sh copiar /ruta/al/proyecto
+   ```
+
+   Escribe en el proyecto los archivos del método que faltan y crea `contexto/adopcion.md`, la
+   lista de lo instalado. No hace commit: el commit de instalación lo hace el agente en el paso 4.
+   La primera copia se rechaza si el proyecto no tiene commits o tiene cambios sin commitear
+   (paso 1). Al terminar comprueba que quedaron `AGENTS.md` y el manifiesto, y dice qué pedirle
+   al agente. **Sin este paso no hay método:** el agente abre el proyecto sin `AGENTS.md` y la
+   frase del paso 4 no significa nada para él. Repetirla es seguro: si nada cambió, no escribe
+   nada.
+4. **Arranca el agente.** Ábrelo en la carpeta del proyecto y escríbele:
+
+   ```text
+   arranca sobre proyecto existente con docs/arranque-existente.md
+   ```
+
    Ejecuta `docs/arranque-existente.md`: te propone cómo integrar cada choque, el
    `.gitignore` (`adoptar.sh gitignore`) y los secretos versionados, registra el entorno,
    activa los hooks y hace el commit de instalación. Después entiende el sistema y protege

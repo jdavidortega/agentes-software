@@ -2,11 +2,14 @@
 # Instala el método en un proyecto que YA EXISTE sin tocar nada de lo que ya tiene.
 # Guion: docs/arranque-existente.md (Paso 0). Se corre DESDE LA PLANTILLA.
 #
+#   sh scripts/adoptar.sh revisar <destino> [rama]         PASO 1: inspeccionar + vista-previa en una salida; no escribe;
+#                                                          termina con el paso siguiente exacto, o con «No sigas» y qué resolver
+#   sh scripts/adoptar.sh copiar <destino> [motivo]        PASO 2: copia SOLO lo ausente; crea contexto/adopcion.md una vez;
+#                                                          tras la instalación, anota cada adición en el log de actualizaciones;
+#                                                          en la primera, comprueba lo instalado y dice qué pedir al agente
 #   sh scripts/adoptar.sh inspeccionar <destino> [rama]    solo lectura: estado del destino, bloqueos e inventario
 #                                                          de ramas contra la rama de integración declarada
 #   sh scripts/adoptar.sh vista-previa <destino>           qué copiaría, qué colisiona, qué se excluye; no escribe
-#   sh scripts/adoptar.sh copiar <destino> [motivo]        copia SOLO lo ausente; crea contexto/adopcion.md una vez;
-#                                                          tras la instalación, anota cada adición en el log de actualizaciones
 #   sh scripts/adoptar.sh gitignore <destino> [--aplicar]  entradas del método que faltan; con --aplicar las añade
 #   sh scripts/adoptar.sh actualizar <destino> "<motivo>"   sustituye SOLO lo instalado que el proyecto no tocó
 #                                                          y lo registra en contexto/adopcion-actualizaciones.md
@@ -41,9 +44,9 @@ EXCLUIDOS='README.md, .gitignore, mejoras/, scripts/adoptar.sh, scripts/pruebas/
 MANIFIESTO='contexto/adopcion.md'
 ACTUALIZACIONES='contexto/adopcion-actualizaciones.md'
 
-uso() { sed -n '2,11p' "$0" >&2; exit 2; }
+uso() { sed -n '2,14p' "$0" >&2; exit 2; }
 fallo() { echo "adoptar: $1" >&2; exit 1; }
-case "$MODO" in inspeccionar|vista-previa|copiar|gitignore|actualizar) ;; *) uso ;; esac
+case "$MODO" in revisar|inspeccionar|vista-previa|copiar|gitignore|actualizar) ;; *) uso ;; esac
 [ -n "$DESTINO_ARG" ] || uso
 [ -d "$DESTINO_ARG" ] || fallo "el destino no existe o no es un directorio: $DESTINO_ARG"
 DESTINO=$(cd "$DESTINO_ARG" && pwd -P)
@@ -290,6 +293,27 @@ vista_previa() {
   echo "-- Pendiente de integración a mano (Paso D):"; printf '%s\n' "$PENDIENTES" | sed 's/^/   /'
   antes_de_copiar
 }
+# Ruta entre comillas simples, lista para copiar y pegar en el paso siguiente.
+citada() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+# Paso 1: lo que la persona revisa antes de escribir nada. Termina SIEMPRE con una línea que dice qué
+# sigue: el comando exacto de la copia, o «No sigas» y qué resolver (rc 1).
+revisar() {
+  bloqueado=0; inspeccionar || bloqueado=1
+  echo
+  echo "== Vista previa de adopción (no escribe nada)"
+  informe
+  echo "-- Pendiente de integración a mano (Paso D):"; printf '%s\n' "$PENDIENTES" | sed 's/^/   /'
+  echo
+  repetir="sh $(citada "$PLANTILLA/scripts/adoptar.sh") revisar $(citada "$DESTINO")${BANDERA:+ $(citada "$BANDERA")}"
+  if [ "$bloqueado" -eq 1 ]; then
+    echo "== Nada se escribió. No sigas: resuelve primero los bloqueos (arriba, «Bloqueos») y repite: $repetir"; return 1
+  fi
+  if [ -n "$(lista "$PREVIAS")" ]; then
+    echo "== Nada se escribió. No sigas: resuelve primero lo de «Antes de la primera copia» (arriba) y repite: $repetir"; return 1
+  fi
+  [ ! -f "$DESTINO/$MANIFIESTO" ] || echo "-- El método ya está instalado: copiar solo añade lo que falte; lo que cambió en la plantilla va con «actualizar»."
+  echo "== Nada se escribió. Siguiente, tras revisar lo de arriba: sh $(citada "$PLANTILLA/scripts/adoptar.sh") copiar $(citada "$DESTINO")"
+}
 manifiesto() {
   echo "# Adopción del método — manifiesto de instalación"
   echo
@@ -371,6 +395,13 @@ copiar() {
     manifiesto > "$DESTINO/$MANIFIESTO"
     echo "-- Manifiesto creado: $MANIFIESTO"
   fi
+  # Primera instalación: sin AGENTS.md ni manifiesto, el agente no tiene método que seguir aunque se
+  # le pida «arranca sobre proyecto existente». Se comprueba aquí, no se supone.
+  [ "$instalado" -eq 0 ] || return 0
+  for f in AGENTS.md "$MANIFIESTO"; do
+    [ -f "$DESTINO/$f" ] || fallo "la instalación no quedó completa: falta $f en $DESTINO"
+  done
+  echo "== Instalado. Siguiente: abre el agente en $DESTINO y dile: «arranca sobre proyecto existente con docs/arranque-existente.md»"
 }
 
 gitignore_modo() {
@@ -436,6 +467,7 @@ actualizar() {
 }
 
 case "$MODO" in
+  revisar) revisar ;;
   actualizar) actualizar ;;
   inspeccionar) inspeccionar ;;
   vista-previa) vista_previa ;;
